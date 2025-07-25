@@ -5,18 +5,21 @@
   <title>沧海一粟</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- 引入 Docsify 核心样式 -->
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
 </head>
 <body>
   <!-- 文档容器，id 固定为 'app' -->
   <div id="app"></div>
 
   <!-- 引入 Docsify 脚本 -->
-  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
   
   <!-- 可选：配置参数（按需添加） -->
   <script>
     window.$docsify = {
+      root: '/docs/',
+      //coverpage: '_coverpage.md',  // 相对于 root 的路径（去掉 /docs/ 前缀）
+      //sidebar: '_sidebar.md',      // 相对于 root 的路径（去掉 /docs/ 前缀）
       name: '沧海一粟',       // 站点名称
       repo: 'your-github-repo', // GitHub 仓库地址（自动生成侧边栏和编辑链接）
       title: '沧海一粟',      // 浏览器标签页标题
