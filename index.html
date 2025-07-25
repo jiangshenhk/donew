@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>沧海一粟</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 引入 Docsify 核心样式 -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+</head>
+<body>
+  <!-- 文档容器，id 固定为 'app' -->
+  <div id="app"></div>
+
+  <!-- 引入 Docsify 脚本 -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  
+  <!-- 可选：配置参数（按需添加） -->
+  <script>
+    window.$docsify = {
+      name: '沧海一粟',       // 站点名称
+      repo: 'your-github-repo', // GitHub 仓库地址（自动生成侧边栏和编辑链接）
+      title: '沧海一粟',      // 浏览器标签页标题
+      themeColor: '#2c3e50',  // 主题色
+      loadSidebar: true,      // 启用侧边栏（需配合 _sidebar.md）
+      subMaxLevel: 2,         // 侧边栏最大层级（h2-h3）
+      coverpage:true,
+      plugins: [
+        // 可选插件（如搜索、代码高亮等）
+        function (plugin, vm) {
+          // 自定义插件逻辑
+        }
+      ]
+    }
+  </script>
+</body>
+</html>
