@@ -1,0 +1,195 @@
+<!-- index.html（入口文件） -->
+<!DOCTYPE html>
+<html>
+<head>
+
+	<style>
+
+		/* 侧边栏顶部导航容器 */
+	    .sidebar-header {
+	      padding: 16px 20px;  /* 内边距 */
+	      border-bottom: 1px solid #eaeaea;  /* 底部分割线 */
+	      background: #ffffff;  /* 背景色（与侧边栏一致） */
+	    }
+	
+	    /* 首页链接样式 */
+	    .home-link {
+	      display: flex;  /* 允许图标+文字水平排列 */
+	      align-items: center;  /* 垂直居中对齐 */
+	      color: #333;  /* 文字颜色 */
+	      font-size: 16px;  /* 字体大小 */
+	      font-weight: 500;  /* 字重（加粗） */
+	      text-decoration: none;  /* 去除下划线 */
+	      transition: all 0.2s;  /* 悬停动画 */
+	    }
+	
+	    /* 链接悬停/激活状态 */
+	    .home-link:hover,
+	    .home-link.active {
+	      color: #2c7be5;  /* 主色调（与侧边栏菜单一致） */
+	      background: #f5f7fa;  /* 悬停背景色 */
+	    }
+	
+	    /* 图标样式（与文字间距） */
+	    .home-link i {
+	      margin-right: 12px;  /* 图标与文字间距 */
+	      font-size: 18px;  /* 图标大小 */
+	    }
+
+		
+	    /* ------------------------------
+	       侧边栏整体样式
+	    ------------------------------ */
+	    .sidebar {
+	      background: #ffffff;          /* 背景色（可改为 #f8f9fa 浅灰） */
+	      border-right: 1px solid #eaeaea; /* 右侧边框 */
+	      box-shadow: 0 0 15px rgba(0,0,0,0.05); /* 轻微阴影 */
+	      width: 280px !important;      /* 侧边栏宽度（默认 240px） */
+	      font-family: 'Segoe UI', sans-serif; /* 字体 */
+	    }
+	
+	    /* ------------------------------
+	       一级菜单样式
+	    ------------------------------ */
+	    .sidebar .sidebar-nav > li > a {
+	      color: #333;                  /* 一级标题颜色 */
+	      font-size: 16px;              /* 字体大小 */
+	      font-weight: 500;             /* 字重 */
+	      padding: 12px 20px;           /* 内边距（上下 12px，左右 20px） */
+	      transition: all 0.2s;         /* 悬停动画 */
+	    }
+	
+	    /* 一级菜单悬停/激活状态 */
+	    .sidebar .sidebar-nav > li > a:hover,
+	    .sidebar .sidebar-nav > li > a.active {
+	      background: #f5f7fa;          /* 悬停背景色 */
+	      color: #2c7be5;               /* 激活/悬停颜色（主色调） */
+	      border-left: 4px solid #2c7be5; /* 左侧高亮条 */
+	    }
+	
+	    /* ------------------------------
+	       多级子菜单样式
+	    ------------------------------ */
+	    .sidebar .sub-menu {
+	      background: #f9fafb;          /* 子菜单背景色（略浅于主背景） */
+	      padding-left: 20px;           /* 子菜单缩进（一级菜单右侧缩进） */
+	      margin: 4px 0;                /* 子菜单上下边距 */
+	    }
+	
+	    .sidebar .sub-menu li a {
+	      color: #666;                  /* 子菜单颜色（较浅） */
+	      font-size: 14px;              /* 字体更小 */
+	      padding: 8px 15px;            /* 内边距更紧凑 */
+	      display: block;               /* 确保点击区域覆盖 */
+	    }
+	
+	    /* 子菜单悬停/激活状态 */
+	    .sidebar .sub-menu li a:hover,
+	    .sidebar .sub-menu li a.active {
+	      color: #2c7be5;               /* 激活颜色 */
+	      background: #edf2ff;          /* 悬停背景色 */
+	    }
+	
+	    /* ------------------------------
+	       图标样式（与文字对齐）
+	    ------------------------------ */
+	    .sidebar .sidebar-nav a i {
+	      width: 24px;                  /* 图标固定宽度（与文字对齐） */
+	      margin-right: 12px;           /* 图标与文字间距 */
+	      text-align: center;           /* 图标居中 */
+	      opacity: 0.8;                 /* 图标透明度（略淡） */
+	    }
+	
+	    .sidebar .sidebar-nav a i.fa-folder { /* 文件夹图标特殊处理 */
+	      color: #ffc107;               /* 黄色文件夹 */
+	    }
+	
+	    .sidebar .sidebar-nav a i.fa-file { /* 文件图标特殊处理 */
+	      color: #2c7be5;               /* 蓝色文件 */
+	    }
+
+		/* CSS 添加折叠交互 */
+		.sidebar .menu-toggle {
+		  cursor: pointer;
+		  display: block;
+		}
+		
+		.sidebar .sub-menu {
+		  display: none; /* 默认折叠 */
+		}
+		
+		.sidebar .sub-menu:target {
+		  display: block; /* 点击锚点后展开 */
+		}
+		
+		.sidebar .fa-caret-right {
+		  transition: transform 0.2s;
+		}
+		
+		.sidebar .sub-menu:target + .fa-caret-right {
+		  transform: rotate(90deg); /* 展开时箭头旋转 */
+		}
+
+	    /* ------------------------------
+	       移动端适配（可选）
+	    ------------------------------ */
+	    @media (max-width: 768px) {
+	      .sidebar {
+	        width: 220px !important;    /* 移动端侧边栏收窄 */
+	      }
+	      .sidebar .sidebar-nav > li > a {
+	        padding: 10px 15px;         /* 内边距缩小 */
+	        font-size: 15px;
+	      }
+	    }
+	</style>
+		
+		
+	  <meta charset="UTF-8">
+	  <title>沧海一粟（2025年07月29日15:04:17）</title>
+	  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	  <!-- 引入 Docsify 核心样式（默认主题） -->
+	  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
+	  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+	
+	</head>
+
+
+	
+	<body>
+
+	  <!-- 文档容器（固定 ID：app） -->
+	  <div id="app"></div>
+	
+	  <!-- 引入 Docsify 核心脚本 -->
+	  <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+	
+	  <!-- 引入搜索插件 -->
+	  <script src="https://cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+	
+	  <!-- 初始化配置（可选） -->
+	  <script>
+	    window.$docsify = {
+	      name: '沧海一粟',       // 站点名称（顶部导航栏显示）
+	      root: '/docs/',       // 把文档都放在哪里（顶部导航栏显示）
+	      repo: 'jiangshenhk/donew', // GitHub 仓库（自动生成「编辑此页」链接）
+	      title: '学习海外理财知识',      // 浏览器标签页标题
+	      themeColor: '#2c3e50',  // 主题色（导航栏/侧边栏颜色）
+	      loadSidebar: true,      // 启用侧边栏（需配合 _sidebar.md）
+	      subMaxLevel: 2,         // 侧边栏最大层级（h2-h3 标题）
+	      coverpage: true, // 启用封面
+	      sidebar: {
+		      // 仅自动匹配一级目录（如 港股、美股、保险）
+		      '/': ['港股', '美债', 'ETF', '银行卡'], 
+		      
+		      // 自动匹配一级目录下的子文件（如 港股/a、港股/b）
+		      '/港股/': ['**/*.md'], 
+		      '/美债/': ['**/*.md'], 
+		      '/ETF/': ['**/*.md'], 
+		      '/银行卡/': ['**/*.md']
+		    },
+	    }
+	  </script>
+	
+</body>
+</html>
