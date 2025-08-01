@@ -90,7 +90,5 @@
   <a href="#/docs/其他/联系.md" class="cover-btn btn-sub">其他</a>
 </div>
 
-[港美股](/docs/港股/b.md)  
-[美债](/docs/美债/美债投资指南.md)  
 
 
