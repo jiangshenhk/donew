@@ -101,10 +101,21 @@
     ------------------------------ */
     .sidebar .sidebar-nav a i.fa-folder { color: #ffc107; }
     .sidebar .sidebar-nav a i.fa-file { color: #2c7be5; }
+    
+    
+    <! -- 主页的效果
+      
+    
+    
 </style>
 
 </head>
 <body>
+
+ <!-- daohang -->
+  <nav> <i class="fas fa-info-circle"></i><a href="#/docs/美股/b">联系我们</a>
+  </nav>
+
     <!-- 文档容器 -->
     <div id="app"></div>
 
@@ -112,7 +123,7 @@
     <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
 
     <!-- 引入搜索插件 -->
-    <script src="https://cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
 
     <!-- 初始化配置 -->
     <script>
@@ -124,8 +135,18 @@
             themeColor: '#2c3e50',
             loadSidebar: true,  // 启用侧边栏
             coverpage: true, // 启用封面
+            loadNavbar: true,
             //subMaxLevel: 2      // 支持三级菜单
+            //logo: 'yikecaiwan-logo.jpg',  //logo
+            name: '<span><H1>沧海一粟</H1></span>',  //标题
+            search: 'auto', // 默认值
+            search: {
+			      maxAge: 86400000, // 过期时间，单位毫秒，默认一天
+			      paths: [], // or 'auto'
+			      placeholder: 'Type to search'
+			      	}
         };
+		
 
         // 侧边栏折叠交互逻辑
         document.addEventListener('DOMContentLoaded', function() {
@@ -146,5 +167,9 @@
             });
         });
     </script>
+    
+
+
+    
 </body>
 </html>
