@@ -80,12 +80,17 @@
 <!-- 3列网格布局的按钮组 -->
 <div class="btn-grid">
   <!-- 第一行 - 3个按钮 -->
-  <a href="/#/docs/港股/b.md" class="cover-btn btn-main">开始</a>
-  <a href="/#/docs/美债/美债投资指南.md" class="cover-btn btn-sub">美债</a>
-  <a href="/#/docs/港股/b.md" class="cover-btn btn-sub">港美股</a>
+  <a href="#/docs/港股/b.md" class="cover-btn btn-main">开始</a>
+  <a href="#/docs/港股/盈立证券(香港)开户教程(2025).md" class="cover-btn btn-sub">港美股</a>
+  <a href="#/docs/美债/美债投资指南.md" class="cover-btn btn-sub">美债</a>
   
   <!-- 第二行 - 3个按钮 -->
-  <a href="/#/docs/美债/美债投资指南.md" class="cover-btn btn-sub">美债</a>
-  <a href="/#/docs/ETF/美国国债ETF.md" class="cover-btn btn-sub">ETF</a>
-  <a href="/#/docs/银行卡/香港银行账户介绍.md" class="cover-btn btn-sub">银行卡</a>
+  <a href="#/docs/ETF/美国国债ETF.md" class="cover-btn btn-sub">ETF</a>
+  <a href="#/docs/银行卡/香港银行账户介绍.md" class="cover-btn btn-sub">银行卡</a>
+  <a href="#/docs/其他/联系.md" class="cover-btn btn-sub">其他</a>
 </div>
+
+[港美股](/docs/港股/b.md)  
+[美债](/docs/美债/美债投资指南.md)  
+
+
