@@ -40,9 +40,10 @@
     padding: 0.8rem 1.2rem;
   }
 }
+
 </style>
-<a href="/donew/#/" class="sidebar-link"><span class="sidebar-title"> 十方斋</span></a>
-<img src="/icon.jpg" alt="十方斋图标" class="sidebar-icon"> 
+<a href="#/" class="sidebar-link"><span class="sidebar-title"> 十方斋</span></a>
+<img src="icon.jpg" alt="十方斋图标" class="sidebar-icon"> 
 
 ---
 
