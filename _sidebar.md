@@ -41,7 +41,7 @@
   }
 }
 </style>
-<a href="/" class="sidebar-link"><span class="sidebar-title"> 十方斋</span></a>
+<a href="/donew/#/" class="sidebar-link"><span class="sidebar-title"> 十方斋</span></a>
 <img src="/icon.jpg" alt="十方斋图标" class="sidebar-icon"> 
 
 ---
