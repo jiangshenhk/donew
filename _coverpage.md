@@ -134,7 +134,7 @@
   letter-spacing: 0.1em;
   text-align: center;
   white-space: nowrap;
-">十方斋 |全球化复利投资</div>
+">十方斋|复利投资</div>
 
 ![封面图](/topnew2.jpg)
 
