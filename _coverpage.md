@@ -134,28 +134,28 @@
   letter-spacing: 0.1em;
   text-align: center;
   white-space: nowrap;
-">十方斋 |复利</div>
+">十方斋 |全球化复利投资</div>
 
 ![封面图](/topnew2.jpg)
 
 ***
-<span class="sub-quote">25岁起每月定投2000元（年化9%），67年积累≈800万</span>
 
-<span class="sub-quote">复利是反人性的胜利</span>
+<span class="sub-quote">复利，不只是买入后的等待，更是规则、节奏与纪律的累积。</span>
 
+<span class="sub-quote">从定投到底仓配置，从 Sell Put 到市场结构判断，持续记录长期复利的方法与纪律。</span>
 
 
 <!-- 3列网格布局的按钮组 -->
 <div class="btn-grid">
   <!-- 第一行 - 3个按钮 -->
-  <a href="#/docs/复利/神奇的复利效应.md" class="cover-btn btn-main">开始</a>
-  <a href="#/docs/港股/b.md" class="cover-btn btn-sub">港美股</a>
-  <a href="#/docs/美债/美债投资指南.md" class="cover-btn btn-sub">美债</a>
+  <a href="#/docs/复利/神奇的复利效应.md" class="cover-btn btn-main">开始这里</a>
+  <a href="#/docs/定投/a.md" class="cover-btn btn-sub">长期定投策略</a>
+  <a href="#/docs/ETF/a.md" class="cover-btn btn-sub">ETF资产</a>
   
   <!-- 第二行 - 3个按钮 -->
-  <a href="#/docs/ETF/美国国债ETF.md" class="cover-btn btn-sub">ETF</a>
-  <a href="#/docs/银行卡/香港银行账户介绍.md" class="cover-btn btn-sub">银行卡</a>
-  <a href="#/docs/其他/联系.md" class="cover-btn btn-sub">其他</a>
+  <a href="#/docs/期权/a.md" class="cover-btn btn-sub">SellPut策略</a>
+  <a href="#/docs/市场结构日报/a.md" class="cover-btn btn-sub">市场结构日报</a>
+  <a href="#/docs/券商工具/a.md" class="cover-btn btn-sub">券商与工具</a>
 </div>
 
 
