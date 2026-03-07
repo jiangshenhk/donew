@@ -48,12 +48,14 @@
 ---
 
 - <b><font color="blue"><i class="fas fa-business-time"></i> 复利</font></b> 
-  - [什么是复利](/docs/复利/神奇的复利效应.md) 
+  - [什么是复利](/docs/复利/神奇的复利效应.md)
+  - [什么是Sell Put](/docs/复利/SellPut.md) 
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 港美股</font></b> 
   - <i class="fas fa-folder"></i> 投资规则  
     - [美债投资指南](/docs/美债/美债投资指南.md)
     - [美股交易规则](/docs/港股/美股交易规则.md)
+    - [美股交易规则](/docs/其他/美股期权.md)
   - <i class="fas fa-folder"></i> 盈立证券  
     - [港美股券商介绍](/docs/港股/b.md)  
     - [盈立证券开户教程](/docs/港股/盈立证券(香港)开户教程(2025).md)  
@@ -77,8 +79,6 @@
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 银行卡</font></b>  
   - [香港银行账户介绍](/docs/银行卡/香港银行账户介绍.md)  
-  - [中国银行](/docs/银行卡/a.md)  
-  - [汇丰银行](/docs/银行卡/b.md)  
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 其他</font></b>  
   - [联系](/docs/其他/联系.md)
