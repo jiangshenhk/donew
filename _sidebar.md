@@ -47,20 +47,28 @@
 
 ---
 
-- <b><font color="blue"><i class="fas fa-business-time"></i> 复利</font></b> 
-  - [什么是复利](/docs/复利/神奇的复利效应.md)
-  - [什么是Sell Put](/docs/复利/SellPut.md) 
+- <b><font color="blue"><i class="fas fa-business-time"></i> 开始这里</font></b>
+  - [我在记录什么](/docs/开始/我在记录什么.md)
+  - [什么是复利](/docs/开始/神奇的复利效应.md)
+  - [为什么我把定投和SellPut放在一起](/docs/开始/为什么我把定投和SellPut放在一起.md)
+  - [新手阅读顺序](/docs/开始/新手阅读顺序.md) 
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 港美股</font></b> 
-  - <i class="fas fa-folder"></i> 投资规则  
-    - [美债投资指南](/docs/美债/美债投资指南.md)
-    - [美股交易规则](/docs/港股/美股交易规则.md)
-    - [美股交易规则](/docs/其他/美股期权.md)
-  - <i class="fas fa-folder"></i> 盈立证券  
-    - [港美股券商介绍](/docs/港股/b.md)  
-    - [盈立证券开户教程](/docs/港股/盈立证券(香港)开户教程(2025).md)  
-    
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 宏观分析和周报</font></b> 
+- <b><font color="blue"><i class="fas fa-chart-line"></i> 长期复利框架</font></b> 
+  - [定投的底层逻辑](/docs/复利/定投的底层逻辑.md)
+  - [为什么长期持有能产生复利](/docs/复利/为什么长期持有能产生复利.md)
+  - [ETF定投方法](/docs/复利/ETF定投方法.md)
+  - [资产配置与再平衡](/docs/复利/资产配置与再平衡.md)
+
+- <b><font color="blue"><i class="fas fa-chart-line"></i>Sell Put策略</font></b> 
+  - [什么是 Sell Put](/docs/SellPut/什么是SellPut.md)
+  - [Sell Put 为什么能服务长期复利](/docs/SellPut/SellPut为什么能服务长期复利.md)
+  - [行权价怎么选](/docs/SellPut/行权价怎么选.md)
+  - [安全垫怎么计算](/docs/SellPut/安全垫怎么计算.md)
+  - [年化收益怎么判断](/docs/SellPut/年化收益怎么判断.md)
+  - [什么情况下提前买回](/docs/SellPut/什么情况下提前买回.md)
+  - [Sell Put 风险与边界](/docs/SellPut/SellPut风险与边界.md)
+ 
+- <b><font color="blue"><i class="fas fa-chart-line"></i>市场结构观察</font></b> 
   - [周六盘后市场结构日报](/docs/其他/2026-03-07周市场结构日报.md)
   - [周一盘前市场结构情况](/docs/其他/2026-03-09市场结构日报.md)
   - [周二盘前市场结构情况](/docs/其他/2026-03-10市场结构日报.md)
@@ -70,15 +78,21 @@
   - [周六盘后市场结构情况](/docs/其他/2026-03-14周市场结构日报.md)
   - <i class="fas fa-folder"></i> 历史  
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> ETF</font></b>  
-  - [美国国债ETF](/docs/ETF/美国国债ETF.md)  
-  - [杠杆及反向ETF](/docs/ETF/杠杆及反向ETF.md)  
-  - [加密货币ETF](/docs/ETF/加密货币ETF.md)  
-  - [恒生科技指数介绍](/docs/恒生科技指数介绍.md)  
-  - [VIX指数、期货、期权、ETF](/docs/ETF/VIX指数、期货、期权、ETF.md)  
+- <b><font color="blue"><i class="fas fa-chart-line"></i> 资产与市场</font></b> 
+  - [港美股基础](/docs/资产与市场/港美股基础.md)
+  - [ETF](/docs/资产与市场/ETF.md)
+  - [美债投资指南](/docs/资产与市场/美债投资指南.md)
+  - [黄金与避险资产](/docs/资产与市场/黄金与避险资产.md)
+  - [比特币与高波动资产](/docs/资产与市场/比特币与高波动资产.md)
+  - [纳指/标普/恒科](/docs/资产与市场/纳指标普恒科.md)
+    
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 银行卡</font></b>  
-  - [香港银行账户介绍](/docs/银行卡/香港银行账户介绍.md)  
+
+- <b><font color="blue"><i class="fas fa-chart-line"></i> 券商与工具</font></b>  
+  - [港美股券商介绍](/docs/券商与工具/港美股券商介绍.md)  
+  - [券商开户教程](/docs/银行卡/券商开户教程.md)  
+  - [香港银行账户介绍](/docs/银行卡/香港银行账户介绍.md)
+  - [入金与出金说明](/docs/银行卡/入金与出金说明.md)
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 其他</font></b>  
   - [联系](/docs/其他/联系.md)
