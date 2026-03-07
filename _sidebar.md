@@ -90,9 +90,9 @@
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 券商与工具</font></b>  
   - [港美股券商介绍](/docs/券商与工具/港美股券商介绍.md)  
-  - [券商开户教程](/docs/银行卡/券商开户教程.md)  
-  - [香港银行账户介绍](/docs/银行卡/香港银行账户介绍.md)
-  - [入金与出金说明](/docs/银行卡/入金与出金说明.md)
+  - [券商开户教程](/docs/券商与工具/券商开户教程.md)  
+  - [香港银行账户介绍](/docs/券商与工具/香港银行账户介绍.md)
+  - [入金与出金说明](/docs/券商与工具/入金与出金说明.md)
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 其他</font></b>  
   - [联系](/docs/其他/联系.md)
