@@ -62,11 +62,12 @@
 - <b><font color="blue"><i class="fas fa-chart-line"></i>Sell Put策略</font></b> 
   - [什么是 Sell Put](/docs/SellPut/什么是SellPut.md)
   - [Sell Put 为什么能服务长期复利](/docs/SellPut/SellPut为什么能服务长期复利.md)
-  - [行权价怎么选](/docs/SellPut/行权价怎么选.md)
-  - [安全垫怎么计算](/docs/SellPut/安全垫怎么计算.md)
-  - [年化收益怎么判断](/docs/SellPut/年化收益怎么判断.md)
-  - [什么情况下提前买回](/docs/SellPut/什么情况下提前买回.md)
-  - [Sell Put 风险与边界](/docs/SellPut/SellPut风险与边界.md)
+  - [如何Sell Put?](/docs/SellPut/如何SellPut.md)
+  <!-- - [行权价怎么选](/docs/SellPut/行权价怎么选.md) -->
+  <!-- - [安全垫怎么计算](/docs/SellPut/安全垫怎么计算.md) -->
+  <!-- - [年化收益怎么判断](/docs/SellPut/年化收益怎么判断.md) -->
+  <!-- - [什么情况下提前买回](/docs/SellPut/什么情况下提前买回.md) -->
+  <!-- - [Sell Put 风险与边界](/docs/SellPut/SellPut风险与边界.md) -->
  
 - <b><font color="blue"><i class="fas fa-chart-line"></i>市场结构观察</font></b> 
   - [每日市场判断怎么看](/docs/市场/每日市场判断怎么看.md)
