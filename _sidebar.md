@@ -60,6 +60,7 @@
   - [资产配置与再平衡](/docs/复利/资产配置与再平衡.md)
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i>Sell Put策略</font></b> 
+  - [投资大师竟然是这么“买”股票的！](/docs/SellPut/学习大师如何买股票.md)
   - [什么是 Sell Put](/docs/SellPut/什么是SellPut.md)
   - [Sell Put 为什么能服务长期复利](/docs/SellPut/SellPut为什么能服务长期复利.md)
   - [如何Sell Put?](/docs/SellPut/如何SellPut.md)
