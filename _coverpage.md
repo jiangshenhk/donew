@@ -151,11 +151,11 @@
   <!-- 第一行 - 3个按钮 -->
   <a href="#/docs/开始/我在记录什么.md" class="cover-btn btn-main">开始这里</a>
   <a href="#/docs/复利/定投的底层逻辑.md" class="cover-btn btn-sub">长期定投策略</a>
-  <a href="#/docs/ETF/a.md" class="cover-btn btn-sub">ETF资产</a>
-  
-  <!-- 第二行 - 3个按钮 -->
   <a href="#/docs/SellPut/SellPut为什么能服务长期复利.md" class="cover-btn btn-sub">SellPut策略</a>
   <a href="#/docs/市场/每日市场判断怎么看.md" class="cover-btn btn-sub">市场结构日报</a>
+  
+  <!-- 第二行 - 3个按钮 -->
+  <a href="#/docs/ETF/a.md" class="cover-btn btn-sub">ETF资产</a>
   <a href="#/docs/资产与市场/港美股基础.md" class="cover-btn btn-sub">券商与工具</a>
 </div>
 
