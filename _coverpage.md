@@ -129,7 +129,7 @@
   color: transparent;
   display: inline-block;
   font-family: 'Helvetica Neue', sans-serif;
-  font-size: 5rem;
+  font-size: 4rem;
   font-weight: bold;
   letter-spacing: 0.1em;
   text-align: center;
