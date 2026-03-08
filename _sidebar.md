@@ -69,6 +69,7 @@
   - [Sell Put 风险与边界](/docs/SellPut/SellPut风险与边界.md)
  
 - <b><font color="blue"><i class="fas fa-chart-line"></i>市场结构观察</font></b> 
+  - [每日市场判断怎么看](/docs/市场/每日市场判断怎么看.md)
   - [周六盘后市场结构日报](/docs/市场/2026-03-07周市场结构日报.md)
   - [周一盘前市场结构情况](/docs/市场/2026-03-09市场结构日报.md)
   - [周二盘前市场结构情况](/docs/市场/2026-03-10市场结构日报.md)
