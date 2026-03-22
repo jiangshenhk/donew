@@ -57,11 +57,9 @@
   - [定投的底层逻辑](/docs/复利/定投的底层逻辑.md)
   - [为什么长期持有能产生复利](/docs/复利/为什么长期持有能产生复利.md)
   - [ETF定投方法](/docs/复利/ETF定投方法.md)
-  - [资产配置与再平衡](/docs/复利/资产配置与再平衡.md)
-
+  
 - <b><font color="blue"><i class="fas fa-chart-line"></i>Sell Put策略</font></b> 
   - [投资大师竟然是这么“买”股票的！](/docs/SellPut/学习大师如何买股票.md)
-  - [什么是 Sell Put](/docs/SellPut/什么是SellPut.md)
   - [如何Sell Put?](/docs/SellPut/如何SellPut.md)
   - [SellPut和定投结合](/docs/SellPut/SellPut和定投结合.md)
   <!-- - [行权价怎么选](/docs/SellPut/行权价怎么选.md) -->
