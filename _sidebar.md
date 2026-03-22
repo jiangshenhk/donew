@@ -46,7 +46,7 @@
   transition: all 0.3s ease;
 }
 
-/* 导航菜单样式优化 */
+/* 导航菜单样式优化 - 悬停变为蓝色 */
 .app-nav a, 
 .sidebar-nav li a {
   transition: all 0.2s ease;
@@ -54,10 +54,10 @@
 
 .sidebar-nav li a:hover {
   transform: translateX(4px);
-  color: #e6007e !important;
+  color: #4a46e5 !important;  /* 改为蓝色 */
 }
 
-/* 一级菜单项样式 - 增加左侧装饰条 */
+/* 一级菜单项样式 - 悬停左侧装饰条变为蓝色 */
 .sidebar-nav > ul > li {
   position: relative;
 }
@@ -68,7 +68,7 @@
 }
 
 .sidebar-nav > ul > li:hover > p {
-  border-left-color: #e6007e;
+  border-left-color: #4a46e5;  /* 改为蓝色 */
 }
 
 /* 二级菜单项缩进优化 */
@@ -95,12 +95,12 @@
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #4a46e5, #e6007e);
+  background: linear-gradient(to bottom, #4a46e5, #7b68ee);
   border-radius: 4px;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #e6007e, #4a46e5);
+  background: linear-gradient(to bottom, #7b68ee, #4a46e5);
 }
 
 /* 移动端适配 */
