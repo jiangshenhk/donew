@@ -72,8 +72,8 @@
  
 - <b><font color="blue"><i class="fas fa-chart-line"></i>市场结构观察</font></b> 
   - [每日市场判断怎么看](/docs/市场/每日市场判断怎么看.md)
-  - [今天市场情况](/docs/市场/今日.md)
-  - [历史市场情况](/docs/市场/历史.md)
+  - [📊 今日市场](/docs/市场/今日.md)
+  - [📚 历史归档](/docs/市场/历史.md)
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 资产与市场</font></b> 
   - [港美股基础](/docs/资产与市场/港美股基础.md)
