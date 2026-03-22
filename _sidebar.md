@@ -1,47 +1,126 @@
 <!-- docs/_sidebar.md -->
 
-
 <style>
-
-.sidebar-title {     /* 标题渐变色 */
-  font-size: 38px; /* 根据需求调整字体大小 */
-  font-weight: bold; /* 加粗字体，增强视觉效果 */
+/* 标题渐变色 - 增强视觉效果 */
+.sidebar-title {
+  font-size: 38px;
+  font-weight: bold;
   background-image: linear-gradient(
     to right,
-    #4a46e5, /* 左侧起始颜色（蓝紫色） */
-    #7b68ee, /* 中间过渡颜色（淡紫色） */
-    #e6007e /* 右侧结束颜色（红色） */
+    #4a46e5,
+    #7b68ee,
+    #e6007e
   );
-  -webkit-background-clip: text; /* 兼容 WebKit 内核浏览器 */
-  background-clip: text; /* 文字裁剪为背景渐变形状 */
-   -webkit-text-fill-color: transparent; /* 文字颜色透明，显示背景渐变 */
-  letter-spacing: 1px; /* 可选：增加字母间距 */
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
 }
 
-/* 图片样式 */
+.sidebar-title:hover {
+  letter-spacing: 2px;
+}
+
+/* 图片样式 - 增加过渡效果 */
 .sidebar-icon {
-  width: 100px; /* 图片宽度 */
-  height: 20px; /* 图片高度 */
-  object-fit: contain; /* 保持图片比例 */
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1)); /* 可选：添加阴影 */
-}
-/* 链接容器（完全覆盖标题区域，去除默认样式） */
-.sidebar-link {
-  display: flex; /* 继承原有flex布局 */
-  flex-direction: column;
-  align-items: center; /* 保持内部元素居中 */
-  text-decoration: none; /* 去除链接下划线 */
-  width: 100%; /* 占满侧边栏宽度（可选，根据布局需求） */
+  width: 100px;
+  height: 20px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  transition: transform 0.3s ease, filter 0.3s ease;
 }
 
+.sidebar-icon:hover {
+  transform: scale(1.05);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+}
+
+/* 链接容器 */
+.sidebar-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+/* 导航菜单样式优化 */
+.app-nav a, 
+.sidebar-nav li a {
+  transition: all 0.2s ease;
+}
+
+.sidebar-nav li a:hover {
+  transform: translateX(4px);
+  color: #e6007e !important;
+}
+
+/* 一级菜单项样式 - 增加左侧装饰条 */
+.sidebar-nav > ul > li {
+  position: relative;
+}
+
+.sidebar-nav > ul > li > p {
+  border-left: 3px solid transparent;
+  transition: border-color 0.3s ease;
+}
+
+.sidebar-nav > ul > li:hover > p {
+  border-left-color: #e6007e;
+}
+
+/* 二级菜单项缩进优化 */
+.sidebar-nav li li {
+  margin-left: 8px;
+}
+
+/* 分隔线美化 */
+.sidebar-nav hr {
+  margin: 12px 0;
+  border: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #7b68ee, transparent);
+}
+
+/* 滚动条美化（仅 WebKit 浏览器） */
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #4a46e5, #e6007e);
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #e6007e, #4a46e5);
+}
+
+/* 移动端适配 */
 @media (max-width: 768px) {
   .sidebar-title {
     font-size: 1.5rem;
     padding: 0.8rem 1.2rem;
   }
+  
+  .sidebar-icon {
+    width: 80px;
+    height: 16px;
+  }
+  
+  .sidebar-nav li a:hover {
+    transform: translateX(2px);
+  }
 }
-
 </style>
+
 <a href="#/" class="sidebar-link"><span class="sidebar-title"> 十方斋</span></a>
 <img src="icon.jpg" alt="十方斋图标" class="sidebar-icon"> 
 
@@ -81,7 +160,6 @@
   - [比特币与高波动资产](/docs/资产与市场/比特币与高波动资产.md)
   - [纳指/标普/恒科](/docs/资产与市场/纳指标普恒科.md)
     
-
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 券商与工具</font></b>  
   - [港美股券商介绍](/docs/券商与工具/港美股券商介绍.md)  
