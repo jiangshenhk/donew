@@ -140,10 +140,10 @@
 
 ***
 
-<!--  <span class="sub-quote">复利，不只是买入后的等待，更是规则、节奏与纪律的累积。</span> -->
+<!--  <span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律</span> -->
 
-<span class="sub-quote">从定投到底仓配置，从 Sell Put 到市场结构判断，</span>
-<span class="sub-quote">持续记录长期复利的方法与纪律。</span>
+<span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律</span>
+<span class="sub-quote">记录长期复利投资的方法和心得。</span>
 
 
 <!-- 3列网格布局的按钮组 -->
