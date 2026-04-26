@@ -150,13 +150,13 @@
 <div class="btn-grid">
   <!-- 第一行 - 3个按钮 -->
   <a href="#/docs/开始/我在记录什么.md" class="cover-btn btn-main">开始这里</a>
-  <a href="#/docs/复利/定投的底层逻辑.md" class="cover-btn btn-sub">长期定投策略</a>
-  <a href="#/docs/SellPut/学习大师如何买股票.md" class="cover-btn btn-sub">SellPut策略</a>
-  <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">市场结构日报</a>
+  <a href="#/docs/复利/定投的底层逻辑.md" class="cover-btn btn-sub">长期定投</a>
+  <a href="#/docs/SellPut/学习大师如何买股票.md" class="cover-btn btn-sub">SellPut</a>
+  <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">市场日报</a>
   
   <!-- 第二行 - 3个按钮  -->
-  <a href="#/docs/ETF/a.md" class="cover-btn btn-sub">ETF资产</a>
-  <a href="#/docs/资产与市场/港美股基础.md" class="cover-btn btn-sub">券商与工具</a>
+  <a href="#/docs/ETF/a.md" class="cover-btn btn-sub">相关ETF</a>
+  <a href="#/docs/资产与市场/港美股基础.md" class="cover-btn btn-sub">相关工具</a>
 </div>
 
 
