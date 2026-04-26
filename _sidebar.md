@@ -127,41 +127,42 @@
 ---
 
 - <b><font color="blue"><i class="fas fa-business-time"></i> 开始这里</font></b>
-  - [我在记录什么](/docs/开始/我在记录什么.md)
-  - [什么是复利](/docs/开始/神奇的复利效应.md)
-  - [为什么我把定投和SellPut放在一起](/docs/开始/为什么我把定投和SellPut放在一起.md)
-  - [新手阅读顺序](/docs/开始/新手阅读顺序.md) 
+  - [了解网站](/docs/开始/我在记录什么.md)
+  - [复利为王](/docs/开始/神奇的复利效应.md)
+  - [两大工具](/docs/开始/为什么我把定投和SellPut放在一起.md)
+  - [新手指南](/docs/开始/新手阅读顺序.md) 
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 长期复利框架</font></b> 
-  - [定投的底层逻辑](/docs/复利/定投的底层逻辑.md)
-  - [为什么长期持有能产生复利](/docs/复利/为什么长期持有能产生复利.md)
-  - [ETF定投方法](/docs/复利/ETF定投方法.md)
+- <b><font color="blue"><i class="fas fa-chart-line"></i> 定投 </font></b> 
+  - [底层逻辑](/docs/复利/定投的底层逻辑.md)
+  - [长期持有](/docs/复利/为什么长期持有能产生复利.md)
+  - [最爱ETF](/docs/复利/ETF定投方法.md)
   
-- <b><font color="blue"><i class="fas fa-chart-line"></i>Sell Put策略</font></b> 
-  - [投资大师竟然是这么“买”股票的！](/docs/SellPut/学习大师如何买股票.md)
-  - [如何Sell Put?](/docs/SellPut/如何SellPut.md)
-  - [SellPut和定投结合](/docs/SellPut/SellPut和定投结合.md)
+- <b><font color="blue"><i class="fas fa-chart-line"></i>SellPut</font></b> 
+  - [大师最爱](/docs/SellPut/学习大师如何买股票.md)
+  - [何为SellPut](/docs/SellPut/如何SellPut.md)
+  - [数学概率](/docs/SellPut/卖PUT策略解析.md)
+  <!-- - [SellPut和定投结合](/docs/SellPut/SellPut和定投结合.md)-->
   <!-- - [行权价怎么选](/docs/SellPut/行权价怎么选.md) -->
   <!-- - [安全垫怎么计算](/docs/SellPut/安全垫怎么计算.md) -->
   <!-- - [年化收益怎么判断](/docs/SellPut/年化收益怎么判断.md) -->
   <!-- - [什么情况下提前买回](/docs/SellPut/什么情况下提前买回.md) -->
   <!-- - [Sell Put 风险与边界](/docs/SellPut/SellPut风险与边界.md) -->
- 
+  
 - <b><font color="blue"><i class="fas fa-chart-line"></i>市场结构观察</font></b> 
   - [每日市场判断怎么看](/docs/市场/每日市场判断怎么看.md)
   - [📊 今日市场](/docs/市场/今日.md)
   - [📚 历史归档](/docs/市场/历史.md)
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 资产与市场</font></b> 
+- <b><font color="blue"><i class="fas fa-chart-line"></i>相关ETF</font></b> 
   - [港美股基础](/docs/资产与市场/港美股基础.md)
   - [ETF](/docs/资产与市场/ETF.md)
-  - [美债投资指南](/docs/资产与市场/美债投资指南.md)
-  - [黄金与避险资产](/docs/资产与市场/黄金与避险资产.md)
+  <!-- - [美债投资指南](/docs/资产与市场/美债投资指南.md) -->
+  <!-- - [黄金与避险资产](/docs/资产与市场/黄金与避险资产.md) -->
   - [比特币与高波动资产](/docs/资产与市场/比特币与高波动资产.md)
   - [纳指/标普/恒科](/docs/资产与市场/纳指标普恒科.md)
     
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 券商与工具</font></b>  
+- <b><font color="blue"><i class="fas fa-chart-line"></i> 相关工具</font></b>  
   - [港美股券商介绍](/docs/券商与工具/港美股券商介绍.md)  
   - [券商开户教程](/docs/券商与工具/券商开户教程.md)  
   - [香港银行账户介绍](/docs/券商与工具/香港银行账户介绍.md)
