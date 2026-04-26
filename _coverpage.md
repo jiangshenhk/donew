@@ -143,7 +143,6 @@
 <!--  <span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律</span> -->
 
 <span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律</span>
-<span class="sub-quote">记录长期复利投资的方法和心得。</span>
 
 
 <!-- 3列网格布局的按钮组 -->
