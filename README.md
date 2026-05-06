@@ -12,10 +12,17 @@
 
 网站目标不是做新闻摘要，而是沉淀一套可复盘、可执行的投资判断框架。
 
-访问入口：
+## 访问入口
 
-- 今日市场：`docs/市场/今日.md`
-- 市场历史归档：`docs/市场/历史.md`
-- 卖 Put 评级说明：`docs/市场/卖Put评级说明.md`
-- QLD 操作框架：`docs/市场/QLD卖Put操作框架.md`
-- MSTR 操作框架：`docs/市场/MSTR卖Put操作框架.md`
+- [📊 今日市场](/docs/市场/今日.md)
+- [📚 市场历史归档](/docs/市场/历史.md)
+- [✅ 卖 Put 评级说明](/docs/市场/卖Put评级说明.md)
+- [📊 QLD 操作框架](/docs/市场/QLD卖Put操作框架.md)
+- [⚠️ MSTR 操作框架](/docs/市场/MSTR卖Put操作框架.md)
+
+## 建议阅读顺序
+
+1. [新手阅读顺序](/docs/开始/新手阅读顺序.md)
+2. [为什么我把定投和 Sell Put 放在一起](/docs/开始/为什么我把定投和SellPut放在一起.md)
+3. [如何 Sell Put](/docs/SellPut/如何SellPut.md)
+4. [今日市场结构日报](/docs/市场/今日.md)
