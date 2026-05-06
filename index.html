@@ -1,229 +1,287 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>十方斋|复利投资</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- 引入 Font Awesome 图标库 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- 引入 Docsify 核心样式 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
-    
-    <!-- 自定义样式 -->
+  <meta charset="UTF-8">
+  <title>十方斋｜复利投资</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="十方斋｜记录ETF定投、Sell Put策略、美股市场结构日报与复利投资方法论。">
+  <meta name="keywords" content="复利投资, ETF定投, Sell Put, 美股, QLD, QQQ, MSTR, BTC, 市场结构日报">
+  <meta property="og:title" content="十方斋｜复利投资">
+  <meta property="og:description" content="记录ETF定投、Sell Put策略与每日市场结构判断。">
+  <meta property="og:type" content="website">
 
+  <!-- 图标与 Docsify 样式 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
 
+  <style>
+    :root {
+      --theme-color: #2563eb;
+      --sidebar-width: 280px;
+      --text-strong: #0f172a;
+      --text-normal: #334155;
+      --text-muted: #64748b;
+      --line-soft: #e2e8f0;
+      --bg-soft: #f8fafc;
+      --bg-blue: #eff6ff;
+      --bg-green: #ecfdf5;
+      --bg-amber: #fffbeb;
+      --bg-red: #fef2f2;
+    }
 
-<style>
-    /* ------------------------------
-       侧边栏整体容器
-    ------------------------------ */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text-normal);
+    }
+
     .sidebar {
-        background: #ffffff;
-        border-right: 1px solid #eaeaea;
-        box-shadow: 0 0 15px rgba(0,0,0,0.05);
-        width: 280px !important;
-        font-family: 'Segoe UI', sans-serif;
-        font-size: 14px; /* 全局基准字号 */
+      background: #ffffff;
+      border-right: 1px solid #eaeaea;
+      box-shadow: 0 0 15px rgba(0,0,0,0.05);
+      width: var(--sidebar-width) !important;
+      font-size: 14px;
     }
 
-    /* ------------------------------
-       导航容器（新增）
-    ------------------------------ */
-    .docsify-aside {
-        padding: 20px 0; /* 增加内边距 */
+    .sidebar .sidebar-nav a {
+      transition: all 0.2s ease;
     }
 
-    /* ------------------------------
-       一级菜单样式（精准匹配当前结构）
-    ------------------------------ */
-    .sidebar .docsify-aside nav .sidebar-nav > li > a {
-        color: #333;
-        font-size: 16px; /* 一级菜单字号 */
-        padding: 14px 20px;
-        transition: all 0.2s;
-        border-left: 4px solid transparent; /* 高亮基底 */
+    .sidebar .sidebar-nav a:hover,
+    .sidebar .sidebar-nav a.active {
+      color: var(--theme-color) !important;
+      background: #f5f7fa;
+      border-radius: 6px;
     }
 
-    /* ------------------------------
-       一级菜单悬停/激活状态
-    ------------------------------ */
-    .sidebar .docsify-aside nav .sidebar-nav > li > a:hover,
-    .sidebar .docsify-aside nav .sidebar-nav > li > a.active {
-        background: #f5f7fa;
-        color: #2c7be5;
-        border-left-color: #2c7be5; /* 高亮颜色 */
-        font-weight: 600; /* 加粗 */
-    }
-
-    /* ------------------------------
-       子菜单容器（修正类名）
-    ------------------------------ */
-    .sidebar .docsify-aside nav .app-sub-sidebar {
-        background: #f9fafb;
-        padding-left: 20px;
-        margin: 4px 0;
-        display: none;
-    }
-
-    /* ------------------------------
-       子菜单项样式（精准匹配层级）
-    ------------------------------ */
-    .sidebar .docsify-aside nav .app-sub-sidebar li a {
-        color: #666;
-        font-size: 13px; /* 子菜单字号 */
-        padding: 6px 15px;
-        display: block;
-    }
-
-    /* ------------------------------
-       子菜单悬停/激活状态
-    ------------------------------ */
-    .sidebar .docsify-aside nav .app-sub-sidebar li a:hover,
-    .sidebar .docsify-aside nav .app-sub-sidebar li a.active {
-        color: #2c7be5;
-        background: #edf2ff;
-        font-weight: 500;
-    }
-
-    /* ------------------------------
-       图标样式（保持不变）
-    ------------------------------ */
     .sidebar .sidebar-nav a i {
-        width: 24px;
-        margin-right: 12px;
-        opacity: 0.8;
+      width: 22px;
+      margin-right: 8px;
+      opacity: 0.8;
     }
 
-    /* ------------------------------
-       特殊图标颜色
-    ------------------------------ */
-    .sidebar .sidebar-nav a i.fa-folder { color: #ffc107; }
-    .sidebar .sidebar-nav a i.fa-file { color: #2c7be5; }
-    
-    
-    <! -- 主页的效果
-      
-    
-    
-	/* ===== 表格整体优化 ===== */
-	.markdown-section table {
-	  width: 100%;
-	  table-layout: auto !important;
-	  border-collapse: collapse;
-	}
-	
-	.markdown-section th,
-	.markdown-section td {
-	  word-break: keep-all;
-	  white-space: normal;
-	  vertical-align: middle;
-	  line-height: 1.7;
-	}
-	
-	/* ===== 日报结论表：第一列不要乱换行 ===== */
-	.markdown-section table th:first-child,
-	.markdown-section table td:first-child {
-	  white-space: nowrap;
-	  width: 120px;
-	}
-	
-	/* ===== 历史归档表：前四列尽量单行显示 ===== */
-	.markdown-section table th:nth-child(1),
-	.markdown-section table td:nth-child(1),
-	.markdown-section table th:nth-child(2),
-	.markdown-section table td:nth-child(2),
-	.markdown-section table th:nth-child(3),
-	.markdown-section table td:nth-child(3),
-	.markdown-section table th:nth-child(4),
-	.markdown-section table td:nth-child(4) {
-	  white-space: nowrap;
-	}
-	
-	/* ===== 链接不要被拆成一字一行 ===== */
-	.markdown-section table td a {
-	  white-space: nowrap;
-	  display: inline-block;
-	}
-	
-	/* ===== 表格在小屏上稍微紧凑一点 ===== */
-	.markdown-section table th,
-	.markdown-section table td {
-	  padding: 10px 12px;
-	}
-</style>
-	
-	
+    .sidebar .sidebar-nav a i.fa-folder { color: #f59e0b; }
+    .sidebar .sidebar-nav a i.fa-file { color: var(--theme-color); }
 
+    .app-nav {
+      font-size: 14px;
+      font-weight: 500;
+    }
 
-	
+    .app-nav a {
+      color: #475569 !important;
+      text-decoration: none !important;
+      margin-right: 24px;
+    }
+
+    .markdown-section {
+      max-width: 980px;
+      padding: 32px 28px 80px;
+    }
+
+    .markdown-section h1,
+    .markdown-section h2,
+    .markdown-section h3 {
+      color: var(--text-strong);
+      letter-spacing: 0.01em;
+    }
+
+    .markdown-section blockquote {
+      border-left: 4px solid var(--theme-color);
+      background: var(--bg-blue);
+      color: #1e3a8a;
+      padding: 12px 16px;
+      border-radius: 8px;
+    }
+
+    /* 表格优化 */
+    .markdown-section table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto !important;
+      margin: 16px 0 24px;
+      display: table;
+    }
+
+    .markdown-section th,
+    .markdown-section td {
+      word-break: keep-all;
+      white-space: normal;
+      vertical-align: middle;
+      line-height: 1.7;
+      padding: 10px 12px;
+    }
+
+    .markdown-section table th:first-child,
+    .markdown-section table td:first-child {
+      white-space: nowrap;
+    }
+
+    .markdown-section table td a {
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    /* 投资简报卡片 */
+    .signal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin: 20px 0 24px;
+    }
+
+    .signal-card {
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      padding: 16px 18px;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    }
+
+    .signal-card strong {
+      display: block;
+      color: var(--text-strong);
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .signal-card span,
+    .signal-card p {
+      color: var(--text-muted);
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .signal-card.strong {
+      background: var(--bg-green);
+      border-color: #bbf7d0;
+    }
+
+    .signal-card.warning {
+      background: var(--bg-amber);
+      border-color: #fde68a;
+    }
+
+    .signal-card.action {
+      background: var(--bg-blue);
+      border-color: #bfdbfe;
+    }
+
+    .signal-card.danger {
+      background: var(--bg-red);
+      border-color: #fecaca;
+    }
+
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .quick-links a {
+      display: block;
+      padding: 14px 16px;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      text-decoration: none !important;
+      background: #fff;
+      color: var(--text-strong) !important;
+      font-weight: 600;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+      transition: all 0.2s ease;
+    }
+
+    .quick-links a:hover {
+      transform: translateY(-2px);
+      border-color: var(--theme-color);
+      color: var(--theme-color) !important;
+    }
+
+    /* 移动端适配 */
+    @media (max-width: 768px) {
+      .markdown-section {
+        padding: 18px 14px 64px;
+      }
+
+      .markdown-section table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+
+      .markdown-section th,
+      .markdown-section td {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+
+      .signal-grid,
+      .quick-links {
+        grid-template-columns: 1fr;
+      }
+
+      .cover-main h1,
+      .core-quote {
+        font-size: 1.9rem !important;
+        white-space: normal !important;
+      }
+
+      .btn-grid {
+        grid-template-columns: 1fr !important;
+        max-width: 92% !important;
+      }
+
+      .app-nav a {
+        margin-right: 12px;
+      }
+    }
+  </style>
+
+  <script>
+    window.$docsify = {
+      root: '/',
+      repo: 'jiangshenhk/donew',
+      title: '十方斋｜复利投资',
+      themeColor: '#2563eb',
+      loadSidebar: true,
+      coverpage: true,
+      routerMode: 'hash',
+      search: {
+        maxAge: 86400000,
+        paths: 'auto',
+        placeholder: '搜索内容、ETF、Sell Put、市场日报',
+        noData: '没有找到结果',
+        depth: 4
+      }
+    };
+
+    document.addEventListener('click', function(e) {
+      const link = e.target.closest('.sidebar .sidebar-nav a');
+      if (!link) return;
+      const parentLi = link.closest('li');
+      const subMenu = parentLi ? parentLi.querySelector('.sub-menu') : null;
+      const caretIcon = link.querySelector('.fa-caret-right');
+      if (subMenu) {
+        e.preventDefault();
+        subMenu.classList.toggle('active');
+        if (caretIcon) caretIcon.classList.toggle('rotate-90');
+      }
+    });
+  </script>
 </head>
 <body>
-
- <!-- daohang -->
-  <nav> 
-    <i class="fas fa-info-circle" style="color: #475569;"></i> <!-- 图标颜色+图标与链接间距 -->
-    <a href="#/" style="color: #475569; text-decoration: none;margin-right: 24px;">首页</a>
-
-    <i class="fas fa-mail-bulk" style="color: #475569; "></i> <!-- 图标颜色+图标与链接间距 -->
-    <a href="#/docs/美股/b" style="color: #475569; text-decoration: none;margin-right: 24px;">联系我们</a>
+  <nav>
+    <i class="fas fa-home" style="color:#475569;"></i>
+    <a href="#/">首页</a>
+    <i class="fas fa-chart-line" style="color:#475569;"></i>
+    <a href="#/docs/市场/今日.md">今日市场</a>
+    <i class="fas fa-envelope" style="color:#475569;"></i>
+    <a href="#/docs/其他/联系.md">联系</a>
   </nav>
 
-    <!-- 文档容器 -->
-    <div id="app"></div>
+  <div id="app"></div>
 
-    <!-- 引入 Docsify 核心脚本 -->
-    <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
-
-    <!-- 引入搜索插件 -->
-    <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
-
-    <!-- 初始化配置 -->
-    <script>
-        window.$docsify = {
-            //name: '<span><H1>十方斋</H1></span>',  //标题
-            root: '/',
-            repo: 'jiangshenhk/donew',
-            title: '十方斋|复利',
-            themeColor: '#2c3e50',
-            loadSidebar: true,  // 启用侧边栏
-            coverpage: true, // 启用封面
-            //loadNavbar: true,
-            //subMaxLevel: 2      // 支持三级菜单
-            //logo: 'yikecaiwan-logo.jpg',  //logo
-            search: 'auto', // 默认值
-            routerMode: 'hash',// 添加这个配置使HTML链接也能被正确处理
-            search: {
-			      maxAge: 86400000, // 过期时间，单位毫秒，默认一天
-			      paths: [], // or 'auto'
-			      placeholder: 'Type to search'
-			      	}
-        };
-		
-
-        // 侧边栏折叠交互逻辑
-        document.addEventListener('DOMContentLoaded', function() {
-            const toggles = document.querySelectorAll('.sidebar .sidebar-nav a');
-
-            toggles.forEach(toggle => {
-                toggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const parentLi = this.closest('li');
-                    const subMenu = parentLi.querySelector('.sub-menu');
-                    const caretIcon = this.querySelector('.fa-caret-right');
-
-                    if (subMenu) {
-                        subMenu.classList.toggle('active');
-                        caretIcon.classList.toggle('rotate-90');
-                    }
-                });
-            });
-        });
-    </script>
-    
-
-
-    
+  <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
 </body>
 </html>
