@@ -10,7 +10,6 @@
   <meta property="og:description" content="记录ETF定投、Sell Put策略与每日市场结构判断。">
   <meta property="og:type" content="website">
 
-  <!-- 图标与 Docsify 样式 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
 
@@ -22,7 +21,6 @@
       --text-normal: #334155;
       --text-muted: #64748b;
       --line-soft: #e2e8f0;
-      --bg-soft: #f8fafc;
       --bg-blue: #eff6ff;
       --bg-green: #ecfdf5;
       --bg-amber: #fffbeb;
@@ -42,9 +40,7 @@
       font-size: 14px;
     }
 
-    .sidebar .sidebar-nav a {
-      transition: all 0.2s ease;
-    }
+    .sidebar .sidebar-nav a { transition: all 0.2s ease; }
 
     .sidebar .sidebar-nav a:hover,
     .sidebar .sidebar-nav a.active {
@@ -58,9 +54,6 @@
       margin-right: 8px;
       opacity: 0.8;
     }
-
-    .sidebar .sidebar-nav a i.fa-folder { color: #f59e0b; }
-    .sidebar .sidebar-nav a i.fa-file { color: var(--theme-color); }
 
     .app-nav {
       font-size: 14px;
@@ -93,7 +86,6 @@
       border-radius: 8px;
     }
 
-    /* 表格优化 */
     .markdown-section table {
       width: 100%;
       border-collapse: collapse;
@@ -112,16 +104,13 @@
     }
 
     .markdown-section table th:first-child,
-    .markdown-section table td:first-child {
-      white-space: nowrap;
-    }
+    .markdown-section table td:first-child { white-space: nowrap; }
 
     .markdown-section table td a {
       white-space: nowrap;
       display: inline-block;
     }
 
-    /* 投资简报卡片 */
     .signal-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -151,25 +140,10 @@
       line-height: 1.6;
     }
 
-    .signal-card.strong {
-      background: var(--bg-green);
-      border-color: #bbf7d0;
-    }
-
-    .signal-card.warning {
-      background: var(--bg-amber);
-      border-color: #fde68a;
-    }
-
-    .signal-card.action {
-      background: var(--bg-blue);
-      border-color: #bfdbfe;
-    }
-
-    .signal-card.danger {
-      background: var(--bg-red);
-      border-color: #fecaca;
-    }
+    .signal-card.strong { background: var(--bg-green); border-color: #bbf7d0; }
+    .signal-card.warning { background: var(--bg-amber); border-color: #fde68a; }
+    .signal-card.action { background: var(--bg-blue); border-color: #bfdbfe; }
+    .signal-card.danger { background: var(--bg-red); border-color: #fecaca; }
 
     .quick-links {
       display: grid;
@@ -197,8 +171,30 @@
       color: var(--theme-color) !important;
     }
 
-    /* 移动端适配 */
     @media (max-width: 768px) {
+      .app-nav,
+      .github-corner {
+        display: none !important;
+      }
+
+      .cover-main {
+        padding-top: 22px !important;
+      }
+
+      .cover-title {
+        font-size: 2.15rem !important;
+        line-height: 1.2 !important;
+        letter-spacing: 0.03em !important;
+        max-width: 92vw !important;
+        white-space: normal !important;
+        margin-top: 12px !important;
+      }
+
+      .sub-quote {
+        font-size: 0.95rem !important;
+        max-width: 88vw !important;
+      }
+
       .markdown-section {
         padding: 18px 14px 64px;
       }
@@ -220,19 +216,9 @@
         grid-template-columns: 1fr;
       }
 
-      .cover-main h1,
-      .core-quote {
-        font-size: 1.9rem !important;
-        white-space: normal !important;
-      }
-
       .btn-grid {
         grid-template-columns: 1fr !important;
         max-width: 92% !important;
-      }
-
-      .app-nav a {
-        margin-right: 12px;
       }
     }
   </style>
