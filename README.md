@@ -5,6 +5,7 @@
 核心关注：
 
 - **ETF定投**：用长期持有理解复利；
+- **ETF长期收益图谱**：把 B站里的 ETF 长期收益动态图沉淀成可搜索、可复盘、可持续更新的资料库；
 - **Sell Put策略**：用概率、波动率、安全垫和仓位管理提高现金使用效率；
 - **市场结构日报**：跟踪资金流、油价、利率、美元、黄金、BTC、VIX与风险资产联动；
 - **核心标的**：QQQ / QLD / SPY / MSTR / BTC / GLD / IAU 等；
@@ -14,15 +15,37 @@
 
 ## 访问入口
 
-- [📊 今日市场](/docs/市场/今日.md)
-- [📚 市场历史归档](/docs/市场/历史.md)
-- [✅ 卖 Put 评级说明](/docs/市场/卖Put评级说明.md)
-- [📊 QLD 操作框架](/docs/市场/QLD卖Put操作框架.md)
-- [⚠️ MSTR 操作框架](/docs/市场/MSTR卖Put操作框架.md)
+<div class="quick-links">
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md">📈 ETF长期收益图谱</a>
+  <a href="#/docs/ETF图谱/B站ETF视频清单.md">🎬 B站ETF视频清单</a>
+  <a href="#/docs/ETF图谱/全球指数与美股ETF热点合集.md">🔥 全球指数与美股ETF热点合集</a>
+  <a href="#/docs/市场/今日.md">📊 今日市场</a>
+  <a href="#/docs/市场/历史.md">📚 市场历史归档</a>
+  <a href="#/docs/市场/卖Put评级说明.md">✅ 卖 Put 评级说明</a>
+  <a href="#/docs/市场/QLD卖Put操作框架.md">📊 QLD 操作框架</a>
+  <a href="#/docs/市场/MSTR卖Put操作框架.md">⚠️ MSTR 操作框架</a>
+</div>
+
+## 新增栏目：ETF长期收益图谱
+
+> B站看动态图，网站看完整结论、分类、风险与后续更新。
+
+这个栏目用于整理「老衲有座庙」B站账号里与 ETF 长期投资、收益对比、定投回测、杠杆ETF、指数基金相关的动态图内容。
+
+重点不是把视频简单搬到网站，而是把每条视频整理成：
+
+- ETF基础资料；
+- 长期收益排序；
+- 最大回撤与修复时间；
+- 定投适配度；
+- Sell Put适配度；
+- 当前市场下的老衲点评。
 
 ## 建议阅读顺序
 
 1. [新手阅读顺序](/docs/开始/新手阅读顺序.md)
 2. [为什么我把定投和 Sell Put 放在一起](/docs/开始/为什么我把定投和SellPut放在一起.md)
-3. [如何 Sell Put](/docs/SellPut/如何SellPut.md)
-4. [今日市场结构日报](/docs/市场/今日.md)
+3. [ETF长期收益图谱](/docs/ETF图谱/ETF长期收益图谱.md)
+4. [全球指数与美股ETF热点合集](/docs/ETF图谱/全球指数与美股ETF热点合集.md)
+5. [如何 Sell Put](/docs/SellPut/如何SellPut.md)
+6. [今日市场结构日报](/docs/市场/今日.md)
