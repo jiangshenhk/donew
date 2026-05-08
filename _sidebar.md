@@ -78,50 +78,31 @@
 
 - <b><font color="blue"><i class="fas fa-compass"></i> 开始这里</font></b>
   - [了解网站](/docs/开始/我在记录什么.md)
-  - [复利为王](/docs/开始/神奇的复利效应.md)
-  - [两大工具](/docs/开始/为什么我把定投和SellPut放在一起.md)
   - [新手指南](/docs/开始/新手阅读顺序.md)
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 市场结构观察</font></b>
-  - [📊 今日市场](/docs/市场/今日.md)
-  - [📚 历史归档](/docs/市场/历史.md)
-  - [每日市场判断怎么看](/docs/市场/每日市场判断怎么看.md)
-  - [卖Put评级说明](/docs/市场/卖Put评级说明.md)
-  - [QLD卖Put操作框架](/docs/市场/QLD卖Put操作框架.md)
-  - [MSTR卖Put操作框架](/docs/市场/MSTR卖Put操作框架.md)
-  - [风险评分说明](/docs/市场/风险评分说明.md)
+- <b><font color="blue"><i class="fas fa-video"></i> B站ETF精选</font></b>
+  - [入口页](/docs/ETF图谱/ETF长期收益图谱.md)
+  - [三篇精选](/docs/ETF图谱/精选对比视频文字稿.md)
+  - [全部清单](/docs/ETF图谱/B站ETF视频清单.md)
+
+- <b><font color="blue"><i class="fas fa-chart-line"></i> 市场日报</font></b>
+  - [今日市场](/docs/市场/今日.md)
+  - [历史归档](/docs/市场/历史.md)
+  - [怎么看日报](/docs/市场/每日市场判断怎么看.md)
 
 - <b><font color="blue"><i class="fas fa-calculator"></i> Sell Put</font></b>
-  - [大师最爱](/docs/SellPut/学习大师如何买股票.md)
-  - [何为SellPut](/docs/SellPut/如何SellPut.md)
-  - [数学概率](/docs/SellPut/卖PUT策略解析.md)
+  - [如何 Sell Put](/docs/SellPut/如何SellPut.md)
+  - [卖Put评级说明](/docs/市场/卖Put评级说明.md)
+  - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
+  - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
 
-- <b><font color="blue"><i class="fas fa-seedling"></i> 定投</font></b>
-  - [底层逻辑](/docs/复利/定投的底层逻辑.md)
-  - [长期持有](/docs/复利/为什么长期持有能产生复利.md)
-  - [最爱ETF](/docs/复利/ETF定投方法.md)
-
-- <b><font color="blue"><i class="fas fa-chart-area"></i> ETF长期收益图谱</font></b>
-  - [📈 图谱首页](/docs/ETF图谱/ETF长期收益图谱.md)
-  - [✍️ 精选文字稿](/docs/ETF图谱/精选对比视频文字稿.md)
-  - [🎬 B站ETF视频清单](/docs/ETF图谱/B站ETF视频清单.md)
-  - [🔥 全球指数与美股ETF热点合集](/docs/ETF图谱/全球指数与美股ETF热点合集.md)
-  - [🧾 文字稿：全球指数与美股ETF](/docs/ETF图谱/文字稿-全球指数与美股ETF热点合集.md)
-  - [🧾 文字稿：SOXL与纳指多倍ETF](/docs/ETF图谱/文字稿-SOXL与纳指多倍ETF定投比较.md)
-  - [🧾 文字稿：标普500定投35年](/docs/ETF图谱/文字稿-标普500定投35年收益538.md)
-  - [🧩 动态图页面模板](/docs/ETF图谱/ETF动态图页面模板.md)
-
-- <b><font color="blue"><i class="fas fa-layer-group"></i> 相关ETF</font></b>
-  - [港美股基础](/docs/资产与市场/港美股基础.md)
-  - [ETF](/docs/资产与市场/ETF.md)
-  - [比特币与高波动资产](/docs/资产与市场/比特币与高波动资产.md)
+- <b><font color="blue"><i class="fas fa-seedling"></i> 定投与ETF</font></b>
+  - [ETF定投方法](/docs/复利/ETF定投方法.md)
+  - [定投底层逻辑](/docs/复利/定投的底层逻辑.md)
+  - [相关ETF](/docs/资产与市场/ETF.md)
   - [纳指/标普/恒科](/docs/资产与市场/纳指标普恒科.md)
 
-- <b><font color="blue"><i class="fas fa-toolbox"></i> 相关工具</font></b>
-  - [港美股券商介绍](/docs/券商与工具/港美股券商介绍.md)
+- <b><font color="blue"><i class="fas fa-toolbox"></i> 工具与联系</font></b>
   - [券商开户教程](/docs/券商与工具/券商开户教程.md)
-  - [香港银行账户介绍](/docs/券商与工具/香港银行账户介绍.md)
-  - [入金与出金说明](/docs/券商与工具/入金与出金说明.md)
-
-- <b><font color="blue"><i class="fas fa-envelope"></i> 其他</font></b>
+  - [入金与出金](/docs/券商与工具/入金与出金说明.md)
   - [联系](/docs/其他/联系.md)
