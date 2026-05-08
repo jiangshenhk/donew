@@ -101,6 +101,12 @@
   - [长期持有](/docs/复利/为什么长期持有能产生复利.md)
   - [最爱ETF](/docs/复利/ETF定投方法.md)
 
+- <b><font color="blue"><i class="fas fa-chart-area"></i> ETF长期收益图谱</font></b>
+  - [📈 图谱首页](/docs/ETF图谱/ETF长期收益图谱.md)
+  - [🎬 B站ETF视频清单](/docs/ETF图谱/B站ETF视频清单.md)
+  - [🔥 全球指数与美股ETF热点合集](/docs/ETF图谱/全球指数与美股ETF热点合集.md)
+  - [🧩 动态图页面模板](/docs/ETF图谱/ETF动态图页面模板.md)
+
 - <b><font color="blue"><i class="fas fa-layer-group"></i> 相关ETF</font></b>
   - [港美股基础](/docs/资产与市场/港美股基础.md)
   - [ETF](/docs/资产与市场/ETF.md)
