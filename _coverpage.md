@@ -113,14 +113,14 @@
 <span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律。</span>
 
 <div class="btn-grid">
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-main">📈 ETF长期收益图谱</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-main">📈 ETF收益对比：带杠杆还是不带？</a>
+  <a href="#/docs/ETF图谱/精选对比视频文字稿.md" class="cover-btn btn-sub">✍️ 三篇精选对比</a>
   <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">📊 今日市场</a>
   <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">🧮 Sell Put</a>
-  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">🎬 B站视频清单</a>
+  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">🎬 全部视频清单</a>
   <a href="#/docs/开始/新手阅读顺序.md" class="cover-btn btn-sub">🧭 新手阅读</a>
-  <a href="#/docs/资产与市场/ETF.md" class="cover-btn btn-sub">📈 ETF工具箱</a>
 </div>
 
 <div class="cover-note">
-这里记录长期复利投资、ETF定投、Sell Put 策略、ETF长期收益动态图谱，以及每日市场结构判断。核心目标不是追新闻，而是形成可执行、可复盘的投资决策框架。
+这里记录长期复利投资、ETF收益对比、ETF定投、Sell Put 策略，以及每日市场结构判断。核心目标不是追新闻，而是形成可执行、可复盘的投资决策框架。
 </div>
