@@ -113,7 +113,7 @@
 <span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律。</span>
 
 <div class="btn-grid">
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-main">📈 定投是否可以用杠杆ETF？</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-main">定投是否可以用杠杆ETF</a>
   <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">📊 今日市场</a>
   <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">🧮 Sell Put</a>
   <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">🎬 ETF视频清单</a>
