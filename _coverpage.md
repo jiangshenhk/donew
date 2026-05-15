@@ -131,7 +131,7 @@
   <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-sub">复利投资是什么？</a>
   <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">ETF定投方法</a>
   <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">ETF定投：能不能用杠杆？</a>
-  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">Sell Put：收权利金现金流</a>
+  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">Sell Put：卖保险收利息</a>
   <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">杠杆ETF长期收益对比</a>
 </div>
 
