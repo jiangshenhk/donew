@@ -88,8 +88,8 @@
   - [定投前五个问题](/docs/ETF图谱/杠杆ETF定投前先问五个问题.md)
   - [普通/2倍/3倍ETF怎么分仓](/docs/ETF图谱/普通ETF-2倍ETF-3倍ETF怎么分仓.md)
 
-- <b><font color="blue"><i class="fas fa-calculator"></i> 方法二：Sell Put</font></b>
-  - [如何 Sell Put](/docs/SellPut/如何SellPut.md)
+- <b><font color="blue"><i class="fas fa-calculator"></i> 方法二：卖保险收利息</font></b>
+  - [Sell Put是什么？](/docs/SellPut/如何SellPut.md)
   - [卖Put评级说明](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
   - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
