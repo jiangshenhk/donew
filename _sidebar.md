@@ -76,7 +76,7 @@
 
 ---
 
-- <b><font color="blue"><i class="fas fa-seedling"></i> 复利投资</font></b>
+- <b><font color="blue"><i class="fas fa-seedling"></i> 核心：复利投资</font></b>
   - [复利为王](/docs/开始/神奇的复利效应.md)
   - [我在记录什么](/docs/开始/我在记录什么.md)
   - [新手阅读顺序](/docs/开始/新手阅读顺序.md)
@@ -94,17 +94,17 @@
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
   - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 每日市场：更好卖Put</font></b>
+- <b><font color="blue"><i class="fas fa-chart-line"></i> 判断：每日市场</font></b>
   - [今日市场](/docs/市场/今日.md)
   - [历史归档](/docs/市场/历史.md)
   - [怎么看日报](/docs/市场/每日市场判断怎么看.md)
 
-- <b><font color="blue"><i class="fas fa-layer-group"></i> 善用杠杆ETF去定投</font></b>
+- <b><font color="blue"><i class="fas fa-layer-group"></i> 标的：ETF资产</font></b>
   - [相关ETF](/docs/资产与市场/ETF.md)
   - [纳指/标普/恒科](/docs/资产与市场/纳指标普恒科.md)
   - [比特币与高波动资产](/docs/资产与市场/比特币与高波动资产.md)
 
-- <b><font color="blue"><i class="fas fa-toolbox"></i> 工具与联系</font></b>
+- <b><font color="blue"><i class="fas fa-toolbox"></i> 工具：券商联系</font></b>
   - [券商开户教程](/docs/券商与工具/券商开户教程.md)
   - [入金与出金](/docs/券商与工具/入金与出金说明.md)
   - [联系](/docs/其他/联系.md)
