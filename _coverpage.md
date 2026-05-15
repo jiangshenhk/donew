@@ -122,19 +122,17 @@
 
 ***
 
-<span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律。</span>
-
 <div class="cover-highlight">
   <strong>本站主线：</strong>以复利投资为核心，用 ETF 定投和 Sell Put 两个方法提高长期收益；再通过每日市场结构判断，决定什么时候适合卖 Put、什么时候应该防守。
 </div>
 
 <div class="btn-grid">
-  <a href="#/docs/市场/今日.md" class="cover-btn btn-main">④ 今日市场：适合卖Put吗？</a>
-  <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-sub">① 复利投资是什么？</a>
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">② ETF定投：可以用杠杆吗？</a>
-  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">③ Sell Put现金流增强</a>
-  <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">⑤ ETF定投方法</a>
-  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">⑥ 杠杆ETF系列目录</a>
+  <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-sub">复利投资是什么？</a>
+  <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">美股ETF清单</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">定投试试杠杆ETF</a>
+  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">Sell Put吃高利息</a>
+  <a href="#/docs/市场/今日.md" class="cover-btn btn-main">每日市场：适合卖Put吗？</a>
+  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">加杠杆投资对比</a>
 </div>
 
 <div class="cover-note">
