@@ -15,8 +15,8 @@
 
 <div class="signal-grid">
   <div class="signal-card strong">
-    <strong>第一步：先看无杠杆底仓</strong>
-    <p>理解普通宽基ETF为什么适合作为长期投资的地基。</p>
+    <strong>第一步：先看普通资产</strong>
+    <p>先比较标普、纳指、黄金、沪深300，理解底层资产长期表现。</p>
   </div>
   <div class="signal-card action">
     <strong>第二步：再看2倍杠杆增强</strong>
@@ -39,10 +39,11 @@
 
 | 顺序 | 主题 | 核心问题 | 查看文章 | 看原视频 |
 |---|---|---|---|---|
-| ① | 标普500定投35年 | 不带杠杆的宽基ETF，长期复利能力到底如何？ | [查看文字稿](/docs/ETF图谱/文字稿-标普500定投35年收益538.md) | [打开B站](https://b23.tv/7jnYVj1) |
-| ② | 纳指 vs QLD 20年定投 | 2倍杠杆ETF是否真的能显著提升长期收益？ | [查看文字稿](/docs/ETF图谱/文字稿-纳指与QLD定投20年对比.md) | [打开B站](https://www.bilibili.com/video/BV1JV7fz8Eoe/) |
-| ③ | TQQQ vs SOXL 15年定投 | 3倍杠杆ETF收益很惊人，但风险在哪里？ | [查看文字稿](/docs/ETF图谱/文字稿-SOXL与纳指多倍ETF定投比较.md) | [打开B站](https://www.bilibili.com/video/BV1mpjhzdEJW/) |
-| ④ | 全球指数与美股ETF热点合集 | 如果你还不熟悉ETF分类，可以先补基础概念 | [查看配套资料](/docs/ETF图谱/全球指数与美股ETF热点合集.md) | 已嵌入页面 |
+| ① | 标普 vs 沪深300 vs 纳指 vs 黄金 | 不同普通资产长期定投表现差异有多大？ | [查看文字稿](/docs/ETF图谱/文字稿-标普沪深300纳指黄金20年定投对比.md) | [打开B站](https://www.bilibili.com/video/BV1ULETzcEd6/) |
+| ② | 标普500定投35年 | 不带杠杆的宽基ETF，长期复利能力到底如何？ | [查看文字稿](/docs/ETF图谱/文字稿-标普500定投35年收益538.md) | [打开B站](https://b23.tv/7jnYVj1) |
+| ③ | 纳指 vs QLD 20年定投 | 2倍杠杆ETF是否真的能显著提升长期收益？ | [查看文字稿](/docs/ETF图谱/文字稿-纳指与QLD定投20年对比.md) | [打开B站](https://www.bilibili.com/video/BV1JV7fz8Eoe/) |
+| ④ | TQQQ vs SOXL 15年定投 | 3倍杠杆ETF收益很惊人，但风险在哪里？ | [查看文字稿](/docs/ETF图谱/文字稿-SOXL与纳指多倍ETF定投比较.md) | [打开B站](https://www.bilibili.com/video/BV1mpjhzdEJW/) |
+| ⑤ | 全球指数与美股ETF热点合集 | 如果你还不熟悉ETF分类，可以先补基础概念 | [查看配套资料](/docs/ETF图谱/全球指数与美股ETF热点合集.md) | 已嵌入页面 |
 
 ## 这个系列的核心结论
 
