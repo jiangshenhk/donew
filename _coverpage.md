@@ -129,14 +129,14 @@
 </div>
 
 <div class="btn-grid">
-  <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-main">① 复利投资是什么？</a>
+  <a href="#/docs/市场/今日.md" class="cover-btn btn-main">④ 今日市场：适合卖Put吗？</a>
+  <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-sub">① 复利投资是什么？</a>
   <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">② ETF定投：可以用杠杆吗？</a>
   <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">③ Sell Put现金流增强</a>
-  <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">④ 今日市场：适合卖Put吗？</a>
   <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">⑤ ETF定投方法</a>
   <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">⑥ 杠杆ETF系列目录</a>
 </div>
 
 <div class="cover-note">
-阅读顺序建议：先理解复利，再看 ETF 定投与杠杆ETF，接着学习 Sell Put，最后用市场日报判断当下是否适合执行卖 Put 策略。
+首页优先看每日市场，用来判断当前环境是否适合卖 Put；长期框架则按“复利投资 → ETF定投 → Sell Put → 市场判断”逐步阅读。
 </div>
