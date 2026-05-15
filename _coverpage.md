@@ -82,10 +82,22 @@
 
   .cover-note {
     color: #64748b;
-    font-size: 0.9rem;
-    line-height: 1.7;
-    max-width: 720px;
-    margin: 12px auto 0;
+    font-size: 0.95rem;
+    line-height: 1.8;
+    max-width: 760px;
+    margin: 14px auto 0;
+  }
+
+  .cover-highlight {
+    max-width: 760px;
+    margin: 22px auto 0;
+    padding: 14px 18px;
+    border-radius: 14px;
+    background: rgba(37, 99, 235, 0.06);
+    border: 1px solid rgba(37, 99, 235, 0.12);
+    color: #334155;
+    line-height: 1.75;
+    font-size: 0.95rem;
   }
 
   @media (max-width: 768px) {
@@ -112,15 +124,19 @@
 
 <span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律。</span>
 
+<div class="cover-highlight">
+  <strong>本期专题：</strong>定投是否可以用杠杆ETF？用真实长期定投对比，看普通ETF、2倍ETF、3倍ETF的收益、回撤和仓位选择。
+</div>
+
 <div class="btn-grid">
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-main">定投是否可以用杠杆ETF</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-main">📈 定投是否可以用杠杆ETF？</a>
+  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">📚 系列目录</a>
+  <a href="#/docs/ETF图谱/杠杆ETF定投前先问五个问题.md" class="cover-btn btn-sub">⚠️ 风险检查</a>
   <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">📊 今日市场</a>
   <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">🧮 Sell Put</a>
-  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">🎬 ETF视频清单</a>
-  <a href="#/docs/开始/新手阅读顺序.md" class="cover-btn btn-sub">🧭 新手阅读</a>
   <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">🌱 ETF定投方法</a>
 </div>
 
 <div class="cover-note">
-这里记录长期复利投资、ETF收益对比、ETF定投、Sell Put 策略，以及每日市场结构判断。核心目标不是追新闻，而是形成可执行、可复盘的投资决策框架。
+这里记录长期复利投资、ETF定投、杠杆ETF收益对比、Sell Put 策略，以及每日市场结构判断。核心目标不是追新闻，而是形成可执行、可复盘的投资决策框架。
 </div>
