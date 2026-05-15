@@ -76,30 +76,33 @@
 
 ---
 
-- <b><font color="blue"><i class="fas fa-compass"></i> 开始这里</font></b>
-  - [了解网站](/docs/开始/我在记录什么.md)
-  - [新手指南](/docs/开始/新手阅读顺序.md)
+- <b><font color="blue"><i class="fas fa-seedling"></i> 复利投资</font></b>
+  - [复利为王](/docs/开始/神奇的复利效应.md)
+  - [我在记录什么](/docs/开始/我在记录什么.md)
+  - [新手阅读顺序](/docs/开始/新手阅读顺序.md)
 
-- <b><font color="blue"><i class="fas fa-chart-area"></i> 杠杆ETF定投</font></b>
+- <b><font color="blue"><i class="fas fa-chart-area"></i> 方法一：ETF定投</font></b>
+  - [ETF定投方法](/docs/复利/ETF定投方法.md)
   - [定投是否可以用杠杆ETF？](/docs/ETF图谱/ETF长期收益图谱.md)
-  - [系列目录](/docs/ETF图谱/B站ETF视频清单.md)
+  - [杠杆ETF系列目录](/docs/ETF图谱/B站ETF视频清单.md)
+  - [定投前五个问题](/docs/ETF图谱/杠杆ETF定投前先问五个问题.md)
+  - [普通/2倍/3倍ETF怎么分仓](/docs/ETF图谱/普通ETF-2倍ETF-3倍ETF怎么分仓.md)
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 市场日报</font></b>
-  - [今日市场](/docs/市场/今日.md)
-  - [历史归档](/docs/市场/历史.md)
-  - [怎么看日报](/docs/市场/每日市场判断怎么看.md)
-
-- <b><font color="blue"><i class="fas fa-calculator"></i> Sell Put</font></b>
+- <b><font color="blue"><i class="fas fa-calculator"></i> 方法二：Sell Put</font></b>
   - [如何 Sell Put](/docs/SellPut/如何SellPut.md)
   - [卖Put评级说明](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
   - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
 
-- <b><font color="blue"><i class="fas fa-seedling"></i> 定投与ETF</font></b>
-  - [ETF定投方法](/docs/复利/ETF定投方法.md)
-  - [定投底层逻辑](/docs/复利/定投的底层逻辑.md)
+- <b><font color="blue"><i class="fas fa-chart-line"></i> 市场判断</font></b>
+  - [今日市场](/docs/市场/今日.md)
+  - [历史归档](/docs/市场/历史.md)
+  - [怎么看日报](/docs/市场/每日市场判断怎么看.md)
+
+- <b><font color="blue"><i class="fas fa-layer-group"></i> ETF与资产</font></b>
   - [相关ETF](/docs/资产与市场/ETF.md)
   - [纳指/标普/恒科](/docs/资产与市场/纳指标普恒科.md)
+  - [比特币与高波动资产](/docs/资产与市场/比特币与高波动资产.md)
 
 - <b><font color="blue"><i class="fas fa-toolbox"></i> 工具与联系</font></b>
   - [券商开户教程](/docs/券商与工具/券商开户教程.md)
