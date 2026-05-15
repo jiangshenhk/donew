@@ -42,7 +42,7 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 14px;
-    max-width: 720px;
+    max-width: 760px;
     margin: 40px auto 18px;
   }
 
@@ -125,18 +125,18 @@
 <span class="sub-quote">复利，不只是买入后的等待，更是数学、概率、节奏与纪律。</span>
 
 <div class="cover-highlight">
-  <strong>本期专题：</strong>定投是否可以用杠杆ETF？用真实长期定投对比，看普通ETF、2倍ETF、3倍ETF的收益、回撤和仓位选择。
+  <strong>本站主线：</strong>以复利投资为核心，用 ETF 定投和 Sell Put 两个方法提高长期收益；再通过每日市场结构判断，决定什么时候适合卖 Put、什么时候应该防守。
 </div>
 
 <div class="btn-grid">
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-main">📈 定投是否可以用杠杆ETF？</a>
-  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">📚 系列目录</a>
-  <a href="#/docs/ETF图谱/杠杆ETF定投前先问五个问题.md" class="cover-btn btn-sub">⚠️ 风险检查</a>
-  <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">📊 今日市场</a>
-  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">🧮 Sell Put</a>
-  <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">🌱 ETF定投方法</a>
+  <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-main">① 复利投资是什么？</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">② ETF定投：可以用杠杆吗？</a>
+  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">③ Sell Put现金流增强</a>
+  <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">④ 今日市场：适合卖Put吗？</a>
+  <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">⑤ ETF定投方法</a>
+  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">⑥ 杠杆ETF系列目录</a>
 </div>
 
 <div class="cover-note">
-这里记录长期复利投资、ETF定投、杠杆ETF收益对比、Sell Put 策略，以及每日市场结构判断。核心目标不是追新闻，而是形成可执行、可复盘的投资决策框架。
+阅读顺序建议：先理解复利，再看 ETF 定投与杠杆ETF，接着学习 Sell Put，最后用市场日报判断当下是否适合执行卖 Put 策略。
 </div>
