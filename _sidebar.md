@@ -80,10 +80,9 @@
   - [了解网站](/docs/开始/我在记录什么.md)
   - [新手指南](/docs/开始/新手阅读顺序.md)
 
-- <b><font color="blue"><i class="fas fa-chart-area"></i> ETF收益对比</font></b>
-  - [带杠杆还是不带？](/docs/ETF图谱/ETF长期收益图谱.md)
-  - [三篇精选对比](/docs/ETF图谱/精选对比视频文字稿.md)
-  - [全部视频清单](/docs/ETF图谱/B站ETF视频清单.md)
+- <b><font color="blue"><i class="fas fa-chart-area"></i> 杠杆ETF定投</font></b>
+  - [定投是否可以用杠杆ETF？](/docs/ETF图谱/ETF长期收益图谱.md)
+  - [系列目录](/docs/ETF图谱/B站ETF视频清单.md)
 
 - <b><font color="blue"><i class="fas fa-chart-line"></i> 市场日报</font></b>
   - [今日市场](/docs/市场/今日.md)
