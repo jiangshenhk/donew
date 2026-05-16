@@ -123,7 +123,7 @@
 ***
 
 <div class="cover-highlight">
-  <strong>本站主线：</strong>以复利投资为核心，用 ETF 定投和 Sell Put 两个方法提高长期收益；再通过每日市场结构判断，决定什么时候适合卖 Put、什么时候应该防守。
+  <strong>本站主线：</strong>以复利投资为核心，用 ETF 定投和 Sell Put 两个方法提高长期收益；再通过每日市场结构判断，决定什么时候卖 Put、什么时候防守。
 </div>
 
 <div class="btn-grid">
