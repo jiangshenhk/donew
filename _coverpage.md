@@ -130,7 +130,7 @@
   <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-sub">真复利投资法</a>
   <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">ETF定投大法</a>
   <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">定投也能用杠杆</a>
-  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">卖Put收高利息</a>
+  <a href="#/docs/SellPut/how-to-sell-put.md" class="cover-btn btn-sub">卖Put收高利息</a>
   <a href="#/docs/市场/卖Put评级说明.md" class="cover-btn btn-sub">筛选Put用AI</a>
 </div>
 
