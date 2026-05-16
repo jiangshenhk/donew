@@ -125,7 +125,7 @@
 <span class="sub-quote">用AI和数据，重新理解复利投资。</span>
 
 <div class="cover-highlight">
-  <strong>本站主线：</strong>以复利投资为核心理念，用 ETF 定投和 Sell Put 两个方法，借助数据分析和 AI，建立可执行、可复盘的长期投资框架。</div>
+  <strong>本站主线：</strong>以复利投资为核心理念，用数据和AI，借助ETF定投和Sell Put两个方法，建立可执行可重复的长期投资框架。</div>
 
 <div class="btn-grid">
   <a href="#/docs/市场/今日.md" class="cover-btn btn-main">今日市场分析</a>
