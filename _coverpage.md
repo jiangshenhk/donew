@@ -128,11 +128,11 @@
 
 <div class="btn-grid">
   <a href="#/docs/市场/今日.md" class="cover-btn btn-main">今日市场分析</a>
-  <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-sub">复利投资是什么？</a>
-  <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">ETF定投方法</a>
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">ETF定投：能不能用杠杆？</a>
-  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">Sell Put：卖保险收利息</a>
-  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="cover-btn btn-sub">杠杆ETF长期收益对比</a>
+  <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-sub">真-复利投资？</a>
+  <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">ETF定投大法</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">定投能用杠杆？</a>
+  <a href="#/docs/SellPut/如何SellPut.md" class="cover-btn btn-sub">卖Put收高利息</a>
+  <a href="#/docs/市场/卖Put评级说明.md" class="cover-btn btn-sub">如何选Put?</a>
 </div>
 
 <div class="cover-note">
