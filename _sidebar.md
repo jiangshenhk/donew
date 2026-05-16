@@ -93,7 +93,7 @@
   - [普通/2倍/3倍ETF怎么分仓](/docs/ETF图谱/普通ETF-2倍ETF-3倍ETF怎么分仓.md)
 
 - <b><font color="blue"><i class="fas fa-calculator"></i> 方法二：卖Put收利息</font></b>
-  - [卖Put收高利息](/docs/SellPut/如何SellPut.md)
+  - [卖Put收高利息](/docs/SellPut/how-to-sell-put.md)
   - [筛选Put用AI](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
   - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
