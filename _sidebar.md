@@ -87,6 +87,7 @@
 
 - <b><font color="blue"><i class="fas fa-chart-area"></i> 方法一：ETF定投</font></b>
   - [全球指数与ETF](/docs/ETF图谱/文字稿-全球指数与美股ETF热点合集.md)
+  - [指数ETF更适合普通人](/docs/ETF图谱/指数ETF更适合普通人.md)
   - [ETF定投大法](/docs/复利/ETF定投方法.md)
   - [定投也能用杠杆](/docs/ETF图谱/ETF长期收益图谱.md)
   - [杠杆ETF系列目录](/docs/ETF图谱/B站ETF视频清单.md)
