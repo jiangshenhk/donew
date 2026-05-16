@@ -76,35 +76,39 @@
 
 ---
 
+- <b><font color="blue"><i class="fas fa-fire"></i> 热门栏目</font></b>
+  - [今日AI市场趋势判断](/docs/市场/今日.md)
+  - [杠杆ETF定投收益比较](/docs/ETF图谱/B站ETF视频清单.md)
+
 - <b><font color="blue"><i class="fas fa-seedling"></i> 核心：复利投资</font></b>
-  - [复利为王](/docs/开始/神奇的复利效应.md)
+  - [真复利投资法](/docs/开始/神奇的复利效应.md)
   - [我在记录什么](/docs/开始/我在记录什么.md)
   - [新手阅读顺序](/docs/开始/新手阅读顺序.md)
 
 - <b><font color="blue"><i class="fas fa-chart-area"></i> 方法一：ETF定投</font></b>
-  - [ETF定投方法](/docs/复利/ETF定投方法.md)
-  - [定投是否可以用杠杆ETF？](/docs/ETF图谱/ETF长期收益图谱.md)
+  - [ETF定投大法](/docs/复利/ETF定投方法.md)
+  - [定投也能用杠杆](/docs/ETF图谱/ETF长期收益图谱.md)
   - [杠杆ETF系列目录](/docs/ETF图谱/B站ETF视频清单.md)
   - [定投前五个问题](/docs/ETF图谱/杠杆ETF定投前先问五个问题.md)
   - [普通/2倍/3倍ETF怎么分仓](/docs/ETF图谱/普通ETF-2倍ETF-3倍ETF怎么分仓.md)
 
-- <b><font color="blue"><i class="fas fa-calculator"></i> 方法二：卖保险收利息</font></b>
-  - [Sell Put是什么？](/docs/SellPut/如何SellPut.md)
-  - [卖Put评级说明](/docs/市场/卖Put评级说明.md)
+- <b><font color="blue"><i class="fas fa-calculator"></i> 方法二：卖Put收利息</font></b>
+  - [卖Put收高利息](/docs/SellPut/如何SellPut.md)
+  - [筛选Put用AI](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
   - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
 
-- <b><font color="blue"><i class="fas fa-chart-line"></i> 判断：每日市场</font></b>
-  - [今日市场](/docs/市场/今日.md)
-  - [历史归档](/docs/市场/历史.md)
-  - [怎么看日报](/docs/市场/每日市场判断怎么看.md)
+- <b><font color="blue"><i class="fas fa-robot"></i> AI市场趋势判断</font></b>
+  - [今日市场趋势](/docs/市场/今日.md)
+  - [历史市场趋势](/docs/市场/历史.md)
+  - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
 
-- <b><font color="blue"><i class="fas fa-layer-group"></i> 标的：ETF资产</font></b>
+- <b><font color="blue"><i class="fas fa-layer-group"></i> ETF标的</font></b>
   - [相关ETF](/docs/资产与市场/ETF.md)
   - [纳指/标普/恒科](/docs/资产与市场/纳指标普恒科.md)
   - [比特币与高波动资产](/docs/资产与市场/比特币与高波动资产.md)
 
-- <b><font color="blue"><i class="fas fa-toolbox"></i> 工具：券商联系</font></b>
+- <b><font color="blue"><i class="fas fa-toolbox"></i> 工具券商教程</font></b>
   - [券商开户教程](/docs/券商与工具/券商开户教程.md)
   - [入金与出金](/docs/券商与工具/入金与出金说明.md)
   - [联系](/docs/其他/联系.md)
