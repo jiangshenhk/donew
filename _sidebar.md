@@ -98,14 +98,12 @@
   - [大佬偏爱卖Put](/docs/SellPut/how-to-sell-put.md)
   - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
-  - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
+  - [MSTR操作框架](/docs/市场/MSTR操作框架.md)
 
 - <b><font color="blue"><i class="fas fa-robot"></i> AI市场趋势判断</font></b>
   - [今日市场趋势](/docs/市场/今日.md)
   - [历史市场趋势](/docs/市场/历史.md)
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
 
-- <b><font color="blue"><i class="fas fa-toolbox"></i> 工具券商教程</font></b>
-  - [券商开户教程](/docs/券商与工具/券商开户教程.md)
-  - [入金与出金说明](/docs/券商与工具/入金与出金说明.md)
-  - [联系](/docs/其他/联系.md)
+- <b><font color="blue"><i class="fas fa-ellipsis-h"></i> 其他</font></b>
+  - [联系](/docs/other/contact.md)
