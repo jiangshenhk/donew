@@ -80,17 +80,19 @@
   - [今日AI市场趋势判断](/docs/市场/今日.md)
   - [杠杆ETF定投收益比较](/docs/ETF图谱/B站ETF视频清单.md)
 
-- <b><font color="blue"><i class="fas fa-seedling"></i> 核心：复利投资</font></b>
+- <b><font color="blue"><i class="fas fa-spa"></i> 心安复利</font></b>
+  - [心安复利：底层财富观](/docs/other/calm-wealth-mindset.md)
   - [真复利投资法](/docs/开始/神奇的复利效应.md)
-  - [我在记录什么](/docs/开始/我在记录什么.md)
   - [新手阅读顺序](/docs/开始/新手阅读顺序.md)
+  - [灵隐寺财富祈求之旅](/docs/other/lingyin-wealth.md)
 
 - <b><font color="blue"><i class="fas fa-chart-area"></i> 方法一：ETF定投</font></b>
+  - [ETF定投大法](/docs/复利/ETF定投方法.md)
+  - [定投也能用杠杆](/docs/ETF图谱/ETF长期收益图谱.md)
+  - [杠杆ETF系列目录](/docs/ETF图谱/B站ETF视频清单.md)
   - [全球指数与ETF](/docs/ETF图谱/文字稿-全球指数与美股ETF热点合集.md)
   - [指数ETF更适合普通人](/docs/ETF图谱/指数ETF更适合普通人.md)
   - [定投ETF收益率惊人](/docs/ETF图谱/定投ETF收益率惊人.md)
-  - [定投也能用杠杆](/docs/ETF图谱/ETF长期收益图谱.md)
-  - [杠杆ETF系列目录](/docs/ETF图谱/B站ETF视频清单.md)
   - [定投前五个问题](/docs/ETF图谱/杠杆ETF定投前先问五个问题.md)
   - [普通/2倍/3倍ETF怎么分仓](/docs/ETF图谱/普通ETF-2倍ETF-3倍ETF怎么分仓.md)
 
@@ -98,13 +100,12 @@
   - [大佬偏爱卖Put](/docs/SellPut/how-to-sell-put.md)
   - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
-  - [MSTR操作框架](/docs/市场/MSTR操作框架.md)
+  - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
 
 - <b><font color="blue"><i class="fas fa-robot"></i> AI市场趋势判断</font></b>
   - [今日市场趋势](/docs/市场/今日.md)
   - [历史市场趋势](/docs/市场/历史.md)
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
 
-- <b><font color="blue"><i class="fas fa-ellipsis-h"></i> 其他</font></b>
-  - [灵隐寺财富祈求之旅](/docs/other/lingyin-wealth.md)
-  - [联系](/docs/other/contact.md)
+- <b><font color="blue"><i class="fas fa-envelope"></i> 联系</font></b>
+  - [联系我](/docs/other/contact.md)
