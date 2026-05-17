@@ -182,8 +182,8 @@
 </div>
 
 <div class="quick-row">
-  <a href="#/docs/市场/今日.md" class="quick-link">今日AI市场判断</a>
-  <a href="#/docs/市场/卖Put评级说明.md" class="quick-link">用AI筛选Put</a>
-  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="quick-link">杠杆ETF收益比较</a>
-  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺财富心法</a>
+  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺寻佛练心法</a>
+  <a href="#/docs/市场/今日.md" class="quick-link">AI每日市场判断</a>
+  <a href="#/docs/市场/卖Put评级说明.md" class="quick-link">AI筛选最佳Put</a>
+  <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="quick-link">定投杠杆ETF收益比较</a>
 </div>
