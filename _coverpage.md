@@ -187,7 +187,3 @@
   <a href="#/docs/ETF图谱/B站ETF视频清单.md" class="quick-link">杠杆ETF收益比较</a>
   <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺财富心法</a>
 </div>
-
-<div class="cover-note">
-阅读建议：先理解“心安复利”的底层思想，再进入 ETF 定投和 Sell Put 两个方法；每日市场分析和 AI 筛选 Put 只作为执行辅助。
-</div>
