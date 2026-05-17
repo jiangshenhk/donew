@@ -166,7 +166,7 @@
 
 <div class="main-grid">
   <a href="#/docs/other/calm-wealth-mindset.md" class="main-card featured">
-    <strong>心安复利</strong>
+    <strong>时间复利</strong>
     <span>先把底层财富观想清楚：心态平和、守住正财、长期积累，选择时间的威力。</span>
   </a>
 
