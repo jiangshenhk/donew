@@ -89,15 +89,15 @@
   }
 
   .cover-highlight {
-    max-width: 760px;
+    max-width: 780px;
     margin: 22px auto 0;
-    padding: 14px 18px;
+    padding: 16px 20px;
     border-radius: 14px;
     background: rgba(37, 99, 235, 0.06);
     border: 1px solid rgba(37, 99, 235, 0.12);
     color: #334155;
-    line-height: 1.75;
-    font-size: 0.95rem;
+    line-height: 1.85;
+    font-size: 0.96rem;
   }
 
   @media (max-width: 768px) {
@@ -125,11 +125,12 @@
 <span class="sub-quote">用AI和数据，重新理解复利投资。</span>
 
 <div class="cover-highlight">
-  <strong>本站主线：</strong>以复利投资为核心理念，用数据和AI，借助ETF定投和Sell Put两个方法，建立可执行可重复的长期投资框架。</div>
+  <strong>本站底层思想：</strong>暴富是概率事件，复利是时间过程。普通人最现实的财富路径，不是天天寻找那一次小概率暴富，而是尽早站到时间这一边。我的两把时间武器，是 <strong>ETF 定投</strong> 和 <strong>Sell Put</strong>；AI 和数据，则用来辅助判断风险环境和执行纪律。
+</div>
 
 <div class="btn-grid">
-  <a href="#/docs/市场/今日.md" class="cover-btn btn-main">今日市场分析</a>
-  <a href="#/docs/开始/神奇的复利效应.md" class="cover-btn btn-sub">真~复利投资法</a>
+  <a href="#/docs/other/calm-wealth-mindset.md" class="cover-btn btn-main">心安复利</a>
+  <a href="#/docs/市场/今日.md" class="cover-btn btn-sub">今日市场分析</a>
   <a href="#/docs/复利/ETF定投方法.md" class="cover-btn btn-sub">ETF定投大法</a>
   <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="cover-btn btn-sub">定投也能用杠杆</a>
   <a href="#/docs/SellPut/how-to-sell-put.md" class="cover-btn btn-sub">卖Put收高利息</a>
@@ -137,5 +138,5 @@
 </div>
 
 <div class="cover-note">
-首页优先看每日市场，用来判断当前环境是否适合卖 Put；长期框架则按“复利投资 → ETF定投 → Sell Put → 市场判断”逐步阅读。
+建议阅读顺序：先看“心安复利”，理解为什么普通人要选择时间的威力；再看 ETF 定投和 Sell Put 两个方法；最后用每日市场分析和 AI 筛选 Put 辅助执行。
 </div>
