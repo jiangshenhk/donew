@@ -171,12 +171,12 @@
   </a>
 
   <a href="#/docs/复利/ETF定投方法.md" class="main-card">
-    <strong>时间武器一：ETF定投</strong>
+    <strong>时间武器一：<br>ETF定投</strong>
     <span>用长期参与和持续投入，降低择时压力，让时间慢慢摊平波动。</span>
   </a>
 
   <a href="#/docs/SellPut/how-to-sell-put.md" class="main-card">
-    <strong>时间武器二：Sell Put</strong>
+    <strong>时间武器二：<br>Sell Put</strong>
     <span>用愿意接货的价格等待好资产，把等待过程变成权利金现金流。</span>
   </a>
 </div>
