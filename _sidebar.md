@@ -106,4 +106,5 @@
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
 
 - <b><font color="blue"><i class="fas fa-ellipsis-h"></i> 其他</font></b>
+  - [灵隐寺财富祈求之旅](/docs/other/lingyin-wealth.md)
   - [联系](/docs/other/contact.md)
