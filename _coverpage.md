@@ -158,7 +158,7 @@
 
 ***
 
-<span class="sub-quote">用AI和数据，重新理解复利投资。</span>
+<span class="sub-quote">站在时间这一边，用AI和数据，重新理解复利投资。</span>
 
 <div class="cover-highlight">
   <strong>核心思想：</strong>暴富是概率事件，复利是时间过程。普通人最现实的财富路径，不是寻找一次小概率暴富，而是尽早站到时间这一边。
