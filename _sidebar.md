@@ -88,12 +88,10 @@
 
 - <b><font color="blue"><i class="fas fa-chart-area"></i> 方法一：ETF定投</font></b>
   - [ETF定投大法](/docs/复利/ETF定投方法.md)
+  - [如何选择ETF标的](/docs/复利/how-to-choose-etf-for-dca.md)
+  - [如何看待指数回撤](/docs/复利/how-to-handle-etf-drawdown.md)
   - [定投也能用杠杆](/docs/ETF图谱/ETF长期收益图谱.md)
   - [杠杆ETF系列目录](/docs/ETF图谱/B站ETF视频清单.md)
-  - [全球指数与ETF](/docs/ETF图谱/文字稿-全球指数与美股ETF热点合集.md)
-  - [指数ETF更适合普通人](/docs/ETF图谱/指数ETF更适合普通人.md)
-  - [定投ETF收益率惊人](/docs/ETF图谱/定投ETF收益率惊人.md)
-  - [定投前五个问题](/docs/ETF图谱/杠杆ETF定投前先问五个问题.md)
   - [普通/2倍/3倍ETF怎么分仓](/docs/ETF图谱/普通ETF-2倍ETF-3倍ETF怎么分仓.md)
 
 - <b><font color="blue"><i class="fas fa-calculator"></i> 方法二：卖Put收利息</font></b>
