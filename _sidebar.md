@@ -45,11 +45,13 @@
 }
 
 .sidebar-nav > ul > li { position: relative; }
-.sidebar-nav > ul > li > p {
+.sidebar-nav > ul > li > p,
+.sidebar-nav > ul > li > a {
   border-left: 3px solid transparent;
   transition: border-color 0.3s ease;
 }
-.sidebar-nav > ul > li:hover > p { border-left-color: #2563eb; }
+.sidebar-nav > ul > li:hover > p,
+.sidebar-nav > ul > li:hover > a { border-left-color: #2563eb; }
 .sidebar-nav li li { margin-left: 8px; }
 
 .sidebar-nav hr {
@@ -76,31 +78,27 @@
 
 ---
 
-- <b><font color="blue"><i class="fas fa-fire"></i> 热门栏目</font></b>
+- <b><font color="blue"><i class="fas fa-fire"></i> [热门栏目](/docs/sections/hot.md)</font></b>
   - [今日AI市场趋势判断](/docs/市场/今日.md)
   - [杠杆ETF定投收益比较](/docs/ETF图谱/B站ETF视频清单.md)
+  - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
 
-- <b><font color="blue"><i class="fas fa-spa"></i> 心安复利</font></b>
+- <b><font color="blue"><i class="fas fa-spa"></i> [心安复利](/docs/sections/compound.md)</font></b>
   - [心安复利：底层财富观](/docs/other/calm-wealth-mindset.md)
   - [真复利投资法](/docs/开始/神奇的复利效应.md)
   - [新手阅读顺序](/docs/开始/新手阅读顺序.md)
-  - [灵隐寺财富祈求之旅](/docs/other/lingyin-wealth.md)
 
-- <b><font color="blue"><i class="fas fa-chart-area"></i> 方法一：ETF定投</font></b>
+- <b><font color="blue"><i class="fas fa-chart-area"></i> [方法一：ETF定投](/docs/sections/etf-dca.md)</font></b>
   - [ETF定投大法](/docs/复利/ETF定投方法.md)
   - [如何选择ETF标的](/docs/复利/how-to-choose-etf-for-dca.md)
   - [如何看待指数回撤](/docs/复利/how-to-handle-etf-drawdown.md)
-  - [定投也能用杠杆](/docs/ETF图谱/ETF长期收益图谱.md)
-  - [杠杆ETF系列目录](/docs/ETF图谱/B站ETF视频清单.md)
-  - [普通/2倍/3倍ETF怎么分仓](/docs/ETF图谱/普通ETF-2倍ETF-3倍ETF怎么分仓.md)
 
-- <b><font color="blue"><i class="fas fa-calculator"></i> 方法二：卖Put收利息</font></b>
+- <b><font color="blue"><i class="fas fa-calculator"></i> [方法二：卖Put收利息](/docs/sections/sell-put.md)</font></b>
   - [大佬偏爱卖Put](/docs/SellPut/how-to-sell-put.md)
   - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
-  - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
 
-- <b><font color="blue"><i class="fas fa-robot"></i> AI市场趋势判断</font></b>
+- <b><font color="blue"><i class="fas fa-robot"></i> [AI市场趋势判断](/docs/sections/market-ai.md)</font></b>
   - [今日市场趋势](/docs/市场/今日.md)
   - [历史市场趋势](/docs/市场/历史.md)
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
