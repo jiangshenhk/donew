@@ -84,7 +84,7 @@
   - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
 
 - <b><font color="blue"><i class="fas fa-spa"></i> [心安复利](/docs/sections/compound.md)</font></b>
-  - [心安复利：底层财富观](/docs/other/calm-wealth-mindset.md)
+  - [树立正确的财富观](/docs/other/calm-wealth-mindset.md)
   - [真复利投资法](/docs/开始/神奇的复利效应.md)
   - [新手阅读顺序](/docs/开始/新手阅读顺序.md)
 
