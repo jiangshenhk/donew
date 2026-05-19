@@ -80,8 +80,8 @@
 
 - **[🔥 热门栏目](/docs/sections/hot.md)**
   - [用AI判断今日市场趋势](/docs/市场/今日.md)
-  - [杠杆ETF定投收益比较，结果惊人](/docs/ETF图谱/B站ETF视频清单.md)
-  - [大佬偏爱用卖Put，而不是直接买股](/docs/SellPut/how-to-sell-put.md)
+  - [杠杆ETF定投收益比较结果惊人](/docs/ETF图谱/B站ETF视频清单.md)
+  - [大佬偏爱卖Put而不直接买股](/docs/SellPut/how-to-sell-put.md)
 
 - **[🌿 心安复利](/docs/sections/compound.md)**
   - [树立正确的财富观](/docs/other/calm-wealth-mindset.md)
