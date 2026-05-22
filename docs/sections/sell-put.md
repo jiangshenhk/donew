@@ -2,10 +2,6 @@
 
 > Sell Put 不是单纯赚权利金，而是把“看好但不追高”变成一个有价格、有补偿、有纪律的买入计划。
 
-这个栏目整理 Sell Put 的底层逻辑、AI筛选方法，以及 QLD / MSTR 等标的的操作框架。
-
----
-
 ## 置顶精选
 - [大佬偏爱卖Put](/docs/SellPut/how-to-sell-put.md)
 - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
