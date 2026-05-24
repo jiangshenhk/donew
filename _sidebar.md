@@ -86,7 +86,7 @@
 - **[🌿 心安复利](/docs/sections/compound.md)**
   - [树立正确的财富观](/docs/other/calm-wealth-mindset.md)
   - [真复利投资法](/docs/开始/神奇的复利效应.md)
-  - [灵隐寺财富祈求之旅](/docs/other/lingyin-wealth.md)
+  - [灵隐寺财富之旅](/docs/other/lingyin-wealth.md)
   - [新手阅读顺序](/docs/开始/新手阅读顺序.md)
   
 - **[📈 方法一：ETF定投](/docs/sections/etf-dca.md)**
