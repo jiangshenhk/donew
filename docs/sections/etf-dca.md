@@ -29,47 +29,101 @@
 普通人能不能坚持
 ```
 
-### 1. 基础资产对比：标普、沪深300、纳指、黄金
+<style>
+.xhs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 20px 0 28px;
+}
+.xhs-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.xhs-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+}
+.xhs-card a {
+  color: inherit;
+  text-decoration: none;
+}
+.xhs-card img {
+  display: block;
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  background: #111827;
+}
+.xhs-card-body {
+  padding: 12px 14px 14px;
+}
+.xhs-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.45;
+  margin-bottom: 6px;
+  color: #111827;
+}
+.xhs-card-desc {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #4b5563;
+}
+@media (max-width: 900px) {
+  .xhs-grid { grid-template-columns: 1fr; }
+  .xhs-card img { height: auto; }
+}
+</style>
 
-这篇适合作为整个 ETF 定投系列的起点。它先回答一个基础问题：如果长期定投，不同大类资产之间差距到底有多大。
+<div class="xhs-grid">
+  <div class="xhs-card">
+    <a href="https://www.xiaohongshu.com/discovery/item/68202ad20000000023001f40" target="_blank">
+      <img src="/docs/assets/xhs/dca-global-index-gold.png" alt="定投20年：标普、沪深300、纳指、黄金对比">
+      <div class="xhs-card-body">
+        <div class="xhs-card-title">定投20年：标普、沪深300、纳指、黄金</div>
+        <div class="xhs-card-desc">用动态图对比不同大类资产长期定投结果，适合作为整个ETF定投系列的起点。</div>
+      </div>
+    </a>
+  </div>
 
-- [动态数据看定投20年，标普&沪深&纳指&黄金](https://www.xiaohongshu.com/discovery/item/68202ad20000000023001f40?source=webshare&xhsshare=pc_web&xsec_token=ABwwOzuAesGGGu5cie5IcQpzTWnKUAJ8sxzcFPcQRNAak=&xsec_source=pc_share)
+  <div class="xhs-card">
+    <a href="https://www.xiaohongshu.com/discovery/item/68161bae000000002301f1a8" target="_blank">
+      <img src="/docs/assets/xhs/dca-sp500-35y.png" alt="标普500定投35年：收益归零后再到538%">
+      <div class="xhs-card-body">
+        <div class="xhs-card-title">标普500定投35年：收益归零后再到538%</div>
+        <div class="xhs-card-desc">说明普通宽基指数的长期韧性：中间会大跌，但长期坚持后复利仍可能发挥作用。</div>
+      </div>
+    </a>
+  </div>
 
-### 2. 标普500长期定投：35年收益归零后再到538%
+  <div class="xhs-card">
+    <a href="https://www.xiaohongshu.com/discovery/item/6822d9240000000022037941" target="_blank">
+      <img src="/docs/assets/xhs/dca-nasdaq-qld.png" alt="纳指 vs QLD：定投杠杆基金是否更有效率">
+      <div class="xhs-card-body">
+        <div class="xhs-card-title">纳指 vs QLD：2倍杠杆是否更有效率？</div>
+        <div class="xhs-card-desc">对比普通纳指和2倍纳指杠杆ETF，结果很强，但过程更反人性。</div>
+      </div>
+    </a>
+  </div>
+</div>
 
-这篇适合说明普通宽基指数的长期韧性：中间会经历大跌和漫长修复，但长期坚持后，复利仍然可能发挥作用。
+> 图片文件请按顺序放到：`docs/assets/xhs/` 目录下。  
+> 文件名分别为：`dca-global-index-gold.png`、`dca-sp500-35y.png`、`dca-nasdaq-qld.png`。  
+> 点击图片会直接跳转到对应小红书播放页。
 
-- [定投标普500的35年：期间收益归0后再到538%](https://www.xiaohongshu.com/discovery/item/68161bae000000002301f1a8?source=webshare&xhsshare=pc_web&xsec_token=ABStPGqzE1tvIWvqf3x_Mcs_bTRcYOKUPU-rig58uIJZM=&xsec_source=pc_share)
+---
 
-### 3. 纳指 vs QLD：定投杠杆基金是否更有效率？
+## 更多小红书案例
 
-这篇是杠杆ETF定投系列里的关键案例。它对比普通纳指和 2 倍纳指杠杆 ETF QLD，说明在长期向上的指数上，2倍杠杆可能显著放大收益，但过程也更加反人性。
-
-- [定投杠杆基金是否更有效率，结果反人性！](https://www.xiaohongshu.com/discovery/item/6822d9240000000022037941?source=webshare&xhsshare=pc_web&xsec_token=AB-P9eSTSrCzvMJ4dx6TQaGRdc5eXtsOH5fkL96APAkKI=&xsec_source=pc_share)
-
-### 4. TQQQ vs SOXL：都是3倍杠杆，定投15年谁更强？
-
-这篇适合放在更进阶的位置。它比较 TQQQ 和 SOXL 两个 3 倍杠杆 ETF，重点不是只看最终收益，而是观察三倍杠杆在不同底层行业上的收益弹性和回撤压力。
-
-- [都是3倍杠杆，TQQQ和SOXL定投15年，谁更强？](https://www.xiaohongshu.com/discovery/item/6831e164000000002300e5e1?source=webshare&xhsshare=pc_web&xsec_token=ABeGQt8N4ICO-DuP-fUlIHl6d9YrGV606T9fJfjMApAPg=&xsec_source=pc_share)
-
-### 5. SOXL 半导体三倍杠杆ETF定投25年
-
-这篇是网友点播型内容，适合作为半导体高波动资产的单独案例。SOXL 的弹性很强，但中间波动和回撤压力也非常大。
-
-- [网友点播：SOXL半导体三倍杠杆ETF定投25年](https://www.xiaohongshu.com/discovery/item/6828541d0000000023013321?source=webshare&xhsshare=pc_web&xsec_token=AB-R_IxvuyJrltq98W731uXwTP7LtktdRu3_wb6yteFS0=&xsec_source=pc_share)
-
-### 6. 定投目标表格：你的目标真的对吗？
-
-这篇不是单纯做收益对比，而是帮助定投者反推目标：每月投入多少、定投多少年、目标收益是否现实。
-
-- [定投人必看表格：你的目标真的对吗？](https://www.xiaohongshu.com/discovery/item/6832f0630000000023000e5d?source=webshare&xhsshare=pc_web&xsec_token=ABxOMV6EltANCd24tiO4N2L7T72q7a6SC2_5WHQ0s7WaY=&xsec_source=pc_share)
-
-### 7. 市场情绪参考：恐慌指数 VIX 超过45后
-
-这篇更偏市场情绪研究，不属于普通 ETF 定投案例，但可以作为“回撤时如何看待恐慌”的参考材料。它适合连接到 AI 市场趋势判断栏目。
-
-- [恐慌指数超过45后，历史数据分析结果惊人！](https://www.xiaohongshu.com/discovery/item/67f27a80000000001c02d433?source=webshare&xhsshare=pc_web&xsec_token=ABqKTY0vHJfsxDutnGJgFT02f4US_3SDsBBvYzqQwjoXE=&xsec_source=pc_share)
+- [TQQQ vs SOXL：都是3倍杠杆，定投15年谁更强？](https://www.xiaohongshu.com/discovery/item/6831e164000000002300e5e1)
+- [SOXL半导体三倍杠杆ETF定投25年](https://www.xiaohongshu.com/discovery/item/6828541d0000000023013321)
+- [定投人必看表格：你的目标真的对吗？](https://www.xiaohongshu.com/discovery/item/6832f0630000000023000e5d)
+- [恐慌指数超过45后，历史数据分析结果惊人！](https://www.xiaohongshu.com/discovery/item/67f27a80000000001c02d433)
 
 ---
 
