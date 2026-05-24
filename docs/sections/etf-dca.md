@@ -74,6 +74,15 @@
   line-height: 1.55;
   color: #4b5563;
 }
+.xhs-note {
+  background: #f8fafc;
+  border-left: 4px solid #2563eb;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin: 18px 0 28px;
+  color: #334155;
+  font-size: 14px;
+}
 @media (max-width: 900px) {
   .xhs-grid { grid-template-columns: 1fr; }
   .xhs-card img { height: auto; }
@@ -110,20 +119,65 @@
       </div>
     </a>
   </div>
+
+  <div class="xhs-card">
+    <a href="https://www.xiaohongshu.com/discovery/item/6831e164000000002300e5e1" target="_blank">
+      <img src="/docs/assets/xhs/dca-tqqq-soxl-15y.png" alt="TQQQ vs SOXL：都是3倍杠杆，定投15年谁更强">
+      <div class="xhs-card-body">
+        <div class="xhs-card-title">TQQQ vs SOXL：3倍杠杆谁更强？</div>
+        <div class="xhs-card-desc">比较两个3倍杠杆ETF，重点看收益弹性，也要看底层行业和回撤压力。</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="xhs-card">
+    <a href="https://www.xiaohongshu.com/discovery/item/6828541d0000000023013321" target="_blank">
+      <img src="/docs/assets/xhs/dca-soxl-25y.png" alt="SOXL半导体三倍杠杆ETF定投25年">
+      <div class="xhs-card-body">
+        <div class="xhs-card-title">SOXL：半导体3倍杠杆定投25年</div>
+        <div class="xhs-card-desc">网友点播型案例，展示半导体高弹性资产的收益想象力与极端波动压力。</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="xhs-card">
+    <a href="https://www.xiaohongshu.com/discovery/item/6832f0630000000023000e5d" target="_blank">
+      <img src="/docs/assets/xhs/dca-goal-table.png" alt="定投人必看表格：你的目标真的对吗">
+      <div class="xhs-card-body">
+        <div class="xhs-card-title">定投目标表格：你的目标真的对吗？</div>
+        <div class="xhs-card-desc">不是单纯比收益，而是反推每月投入、定投年限和目标收益是否现实。</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="xhs-card">
+    <a href="https://www.xiaohongshu.com/discovery/item/67f27a80000000001c02d433" target="_blank">
+      <img src="/docs/assets/xhs/vix-above-45.png" alt="恐慌指数VIX超过45后，历史数据分析结果惊人">
+      <div class="xhs-card-body">
+        <div class="xhs-card-title">VIX超过45后：恐慌之后发生什么？</div>
+        <div class="xhs-card-desc">市场情绪研究案例，可作为理解大跌、恐慌和回撤修复的辅助材料。</div>
+      </div>
+    </a>
+  </div>
 </div>
 
-> 图片文件请按顺序放到：`docs/assets/xhs/` 目录下。  
-> 文件名分别为：`dca-global-index-gold.png`、`dca-sp500-35y.png`、`dca-nasdaq-qld.png`。  
-> 点击图片会直接跳转到对应小红书播放页。
+<div class="xhs-note">
+  图片统一放到 <code>docs/assets/xhs/</code> 目录。点击每张图片，会跳转到对应小红书播放页。
+</div>
 
 ---
 
-## 更多小红书案例
+## 图片文件命名表
 
-- [TQQQ vs SOXL：都是3倍杠杆，定投15年谁更强？](https://www.xiaohongshu.com/discovery/item/6831e164000000002300e5e1)
-- [SOXL半导体三倍杠杆ETF定投25年](https://www.xiaohongshu.com/discovery/item/6828541d0000000023013321)
-- [定投人必看表格：你的目标真的对吗？](https://www.xiaohongshu.com/discovery/item/6832f0630000000023000e5d)
-- [恐慌指数超过45后，历史数据分析结果惊人！](https://www.xiaohongshu.com/discovery/item/67f27a80000000001c02d433)
+| 顺序 | 内容 | 图片文件名 |
+|---:|---|---|
+| 1 | 标普、沪深300、纳指、黄金定投20年 | `dca-global-index-gold.png` |
+| 2 | 标普500定投35年 | `dca-sp500-35y.png` |
+| 3 | 纳指 vs QLD，2倍杠杆对比 | `dca-nasdaq-qld.png` |
+| 4 | TQQQ vs SOXL，3倍杠杆对比 | `dca-tqqq-soxl-15y.png` |
+| 5 | SOXL 半导体3倍杠杆25年 | `dca-soxl-25y.png` |
+| 6 | 定投目标表格 | `dca-goal-table.png` |
+| 7 | VIX 恐慌指数超过45 | `vix-above-45.png` |
 
 ---
 
