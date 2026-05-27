@@ -136,6 +136,26 @@
     margin: 18px auto 0;
   }
 
+  .site-counter {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px;
+    margin: 24px auto 0;
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .site-counter span {
+    white-space: nowrap;
+  }
+
+  .site-counter strong {
+    color: #334155;
+    font-weight: 700;
+  }
+
   @media (max-width: 768px) {
     .cover-title {
       font-size: 2.1rem;
@@ -186,4 +206,9 @@
   <a href="#/docs/市场/卖Put评级说明.md" class="quick-link">AI筛选Put</a>
   <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投ETF收益PK</a>
   <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺拜财富众神</a>
+</div>
+
+<div class="site-counter">
+  <span>本站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
+  <span>访客 <strong id="busuanzi_value_site_uv">--</strong> 人</span>
 </div>
