@@ -5,16 +5,13 @@
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.92));
 }
 .home-shell {
-  width: min(1040px, 92vw);
+  width: min(860px, calc(100vw - 48px));
   margin: 0 auto;
-  padding: 32px 0 22px;
+  padding: 28px 0 18px;
   text-align: left;
 }
 .home-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-  gap: 28px;
-  align-items: stretch;
+  display: block;
 }
 .home-kicker {
   display: inline-flex;
@@ -30,7 +27,7 @@
 .home-title {
   margin: 0;
   color: #0f172a;
-  font-size: clamp(42px, 6vw, 72px);
+  font-size: clamp(42px, 5vw, 64px);
   line-height: 1.02;
   font-weight: 850;
   letter-spacing: 0;
@@ -39,7 +36,7 @@
   color: #2563eb;
 }
 .home-subtitle {
-  max-width: 620px;
+  max-width: 720px;
   margin: 18px 0 0;
   color: #475569;
   font-size: 18px;
@@ -74,6 +71,7 @@
   color: #fff !important;
 }
 .market-panel {
+  margin-top: 24px;
   padding: 22px;
   border: 1px solid #dbe4f0;
   border-radius: 10px;
@@ -169,7 +167,6 @@
 }
 @media (max-width: 900px) {
   .home-shell { padding-top: 24px; }
-  .home-hero { grid-template-columns: 1fr; gap: 18px; }
   .channel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
