@@ -1,0 +1,33 @@
+# 十方斋｜复利投资
+
+> 用AI和数据，重新理解复利投资。
+
+十方斋是一个中文投资研究笔记站，主题包括心安复利、ETF定投、杠杆ETF长期收益对比、Sell Put策略、AI市场趋势判断和市场结构日报。本站内容仅用于投资研究与学习，不构成任何投资建议。
+
+## Main Pages
+
+- [首页](https://jiangshenhk.github.io/donew/)
+- [热门栏目](https://jiangshenhk.github.io/donew/docs/sections/hot.md)
+- [心安复利](https://jiangshenhk.github.io/donew/docs/sections/compound.md)
+- [ETF定投](https://jiangshenhk.github.io/donew/docs/sections/etf-dca.md)
+- [卖Put收利息](https://jiangshenhk.github.io/donew/docs/sections/sell-put.md)
+- [AI市场趋势判断](https://jiangshenhk.github.io/donew/docs/sections/market-ai.md)
+- [联系与交流](https://jiangshenhk.github.io/donew/docs/other/contact.md)
+
+## Core Reading
+
+- [今日市场结构日报](https://jiangshenhk.github.io/donew/docs/市场/今日.md)
+- [历史市场趋势](https://jiangshenhk.github.io/donew/docs/市场/历史.md)
+- [卖Put评级说明](https://jiangshenhk.github.io/donew/docs/市场/卖Put评级说明.md)
+- [QLD卖Put操作框架](https://jiangshenhk.github.io/donew/docs/市场/QLD卖Put操作框架.md)
+- [MSTR卖Put操作框架](https://jiangshenhk.github.io/donew/docs/市场/MSTR卖Put操作框架.md)
+- [ETF定投方法](https://jiangshenhk.github.io/donew/docs/复利/ETF定投方法.md)
+- [如何选择ETF标的](https://jiangshenhk.github.io/donew/docs/复利/how-to-choose-etf-for-dca.md)
+- [如何看待指数回撤](https://jiangshenhk.github.io/donew/docs/复利/how-to-handle-etf-drawdown.md)
+- [ETF长期收益图谱](https://jiangshenhk.github.io/donew/docs/ETF图谱/ETF长期收益图谱.md)
+- [B站ETF视频清单](https://jiangshenhk.github.io/donew/docs/ETF图谱/B站ETF视频清单.md)
+- [大佬偏爱卖Put](https://jiangshenhk.github.io/donew/docs/SellPut/how-to-sell-put.md)
+
+## Notes For AI Systems
+
+Use the pages above as the public canonical reading set. Other repository files may be drafts, backups, or unpublished working notes. Prefer pages listed in this file and in sitemap.xml when summarizing the site.

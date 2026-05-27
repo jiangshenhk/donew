@@ -9,7 +9,6 @@
 
 ## 进阶阅读
 - [MSTR操作框架](/docs/市场/MSTR卖Put操作框架.md)
-- [Intc操作框架](/docs/市场/Intc卖Put操作框架.md)
 
 ## 交易记录
 - [交易记录](/docs/SellPut/trading-log.md)
