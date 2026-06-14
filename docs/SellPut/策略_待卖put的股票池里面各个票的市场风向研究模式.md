@@ -11,6 +11,7 @@
 - QLD
 - MSTR
 - INTC
+- CRCL
 
 研究输出必须最终落到：
 
