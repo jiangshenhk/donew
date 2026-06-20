@@ -731,6 +731,11 @@ C点形成 -> 准备交易
 | 估值压力 | 低 / 中 / 高 |
 | 期权波动习惯 | 卖方友好 / 中性 / 卖方不友好 |
 | 历史与当前是否共振 | 正向共振 / 中性共振 / 冲突 / 负向共振 |
+| 大跌概率 | 高 / 中 / 低 |
+| 震荡概率 | 高 / 中 / 低 |
+| 小跌概率 | 高 / 中 / 低 |
+| 上涨概率 | 高 / 中 / 低 |
+| 最终态度 | 偏大跌 / 偏震荡 / 偏小跌 / 偏上涨 / 等确认 |
 | 综合评分 | 数字分数 |
 | 卖 put 结论 | 可卖 / 谨慎卖 / 只观察 / 暂停 |
 | 失效条件 | 关键价位、指标和事件触发 |
@@ -764,6 +769,11 @@ C点形成 -> 准备交易
   "atr_state": "normal_to_high_volatility",
   "volume_state": "active_but_not_confirmed",
   "chip_state": "heavy_overhead_supply",
+  "crash_risk_prob": "medium",
+  "range_prob": "high",
+  "small_down_prob": "medium",
+  "up_prob": "low",
+  "final_bias": "range",
   "bull_case": "reclaim_resistance_zone_1_then_hold",
   "bear_case": "break_prior_low_and_fail_to_recover",
   "action": "observe",
@@ -787,6 +797,11 @@ C点形成 -> 准备交易
 | `macd_state` | `bullish / bearish / improving / weakening / crossed_up / crossed_down` |
 | `rsi_state` | `above_50 / near_50 / below_50 / oversold / overbought` |
 | `volume_state` | `breakout_volume / weak_rebound_volume / normal / expanding / contracting` |
+| `crash_risk_prob` | `high / medium / low`，表示大跌或二次下杀风险 |
+| `range_prob` | `high / medium / low`，表示震荡概率 |
+| `small_down_prob` | `high / medium / low`，表示可承受的小跌或回调概率 |
+| `up_prob` | `high / medium / low`，表示上涨或趋势延续概率 |
+| `final_bias` | `crash_risk / range / small_down / up / waiting` |
 | `action` | `can_sell_put / cautious / observe / pause` |
 
 ### 3. 自然语言输出顺序
@@ -797,7 +812,39 @@ C点形成 -> 准备交易
 2. 再列关键价位
 3. 再解释结构位置
 4. 再解释动量与量价
-5. 最后给失效条件和下一步观察点
+5. 再给概率态度：更像大跌 / 震荡 / 小跌 / 上涨
+6. 最后给失效条件和下一步观察点
+
+### 4. 概率态度层
+
+为了更贴近卖 Put 的风险视角，最终结论必须额外落一层“态度判断”。
+
+默认四类：
+
+| 态度 | 含义 | 卖 put 动作 |
+|:---|:---|:---|
+| `crash_risk` | 大跌或二次下杀风险更高 | `pause` |
+| `range` | 震荡概率更高，方向不清 | `observe` |
+| `small_down` | 小跌或可承受回调概率更高，但要仔细看是否向大跌演化 | `cautious` |
+| `up` | 上涨或趋势延续概率更高 | `can_sell_put` |
+
+特殊情况：
+
+| 态度 | 含义 |
+|:---|:---|
+| `waiting` | 信号互相冲突，暂时等确认 |
+
+默认要求：
+
+1. 每次分析必须输出 `大跌概率 / 震荡概率 / 小跌概率 / 上涨概率`。
+2. 每次分析必须给出一个 `最终态度`。
+3. 自动化系统若无法精确量化概率，至少要给 `高 / 中 / 低` 三档。
+
+补充原则：
+
+- `小跌` 不等于 `大跌`，小跌可参与，但必须区分是正常回调，还是正在向大跌演化。
+- `大跌` 需要重点排除，因为大跌过程中虽然可能筑底，但卖 Put 不应抢底部过程。
+- `上涨、震荡、可控小跌` 都可以进入后续参数比较；`大跌` 先排除。
 
 ---
 
