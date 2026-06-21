@@ -98,6 +98,7 @@
   - [大佬偏爱卖Put](/docs/SellPut/how-to-sell-put.md)
   - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
+  - [SellPut执行周报 2026-06-21](/docs/SellPut/周报_2026-06-21_SellPut执行周报.md)
 
 - **[🤖 AI市场趋势判断](/docs/sections/market-ai.md)**
   - [今日市场趋势](/docs/市场/今日.md)
