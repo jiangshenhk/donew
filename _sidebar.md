@@ -104,6 +104,7 @@
   - [今日市场趋势](/docs/市场/今日.md)
   - [历史市场趋势](/docs/市场/历史.md)
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
+  - [daily_stock_analysis 调用 SOP](/docs/券商与工具/daily_stock_analysis调用SOP.md)
 
 - **[✉️ 联系](/docs/other/contact.md)**
   - [联系我](/docs/other/contact.md)
