@@ -98,13 +98,11 @@
   - [大佬偏爱卖Put](/docs/SellPut/how-to-sell-put.md)
   - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
-  - [SellPut执行周报 2026-06-21](/docs/SellPut/周报_2026-06-21_SellPut执行周报.md)
 
 - **[🤖 AI市场趋势判断](/docs/sections/market-ai.md)**
   - [今日市场趋势](/docs/市场/今日.md)
   - [历史市场趋势](/docs/市场/历史.md)
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
-  - [daily_stock_analysis 调用 SOP](/docs/券商与工具/daily_stock_analysis调用SOP.md)
 
 - **[✉️ 联系](/docs/other/contact.md)**
   - [联系我](/docs/other/contact.md)
