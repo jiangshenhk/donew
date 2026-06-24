@@ -187,7 +187,7 @@ outputs/daily_stock_analysis/YYYY-MM-DD_daily_stock_analysis.md
 拿到报告后，不直接下单，而是把它作为输入交给：
 
 ```text
-docs/SellPut/操作策略_每日卖Put执行总控.md
+docs/SellPut/策略/操作策略_每日卖Put执行总控.md
 ```
 
 复核顺序：
@@ -325,4 +325,3 @@ daily_stock_analysis 负责帮我们快读市场。
 ```text
 账户风险 > 市场风向 > 技术结构 > 期权链收益 > daily_stock_analysis 结论
 ```
-

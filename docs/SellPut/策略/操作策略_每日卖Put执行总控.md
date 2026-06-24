@@ -264,14 +264,14 @@ HOOD 属于核心每日分析池：每天必须输出市场风向、技术结构
 
 ## 四、每日必须参考的策略文件
 
-执行前先读取两份公共文件，再调用三个子策略文件。
+执行前先读取两份公共文件，再调用四个子策略文件。
 
 ```text
 策略辅助_分析指标指引.md
 策略辅助_公用的股票池.md
 ```
 
-公共文件之后，本总控调用以下三个子策略文件。
+公共文件之后，本总控调用以下四个子策略文件。
 
 ### 4.1 市场风向判断文件
 
@@ -470,7 +470,29 @@ Delta 用于校验尾部概率；
 
 ---
 
-### 4.3 期权链参数判断文件
+### 4.3 强势股 ABC 上涨结构判断文件
+
+参考文件：
+
+```text
+策略_强势股ABC上涨结构下的SellPut模式.md
+策略_强势股ABC模块_总控接入规则.md
+```
+
+作用：对于 INTC、HOOD、SMCI、MSTR、PLTR 等强趋势、事件催化或资金重新定价的高波动标的，确认其是否处于可卖 Put 的上涨 ABC 结构。
+
+这是市场风向和普通技术结构之后、期权链判断之前的独立关卡：
+
+```text
+市场风向
+→ 动量与普通 ABC 技术结构
+→ 强势股 ABC 上涨结构（仅适用于强势高波动标的）
+→ 期权链参数判断
+```
+
+强势股通过本关卡的前提是：A 段趋势已确认、B 段回调或横盘受控、关键支撑未破，且候选 Strike 位于支撑下方。若出现放量破位、B 段失效或高位加速未回踩确认，则暂停进入期权链分析。
+
+### 4.4 期权链参数判断文件
 
 参考文件：
 
@@ -480,7 +502,7 @@ Delta 用于校验尾部概率；
 
 作用：在市场风向和技术结构都允许的情况下，根据期权链截图或期权链参数，判断具体卖哪一个 Put。
 
-#### 4.3.1 数据源口径：Barchart 为主
+#### 4.4.1 数据源口径：Barchart 为主
 
 每日执行时，期权链和波动率数据优先使用 Barchart。
 
@@ -524,7 +546,7 @@ MarketChameleon / OptionCharts / AlphaQuery / Yahoo Finance / broker option chai
 - 是否临近财报或重大事件；
 - 是否与已有仓位风险因子重叠。
 
-#### 4.3.2 IV 判断规则
+#### 4.4.2 IV 判断规则
 
 ```text
 IV 高 ≠ 一定能卖。
@@ -562,7 +584,7 @@ IV 暴涨时的执行原则：
 
 ---
 
-### 4.4 波动率优先级规则
+### 4.5 波动率优先级规则
 
 期权定价的核心是波动率。每日筛选候选 Put 时，必须把波动率作为期权链模块的核心输入之一。
 
@@ -640,10 +662,11 @@ IV Rank / IV Percentile 高
 
 ## 五、评分与最终决策规则
 
-最终操作等级取三关中的最低等级：
+最终操作等级取各适用关卡中的最低等级；强势高波动标的必须额外通过强势股 ABC 上涨结构关卡。
 
 ```text
-最终等级 = 市场风向等级、技术结构等级、期权链等级中的最低等级
+普通标的最终等级 = 市场风向等级、技术结构等级、期权链等级中的最低等级
+强势高波动标的最终等级 = 市场风向等级、技术结构等级、强势股 ABC 结构结果、期权链等级中的最低等级
 ```
 
 | 市场风向 | 技术结构 | 期权链 | 最终操作 |
@@ -853,7 +876,7 @@ ETF 也不能因为“ETF”就忽略宏观风险。
 在本地项目目录 `D:\codex\金融` 下执行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run_daily_sell_put_data.ps1 -Symbols "QLD,EEM,TQQQ,GDX,ARKK,IBIT,SOFI,RIVN,SMCI,INTC,MSTR,MARA,RIOT,IONQ,HOOD,PLTR" -OptionChainLimit 300 -Jin10SearchType "flash" -Jin10WindowMode "SellPut"
+powershell -ExecutionPolicy Bypass -File .\donew\docs\SellPut\策略\run_daily_sell_put_data.ps1 -Symbols "QLD,EEM,TQQQ,GDX,ARKK,IBIT,SOFI,RIVN,SMCI,INTC,MSTR,MARA,RIOT,IONQ,HOOD,PLTR" -OptionChainLimit 300 -Jin10SearchType "flash" -Jin10WindowMode "SellPut"
 ```
 
 默认扫描池与固定排除以 `策略辅助_公用的股票池.md` 为准。命令行参数若与公共禁用清单冲突，必须以禁用清单为准。
@@ -861,7 +884,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_daily_sell_put_data.ps1 -
 如当天只想扫描部分标的，可以修改 `-Symbols` 参数，例如：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run_daily_sell_put_data.ps1 -Symbols "QLD,MSTR" -OptionChainLimit 200
+powershell -ExecutionPolicy Bypass -File .\donew\docs\SellPut\策略\run_daily_sell_put_data.ps1 -Symbols "QLD,MSTR" -OptionChainLimit 200
 ```
 
 ### 10.2 自动生成的数据文件
@@ -927,10 +950,11 @@ SellPut 交易窗口规则：
 第二步：按市场风向研究模式判断市场风向等级
 第三步：单独检查日元 carry trade 平仓风险，并输出“无明显苗头 / 有苗头 / 已触发降级”
 第四步：按动量与 ABC 策略判断技术结构等级
-第五步：按期权链 SOP 判断期权链等级
-第六步：三关取最低等级，并叠加日元 Carry 风险降级规则，得到最终操作等级
-第七步：输出“适合 / 小仓适合 / 不适合”
-第八步：写明候选 Put、放弃原因、失效条件和复盘要点
+第五步：对强势高波动标的，按强势股 ABC 上涨结构模块判断是否通过独立关卡
+第六步：按期权链 SOP 判断期权链等级
+第七步：取所有适用关卡的最低等级，并叠加日元 Carry 风险降级规则，得到最终操作等级
+第八步：输出“适合 / 小仓适合 / 不适合”
+第九步：写明候选 Put、放弃原因、失效条件和复盘要点
 ```
 
 AI 不得因为自动数据包中某个标的权利金较高，就跳过市场风向和技术结构判断。
@@ -1392,7 +1416,8 @@ VIX：
 请依次参考：
 1. 市场风向研究模式；
 2. 动量原理和 ABC 结构判断策略；
-3. 期权链参数和期权链数据 SOP。
+3. 强势股 ABC 上涨结构判断策略（仅适用于强势高波动标的）；
+4. 期权链参数和期权链数据 SOP。
 
 请默认输出“完整研究版”，不要只输出简化结论表。
 
