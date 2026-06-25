@@ -7,7 +7,8 @@ param(
     [string]$Jin10WindowMode = "SellPut",
     [string]$Jin10CutoffDateTime = "",
     [int]$Jin10Limit = 8,
-    [string]$OutDir = "outputs"
+    [string]$OutDir = "outputs",
+    [switch]$UseExistingData
 )
 
 $ErrorActionPreference = "Stop"
@@ -35,18 +36,28 @@ $alertCsvFile = Join-Path $resolvedOutDir "sell_put_delta_alerts_$date.csv"
 $alertMdFile = Join-Path $resolvedOutDir "sell_put_delta_alerts_$date.md"
 $summaryFile = Join-Path $resolvedOutDir "daily_sell_put_data_pack_$date.md"
 
-Push-Location $rootDir
-try {
-    & (Join-Path $fetchScriptDir "fetch_barchart_options_overview.ps1") -Symbols $Symbols -OutDir $OutDir
-    & (Join-Path $fetchScriptDir "fetch_nasdaq_put_chain.ps1") -Symbols $Symbols -Limit $OptionChainLimit -OutDir $OutDir
-    & (Join-Path $fetchScriptDir "fetch_jin10_market_news.ps1") -Keyword $Jin10Keyword -EncodedKeyword $Jin10EncodedKeyword -SearchType $Jin10SearchType -WindowMode $Jin10WindowMode -CutoffDateTime $Jin10CutoffDateTime -Limit $Jin10Limit -OutDir $OutDir
-    & $alertScriptPath -Symbols $Symbols -OutDir $OutDir -ChainFile $chainFile -OverviewFile $overviewFile
-    if (Test-Path -LiteralPath $paperTradeScriptPath) {
-        & $paperTradeScriptPath -AlertCsvFile $alertCsvFile
+if ($UseExistingData) {
+    foreach ($requiredFile in @($overviewFile, $chainFile)) {
+        if (-not (Test-Path -LiteralPath $requiredFile)) {
+            throw "UseExistingData requested, but required file is missing: $requiredFile"
+        }
     }
+    Write-Host "Using existing local data only. No external fetch will be performed."
 }
-finally {
-    Pop-Location
+else {
+    Push-Location $rootDir
+    try {
+        & (Join-Path $fetchScriptDir "fetch_barchart_options_overview.ps1") -Symbols $Symbols -OutDir $OutDir
+        & (Join-Path $fetchScriptDir "fetch_nasdaq_put_chain.ps1") -Symbols $Symbols -Limit $OptionChainLimit -OutDir $OutDir
+        & (Join-Path $fetchScriptDir "fetch_jin10_market_news.ps1") -Keyword $Jin10Keyword -EncodedKeyword $Jin10EncodedKeyword -SearchType $Jin10SearchType -WindowMode $Jin10WindowMode -CutoffDateTime $Jin10CutoffDateTime -Limit $Jin10Limit -OutDir $OutDir
+        & $alertScriptPath -Symbols $Symbols -OutDir $OutDir -ChainFile $chainFile -OverviewFile $overviewFile
+        if (Test-Path -LiteralPath $paperTradeScriptPath) {
+            & $paperTradeScriptPath -AlertCsvFile $alertCsvFile
+        }
+    }
+    finally {
+        Pop-Location
+    }
 }
 
 $overviewRows = Import-Csv -LiteralPath $overviewFile
