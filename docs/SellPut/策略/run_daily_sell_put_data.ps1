@@ -14,7 +14,12 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $rootDir = (Resolve-Path (Join-Path $scriptDir "..\..\..\..")).Path
+$repoRootDir = (Resolve-Path (Join-Path $scriptDir "..\..\..")).Path
 $fetchScriptDir = Join-Path $rootDir "scripts"
+$alertScriptPath = Join-Path $repoRootDir "scripts\scan_sell_put_alerts.ps1"
+if (-not (Test-Path -LiteralPath $alertScriptPath)) {
+    $alertScriptPath = Join-Path $fetchScriptDir "scan_sell_put_alerts.ps1"
+}
 $resolvedOutDir = Join-Path $rootDir $OutDir
 
 if (-not (Test-Path -LiteralPath $resolvedOutDir)) {
@@ -25,6 +30,8 @@ $date = Get-Date -Format "yyyy-MM-dd"
 $overviewFile = Join-Path $resolvedOutDir "barchart_options_overview_$date.csv"
 $chainFile = Join-Path $resolvedOutDir "nasdaq_put_chain_$date.csv"
 $jin10File = Join-Path $resolvedOutDir "jin10_market_news_$date.csv"
+$alertCsvFile = Join-Path $resolvedOutDir "sell_put_delta_alerts_$date.csv"
+$alertMdFile = Join-Path $resolvedOutDir "sell_put_delta_alerts_$date.md"
 $summaryFile = Join-Path $resolvedOutDir "daily_sell_put_data_pack_$date.md"
 
 Push-Location $rootDir
@@ -32,6 +39,7 @@ try {
     & (Join-Path $fetchScriptDir "fetch_barchart_options_overview.ps1") -Symbols $Symbols -OutDir $OutDir
     & (Join-Path $fetchScriptDir "fetch_nasdaq_put_chain.ps1") -Symbols $Symbols -Limit $OptionChainLimit -OutDir $OutDir
     & (Join-Path $fetchScriptDir "fetch_jin10_market_news.ps1") -Keyword $Jin10Keyword -EncodedKeyword $Jin10EncodedKeyword -SearchType $Jin10SearchType -WindowMode $Jin10WindowMode -CutoffDateTime $Jin10CutoffDateTime -Limit $Jin10Limit -OutDir $OutDir
+    & $alertScriptPath -Symbols $Symbols -OutDir $OutDir -ChainFile $chainFile -OverviewFile $overviewFile
 }
 finally {
     Pop-Location
@@ -42,6 +50,10 @@ $chainRows = Import-Csv -LiteralPath $chainFile
 $jin10Rows = @()
 if (Test-Path -LiteralPath $jin10File) {
     $jin10Rows = Import-Csv -LiteralPath $jin10File
+}
+$alertRows = @()
+if (Test-Path -LiteralPath $alertCsvFile) {
+    $alertRows = Import-Csv -LiteralPath $alertCsvFile
 }
 
 function To-DoubleOrNull {
@@ -68,6 +80,7 @@ $lines += ""
 $lines += "- Barchart options overview: $overviewFile"
 $lines += "- Nasdaq put chain: $chainFile"
 $lines += "- Jin10 market news: $jin10File"
+$lines += "- Delta 0.15 alerts: $alertMdFile"
 $lines += ""
 $lines += "## Daily JPY Carry Trade Risk Check"
 $lines += ""
@@ -128,6 +141,22 @@ foreach ($row in $overviewRows) {
     }
 
     $lines += "| $($row.Symbol) | $($row.ImpliedVolatilityPct)% | $($row.ImpliedVolatilityChangePct)% | $($row.HistoricalVolatilityPct)% | $($row.IVPercentilePct)% | $($row.IVRankPct)% | $($row.ExpectedMove) / $($row.ExpectedMovePct)% | $range | $($row.PutCallVolRatio) | $($row.PutCallOIRatio) | $($row.TodaysVolume) | $($row.TodaysOpenInterest) |"
+}
+
+$lines += ""
+$lines += "## Delta 0.15 Auto Alerts"
+$lines += ""
+$lines += "Filter: abs estimated Delta 0.12-0.18, DTE 4-10, Mid annualized >= 30%, CRCL excluded. Delta is estimated from symbol-level IV, so confirm real Delta and executable bid/ask in Futu before manual trading."
+$lines += ""
+$lines += "| Symbol | Spot | Expiry | DTE | Strike | Bid | Ask | Mid | Est Delta | Safety | Mid Annual | Spread | OI | Vol |"
+$lines += "|---|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
+
+foreach ($row in $alertRows) {
+    $lines += "| $($row.Symbol) | $($row.Spot) | $($row.Expiry) | $($row.DTE) | $($row.Strike) | $($row.Bid) | $($row.Ask) | $($row.Mid) | $($row.EstimatedDelta) | $($row.SafetyPct)% | $($row.AnnualizedPct)% | $($row.SpreadPct)% | $($row.OpenInterest) | $($row.Volume) |"
+}
+
+if ($alertRows.Count -eq 0) {
+    $lines += "| - | - | - | - | - | - | - | - | - | - | - | - | - | - |"
 }
 
 $lines += ""
