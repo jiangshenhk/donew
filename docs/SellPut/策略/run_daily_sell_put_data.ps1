@@ -20,6 +20,7 @@ $alertScriptPath = Join-Path $repoRootDir "scripts\scan_sell_put_alerts.ps1"
 if (-not (Test-Path -LiteralPath $alertScriptPath)) {
     $alertScriptPath = Join-Path $fetchScriptDir "scan_sell_put_alerts.ps1"
 }
+$paperTradeScriptPath = Join-Path $repoRootDir "scripts\record_sell_put_paper_trade.ps1"
 $resolvedOutDir = Join-Path $rootDir $OutDir
 
 if (-not (Test-Path -LiteralPath $resolvedOutDir)) {
@@ -40,6 +41,9 @@ try {
     & (Join-Path $fetchScriptDir "fetch_nasdaq_put_chain.ps1") -Symbols $Symbols -Limit $OptionChainLimit -OutDir $OutDir
     & (Join-Path $fetchScriptDir "fetch_jin10_market_news.ps1") -Keyword $Jin10Keyword -EncodedKeyword $Jin10EncodedKeyword -SearchType $Jin10SearchType -WindowMode $Jin10WindowMode -CutoffDateTime $Jin10CutoffDateTime -Limit $Jin10Limit -OutDir $OutDir
     & $alertScriptPath -Symbols $Symbols -OutDir $OutDir -ChainFile $chainFile -OverviewFile $overviewFile
+    if (Test-Path -LiteralPath $paperTradeScriptPath) {
+        & $paperTradeScriptPath -AlertCsvFile $alertCsvFile
+    }
 }
 finally {
     Pop-Location
