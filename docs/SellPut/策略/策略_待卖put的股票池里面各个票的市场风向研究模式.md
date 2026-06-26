@@ -23,6 +23,57 @@
 
 ---
 
+## 零、菜单 6 的最小数据集
+
+当用户选择：
+
+```text
+6. 单独分析今天市场情况
+```
+
+本文件只允许获取“市场风向判断”所需的关键行情，不得自动抓取期权链、Delta 提醒或模拟盘。
+
+默认命令：
+
+```powershell
+cd D:\codex\金融\donew
+powershell -ExecutionPolicy Bypass -File .\scripts\fetch_market_snapshot.ps1
+```
+
+允许生成：
+
+```text
+D:\codex\金融\outputs\market_snapshot_YYYY-MM-DD.csv
+D:\codex\金融\outputs\market_snapshot_YYYY-MM-DD.md
+```
+
+菜单 6 必须覆盖的关键市场行情：
+
+| 类别 | 标的 / 指标 | 用途 |
+|---|---|---|
+| 美股大盘 | QQQ / SPY / IWM | 判断风险偏好、市场宽度、纳指是否弱于大盘 |
+| 高 beta / 科技 | QLD / TQQQ / SMH / SOXX / MAGS | 判断杠杆纳指、半导体、七姐妹是否承压 |
+| 波动率 | ^VIX / VIXY | 判断 Put 权利金上升是机会还是风险升温 |
+| 新兴市场 | EEM / FXI / KWEB | 判断 EEM 是否顺风，美元压力是否传导到亚洲资产 |
+| Crypto | BTC-USD / IBIT / MSTR | 判断 MSTR、IBIT、矿股相关风险是否扩散 |
+| 美元与利率 | DX-Y.NYB / ^TNX | 判断美元流动性与美债利率压力 |
+| 日元套息 | JPY=X | 判断日元是否快速升值、是否有 carry trade 平仓苗头 |
+| 商品与地缘 | CL=F / GC=F | 判断油价、黄金是否确认通胀或避险冲击 |
+
+菜单 6 禁止自动获取：
+
+```text
+Barchart 期权概览
+Nasdaq 期权链
+Delta 自动提醒
+每日 Sell Put 总控数据包
+模拟盘记录
+```
+
+如果市场风向判断后需要看具体 Put 档位，应让用户选择第 3 项或第 1 项，而不是在第 6 项里自动下载期权链。
+
+---
+
 ## 一、最高原则
 
 ### 1. 风向优先于安全垫

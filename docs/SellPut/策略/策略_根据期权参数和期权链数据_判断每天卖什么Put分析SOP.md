@@ -54,6 +54,49 @@ Sell Put 不是单纯比较权利金高低，也不是只看 Delta。
 
 ## 3. 输入数据要求
 
+### 3.0 菜单 3 的最小数据集
+
+当用户选择：
+
+```text
+3. 跑 Delta 0.12-0.18 自动提醒，获取适合标的信息，并列出年化和安全垫
+```
+
+只允许获取期权筛选必需数据：
+
+```text
+Barchart 期权概览
+Nasdaq Put Chain
+Delta 0.12-0.18 自动提醒结果
+```
+
+默认命令：
+
+```powershell
+cd D:\codex\金融\donew
+powershell -ExecutionPolicy Bypass -File .\scripts\run_delta_alert_data.ps1
+```
+
+允许生成：
+
+```text
+D:\codex\金融\outputs\barchart_options_overview_YYYY-MM-DD.csv
+D:\codex\金融\outputs\nasdaq_put_chain_YYYY-MM-DD.csv
+D:\codex\金融\outputs\sell_put_delta_alerts_YYYY-MM-DD.csv
+D:\codex\金融\outputs\sell_put_delta_alerts_YYYY-MM-DD.md
+```
+
+禁止在菜单 3 中自动获取或写入：
+
+```text
+金十市场新闻
+每日 Sell Put 总控数据包
+市场快照总览
+模拟盘记录
+```
+
+如果只是在比较期权链，不得为了方便而执行第 1 项全量入口。
+
 ### 3.1 每个标的至少需要
 
 | 字段 | 必须程度 | 用途 |

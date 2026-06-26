@@ -18,6 +18,54 @@
 
 ---
 
+## 零、菜单 5 的最小数据集
+
+当用户选择：
+
+```text
+5. 输入某个股票，分析动量和 ABC 模式
+```
+
+本文件只允许获取“单标的技术结构”所需数据，不得自动抓取全量 Sell Put 数据。
+
+默认命令：
+
+```powershell
+cd D:\codex\金融\donew
+powershell -ExecutionPolicy Bypass -File .\scripts\fetch_symbol_technical_snapshot.ps1 -Symbol <标的>
+```
+
+允许生成：
+
+```text
+D:\codex\金融\outputs\technical_snapshot_<标的>_YYYY-MM-DD.csv
+D:\codex\金融\outputs\technical_snapshot_<标的>_YYYY-MM-DD.md
+```
+
+菜单 5 需要的数据：
+
+| 数据 | 用途 |
+|---|---|
+| 最近 3-6 个月 OHLCV | 画 A/B/C 结构，识别前高、前低、箱体、突破与破位 |
+| 5/20/50/90 日均线 | 判断短线动量、中期趋势和回踩质量 |
+| 最近 20-30 根 K 线 | 判断缩量回调、放量下跌、突破失败或强势整理 |
+| 当前价格相对关键位 | 判断是否处于 A 段、B 段、C 段或结构失效 |
+
+菜单 5 禁止自动获取：
+
+```text
+Barchart 期权概览
+Nasdaq 期权链
+Delta 自动提醒
+金十市场新闻
+每日 Sell Put 总控数据包
+模拟盘记录
+```
+
+如果技术结构判断后需要继续看期权，应让用户选择第 3 项或第 4 项，而不是在第 5 项里自动下载期权链。
+
+---
+
 ## 一、总判断顺序
 
 ```text
