@@ -49,8 +49,16 @@
       letter-spacing: 0;
     }
 
-    .brand p {
-      margin: 7px 0 0;
+    .brand-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      margin-top: 7px;
+    }
+
+    .brand-meta p {
+      margin: 0;
       color: var(--muted);
       line-height: 1.6;
     }
@@ -58,7 +66,6 @@
     .version {
       display: inline-flex;
       align-items: center;
-      margin-top: 10px;
       padding: 6px 10px;
       border: 1px solid var(--line);
       border-radius: 999px;
@@ -241,8 +248,8 @@
       font-weight: 800;
     }
 
-    .bear { background: #fff1f3; color: var(--red); }
-    .bull { background: #ecfdf3; color: var(--green); }
+    .bear { background: #ecfdf3; color: var(--green); }
+    .bull { background: #fff1f3; color: var(--red); }
     .flat { background: #f1f5f9; color: #475569; }
 
     .actions {
@@ -302,8 +309,10 @@
     <div class="topbar">
       <div class="brand">
         <h1>K线形态相似度 AI</h1>
-        <p>选择市场、标的、周期和分析模块，由后端拉取最新行情并生成 HTML 报告。</p>
-        <span class="version" id="appVersion">版本加载中</span>
+        <div class="brand-meta">
+          <p>选择市场、标的、周期和分析模块，由后端拉取最新行情并生成 HTML 报告。</p>
+          <span class="version" id="appVersion">版本加载中</span>
+        </div>
       </div>
       <a class="home" href="./#/">返回十方斋</a>
     </div>
@@ -367,7 +376,7 @@
 
         <label>增强模块</label>
         <div class="checks">
-          <label class="check"><input type="checkbox" name="modules" value="top5"> Top5概要</label>
+          <label class="check"><input type="checkbox" name="modules" value="top5"> Top形态匹配</label>
           <label class="check"><input type="checkbox" name="modules" value="momentum"> 动量</label>
           <label class="check"><input type="checkbox" name="modules" value="volume"> 成交量</label>
           <label class="check"><input type="checkbox" name="modules" value="sellput"> 卖Put</label>
@@ -397,7 +406,7 @@
     const appVersion = document.getElementById('appVersion');
 
     const defaultApiBase = 'https://donew-beta.vercel.app';
-    const appVersionText = '2.1.4｜AI文案统一｜2026-07-01 00:16';
+    const appVersionText = '2.1.7｜Top标题与结果精简｜2026-07-01 00:36';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     let latestBlobUrl = '';
@@ -449,7 +458,6 @@
             <div class="metric"><b>周期</b><span>${json.interval}</span></div>
             <div class="metric"><b>AI</b><span>${json.used_gpt ? '已调用' : '未调用'}</span></div>
             <div class="metric"><b>状态</b><span>${json.status}</span></div>
-            <div class="metric"><b>页面版本</b><span>${appVersionText}</span></div>
           </div>
           <div class="actions">
             <a class="action" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
