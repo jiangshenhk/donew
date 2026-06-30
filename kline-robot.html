@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>K线形态相似度机器人｜十方斋</title>
+  <meta name="description" content="通过界面选择标的、周期、报告类型，生成K线形态相似度HTML报告。">
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #64748b;
+      --line: #dfe5ef;
+      --blue: #2563eb;
+      --ink: #0f172a;
+      --red: #b42336;
+      --green: #067647;
+      --gold: #b7791f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 26px 0 64px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .home {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, .06);
+    }
+
+    form.panel {
+      padding: 18px;
+    }
+
+    .output.panel {
+      padding: 18px;
+      min-height: 420px;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 7px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px 11px;
+      color: var(--text);
+      background: #fff;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 76px;
+      resize: vertical;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .checks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .check input { width: auto; }
+
+    .primary {
+      width: 100%;
+      margin-top: 18px;
+      border: 0;
+      border-radius: 6px;
+      padding: 12px 14px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .primary:disabled {
+      opacity: .7;
+      cursor: wait;
+    }
+
+    .hint,
+    .status {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .warning {
+      margin-top: 14px;
+      padding: 11px 12px;
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      background: #fbfcff;
+    }
+
+    .metric b {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric span {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #334155;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .bear { background: #fff1f3; color: var(--red); }
+    .bull { background: #ecfdf3; color: var(--green); }
+    .flat { background: #f1f5f9; color: #475569; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 9px 13px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 800;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .action.secondary {
+      background: #eef2ff;
+      color: #3730a3;
+    }
+
+    iframe {
+      width: 100%;
+      height: 680px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-top: 16px;
+      background: #fff;
+    }
+
+    @media (max-width: 900px) {
+      .topbar { display: block; }
+      .home { display: inline-block; margin-top: 10px; }
+      .layout { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .shell { width: min(100vw - 20px, 1180px); padding-top: 16px; }
+      .row,
+      .checks,
+      .cards { grid-template-columns: 1fr; }
+      .brand h1 { font-size: 23px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <h1>K线形态相似度机器人</h1>
+        <p>选择标的、周期和分析模块，由后端拉取最新行情并调用 GPT 生成 HTML 报告。</p>
+      </div>
+      <a class="home" href="./#/">返回十方斋</a>
+    </div>
+
+    <div class="layout">
+      <form id="reportForm" class="panel">
+        <label>后端 API 地址</label>
+        <input name="apiBase" id="apiBase" value="https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev" placeholder="https://xxx.workers.dev">
+        <p class="hint">部署 Cloudflare Worker 后，把地址填到这里。API Key 只放在 Worker Secret 里，不会暴露在网页。</p>
+
+        <label>报告菜单</label>
+        <select name="menu">
+          <option value="1">1 相似度</option>
+          <option value="2">2 卖Put</option>
+          <option value="3">3 指定形态</option>
+          <option value="4">4 多周期</option>
+          <option value="6">6 完整诊断</option>
+          <option value="7">7 期权风险</option>
+          <option value="8">8 保值/对冲</option>
+        </select>
+
+        <div class="row">
+          <div>
+            <label>标的</label>
+            <input name="symbol" value="BTC" placeholder="MSTR / BTC / QQQ">
+          </div>
+          <div>
+            <label>周期</label>
+            <select name="interval">
+              <option value="60m">60m</option>
+              <option value="30m">30m</option>
+              <option value="15m">15m</option>
+              <option value="1d">1d</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>数据范围</label>
+            <select name="range">
+              <option value="10d">10d</option>
+              <option value="5d">5d</option>
+              <option value="1mo">1mo</option>
+              <option value="3mo">3mo</option>
+              <option value="6mo">6mo</option>
+            </select>
+          </div>
+          <div>
+            <label>模型</label>
+            <input name="model" value="gpt-5">
+          </div>
+        </div>
+
+        <label>增强模块</label>
+        <div class="checks">
+          <label class="check"><input type="checkbox" name="modules" value="top5" checked> Top5概要</label>
+          <label class="check"><input type="checkbox" name="modules" value="momentum" checked> 动量</label>
+          <label class="check"><input type="checkbox" name="modules" value="volume" checked> 成交量</label>
+          <label class="check"><input type="checkbox" name="modules" value="sellput" checked> 卖Put</label>
+          <label class="check"><input type="checkbox" name="modules" value="options"> 期权</label>
+          <label class="check"><input type="checkbox" name="modules" value="hedge"> 保值</label>
+        </div>
+
+        <label>额外要求</label>
+        <textarea name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。"></textarea>
+
+        <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
+
+        <div class="warning">
+          安全提醒：不要把 OpenAI API Key 填在这个网页里。Key 必须只存在 Cloudflare Worker Secret 中。
+        </div>
+      </form>
+
+      <main class="output panel">
+        <h2>生成结果</h2>
+        <div id="result" class="status">等待生成报告。</div>
+        <div id="preview"></div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('reportForm');
+    const btn = document.getElementById('submitBtn');
+    const result = document.getElementById('result');
+    const preview = document.getElementById('preview');
+    const apiInput = document.getElementById('apiBase');
+
+    const savedApi = localStorage.getItem('klineRobotApiBase');
+    if (savedApi) apiInput.value = savedApi;
+
+    let latestBlobUrl = '';
+    let latestHtml = '';
+    let latestName = 'kline-report.html';
+
+    function directionClass(value) {
+      if (value === '偏空') return 'bear';
+      if (value === '偏多') return 'bull';
+      return 'flat';
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      btn.disabled = true;
+      preview.innerHTML = '';
+      result.textContent = '正在拉取最新行情并生成报告...';
+
+      const data = new FormData(form);
+      const apiBase = String(data.get('apiBase') || '').replace(/\\/$/, '');
+      localStorage.setItem('klineRobotApiBase', apiBase);
+
+      const payload = {
+        menu: data.get('menu'),
+        symbol: data.get('symbol'),
+        interval: data.get('interval'),
+        range: data.get('range'),
+        model: data.get('model'),
+        extra: data.get('extra'),
+        modules: data.getAll('modules')
+      };
+
+      try {
+        if (!apiBase || apiBase.includes('YOUR-WORKER-NAME')) {
+          throw new Error('请先填写已经部署好的 Cloudflare Worker 地址。');
+        }
+
+        const res = await fetch(apiBase + '/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.error || '生成失败');
+
+        latestHtml = json.html;
+        latestName = json.filename || 'kline-report.html';
+        if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
+        latestBlobUrl = URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' }));
+
+        result.innerHTML = `
+          <div class="cards">
+            <div class="metric"><b>标的</b><span>${json.symbol}</span></div>
+            <div class="metric"><b>周期</b><span>${json.interval}</span></div>
+            <div class="metric"><b>GPT</b><span>${json.used_gpt ? '已调用' : '未调用'}</span></div>
+            <div class="metric"><b>状态</b><span>${json.status}</span></div>
+          </div>
+          <div class="actions">
+            <a class="action" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
+            <button class="action secondary" id="downloadBtn" type="button">下载 HTML</button>
+          </div>
+          <p class="status">${json.message || ''}</p>
+          <table>
+            <thead><tr><th>排名</th><th>形态</th><th>匹配度</th><th>方向</th><th>状态</th></tr></thead>
+            <tbody>${json.top5.map(row => `<tr><td>${row.rank}</td><td>${row.name}</td><td>${row.score}%</td><td><span class="pill ${directionClass(row.bias)}">${row.bias}</span></td><td>${row.judgement}</td></tr>`).join('')}</tbody>
+          </table>
+        `;
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = latestBlobUrl;
+          a.download = latestName;
+          a.click();
+        });
+
+        preview.innerHTML = `<iframe title="K线报告预览" src="${latestBlobUrl}"></iframe>`;
+      } catch (error) {
+        result.textContent = error.message;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -100,6 +100,7 @@
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
 
 - **[🤖 AI市场趋势判断](/docs/sections/market-ai.md)**
+  - [K线形态机器人](/kline-robot.html)
   - [今日市场趋势](/docs/市场/今日.md)
   - [历史市场趋势](/docs/市场/历史.md)
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
