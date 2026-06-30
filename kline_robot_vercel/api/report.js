@@ -16,21 +16,37 @@ function sendJson(res, status, data) {
 
 function normalizeSymbol(rawSymbol, market) {
   const raw = String(rawSymbol || "BTC").trim().toUpperCase();
+  const compact = raw.replace(/\s+/g, "");
   const selectedMarket = String(market || "").toLowerCase();
-  if (selectedMarket === "crypto" || ["BTC", "BTCUSD", "BTC/USD", "BTC-USD", "BITCOIN"].includes(raw) || raw.includes("比特币")) {
-    if (raw.includes("-USD")) return { yahoo: raw, display: raw.replace("-USD", "") };
+  if (selectedMarket === "crypto" || ["BTC", "BTCUSD", "BTC/USD", "BTC-USD", "BITCOIN"].includes(compact) || raw.includes("比特币")) {
+    if (compact.includes("-USD")) return { yahoo: compact, display: compact.replace("-USD", "") };
     return { yahoo: "BTC-USD", display: "BTC" };
   }
   if (selectedMarket === "hk") {
-    const code = raw.replace(/\D/g, "").padStart(4, "0");
+    const digits = compact.replace(/\D/g, "");
+    if (!digits) throw new Error(`找不到代码：${rawSymbol || ""}，港股请输入数字代码，例如 0700 或 9988。`);
+    const code = digits.padStart(4, "0");
+    if (!/^\d{4,5}$/.test(code)) throw new Error(`找不到代码：${rawSymbol || ""}，请检查市场和代码是否正确。`);
     return { yahoo: `${code}.HK`, display: `${code}.HK` };
   }
   if (selectedMarket === "cn") {
-    const code = raw.replace(/\D/g, "");
-    const suffix = code.startsWith("6") || code.startsWith("9") ? "SS" : "SZ";
+    const normalized = compact
+      .replace(/^SH(\d{6})$/, "$1.SS")
+      .replace(/^SZ(\d{6})$/, "$1.SZ")
+      .replace(/\.SH$/, ".SS");
+    const matched = normalized.match(/^(\d{6})(?:\.(SS|SZ))?$/);
+    if (!matched) throw new Error(`找不到代码：${rawSymbol || ""}，A股可输入 600000、sh600000、sz000001、600000.SH。`);
+    const code = matched[1];
+    const suffix = matched[2] || (code.startsWith("6") || code.startsWith("9") ? "SS" : "SZ");
     return { yahoo: `${code}.${suffix}`, display: `${code}.${suffix}` };
   }
-  return { yahoo: raw, display: raw };
+  return { yahoo: compact, display: compact };
+}
+
+function normalizeRangeForInterval(range, interval) {
+  const normalizedRange = String(range || "10d");
+  if (String(interval || "").toLowerCase() === "1d" && ["5d", "10d"].includes(normalizedRange)) return "1mo";
+  return normalizedRange;
 }
 
 function safeHtml(value) {
@@ -75,10 +91,13 @@ function toBarTime(ts, timezone) {
 async function fetchYahooBars(symbol, range, interval) {
   const url = `${YAHOO_BASE}${encodeURIComponent(symbol)}?range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}&events=history&includePrePost=false`;
   const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-  if (!res.ok) throw new Error(`行情数据获取失败：${res.status}`);
+  if (!res.ok) throw new Error(`找不到代码：${symbol}，请检查市场和代码是否正确。`);
   const payload = await res.json();
   const result = payload?.chart?.result?.[0];
-  if (!result) throw new Error("行情数据为空");
+  if (!result) {
+    const detail = payload?.chart?.error?.description || payload?.chart?.error?.code || "";
+    throw new Error(`找不到代码：${symbol}，请检查市场和代码是否正确。${detail ? ` (${detail})` : ""}`);
+  }
   const meta = result.meta || {};
   const quote = result.indicators?.quote?.[0] || {};
   const timestamps = result.timestamp || [];
@@ -100,7 +119,7 @@ async function fetchYahooBars(symbol, range, interval) {
       volume: Number(quote.volume?.[i] || 0),
     });
   }
-  if (bars.length < 20) throw new Error("可用K线数量不足");
+  if (bars.length < 20) throw new Error("可用K线数量不足：请把数据范围调大，例如选择1个月或3个月。");
   return { meta, bars };
 }
 
@@ -582,7 +601,8 @@ export default async function handler(req, res) {
     const market = data.market || "crypto";
     const { yahoo, display } = normalizeSymbol(data.symbol, market);
     const interval = data.interval || "60m";
-    const range = data.range || "10d";
+    const requestedRange = data.range || "10d";
+    const range = normalizeRangeForInterval(requestedRange, interval);
     const { bars } = await fetchYahooBars(yahoo, range, interval);
     const cards = patternCards(bars);
     const options = {
@@ -609,6 +629,8 @@ export default async function handler(req, res) {
       symbol: display,
       interval,
       status: "已生成",
+      range,
+      requested_range: requestedRange,
       used_gpt: ai.used,
       ai_provider: ai.provider,
       message: ai.message,

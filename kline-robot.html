@@ -367,11 +367,11 @@
 
         <label>数据范围</label>
         <select name="range">
-          <option value="10d">10d</option>
-          <option value="5d">5d</option>
-          <option value="1mo">1mo</option>
-          <option value="3mo">3mo</option>
-          <option value="6mo">6mo</option>
+          <option value="10d">10日</option>
+          <option value="5d">5日</option>
+          <option value="1mo">1个月</option>
+          <option value="3mo">3个月</option>
+          <option value="6mo">6个月</option>
         </select>
 
         <label>增强模块</label>
@@ -406,7 +406,7 @@
     const appVersion = document.getElementById('appVersion');
 
     const defaultApiBase = 'https://donew-beta.vercel.app';
-    const appVersionText = '2.1.8｜Top表前置｜2026-07-01 00:45';
+    const appVersionText = '2.1.9｜代码容错+中文范围｜2026-07-01 00:58';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     let latestBlobUrl = '';
@@ -419,12 +419,23 @@
       return 'flat';
     }
 
+    function normalizeDailyRange() {
+      const interval = form.elements.interval.value;
+      const range = form.elements.range;
+      if (interval === '1d' && (range.value === '5d' || range.value === '10d')) {
+        range.value = '1mo';
+      }
+    }
+
+    form.elements.interval.addEventListener('change', normalizeDailyRange);
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       btn.disabled = true;
       preview.innerHTML = '';
       result.textContent = '正在拉取最新行情并生成报告...';
 
+      normalizeDailyRange();
       const data = new FormData(form);
 
       const payload = {
