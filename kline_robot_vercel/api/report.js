@@ -151,6 +151,8 @@ function patternCards(bars) {
   const bigDrop = last.close < bars[n - 4].close;
   return [
     {
+      startIndex: n - 4,
+      endIndex: n - 1,
       name: "放量破位 / 下跌中继风险",
       score: bigDrop ? 88 : 76,
       bias: "偏空",
@@ -162,6 +164,8 @@ function patternCards(bars) {
       failure: formatPrice(support),
     },
     {
+      startIndex: n - 6,
+      endIndex: n - 3,
       name: "高位冲高失败 / 黄昏星扩展",
       score: 82,
       bias: "偏空",
@@ -173,6 +177,8 @@ function patternCards(bars) {
       failure: formatPrice(bars[n - 3].low),
     },
     {
+      startIndex: n - 8,
+      endIndex: n - 1,
       name: "破位后弱修复",
       score: 74,
       bias: "偏空",
@@ -184,6 +190,8 @@ function patternCards(bars) {
       failure: formatPrice(support),
     },
     {
+      startIndex: n - 10,
+      endIndex: n - 1,
       name: "平头底部观察 / 支撑测试",
       score: 68,
       bias: "中性",
@@ -195,6 +203,8 @@ function patternCards(bars) {
       failure: formatPrice(support),
     },
     {
+      startIndex: n - 3,
+      endIndex: n - 1,
       name: "大阴线未修复",
       score: 66,
       bias: "偏空",
@@ -209,11 +219,37 @@ function patternCards(bars) {
 }
 
 function aiPrompt() {
-  return "你是K线形态相似度与卖Put风险判断机器人。请基于输入JSON生成简短中文HTML解读。要求：最终结论前置；禁止确定性语言；必须给出确认位、失败位、Top5方向概括、风险提示。只返回HTML片段，根节点为 <section class=\"section\"><h2>AI 综合解读</h2>...";
+  return [
+    "你是K线形态相似度与卖Put风险判断机器人。请基于输入JSON生成简短中文HTML解读。",
+    "只返回HTML片段，不要返回Markdown代码块，不要使用style属性。",
+    "根节点必须是 <section class=\"section ai-brief\"><h2>AI 综合解读</h2>。",
+    "结构必须包含四块：",
+    "1. <div class=\"ai-thesis\"><strong>核心判断：</strong>...</div>，一句话说明主方向和风险优先级。",
+    "2. <div class=\"ai-level-grid\">，里面用两个 <div class=\"ai-level\"> 分别写确认位和失败位，数字用 <strong>。",
+    "3. <ol class=\"ai-top5\"> 写Top5方向概括，每条不超过32个中文字符，方向用括号标注：偏多/偏空/中性。",
+    "4. <p class=\"ai-risk\"> 写风险提示。",
+    "要求：最终结论前置；禁止确定性语言；必须给出确认位、失败位、Top5方向概括、风险提示；文字克制、可扫描。",
+  ].join("\n");
 }
 
 function aiFailureHtml(providerName, detail) {
   return `<section class="section"><h2>AI 综合解读</h2><p>${safeHtml(providerName)} 调用失败，已保留规则版报告。${safeHtml(detail || "")}</p></section>`;
+}
+
+function normalizeAiHtml(html) {
+  const text = String(html || "")
+    .replace(/```html/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  if (!text) return '<section class="section ai-brief"><h2>AI 综合解读</h2><p>AI 已调用，但返回内容为空。</p></section>';
+  if (/class=["'][^"']*ai-brief/.test(text)) return text;
+  if (/<section\b/i.test(text)) {
+    return text.replace(/<section\b([^>]*)>/i, (match, attrs) => {
+      if (/class=/i.test(attrs)) return match.replace(/class=["']([^"']*)["']/i, 'class="$1 ai-brief"');
+      return `<section class="section ai-brief"${attrs}>`;
+    });
+  }
+  return `<section class="section ai-brief"><h2>AI 综合解读</h2>${text}</section>`;
 }
 
 async function callOpenAI(payload) {
@@ -254,7 +290,7 @@ async function callOpenAI(payload) {
     used: true,
     provider: "GPT",
     message: "已调用 GPT 生成综合解读。",
-    html: outputText || '<section class="section"><h2>AI 综合解读</h2><p>GPT 已调用，但返回内容为空。</p></section>',
+    html: normalizeAiHtml(outputText),
   };
 }
 
@@ -297,7 +333,7 @@ async function callDeepSeek(payload) {
     used: true,
     provider: "DeepSeek",
     message: "已调用 DeepSeek 生成综合解读。",
-    html: outputText || '<section class="section"><h2>AI 综合解读</h2><p>DeepSeek 已调用，但返回内容为空。</p></section>',
+    html: normalizeAiHtml(outputText),
   };
 }
 
@@ -386,6 +422,105 @@ function candleChartSvg(bars, cards) {
   return `<section class="section chart-section"><h2>价格图形</h2><p>最近 ${chartBars.length} 根K线，含成交量、支撑和压力参考线。</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}"><rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${line(support, "#46d6a0", "支撑")}${line(pressure, "#ffd166", "压力")}${line(confirm, "#79a8ff", "确认")}${labels}<circle cx="${xAt(chartBars.length - 1).toFixed(1)}" cy="${yPrice(last.close).toFixed(1)}" r="4" fill="#edf2ff"/><text x="${width - pad.right + 10}" y="${(yPrice(last.close) - 8).toFixed(1)}" fill="#edf2ff" font-size="12">最新 ${formatPrice(last.close)}</text></svg></div></section>`;
 }
 
+function directionMarkup(bias) {
+  if (bias === "偏多") return '<span class="dir dir-bull"><span class="dir-icon">▲</span>偏多</span>';
+  if (bias === "偏空") return '<span class="dir dir-bear"><span class="dir-icon">▼</span>偏空</span>';
+  return '<span class="dir dir-flat"><span class="dir-icon">◆</span>中性</span>';
+}
+
+function drawMiniCandles({ bars, width = 660, height = 300, highlightStart = -1, highlightEnd = -1, label = "" }) {
+  const pad = { left: 44, right: 18, top: 24, bottom: 34 };
+  const innerWidth = width - pad.left - pad.right;
+  const innerHeight = height - pad.top - pad.bottom;
+  const maxPrice = Math.max(...bars.map((b) => b.high));
+  const minPrice = Math.min(...bars.map((b) => b.low));
+  const pricePad = Math.max((maxPrice - minPrice) * 0.12, maxPrice * 0.002);
+  const topPrice = maxPrice + pricePad;
+  const bottomPrice = minPrice - pricePad;
+  const slot = innerWidth / bars.length;
+  const bodyWidth = Math.max(8, Math.min(18, slot * 0.55));
+  const xAt = (i) => pad.left + slot * i + slot / 2;
+  const yAt = (value) => pad.top + ((topPrice - value) / (topPrice - bottomPrice)) * innerHeight;
+  const grid = [0, 0.5, 1]
+    .map((ratio) => {
+      const y = pad.top + innerHeight * ratio;
+      return `<line x1="${pad.left}" y1="${y.toFixed(1)}" x2="${width - pad.right}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.08)"/>`;
+    })
+    .join("");
+  const candles = bars
+    .map((b, i) => {
+      const x = xAt(i);
+      const up = b.close >= b.open;
+      const color = up ? "#40d98a" : "#ff6b7a";
+      const yHigh = yAt(b.high);
+      const yLow = yAt(b.low);
+      const yOpen = yAt(b.open);
+      const yClose = yAt(b.close);
+      const bodyY = Math.min(yOpen, yClose);
+      const bodyH = Math.max(2, Math.abs(yClose - yOpen));
+      const highlight = i >= highlightStart && i <= highlightEnd ? `<rect x="${(x - slot * 0.43).toFixed(1)}" y="${(pad.top + 4).toFixed(1)}" width="${(slot * 0.86).toFixed(1)}" height="${(innerHeight - 8).toFixed(1)}" rx="8" fill="rgba(255,209,102,.10)" stroke="#ffd166" stroke-width="1.4" stroke-dasharray="5 5"/>` : "";
+      return `${highlight}<g><line x1="${x.toFixed(1)}" y1="${yHigh.toFixed(1)}" x2="${x.toFixed(1)}" y2="${yLow.toFixed(1)}" stroke="${color}" stroke-width="2"/><rect x="${(x - bodyWidth / 2).toFixed(1)}" y="${bodyY.toFixed(1)}" width="${bodyWidth.toFixed(1)}" height="${bodyH.toFixed(1)}" rx="2" fill="${color}"/></g>`;
+    })
+    .join("");
+  const labels = bars
+    .map((b, i) => {
+      if (bars.length > 8 && i % 3 !== 0 && i !== bars.length - 1) return "";
+      return `<text x="${xAt(i).toFixed(1)}" y="${height - 12}" text-anchor="middle" fill="#9fb0d8" font-size="10">${safeHtml(b.date || `K${i + 1}`)}</text>`;
+    })
+    .join("");
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml(label || "K线形态图")}"><rect x="0" y="0" width="${width}" height="${height}" rx="12" fill="#0b1227"/><text x="${pad.left}" y="18" fill="#d7e3ff" font-size="13" font-weight="700">${safeHtml(label)}</text>${grid}${candles}${labels}</svg>`;
+}
+
+function miniHighlightChartSvg(bars, card) {
+  const start = Math.max(0, card.startIndex - 4);
+  const end = Math.min(bars.length - 1, card.endIndex + 3);
+  const subset = bars.slice(start, end + 1);
+  return drawMiniCandles({
+    bars: subset,
+    highlightStart: card.startIndex - start,
+    highlightEnd: card.endIndex - start,
+    label: "黄色虚线框 = 本次匹配区间",
+  });
+}
+
+function patternSketchSvg(card) {
+  const bias = card.bias;
+  const flat = bias === "中性";
+  const bullish = bias === "偏多";
+  const sketch = flat
+    ? [
+        { date: "1", open: 104, high: 108, low: 96, close: 99 },
+        { date: "2", open: 100, high: 105, low: 96, close: 103 },
+        { date: "3", open: 102, high: 106, low: 97, close: 101 },
+        { date: "4", open: 101, high: 107, low: 96, close: 104 },
+      ]
+    : bullish
+      ? [
+          { date: "1", open: 98, high: 101, low: 94, close: 96 },
+          { date: "2", open: 96, high: 100, low: 93, close: 99 },
+          { date: "3", open: 99, high: 106, low: 98, close: 104 },
+          { date: "4", open: 104, high: 110, low: 103, close: 108 },
+        ]
+      : [
+          { date: "1", open: 96, high: 106, low: 94, close: 104 },
+          { date: "2", open: 105, high: 109, low: 102, close: 103 },
+          { date: "3", open: 103, high: 104, low: 94, close: 96 },
+          { date: "4", open: 97, high: 99, low: 91, close: 93 },
+        ];
+  return drawMiniCandles({
+    bars: sketch,
+    highlightStart: 0,
+    highlightEnd: sketch.length - 1,
+    label: `${card.name} 标准示意`,
+  });
+}
+
+function signalMarkup(status) {
+  if (/风险|偏弱|转弱|放量下跌/.test(status)) return '<span class="signal signal-bear"><span>▼</span>偏空风险</span>';
+  if (/修复|向上|偏多/.test(status)) return '<span class="signal signal-bull"><span>▲</span>偏多修复</span>';
+  return '<span class="signal signal-flat"><span>◆</span>中性观察</span>';
+}
+
 function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, options }) {
   const closes = bars.map((b) => b.close);
   const last = bars[bars.length - 1];
@@ -401,23 +536,23 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   const title = `${displaySymbol}｜${interval} 三根K线以上形态匹配报告`;
   const final = `${displaySymbol} ${interval} 当前主结构是：前段反弹冲高后快速回落，最新价 ${formatPrice(last.close)} 已接近近期低位。短线不是反转确认，而是破位后的支撑观察；需要先站回 ${formatPrice(pressure1)}，再修复 ${formatPrice(pressure2)} 附近压力，下降中继风险才会下降。若跌破 ${formatPrice(support)}，支撑结构失败。`;
   const top5Rows = cards
-    .map((c, idx) => `<tr><td>TOP ${idx + 1}</td><td>${safeHtml(c.name)}</td><td class="price">${c.score}%</td><td>${safeHtml(c.bias)}</td><td>${safeHtml(c.range)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
+    .map((c, idx) => `<tr><td>TOP ${idx + 1}</td><td>${safeHtml(c.name)}</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.range)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
     .join("");
   const cardHtml = cards
     .map(
-      (c, idx) => `<article class="card"><div class="head"><div><h2>TOP ${idx + 1} · ${safeHtml(c.name)}</h2><p>匹配区间：${safeHtml(c.range)}</p></div><div class="score">${c.score}%<span>三根以上匹配度</span></div></div><div class="panel"><p>${safeHtml(c.why)}</p><table><tr><th>规则库含义</th><td>${safeHtml(c.meaning)}</td></tr><tr><th>结构判断</th><td>${safeHtml(c.judgement)}</td></tr><tr><th>确认位</th><td class="price">${safeHtml(c.confirm)}</td></tr><tr><th>失败位</th><td class="price">${safeHtml(c.failure)}</td></tr></table></div></article>`
+      (c, idx) => `<article class="card"><div class="head"><div><h2>TOP ${idx + 1} · ${safeHtml(c.name)}</h2><p>匹配区间：${safeHtml(c.range)}</p></div><div class="score">${c.score}%<span>三根以上匹配度</span></div></div><div class="compare"><div class="panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}<p>${safeHtml(c.why)}</p><table><tr><th>规则库含义</th><td>${safeHtml(c.meaning)}</td></tr><tr><th>结构判断</th><td>${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</td></tr><tr><th>确认位</th><td class="price">${safeHtml(c.confirm)}</td></tr><tr><th>失败位</th><td class="price">${safeHtml(c.failure)}</td></tr></table></div><div class="panel"><h3>标准形态示意</h3>${patternSketchSvg(c)}<p>标准图用于表达形态结构，不代表价格预测。</p></div></div></article>`
     )
     .join("");
   const matrix = [
-    ["形态", "风险", "82", "Top结构偏向破位后弱修复与下跌中继风险。"],
-    ["位置", "低位支撑观察", "58", `价格接近近期低点 ${formatPrice(support)}，但尚未向上确认。`],
-    ["均线", "偏弱", "35", `最新价 ${formatPrice(last.close)}，E20 ${formatPrice(e20)}，E60 ${formatPrice(e60)}。`],
-    ["RSI", (rsi14 || 50) < 45 ? "偏弱" : "中性", (rsi14 || 50) < 45 ? "40" : "55", rsi14 == null ? "RSI数据不足。" : `RSI14=${rsi14.toFixed(1)}`],
-    ["随机指数", (k14 || 50) < 30 ? "低位" : "中性", "45", k14 == null ? "随机指数数据不足。" : `%K=${k14.toFixed(1)}`],
-    ["动力指数", (mom10 || 0) < 0 ? "转弱" : "修复", (mom10 || 0) < 0 ? "38" : "55", mom10 == null ? "动力指数数据不足。" : `10根动量=${mom10.toFixed(2)}%`],
-    ["成交量", "放量下跌", "42", "最近下跌段成交量较高，说明抛压仍需观察。"],
+    ["形态", "偏空风险", "Top结构偏向破位后弱修复与下跌中继风险。"],
+    ["位置", "中性观察", `价格接近近期低点 ${formatPrice(support)}，但还没有向上确认。`],
+    ["均线", "偏空风险", `最新价 ${formatPrice(last.close)}，E20 ${formatPrice(e20)}，E60 ${formatPrice(e60)}，仍在短线压力下。`],
+    ["RSI", (rsi14 || 50) < 45 ? "偏空风险" : "中性观察", rsi14 == null ? "RSI数据不足。" : `RSI14=${rsi14.toFixed(1)}，只作为强弱辅助，不单独决定方向。`],
+    ["随机指数", (k14 || 50) < 30 ? "中性观察" : "中性观察", k14 == null ? "随机指数数据不足。" : `%K=${k14.toFixed(1)}，提示短线位置，不等于反转确认。`],
+    ["动力", (mom10 || 0) < 0 ? "偏空风险" : "偏多修复", mom10 == null ? "动力数据不足。" : `10根动量=${mom10.toFixed(2)}%，看反弹是否能持续。`],
+    ["成交量", "偏空风险", "最近下跌段成交量较高，说明抛压仍需观察。"],
   ]
-    .map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`)
+    .map((r) => `<tr><td>${r[0]}</td><td>${signalMarkup(r[1])}</td><td>${r[2]}</td></tr>`)
     .join("");
   const levels = [
     [formatPrice(support), "近期低点支撑", "跌破则支撑观察失败"],
@@ -428,10 +563,9 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   ]
     .map((r) => `<tr><td class="price">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`)
     .join("");
-  const userOptions = `<section class="section"><h2>用户选择条件</h2><table><tr><th>菜单</th><td>${safeHtml(options.menu)}</td></tr><tr><th>AI 提供商</th><td>${safeHtml(options.provider || "deepseek")}</td></tr><tr><th>市场</th><td>${safeHtml(options.market || "crypto")}</td></tr><tr><th>数据范围</th><td>${safeHtml(range)}</td></tr><tr><th>增强模块</th><td>${safeHtml((options.modules || []).join("、") || "默认")}</td></tr><tr><th>额外要求</th><td>${safeHtml(options.extra || "无")}</td></tr></table></section>`;
   const chartHtml = candleChartSvg(bars, cards);
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
-:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px}.summary div{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:10px;padding:14px}.tag{display:inline-block;background:var(--gold);color:#0a1120;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:800;margin-bottom:10px}.summary h3{margin:0 0 6px;font-size:14px}.summary p{margin:0;font-size:14px}.verdict{border:1px solid rgba(255,209,102,.38);background:rgba(255,209,102,.08);border-radius:14px;padding:18px;margin-top:22px}.verdict p{color:#f6e6b2}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart-section p{margin-top:0}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.panel{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:10px;padding:14px;margin:6px 20px 20px}@media(max-width:760px){.summary{grid-template-columns:1fr}.head{display:block}.score{text-align:left;margin-top:10px}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><p class="sub">模式：${safeHtml(options.menu)}；数据源：Yahoo Finance；周期 ${safeHtml(interval)}；最新K线可能随交易继续变化。</p><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(interval)}</div><div class="pill">样本：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div><div class="pill">确认等级：D</div></div><div class="summary"><div><span class="tag">主结构</span><h3>总体结构</h3><p>反弹冲高后快速回落</p></div><div><span class="tag">风险</span><h3>当前状态</h3><p>大阴线未修复，低位支撑观察</p></div><div><span class="tag">确认位</span><h3>核心确认</h3><p>${formatPrice(pressure1)} → ${formatPrice(pressure2)}</p></div><div><span class="tag">失败位</span><h3>核心失败</h3><p>跌破 ${formatPrice(support)}</p></div></div></section><section class="verdict"><h2>机器人最终结论</h2><p>${safeHtml(final)}</p></section>${chartHtml}${gptHtml || ""}${userOptions}<section class="section"><h2>最近K线总览</h2><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></section><section class="section"><h2>Top 5 概要</h2><table><thead><tr><th>排名</th><th>形态</th><th>匹配度</th><th>方向</th><th>匹配区间</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table></section><section class="grid">${cardHtml}</section><section class="section"><h2>技术确认矩阵</h2><table><thead><tr><th>模块</th><th>状态</th><th>得分</th><th>解释</th></tr></thead><tbody>${matrix}</tbody></table></section><section class="section"><h2>关键位置判断</h2><table><thead><tr><th>位置</th><th>含义</th><th>机器人动作判断</th></tr></thead><tbody>${levels}</tbody></table></section><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
+:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px}.summary div{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:10px;padding:14px}.tag{display:inline-block;background:var(--gold);color:#0a1120;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:800;margin-bottom:10px}.summary h3{margin:0 0 6px;font-size:14px}.summary p{margin:0;font-size:14px}.verdict{border:1px solid rgba(255,209,102,.38);background:rgba(255,209,102,.08);border-radius:14px;padding:18px;margin-top:22px}.verdict p{color:#f6e6b2}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-level-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.ai-level{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);border-radius:10px;padding:12px;color:var(--muted)}.ai-level strong,.ai-top5 strong{color:#edf2ff}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-risk{border-top:1px solid rgba(255,255,255,.10);padding-top:12px;margin-top:14px;color:#f0c7c7}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.compare{display:grid;grid-template-columns:1.25fr .95fr;gap:18px;padding:6px 20px 20px}.panel{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:10px;padding:14px;margin:0}.panel h3{margin:0 0 10px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#ff7a88}.dir-bull,.signal-bull{color:#46d6a0}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}@media(max-width:760px){.summary,.ai-level-grid,.compare{grid-template-columns:1fr}.head{display:block}.score{text-align:left;margin-top:10px}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><p class="sub">模式：${safeHtml(options.menu)}；数据源：Yahoo Finance；周期 ${safeHtml(interval)}；最新K线可能随交易继续变化。</p><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(interval)}</div><div class="pill">样本：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div><div class="pill">确认等级：D</div></div><div class="summary"><div><span class="tag">主结构</span><h3>总体结构</h3><p>反弹冲高后快速回落</p></div><div><span class="tag">风险</span><h3>当前状态</h3><p>大阴线未修复，低位支撑观察</p></div><div><span class="tag">确认位</span><h3>核心确认</h3><p>${formatPrice(pressure1)} → ${formatPrice(pressure2)}</p></div><div><span class="tag">失败位</span><h3>核心失败</h3><p>跌破 ${formatPrice(support)}</p></div></div></section><section class="verdict"><h2>机器人最终结论</h2><p>${safeHtml(final)}</p></section>${chartHtml}${gptHtml || ""}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="section"><h2>Top 5 概要</h2><table><thead><tr><th>排名</th><th>形态</th><th>匹配度</th><th>方向</th><th>匹配区间</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table></section><section class="grid">${cardHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><section class="section"><h2>关键位置判断</h2><table><thead><tr><th>位置</th><th>含义</th><th>机器人动作判断</th></tr></thead><tbody>${levels}</tbody></table></section><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
 }
 
 export default async function handler(req, res) {
