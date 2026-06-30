@@ -379,8 +379,25 @@
     const preview = document.getElementById('preview');
     const apiInput = document.getElementById('apiBase');
 
+    const defaultApiBase = 'https://donew-beta.vercel.app';
+    const params = new URLSearchParams(window.location.search);
+    const queryApi = params.get('apiBase');
     const savedApi = localStorage.getItem('klineRobotApiBase');
-    if (savedApi) apiInput.value = savedApi;
+    function isStaleApi(value) {
+      const text = String(value || '');
+      return !text ||
+        text.includes('YOUR-WORKER-NAME') ||
+        text.includes('YOUR-SUBDOMAIN') ||
+        text.includes('kline-robot.jiangshenhk.workers.dev');
+    }
+    if (!isStaleApi(queryApi)) {
+      apiInput.value = queryApi;
+    } else if (!isStaleApi(savedApi)) {
+      apiInput.value = savedApi;
+    } else {
+      apiInput.value = defaultApiBase;
+      localStorage.setItem('klineRobotApiBase', defaultApiBase);
+    }
 
     let latestBlobUrl = '';
     let latestHtml = '';
@@ -413,8 +430,10 @@
       };
 
       try {
-        if (!apiBase || apiBase.includes('YOUR-WORKER-NAME')) {
-          throw new Error('请先填写已经部署好的 Cloudflare Worker 地址。');
+        if (isStaleApi(apiBase)) {
+          apiInput.value = defaultApiBase;
+          localStorage.setItem('klineRobotApiBase', defaultApiBase);
+          throw new Error('后端地址是旧地址或占位地址，已自动改成 Vercel 地址，请再点一次生成。');
         }
 
         const res = await fetch(apiBase + '/api/report', {
