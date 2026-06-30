@@ -1,0 +1,7 @@
+name = "kline-robot"
+main = "src/worker.js"
+compatibility_date = "2025-12-01"
+
+[vars]
+OPENAI_MODEL = "gpt-5"
+ALLOWED_ORIGIN = "https://jiangshenhk.github.io"
