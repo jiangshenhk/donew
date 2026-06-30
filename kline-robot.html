@@ -297,8 +297,8 @@
     <div class="layout">
       <form id="reportForm" class="panel">
         <label>后端 API 地址</label>
-        <input name="apiBase" id="apiBase" value="https://kline-robot.jiangshenhk.workers.dev" placeholder="https://xxx.workers.dev">
-        <p class="hint">部署 Cloudflare Worker 后，把地址填到这里。API Key 只放在 Worker Secret 里，不会暴露在网页。</p>
+        <input name="apiBase" id="apiBase" value="https://donew-beta.vercel.app" placeholder="https://xxx.vercel.app">
+        <p class="hint">部署 Vercel 后端后，把地址填到这里。API Key 只放在后端环境变量里，不会暴露在网页。</p>
 
         <label>报告菜单</label>
         <select name="menu">
@@ -360,7 +360,7 @@
         <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
 
         <div class="warning">
-          安全提醒：不要把 OpenAI API Key 填在这个网页里。Key 必须只存在 Cloudflare Worker Secret 中。
+          安全提醒：不要把 OpenAI API Key 填在这个网页里。Key 必须只存在 Vercel 或 Cloudflare 的后端环境变量中。
         </div>
       </form>
 
