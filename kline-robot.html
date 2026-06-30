@@ -289,17 +289,13 @@
     <div class="topbar">
       <div class="brand">
         <h1>K线形态相似度机器人</h1>
-        <p>选择标的、周期和分析模块，由后端拉取最新行情并调用 GPT 生成 HTML 报告。</p>
+        <p>选择市场、标的、周期和分析模块，由后端拉取最新行情并生成 HTML 报告。</p>
       </div>
       <a class="home" href="./#/">返回十方斋</a>
     </div>
 
     <div class="layout">
       <form id="reportForm" class="panel">
-        <label>后端 API 地址</label>
-        <input name="apiBase" id="apiBase" value="https://donew-beta.vercel.app" placeholder="https://xxx.vercel.app">
-        <p class="hint">部署 Vercel 后端后，把地址填到这里。API Key 只放在后端环境变量里，不会暴露在网页。</p>
-
         <label>报告菜单</label>
         <select name="menu">
           <option value="1">1 相似度</option>
@@ -310,6 +306,25 @@
           <option value="7">7 期权风险</option>
           <option value="8">8 保值/对冲</option>
         </select>
+
+        <div class="row">
+          <div>
+            <label>AI 提供商</label>
+            <select name="provider">
+              <option value="deepseek" selected>DeepSeek</option>
+              <option value="openai">GPT</option>
+            </select>
+          </div>
+          <div>
+            <label>市场</label>
+            <select name="market">
+              <option value="crypto" selected>虚拟货币</option>
+              <option value="us">美股</option>
+              <option value="hk">港股</option>
+              <option value="cn">A股</option>
+            </select>
+          </div>
+        </div>
 
         <div class="row">
           <div>
@@ -327,29 +342,21 @@
           </div>
         </div>
 
-        <div class="row">
-          <div>
-            <label>数据范围</label>
-            <select name="range">
-              <option value="10d">10d</option>
-              <option value="5d">5d</option>
-              <option value="1mo">1mo</option>
-              <option value="3mo">3mo</option>
-              <option value="6mo">6mo</option>
-            </select>
-          </div>
-          <div>
-            <label>模型</label>
-            <input name="model" value="gpt-5">
-          </div>
-        </div>
+        <label>数据范围</label>
+        <select name="range">
+          <option value="10d">10d</option>
+          <option value="5d">5d</option>
+          <option value="1mo">1mo</option>
+          <option value="3mo">3mo</option>
+          <option value="6mo">6mo</option>
+        </select>
 
         <label>增强模块</label>
         <div class="checks">
-          <label class="check"><input type="checkbox" name="modules" value="top5" checked> Top5概要</label>
-          <label class="check"><input type="checkbox" name="modules" value="momentum" checked> 动量</label>
-          <label class="check"><input type="checkbox" name="modules" value="volume" checked> 成交量</label>
-          <label class="check"><input type="checkbox" name="modules" value="sellput" checked> 卖Put</label>
+          <label class="check"><input type="checkbox" name="modules" value="top5"> Top5概要</label>
+          <label class="check"><input type="checkbox" name="modules" value="momentum"> 动量</label>
+          <label class="check"><input type="checkbox" name="modules" value="volume"> 成交量</label>
+          <label class="check"><input type="checkbox" name="modules" value="sellput"> 卖Put</label>
           <label class="check"><input type="checkbox" name="modules" value="options"> 期权</label>
           <label class="check"><input type="checkbox" name="modules" value="hedge"> 保值</label>
         </div>
@@ -358,10 +365,6 @@
         <textarea name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。"></textarea>
 
         <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
-
-        <div class="warning">
-          安全提醒：不要把 OpenAI API Key 填在这个网页里。Key 必须只存在 Vercel 或 Cloudflare 的后端环境变量中。
-        </div>
       </form>
 
       <main class="output panel">
@@ -377,27 +380,8 @@
     const btn = document.getElementById('submitBtn');
     const result = document.getElementById('result');
     const preview = document.getElementById('preview');
-    const apiInput = document.getElementById('apiBase');
 
     const defaultApiBase = 'https://donew-beta.vercel.app';
-    const params = new URLSearchParams(window.location.search);
-    const queryApi = params.get('apiBase');
-    const savedApi = localStorage.getItem('klineRobotApiBase');
-    function isStaleApi(value) {
-      const text = String(value || '');
-      return !text ||
-        text.includes('YOUR-WORKER-NAME') ||
-        text.includes('YOUR-SUBDOMAIN') ||
-        text.includes('kline-robot.jiangshenhk.workers.dev');
-    }
-    if (!isStaleApi(queryApi)) {
-      apiInput.value = queryApi;
-    } else if (!isStaleApi(savedApi)) {
-      apiInput.value = savedApi;
-    } else {
-      apiInput.value = defaultApiBase;
-      localStorage.setItem('klineRobotApiBase', defaultApiBase);
-    }
 
     let latestBlobUrl = '';
     let latestHtml = '';
@@ -416,28 +400,20 @@
       result.textContent = '正在拉取最新行情并生成报告...';
 
       const data = new FormData(form);
-      const rawApiBase = String(data.get('apiBase') || '');
-      const apiBase = rawApiBase.endsWith('/') ? rawApiBase.slice(0, -1) : rawApiBase;
-      localStorage.setItem('klineRobotApiBase', apiBase);
 
       const payload = {
         menu: data.get('menu'),
+        provider: data.get('provider'),
+        market: data.get('market'),
         symbol: data.get('symbol'),
         interval: data.get('interval'),
         range: data.get('range'),
-        model: data.get('model'),
         extra: data.get('extra'),
         modules: data.getAll('modules')
       };
 
       try {
-        if (isStaleApi(apiBase)) {
-          apiInput.value = defaultApiBase;
-          localStorage.setItem('klineRobotApiBase', defaultApiBase);
-          throw new Error('后端地址是旧地址或占位地址，已自动改成 Vercel 地址，请再点一次生成。');
-        }
-
-        const res = await fetch(apiBase + '/api/report', {
+        const res = await fetch(defaultApiBase + '/api/report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -454,7 +430,7 @@
           <div class="cards">
             <div class="metric"><b>标的</b><span>${json.symbol}</span></div>
             <div class="metric"><b>周期</b><span>${json.interval}</span></div>
-            <div class="metric"><b>GPT</b><span>${json.used_gpt ? '已调用' : '未调用'}</span></div>
+            <div class="metric"><b>AI</b><span>${json.used_gpt ? '已调用' : '未调用'}</span></div>
             <div class="metric"><b>状态</b><span>${json.status}</span></div>
           </div>
           <div class="actions">
