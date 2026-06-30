@@ -55,6 +55,19 @@
       line-height: 1.6;
     }
 
+    .version {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 10px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #61708f;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
     .home {
       color: var(--blue);
       text-decoration: none;
@@ -290,6 +303,7 @@
       <div class="brand">
         <h1>K线形态相似度机器人</h1>
         <p>选择市场、标的、周期和分析模块，由后端拉取最新行情并生成 HTML 报告。</p>
+        <span class="version" id="appVersion">版本加载中</span>
       </div>
       <a class="home" href="./#/">返回十方斋</a>
     </div>
@@ -380,8 +394,11 @@
     const btn = document.getElementById('submitBtn');
     const result = document.getElementById('result');
     const preview = document.getElementById('preview');
+    const appVersion = document.getElementById('appVersion');
 
     const defaultApiBase = 'https://donew-beta.vercel.app';
+    const appVersionText = '2.1.1｜DeepSeek + K线图｜2026-06-30 17:30';
+    appVersion.textContent = `版本 ${appVersionText}`;
 
     let latestBlobUrl = '';
     let latestHtml = '';
@@ -432,6 +449,7 @@
             <div class="metric"><b>周期</b><span>${json.interval}</span></div>
             <div class="metric"><b>AI</b><span>${json.used_gpt ? '已调用' : '未调用'}</span></div>
             <div class="metric"><b>状态</b><span>${json.status}</span></div>
+            <div class="metric"><b>页面版本</b><span>${appVersionText}</span></div>
           </div>
           <div class="actions">
             <a class="action" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
