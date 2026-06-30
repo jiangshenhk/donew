@@ -416,7 +416,8 @@
       result.textContent = '正在拉取最新行情并生成报告...';
 
       const data = new FormData(form);
-      const apiBase = String(data.get('apiBase') || '').replace(/\\/$/, '');
+      const rawApiBase = String(data.get('apiBase') || '');
+      const apiBase = rawApiBase.endsWith('/') ? rawApiBase.slice(0, -1) : rawApiBase;
       localStorage.setItem('klineRobotApiBase', apiBase);
 
       const payload = {
