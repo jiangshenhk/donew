@@ -260,10 +260,12 @@ function clampScore(value) {
 function makeCard(bars, data) {
   const startIndex = Math.max(0, data.startIndex);
   const endIndex = Math.min(bars.length - 1, data.endIndex);
+  const matchBars = endIndex - startIndex + 1;
   return {
     ...data,
     startIndex,
     endIndex,
+    matchBars,
     score: clampScore(data.score),
     range: `${bars[startIndex].date} 至 ${bars[endIndex].date}`,
     confirm: formatPrice(data.confirm),
@@ -503,8 +505,9 @@ function addPattern(candidates, bars, data) {
   candidates.push(makeCard(bars, data));
 }
 
-function patternCards(bars) {
+function patternCards(bars, maxMatchBars = 6) {
   const n = bars.length;
+  const maxBars = Math.max(3, Math.min(10, Number(maxMatchBars) || 6));
   const candidates = [];
   const last = bars[n - 1];
   const avgVol = avgVolume(bars, n - 20, n - 1);
@@ -885,9 +888,10 @@ function patternCards(bars) {
     });
   }
 
+  const latestCandidates = candidates.filter((card) => card.endIndex === n - 1 && card.matchBars >= 3 && card.matchBars <= maxBars);
   const deduped = [];
   const used = new Set();
-  for (const card of candidates.sort((a, b) => b.score - a.score || b.endIndex - a.endIndex)) {
+  for (const card of latestCandidates.sort((a, b) => b.score - a.score || b.matchBars - a.matchBars)) {
     const key = card.name;
     if (used.has(key)) continue;
     used.add(key);
@@ -1032,7 +1036,7 @@ function candleTable(bars) {
     .join("");
 }
 
-function candleChartSvg(bars, cards) {
+function candleChartSvg(bars, cards, keyLevels = {}) {
   const chartBars = bars.slice(-48);
   const width = 1120;
   const height = 430;
@@ -1041,8 +1045,15 @@ function candleChartSvg(bars, cards) {
   const volumeTop = pad.top + priceHeight + 24;
   const volumeHeight = 70;
   const innerWidth = width - pad.left - pad.right;
-  const highs = chartBars.map((b) => b.high);
-  const lows = chartBars.map((b) => b.low);
+  const keyLineItems = [
+    { value: keyLevels.support, color: "#40d98a", label: "支撑" },
+    { value: keyLevels.latest, color: "#edf2ff", label: "最新" },
+    { value: keyLevels.confirm, color: "#79a8ff", label: "确认" },
+    { value: keyLevels.pressure, color: "#ffd166", label: "压力" },
+    { value: keyLevels.e20, color: "#c084fc", label: "E20" },
+  ].filter((item) => Number.isFinite(Number(item.value)));
+  const highs = chartBars.map((b) => b.high).concat(keyLineItems.map((item) => Number(item.value)));
+  const lows = chartBars.map((b) => b.low).concat(keyLineItems.map((item) => Number(item.value)));
   const maxPrice = Math.max(...highs);
   const minPrice = Math.min(...lows);
   const pricePad = Math.max((maxPrice - minPrice) * 0.08, maxPrice * 0.002);
@@ -1052,17 +1063,15 @@ function candleChartSvg(bars, cards) {
   const candleSlot = innerWidth / chartBars.length;
   const candleWidth = Math.max(4, Math.min(14, candleSlot * 0.58));
   const last = chartBars.at(-1);
-  const support = Math.min(...chartBars.slice(-10).map((b) => b.low));
-  const pressure = Math.max(...chartBars.slice(-10).map((b) => b.high));
-  const confirm = Number(cards?.[0]?.confirm);
 
   const xAt = (i) => pad.left + candleSlot * i + candleSlot / 2;
   const yPrice = (value) => pad.top + ((topPrice - value) / (topPrice - bottomPrice)) * priceHeight;
   const yVolume = (value) => volumeTop + volumeHeight - (value / maxVolume) * volumeHeight;
-  const line = (value, color, label) => {
-    if (!Number.isFinite(value)) return "";
+  const line = (value, color, label, index) => {
+    if (!Number.isFinite(Number(value))) return "";
     const y = yPrice(value);
-    return `<line x1="${pad.left}" y1="${y.toFixed(1)}" x2="${width - pad.right}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="1.4" stroke-dasharray="6 6"/><text x="${width - pad.right + 10}" y="${(y + 4).toFixed(1)}" fill="${color}" font-size="12">${safeHtml(label)} ${formatPrice(value)}</text>`;
+    const labelY = Math.max(pad.top + 12, Math.min(pad.top + priceHeight - 4, y + 4 + index * 3));
+    return `<line x1="${pad.left}" y1="${y.toFixed(1)}" x2="${width - pad.right}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="1.4" stroke-dasharray="6 6"/><rect x="${width - pad.right + 6}" y="${(labelY - 12).toFixed(1)}" width="76" height="18" rx="4" fill="#0b1227" opacity=".9"/><text x="${width - pad.right + 10}" y="${labelY.toFixed(1)}" fill="${color}" font-size="12" font-weight="700">${safeHtml(label)} ${formatPrice(value)}</text>`;
   };
 
   const grid = [0, 0.25, 0.5, 0.75, 1]
@@ -1098,7 +1107,8 @@ function candleChartSvg(bars, cards) {
     })
     .join("");
 
-  return `<section class="section chart-section"><h2>价格图形</h2><p>最近 ${chartBars.length} 根K线，含成交量、支撑和压力参考线。</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}"><rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${line(support, "#46d6a0", "支撑")}${line(pressure, "#ffd166", "压力")}${line(confirm, "#79a8ff", "确认")}${labels}<circle cx="${xAt(chartBars.length - 1).toFixed(1)}" cy="${yPrice(last.close).toFixed(1)}" r="4" fill="#edf2ff"/><text x="${width - pad.right + 10}" y="${(yPrice(last.close) - 8).toFixed(1)}" fill="#edf2ff" font-size="12">最新 ${formatPrice(last.close)}</text></svg></div></section>`;
+  const keyLines = keyLineItems.map((item, index) => line(Number(item.value), item.color, item.label, index)).join("");
+  return `<section class="section chart-section"><h2>价格图形</h2><p>最近 ${chartBars.length} 根K线，已在图上标注关键位置。</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}"><rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量 · 关键位置</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${keyLines}${labels}<circle cx="${xAt(chartBars.length - 1).toFixed(1)}" cy="${yPrice(last.close).toFixed(1)}" r="4" fill="#edf2ff"/></svg></div></section>`;
 }
 
 function directionMarkup(bias) {
@@ -1214,13 +1224,13 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
       ? `${displaySymbol} ${interval} 当前超过${MIN_PATTERN_SCORE}%的主要匹配是「${cards[0].name}」，最新价 ${formatPrice(last.close)}。后续重点看确认位 ${cards[0].confirm} 与失败位 ${cards[0].failure}；确认位未站稳前，只能按观察结构处理。`
       : `${displaySymbol} ${interval} 当前没有超过${MIN_PATTERN_SCORE}%的经典蜡烛图形态匹配。最新价 ${formatPrice(last.close)}；此时不应强行套形态，重点观察 ${formatPrice(pressure1)} 上方确认与 ${formatPrice(support)} 下方失效。`;
   const top5Rows = cards
-    .map((c, idx) => `<tr><td>匹配 ${idx + 1}</td><td>${safeHtml(c.name)}</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.range)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
+    .map((c, idx) => `<tr><td>匹配 ${idx + 1}</td><td>${safeHtml(c.name)}</td><td>${safeHtml(c.matchBars)}根</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.range)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
     .join("");
   const noMatchHtml = `<div class="no-match"><strong>暂无超过${MIN_PATTERN_SCORE}%的经典形态匹配。</strong><p>当前K线不强行归类；请等待新的确认K线、关键位突破/跌破，或切换更大周期再观察。</p></div>`;
-  const topMatchHtml = `<div class="top-match"><h2>超过${MIN_PATTERN_SCORE}%的形态匹配</h2><p>最少3根K线匹配，只显示达到阈值的书中/规则库形态。</p>${cards.length ? `<table><thead><tr><th>排名</th><th>形态</th><th>匹配度</th><th>方向</th><th>匹配区间</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table>` : noMatchHtml}</div>`;
+  const topMatchHtml = `<div class="top-match"><h2>超过${MIN_PATTERN_SCORE}%的形态匹配</h2><p>只匹配最新末尾K线，按倒数3根到最多${safeHtml(options.maxMatchBars || 6)}根检测，只显示达到阈值的书中/规则库形态。</p>${cards.length ? `<table><thead><tr><th>排名</th><th>形态</th><th>匹配K线</th><th>匹配度</th><th>方向</th><th>匹配区间</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table>` : noMatchHtml}</div>`;
   const cardHtml = cards
     .map(
-      (c, idx) => `<article class="card"><div class="head"><div><h2>匹配 ${idx + 1} · ${safeHtml(c.name)}</h2><p>匹配区间：${safeHtml(c.range)}</p></div><div class="score">${c.score}%<span>三根以上匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>规则库标准轮廓</h3>${patternSketchSvg(c)}<p>右图是书中/规则库标准结构的归一化示意，用于和左侧高亮K线逐根对照。</p></div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>规则库含义</th><td>${safeHtml(c.meaning)}</td></tr><tr><th>结构判断</th><td>${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</td></tr><tr><th>确认位</th><td class="price">${safeHtml(c.confirm)}</td></tr><tr><th>失败位</th><td class="price">${safeHtml(c.failure)}</td></tr></table></div></article>`
+      (c, idx) => `<article class="card"><div class="head"><div><h2>匹配 ${idx + 1} · ${safeHtml(c.name)} · ${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</h2><p>匹配区间：${safeHtml(c.range)}；匹配K线：${safeHtml(c.matchBars)}根</p></div><div class="score">${c.score}%<span>${safeHtml(c.matchBars)}根K线匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>规则库标准轮廓</h3>${patternSketchSvg(c)}<p>右图是书中/规则库标准结构的归一化示意，用于和左侧高亮K线逐根对照。</p></div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>规则库含义</th><td>${safeHtml(c.meaning)}</td></tr><tr><th>确认/失败位</th><td><span class="price">${safeHtml(c.confirm)}</span> / <span class="price">${safeHtml(c.failure)}</span></td></tr></table></div></article>`
     )
     .join("");
   const matrix = [
@@ -1243,7 +1253,13 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   ]
     .map((r) => `<tr><td class="price">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`)
     .join("");
-  const chartHtml = candleChartSvg(bars, cards);
+  const chartHtml = candleChartSvg(bars, cards, {
+    support,
+    latest: last.close,
+    confirm: pressure1,
+    pressure: pressure2,
+    e20,
+  });
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
 :root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px}.summary div{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:10px;padding:14px}.tag{display:inline-block;background:var(--gold);color:#0a1120;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:800;margin-bottom:10px}.summary h3{margin:0 0 6px;font-size:14px}.summary p{margin:0;font-size:14px}.verdict{border:1px solid rgba(255,209,102,.38);background:rgba(255,209,102,.08);border-radius:14px;padding:18px;margin-top:22px}.verdict p{color:#f6e6b2}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-level-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.ai-level{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);border-radius:10px;padding:12px;color:var(--muted)}.ai-level strong,.ai-top5 strong{color:#edf2ff}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-risk{border-top:1px solid rgba(255,255,255,.10);padding-top:12px;margin-top:14px;color:#f0c7c7}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:14px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:18px}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 10px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}@media(max-width:760px){.summary,.ai-level-grid,.compare{grid-template-columns:1fr}.head{display:block}.score{text-align:left;margin-top:10px}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><p class="sub">模式：${safeHtml(options.menu)}；数据源：Yahoo Finance；周期 ${safeHtml(interval)}；最新K线可能随交易继续变化。</p><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(interval)}</div><div class="pill">样本：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div><div class="pill">确认等级：D</div></div>${topMatchHtml}<div class="summary"><div><span class="tag">主结构</span><h3>总体结构</h3><p>反弹冲高后快速回落</p></div><div><span class="tag">风险</span><h3>当前状态</h3><p>大阴线未修复，低位支撑观察</p></div><div><span class="tag">确认位</span><h3>核心确认</h3><p>${formatPrice(pressure1)} → ${formatPrice(pressure2)}</p></div><div><span class="tag">失败位</span><h3>核心失败</h3><p>跌破 ${formatPrice(support)}</p></div></div></section><section class="verdict"><h2>AI最终结论</h2><p>${safeHtml(final)}</p></section>${chartHtml}${gptHtml || ""}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml || noMatchHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><section class="section"><h2>关键位置判断</h2><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></section><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
 }
@@ -1257,14 +1273,16 @@ export default async function handler(req, res) {
     const provider = data.provider || "deepseek";
     const interval = data.interval || "60m";
     const requestedRange = data.range || "10d";
+    const maxMatchBars = Math.max(3, Math.min(10, Number(data.maxMatchBars) || 6));
     const range = normalizeRangeForInterval(requestedRange, interval);
     const resolved = await resolveMarketBars(data.symbol, data.market, range, interval);
     const { display, market, bars } = resolved;
-    const cards = patternCards(bars);
+    const cards = patternCards(bars, maxMatchBars);
     const options = {
       menu: data.menu || "1",
       provider,
       market,
+      maxMatchBars,
       modules: data.modules || [],
       extra: data.extra || "",
     };
@@ -1296,6 +1314,7 @@ export default async function handler(req, res) {
         rank: `匹配 ${idx + 1}`,
         name: card.name,
         score: card.score,
+        matchBars: card.matchBars,
         bias: card.bias,
         judgement: card.judgement,
       })),

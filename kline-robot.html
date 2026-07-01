@@ -427,6 +427,18 @@
         <label>额外要求</label>
         <input name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。">
 
+        <label>最大匹配条数</label>
+        <select name="maxMatchBars">
+          <option value="3">3根</option>
+          <option value="4">4根</option>
+          <option value="5">5根</option>
+          <option value="6" selected>6根</option>
+          <option value="7">7根</option>
+          <option value="8">8根</option>
+          <option value="9">9根</option>
+          <option value="10">10根</option>
+        </select>
+
         <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
       </form>
 
@@ -447,7 +459,7 @@
     const moduleSummary = document.getElementById('moduleSummary');
 
     const defaultApiBase = 'https://donew-beta.vercel.app';
-    const appVersionText = '2.4.0｜紧凑表单+自动市场｜2026-07-01 14:05';
+    const appVersionText = '2.4.1｜末尾K线匹配｜2026-07-01 14:35';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     let latestBlobUrl = '';
@@ -501,6 +513,7 @@
         symbol: data.get('symbol'),
         interval: data.get('interval'),
         range: data.get('range'),
+        maxMatchBars: data.get('maxMatchBars'),
         extra: data.get('extra'),
         modules: data.getAll('modules')
       };
@@ -532,8 +545,8 @@
           </div>
           <p class="status">${json.message || ''}</p>
           <table>
-            <thead><tr><th>排名</th><th>形态</th><th>匹配度</th><th>方向</th><th>状态</th></tr></thead>
-            <tbody>${json.top5.map(row => `<tr><td>${row.rank}</td><td>${row.name}</td><td>${row.score}%</td><td><span class="pill ${directionClass(row.bias)}">${row.bias}</span></td><td>${row.judgement}</td></tr>`).join('')}</tbody>
+            <thead><tr><th>排名</th><th>形态</th><th>匹配K线</th><th>匹配度</th><th>方向</th><th>状态</th></tr></thead>
+            <tbody>${json.top5.map(row => `<tr><td>${row.rank}</td><td>${row.name}</td><td>${row.matchBars || '-'}根</td><td>${row.score}%</td><td><span class="pill ${directionClass(row.bias)}">${row.bias}</span></td><td>${row.judgement}</td></tr>`).join('')}</tbody>
           </table>
         `;
 
