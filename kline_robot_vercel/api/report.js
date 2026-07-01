@@ -1,48 +1,59 @@
 const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
-const MIN_PATTERN_SCORE = 60;
-const CANDLE_PATTERN_LIBRARY = [
-  "启明星",
-  "十字启明星",
-  "黄昏星",
-  "十字黄昏星",
-  "锤子线扩展",
-  "上吊线扩展",
-  "流星线扩展",
-  "倒锤子线扩展",
-  "看涨吞没扩展",
-  "看跌吞没扩展",
-  "乌云盖顶扩展",
-  "刺透形态扩展",
-  "看涨孕线扩展",
-  "看跌孕线扩展",
-  "十字孕线扩展",
-  "普通十字线扩展",
-  "长腿十字",
-  "墓碑十字扩展",
-  "蜻蜓十字扩展",
-  "平头顶部扩展",
-  "平头底部扩展",
-  "看涨捉腰带线扩展",
-  "看跌捉腰带线扩展",
-  "看涨反击线",
-  "看跌反击线",
-  "向上窗口",
-  "向下窗口",
-  "高价位跳空突破",
-  "低价位跳空破位",
-  "上升三法",
-  "下降三法",
-  "铺垫形态",
-  "三白兵",
-  "三只乌鸦",
-  "前进受阻",
-  "停顿形态",
-  "塔形顶部",
-  "塔形底部",
-  "圆形顶部",
-  "圆形底部",
-  "大阴线未修复",
+const MIN_PATTERN_SCORE = 70;
+const PATTERN_CATALOG = [
+  { name: "锤子线", english: "Hammer", family: "反转形态", bars: "1", bias: "偏多", status: "implemented", aliases: ["锤子线扩展"] },
+  { name: "倒锤子线", english: "Inverted Hammer", family: "反转形态", bars: "1", bias: "偏多", status: "implemented", aliases: ["倒锤子线扩展"] },
+  { name: "上吊线", english: "Hanging Man", family: "反转形态", bars: "1", bias: "偏空", status: "implemented", aliases: ["上吊线扩展"] },
+  { name: "流星线", english: "Shooting Star", family: "反转形态", bars: "1", bias: "偏空", status: "implemented", aliases: ["流星线扩展"] },
+  { name: "普通十字线", english: "Doji", family: "十字线家族", bars: "1", bias: "中性", status: "implemented", aliases: ["十字线", "十字线扩展", "普通十字线扩展"] },
+  { name: "长腿十字", english: "Long-legged Doji", family: "十字线家族", bars: "1", bias: "中性", status: "implemented", aliases: ["长腿十字线", "长腿十字扩展", "长腿十字线扩展"] },
+  { name: "墓碑十字", english: "Gravestone Doji", family: "十字线家族", bars: "1", bias: "偏空", status: "implemented", aliases: ["墓碑十字扩展"] },
+  { name: "蜻蜓十字", english: "Dragonfly Doji", family: "十字线家族", bars: "1", bias: "偏多", status: "implemented", aliases: ["蜻蜓十字扩展"] },
+  { name: "看涨捉腰带线", english: "Bullish Belt Hold", family: "反转形态", bars: "1", bias: "偏多", status: "implemented", aliases: ["捉腰带线", "看涨捉腰带线扩展"] },
+  { name: "看跌捉腰带线", english: "Bearish Belt Hold", family: "反转形态", bars: "1", bias: "偏空", status: "implemented", aliases: ["看跌捉腰带线扩展"] },
+  { name: "看涨吞没", english: "Bullish Engulfing", family: "反转形态", bars: "2", bias: "偏多", status: "implemented", aliases: ["吞没形态", "吞没形态扩展", "看涨吞没扩展"] },
+  { name: "看跌吞没", english: "Bearish Engulfing", family: "反转形态", bars: "2", bias: "偏空", status: "implemented", aliases: ["看跌吞没扩展"] },
+  { name: "乌云盖顶", english: "Dark Cloud Cover", family: "反转形态", bars: "2", bias: "偏空", status: "implemented", aliases: ["乌云盖顶扩展"] },
+  { name: "刺透形态", english: "Piercing Pattern", family: "反转形态", bars: "2", bias: "偏多", status: "implemented", aliases: ["刺透形态扩展"] },
+  { name: "看涨孕线", english: "Bullish Harami", family: "反转形态", bars: "2", bias: "偏多", status: "implemented", aliases: ["孕线", "孕线扩展", "看涨孕线扩展"] },
+  { name: "看跌孕线", english: "Bearish Harami", family: "反转形态", bars: "2", bias: "偏空", status: "implemented", aliases: ["看跌孕线扩展"] },
+  { name: "十字孕线", english: "Harami Cross", family: "反转形态", bars: "2", bias: "中性", status: "implemented", aliases: ["十字孕线扩展"] },
+  { name: "平头底部", english: "Tweezer Bottom", family: "反转形态", bars: "2", bias: "中性", status: "implemented", aliases: ["平头底部扩展"] },
+  { name: "平头顶部", english: "Tweezer Top", family: "反转形态", bars: "2", bias: "偏空", status: "implemented", aliases: ["平头顶部扩展"] },
+  { name: "看涨反击线", english: "Bullish Counterattack", family: "反转形态", bars: "2", bias: "偏多", status: "implemented", aliases: ["反击线"] },
+  { name: "看跌反击线", english: "Bearish Counterattack", family: "反转形态", bars: "2", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "启明星", english: "Morning Star", family: "反转形态", bars: "3", bias: "偏多", status: "implemented", aliases: [] },
+  { name: "十字启明星", english: "Morning Doji Star", family: "反转形态", bars: "3", bias: "偏多", status: "implemented", aliases: [] },
+  { name: "黄昏星", english: "Evening Star", family: "反转形态", bars: "3", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "十字黄昏星", english: "Evening Doji Star", family: "反转形态", bars: "3", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "向上窗口", english: "Rising Window", family: "持续形态", bars: "2-3", bias: "偏多", status: "implemented", aliases: ["窗口", "缺口"] },
+  { name: "向下窗口", english: "Falling Window", family: "持续形态", bars: "2-3", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "高价位跳空突破", english: "High-price Gapping Play", family: "持续形态", bars: "3", bias: "偏多", status: "implemented", aliases: [] },
+  { name: "低价位跳空破位", english: "Low-price Gapping Play", family: "持续形态", bars: "3", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "上升三法", english: "Rising Three Methods", family: "持续形态", bars: "5", bias: "偏多", status: "implemented", aliases: [] },
+  { name: "下降三法", english: "Falling Three Methods", family: "持续形态", bars: "5", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "铺垫形态", english: "Mat Hold", family: "持续形态", bars: "5", bias: "偏多", status: "implemented", aliases: [] },
+  { name: "三白兵", english: "Three White Soldiers", family: "趋势衰竭与受阻", bars: "3", bias: "偏多", status: "implemented", aliases: ["前进白色三兵"] },
+  { name: "三只乌鸦", english: "Three Black Crows", family: "趋势衰竭与受阻", bars: "3", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "前进受阻", english: "Advance Block", family: "趋势衰竭与受阻", bars: "3", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "停顿形态", english: "Stalled Pattern", family: "趋势衰竭与受阻", bars: "3", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "塔形顶部", english: "Tower Top", family: "反转形态", bars: "5", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "塔形底部", english: "Tower Bottom", family: "反转形态", bars: "5", bias: "偏多", status: "implemented", aliases: [] },
+  { name: "圆形顶部", english: "Dumpling Top", family: "反转形态", bars: "5", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "圆形底部", english: "Frypan Bottom", family: "反转形态", bars: "5", bias: "偏多", status: "implemented", aliases: [] },
+  { name: "大阴线未修复", english: "Unrepaired Long Bear Candle", family: "自定义风控", bars: "1-8", bias: "偏空", status: "implemented", aliases: [] },
+  { name: "三山形态", english: "Three Mountains", family: "反转形态", bars: "5-8", bias: "偏空", status: "planned", aliases: ["三尊顶部"] },
+  { name: "三川形态", english: "Three Rivers", family: "反转形态", bars: "5-8", bias: "偏多", status: "planned", aliases: ["倒三尊底部", "独特三川底部"] },
+  { name: "向上跳空并列白色蜡烛线", english: "Upside Gap Side-by-side White Lines", family: "持续形态", bars: "3", bias: "偏多", status: "planned", aliases: ["跳空并列白色蜡烛线"] },
+  { name: "向下跳空并列阴阳蜡烛线", english: "Downside Gap Side-by-side Lines", family: "持续形态", bars: "3", bias: "偏空", status: "planned", aliases: [] },
+  { name: "向上跳空两只乌鸦", english: "Upside Gap Two Crows", family: "反转形态", bars: "3", bias: "偏空", status: "planned", aliases: ["两只乌鸦"] },
+  { name: "分手蜡烛线", english: "Separating Lines", family: "持续形态", bars: "2", bias: "中性", status: "planned", aliases: [] },
+  { name: "高位长上影", english: "High-position Long Upper Shadow", family: "趋势衰竭与受阻", bars: "1-3", bias: "偏空", status: "approximated", aliases: ["高位放量长上影"] },
+  { name: "低位长下影", english: "Low-position Long Lower Shadow", family: "趋势衰竭与受阻", bars: "1-3", bias: "偏多", status: "approximated", aliases: ["低位放量长下影"] },
+  { name: "大阳线后十字", english: "Doji After Long White Candle", family: "十字线家族", bars: "2", bias: "偏空", status: "approximated", aliases: ["高位十字风险结构"] },
+  { name: "大阴线后十字", english: "Doji After Long Black Candle", family: "十字线家族", bars: "2", bias: "偏多", status: "approximated", aliases: ["低位十字观察结构", "支撑水平十字结构", "阻挡水平十字结构"] },
 ];
+const CANDLE_PATTERN_LIBRARY = PATTERN_CATALOG.map((pattern) => pattern.name);
 
 function corsHeaders() {
   return {
@@ -69,8 +80,8 @@ function normalizeSymbol(rawSymbol, market) {
   if (selectedMarket === "hk") {
     const digits = compact.replace(/\D/g, "");
     if (!digits) throw new Error(`找不到代码：${rawSymbol || ""}，港股请输入数字代码，例如 0700 或 9988。`);
-    const code = digits.padStart(4, "0");
-    if (!/^\d{4,5}$/.test(code)) throw new Error(`找不到代码：${rawSymbol || ""}，请检查市场和代码是否正确。`);
+    const code = digits.length === 5 && digits.startsWith("0") ? digits.slice(1) : digits.padStart(4, "0");
+    if (!/^\d{4}$/.test(code)) throw new Error(`找不到代码：${rawSymbol || ""}，港股可输入 0700、00700、9988。`);
     return { yahoo: `${code}.HK`, display: `${code}.HK` };
   }
   if (selectedMarket === "cn") {
@@ -85,6 +96,15 @@ function normalizeSymbol(rawSymbol, market) {
     return { yahoo: `${code}.${suffix}`, display: `${code}.${suffix}` };
   }
   return { yahoo: compact, display: compact };
+}
+
+function marketOrderFor(rawSymbol, selectedMarket) {
+  const requested = String(selectedMarket || "").trim().toLowerCase();
+  if (requested) return [requested];
+  const compact = String(rawSymbol || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (/^(SH|SZ)?\d{6}(\.(SS|SZ|SH))?$/.test(compact)) return ["cn", "us", "hk", "crypto"];
+  if (/^0?\d{4}$/.test(compact) || /^0\d{4}$/.test(compact)) return ["hk", "us", "cn", "crypto"];
+  return ["us", "hk", "cn", "crypto"];
 }
 
 function normalizeRangeForInterval(range, interval) {
@@ -168,8 +188,7 @@ async function fetchYahooBars(symbol, range, interval) {
 }
 
 async function resolveMarketBars(rawSymbol, selectedMarket, range, interval) {
-  const requested = String(selectedMarket || "").trim().toLowerCase();
-  const marketOrder = requested ? [requested] : ["us", "hk", "cn", "crypto"];
+  const marketOrder = marketOrderFor(rawSymbol, selectedMarket);
   const errors = [];
   for (const market of marketOrder) {
     try {
@@ -261,20 +280,94 @@ function makeCard(bars, data) {
   const startIndex = Math.max(0, data.startIndex);
   const endIndex = Math.min(bars.length - 1, data.endIndex);
   const matchBars = endIndex - startIndex + 1;
+  const ruleScore = clampScore(data.score);
+  const catalog = patternCatalogEntry(data.name);
+  const shapeScore = shapeSimilarityScore(bars.slice(startIndex, endIndex + 1), patternTemplates(data.name));
   return {
     ...data,
+    canonicalName: catalog?.name || data.name,
+    english: catalog?.english || "",
+    family: catalog?.family || "未分类",
+    implementationStatus: catalog?.status || "unlisted",
     startIndex,
     endIndex,
     matchBars,
-    score: clampScore(data.score),
+    ruleScore,
+    shapeScore,
+    score: Math.min(ruleScore, shapeScore),
     range: `${bars[startIndex].date} 至 ${bars[endIndex].date}`,
     confirm: formatPrice(data.confirm),
     failure: formatPrice(data.failure),
   };
 }
 
-function patternTemplates(name) {
-  const templates = {
+const PATTERN_TEMPLATE_LIBRARY = {
+    "锤子线": [
+      [99, 101, 88, 100],
+    ],
+    "倒锤子线": [
+      [98, 111, 97, 99],
+    ],
+    "上吊线": [
+      [107, 109, 95, 106],
+    ],
+    "流星线": [
+      [108, 118, 106, 107],
+    ],
+    "普通十字线": [
+      [105, 110, 100, 105.2],
+    ],
+    "长腿十字": [
+      [104, 116, 92, 104.2],
+    ],
+    "墓碑十字": [
+      [107, 118, 106, 107.2],
+    ],
+    "蜻蜓十字": [
+      [98, 99, 88, 98.2],
+    ],
+    "看涨捉腰带线": [
+      [96, 112, 95, 111],
+    ],
+    "看跌捉腰带线": [
+      [108, 109, 94, 95],
+    ],
+    "看涨吞没": [
+      [105, 107, 96, 98],
+      [97, 111, 95, 110],
+    ],
+    "看跌吞没": [
+      [96, 107, 95, 105],
+      [106, 108, 94, 95],
+    ],
+    "乌云盖顶": [
+      [95, 111, 94, 110],
+      [112, 114, 100, 101],
+    ],
+    "刺透形态": [
+      [110, 111, 94, 96],
+      [94, 106, 93, 105],
+    ],
+    "看涨孕线": [
+      [110, 112, 94, 96],
+      [98, 103, 97, 101],
+    ],
+    "看跌孕线": [
+      [96, 112, 95, 110],
+      [104, 107, 102, 103],
+    ],
+    "十字孕线": [
+      [96, 112, 95, 110],
+      [104, 107, 102, 104.2],
+    ],
+    "平头底部": [
+      [108, 110, 96, 99],
+      [100, 104, 96, 102],
+    ],
+    "平头顶部": [
+      [96, 110, 95, 108],
+      [107, 110, 101, 102],
+    ],
     "启明星": [
       [112, 114, 96, 98],
       [97, 101, 94, 96],
@@ -355,7 +448,7 @@ function patternTemplates(name) {
       [105, 110, 100, 105.2],
       [105, 106, 97, 99],
     ],
-    "长腿十字": [
+    "长腿十字扩展": [
       [98, 106, 96, 105],
       [104, 116, 92, 104.2],
       [104, 108, 96, 99],
@@ -494,23 +587,240 @@ function patternTemplates(name) {
       [99, 103, 97, 101],
       [101, 102, 96, 99],
     ],
+};
+
+function canonicalPatternName(name) {
+  const raw = String(name || "").trim();
+  const direct = PATTERN_CATALOG.find((pattern) => pattern.name === raw || (pattern.aliases || []).includes(raw));
+  if (direct) return direct.name;
+  const normalized = raw.replace(/扩展$/u, "").replace(/线$/u, "");
+  const partial = PATTERN_CATALOG.find((pattern) => {
+    const names = [pattern.name, ...(pattern.aliases || [])];
+    return names.some((item) => {
+      const itemNormalized = item.replace(/扩展$/u, "").replace(/线$/u, "");
+      return normalized.includes(itemNormalized) || itemNormalized.includes(normalized);
+    });
+  });
+  return partial ? partial.name : raw;
+}
+
+function patternCatalogEntry(name) {
+  const canonical = canonicalPatternName(name);
+  return PATTERN_CATALOG.find((pattern) => pattern.name === canonical) || null;
+}
+
+function patternTemplateKey(name) {
+  const raw = String(name || "").trim();
+  if (PATTERN_TEMPLATE_LIBRARY[raw]) return raw;
+  const canonical = canonicalPatternName(raw);
+  if (PATTERN_TEMPLATE_LIBRARY[canonical]) return canonical;
+  const alias = PATTERN_CATALOG.find((pattern) => pattern.name === canonical)?.aliases?.find((item) => PATTERN_TEMPLATE_LIBRARY[item]);
+  if (alias) return alias;
+  const normalized = raw.replace(/扩展$/u, "").replace(/线$/u, "");
+  return Object.keys(PATTERN_TEMPLATE_LIBRARY).find((key) => {
+    const keyNormalized = key.replace(/扩展$/u, "").replace(/线$/u, "");
+    return normalized.includes(keyNormalized) || keyNormalized.includes(normalized);
+  }) || "启明星";
+}
+
+function patternTemplates(name) {
+  const key = patternTemplateKey(name);
+  return (PATTERN_TEMPLATE_LIBRARY[key] || PATTERN_TEMPLATE_LIBRARY["启明星"]).map(([open, high, low, close], index) => ({ date: String(index + 1), open, high, low, close }));
+}
+
+function patternCoverageSummary() {
+  const buckets = PATTERN_CATALOG.reduce((acc, pattern) => {
+    acc[pattern.status] = acc[pattern.status] || [];
+    acc[pattern.status].push(pattern.name);
+    return acc;
+  }, {});
+  return {
+    total: PATTERN_CATALOG.length,
+    implemented: buckets.implemented || [],
+    approximated: buckets.approximated || [],
+    planned: buckets.planned || [],
   };
-  const key = Object.keys(templates).find((k) => name.includes(k.replace("扩展", "")) || k.includes(name.replace("扩展", "")));
-  return (templates[key] || templates["启明星"]).map(([open, high, low, close], index) => ({ date: String(index + 1), open, high, low, close }));
+}
+
+function normalizeShapeBars(bars) {
+  const values = bars.flatMap((b) => [b.open, b.high, b.low, b.close]).filter((v) => Number.isFinite(Number(v)));
+  const high = Math.max(...values);
+  const low = Math.min(...values);
+  const span = high - low || Math.max(Math.abs(high), 1) * 0.01;
+  return bars.map((b) => {
+    const open = (b.open - low) / span;
+    const highNorm = (b.high - low) / span;
+    const lowNorm = (b.low - low) / span;
+    const close = (b.close - low) / span;
+    const candleRange = Math.max(highNorm - lowNorm, 0.001);
+    const upper = highNorm - Math.max(open, close);
+    const lower = Math.min(open, close) - lowNorm;
+    return {
+      open,
+      high: highNorm,
+      low: lowNorm,
+      close,
+      direction: Math.sign(b.close - b.open),
+      bodyRatio: Math.abs(close - open) / candleRange,
+      upperRatio: upper / candleRange,
+      lowerRatio: lower / candleRange,
+      closePos: (close - lowNorm) / candleRange,
+    };
+  });
+}
+
+function candleShapeDistance(a, b) {
+  let distance = 0;
+  distance += Math.abs(a.open - b.open) * 0.16;
+  distance += Math.abs(a.high - b.high) * 0.13;
+  distance += Math.abs(a.low - b.low) * 0.13;
+  distance += Math.abs(a.close - b.close) * 0.20;
+  distance += Math.abs(a.bodyRatio - b.bodyRatio) * 0.14;
+  distance += Math.abs(a.upperRatio - b.upperRatio) * 0.08;
+  distance += Math.abs(a.lowerRatio - b.lowerRatio) * 0.08;
+  distance += Math.abs(a.closePos - b.closePos) * 0.08;
+  if (a.bodyRatio > 0.08 && b.bodyRatio > 0.08 && a.direction !== b.direction) distance += 0.22;
+  return distance;
+}
+
+function dtwShapeDistance(actual, template) {
+  const n = actual.length;
+  const m = template.length;
+  const window = Math.max(Math.abs(n - m), Math.ceil(Math.max(n, m) * 0.35));
+  const dp = Array.from({ length: n + 1 }, () => Array(m + 1).fill(Infinity));
+  const steps = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
+  dp[0][0] = 0;
+  for (let i = 1; i <= n; i++) {
+    const jStart = Math.max(1, i - window);
+    const jEnd = Math.min(m, i + window + Math.abs(n - m));
+    for (let j = jStart; j <= jEnd; j++) {
+      const cost = candleShapeDistance(actual[i - 1], template[j - 1]);
+      const choices = [
+        [dp[i - 1][j], steps[i - 1][j]],
+        [dp[i][j - 1], steps[i][j - 1]],
+        [dp[i - 1][j - 1], steps[i - 1][j - 1]],
+      ].sort((x, y) => x[0] - y[0]);
+      dp[i][j] = cost + choices[0][0];
+      steps[i][j] = choices[0][1] + 1;
+    }
+  }
+  const pathSteps = steps[n][m] || Math.max(n, m);
+  return dp[n][m] / pathSteps;
+}
+
+function shapeSimilarityScore(actualBars, templateBars) {
+  if (!actualBars.length || !templateBars.length) return 0;
+  const actual = normalizeShapeBars(actualBars);
+  const template = normalizeShapeBars(templateBars);
+  const dtwDistance = dtwShapeDistance(actual, template);
+  const lengthPenalty = Math.abs(actual.length - template.length) * 2.5;
+  const actualTrend = actual.at(-1).close - actual[0].open;
+  const templateTrend = template.at(-1).close - template[0].open;
+  const trendPenalty = Math.sign(actualTrend) !== Math.sign(templateTrend) ? 8 : 0;
+  return Math.max(0, Math.min(96, Math.round(100 - dtwDistance * 120 - lengthPenalty - trendPenalty)));
 }
 
 function addPattern(candidates, bars, data) {
-  if (data.endIndex - data.startIndex + 1 < 3) return;
+  if (data.endIndex - data.startIndex + 1 < 1) return;
   if (!Number.isFinite(data.score) || data.score < MIN_PATTERN_SCORE) return;
-  candidates.push(makeCard(bars, data));
+  const card = makeCard(bars, data);
+  if (card.score >= MIN_PATTERN_SCORE) candidates.push(card);
 }
 
-function patternCards(bars, maxMatchBars = 6) {
+function patternCards(bars, maxMatchBars = 8) {
   const n = bars.length;
-  const maxBars = Math.max(3, Math.min(10, Number(maxMatchBars) || 6));
+  const maxBars = Math.max(1, Math.min(8, Number(maxMatchBars) || 8));
   const candidates = [];
   const last = bars[n - 1];
   const avgVol = avgVolume(bars, n - 20, n - 1);
+
+  if (n >= 2) {
+    const li = candleInfo(last);
+    const priorTrend = closeTrend(bars, Math.max(0, n - 7), n - 2);
+    const singleBase = {
+      startIndex: n - 1,
+      endIndex: n - 1,
+      confirm: last.high,
+      failure: last.low,
+    };
+    const addSingle = (name, score, bias, why, meaning, judgement, confirm = last.high, failure = last.low) => {
+      addPattern(candidates, bars, { ...singleBase, name, score, bias, why, meaning, judgement, confirm, failure });
+    };
+
+    if (priorTrend < 0 && li.lowerRatio >= 0.55 && li.upperRatio <= 0.25 && li.bodyRatio <= 0.35) {
+      addSingle("锤子线", 72 + li.lowerRatio * 16, "偏多", "下跌背景中最新K线出现长下影，低位被买回。", "锤子线是单根止跌线索，必须等待后续阳线或站回确认位。", "单K止跌观察");
+    }
+    if (priorTrend < 0 && li.upperRatio >= 0.52 && li.lowerRatio <= 0.25 && li.bodyRatio <= 0.35) {
+      addSingle("倒锤子线", 70 + li.upperRatio * 16, "偏多", "下跌背景中最新K线向上试探，但收盘仍未完全确认。", "倒锤子线只代表低位反攻尝试，下一根确认很关键。", "单K反攻观察");
+    }
+    if (priorTrend > 0 && li.upperRatio >= 0.55 && li.lowerRatio <= 0.25 && li.bodyRatio <= 0.35) {
+      addSingle("流星线", 72 + li.upperRatio * 16, "偏空", "上涨背景中最新K线冲高回落，长上影显示上方供给增强。", "流星线是顶部警告线索，需要后续跌破或阴线确认。", "单K风险观察", last.high, last.low);
+    }
+    if (priorTrend > 0 && li.lowerRatio >= 0.52 && li.upperRatio <= 0.25 && li.bodyRatio <= 0.35) {
+      addSingle("上吊线", 70 + li.lowerRatio * 16, "偏空", "上涨背景中最新K线出现长下影，说明支撑被明显测试。", "上吊线在高位有警告意义，但仍需后一根转弱确认。", "单K顶部观察", last.high, last.low);
+    }
+    if (li.isDoji && Math.max(li.upperRatio, li.lowerRatio) >= 0.42) {
+      const name = li.upperRatio > 0.58 ? "墓碑十字" : li.lowerRatio > 0.58 ? "蜻蜓十字" : li.upperRatio + li.lowerRatio > 0.72 ? "长腿十字" : "普通十字线";
+      const bias = priorTrend > 0 && li.closePos < 0.55 ? "偏空" : priorTrend < 0 && li.closePos > 0.45 ? "偏多" : "中性";
+      addSingle(name, 70 + Math.max(li.upperRatio, li.lowerRatio) * 18, bias, "最新K线实体很小，说明多空进入犹豫和平衡。", "十字线本身不是方向结论，关键在它出现的位置和下一根K线方向。", "单K犹豫观察");
+    }
+    if (priorTrend < 0 && li.isBull && li.isLongBody && li.open <= last.low + li.range * 0.12 && li.closePos >= 0.78) {
+      addSingle("看涨捉腰带线", 72 + li.bodyRatio * 16, "偏多", "下跌后出现接近最低开盘的大阳线，多方从开盘控制到收盘。", "捉腰带线代表一方强势夺回控制权，但仍要看位置和后续确认。", "单K反击观察");
+    }
+    if (priorTrend > 0 && li.isBear && li.isLongBody && li.open >= last.high - li.range * 0.12 && li.closePos <= 0.22) {
+      addSingle("看跌捉腰带线", 72 + li.bodyRatio * 16, "偏空", "上涨后出现接近最高开盘的大阴线，卖方从开盘压到收盘。", "看跌捉腰带线说明高位供给强，但仍要看后一根是否延续。", "单K风险观察", last.high, last.low);
+    }
+  }
+
+  if (n >= 3) {
+    const a = bars[n - 2];
+    const b = last;
+    const ai = candleInfo(a);
+    const bi = candleInfo(b);
+    const priorTrend = closeTrend(bars, Math.max(0, n - 8), n - 3);
+    const twoBase = {
+      startIndex: n - 2,
+      endIndex: n - 1,
+    };
+    const addTwo = (name, score, bias, why, meaning, judgement, confirm, failure) => {
+      addPattern(candidates, bars, { ...twoBase, name, score, bias, why, meaning, judgement, confirm, failure });
+    };
+    const closeDiff = Math.abs(a.close - b.close) / Math.max(Math.abs(a.close), Math.abs(b.close), 1);
+    const lowDiff = Math.abs(a.low - b.low) / Math.max(Math.abs(a.low), Math.abs(b.low), 1);
+    const highDiff = Math.abs(a.high - b.high) / Math.max(Math.abs(a.high), Math.abs(b.high), 1);
+
+    if (priorTrend < 0 && ai.isBear && bi.isBull && b.open < a.close && b.close > a.open) {
+      addTwo("看涨吞没", 76 + bi.bodyRatio * 14, "偏多", "后一根阳线完全吞没前一根阴线实体，短线多方夺回收盘控制权。", "吞没形态强调后一方压过前一方，但最好等待后续确认。", "双K反击观察", b.high, Math.min(a.low, b.low));
+    }
+    if (priorTrend > 0 && ai.isBull && bi.isBear && b.open > a.close && b.close < a.open) {
+      addTwo("看跌吞没", 76 + bi.bodyRatio * 14, "偏空", "后一根阴线完全吞没前一根阳线实体，说明高位卖压增强。", "看跌吞没是顶部风险线索，后续跌破低点才更有效。", "双K顶部风险", Math.max(a.high, b.high), b.low);
+    }
+    if (priorTrend > 0 && ai.isBull && bi.isBear && b.open > a.high * 0.998 && b.close < ai.mid && b.close > a.open) {
+      addTwo("乌云盖顶", 74 + Math.abs(priorTrend) * 2, "偏空", "上涨后冲高开出，但收盘切入前一根阳线实体中部以下。", "乌云盖顶代表高位进攻失败，后一根继续转弱则风险增加。", "双K风险", Math.max(a.high, b.high), b.low);
+    }
+    if (priorTrend < 0 && ai.isBear && bi.isBull && b.open < a.low * 1.002 && b.close > ai.mid && b.close < a.open) {
+      addTwo("刺透形态", 74 + Math.abs(priorTrend) * 2, "偏多", "下跌后低开或下探，随后收回前一根阴线实体中部以上。", "刺透形态是下跌后的反攻线索，需要后续站稳确认位。", "双K止跌观察", Math.max(a.high, b.high), Math.min(a.low, b.low));
+    }
+    if (ai.isLongBody && bi.bodyRatio <= 0.38 && Math.max(b.open, b.close) < Math.max(a.open, a.close) && Math.min(b.open, b.close) > Math.min(a.open, a.close)) {
+      const bullish = priorTrend < 0 && ai.isBear;
+      const bearish = priorTrend > 0 && ai.isBull;
+      if (bullish || bearish) {
+        addTwo(bi.isDoji ? "十字孕线" : bullish ? "看涨孕线" : "看跌孕线", 72 + Math.abs(priorTrend) * 2 + (bi.isDoji ? 6 : 0), bullish ? "偏多" : "偏空", "大实体后出现被包含的小实体，原趋势动能收缩。", "孕线代表原趋势失去单边推进能力，需要等待突破方向确认。", bullish ? "双K止跌观察" : "双K风险观察", Math.max(a.high, b.high), Math.min(a.low, b.low));
+      }
+    }
+    if (priorTrend < 0 && ai.isBear && bi.isBull && closeDiff <= 0.004) {
+      addTwo("看涨反击线", 72 + (0.004 - closeDiff) * 3000, "偏多", "两根相反方向K线收盘价接近，说明空方遭遇反击。", "反击线强度弱于吞没，必须看后续确认。", "双K反击观察", Math.max(a.high, b.high), Math.min(a.low, b.low));
+    }
+    if (priorTrend > 0 && ai.isBull && bi.isBear && closeDiff <= 0.004) {
+      addTwo("看跌反击线", 72 + (0.004 - closeDiff) * 3000, "偏空", "两根相反方向K线收盘价接近，说明多方遭遇反击。", "反击线强度弱于吞没，必须看后续确认。", "双K风险观察", Math.max(a.high, b.high), Math.min(a.low, b.low));
+    }
+    if (priorTrend < 0 && lowDiff <= 0.0035) {
+      addTwo("平头底部", 72 + (0.0035 - lowDiff) * 4000, "中性", "连续两根低点接近，同一区域出现支撑测试。", "平头底部只是支撑线索，跌破共同低点则失败。", "双K支撑观察", Math.max(a.high, b.high), Math.min(a.low, b.low));
+    }
+    if (priorTrend > 0 && highDiff <= 0.0035) {
+      addTwo("平头顶部", 72 + (0.0035 - highDiff) * 4000, "偏空", "连续两根高点接近，同一区域上攻受阻。", "平头顶部是压力线索，突破共同高点则风险下降。", "双K压力观察", Math.max(a.high, b.high), Math.min(a.low, b.low));
+    }
+  }
 
   for (let i = Math.max(2, n - 18); i < n; i++) {
     const a = bars[i - 2];
@@ -888,7 +1198,7 @@ function patternCards(bars, maxMatchBars = 6) {
     });
   }
 
-  const latestCandidates = candidates.filter((card) => card.endIndex === n - 1 && card.matchBars >= 3 && card.matchBars <= maxBars);
+  const latestCandidates = candidates.filter((card) => card.endIndex === n - 1 && card.matchBars >= 1 && card.matchBars <= maxBars);
   const deduped = [];
   const used = new Set();
   for (const card of latestCandidates.sort((a, b) => b.score - a.score || b.matchBars - a.matchBars)) {
@@ -909,9 +1219,9 @@ function aiPrompt() {
     "结构必须包含四块：",
     "1. <div class=\"ai-thesis\"><strong>核心判断：</strong>...</div>，一句话说明主方向和风险优先级。",
     "2. <div class=\"ai-level-grid\">，里面用两个 <div class=\"ai-level\"> 分别写确认位和失败位，数字用 <strong>。",
-    "3. <ol class=\"ai-top5\"> 写超过60%的匹配形态概括；如没有超过60%的形态，明确说明暂无高可信经典形态。",
+    `3. <ol class="ai-top5"> 写超过${MIN_PATTERN_SCORE}%的匹配形态概括；如没有超过${MIN_PATTERN_SCORE}%的形态，明确说明暂无高可信经典形态。`,
     "4. <p class=\"ai-risk\"> 写风险提示。",
-    "要求：最终结论前置；禁止确定性语言；必须给出确认位、失败位、超过60%的形态概括、风险提示；文字克制、可扫描。",
+    `要求：最终结论前置；禁止确定性语言；必须给出确认位、失败位、超过${MIN_PATTERN_SCORE}%的形态概括、风险提示；文字克制、可扫描。`,
   ].join("\n");
 }
 
@@ -1218,7 +1528,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   const k14 = stochastic(bars);
   const mom10 = momentum(closes);
   const recent = bars.slice(-14);
-  const title = `${displaySymbol}｜${interval} 三根K线以上形态匹配报告`;
+  const title = `${displaySymbol}｜${interval} 1-${safeHtml(options.maxMatchBars || 8)}根K线形态匹配报告`;
   const final =
     cards.length > 0
       ? `${displaySymbol} ${interval} 当前超过${MIN_PATTERN_SCORE}%的主要匹配是「${cards[0].name}」，最新价 ${formatPrice(last.close)}。后续重点看确认位 ${cards[0].confirm} 与失败位 ${cards[0].failure}；确认位未站稳前，只能按观察结构处理。`
@@ -1227,10 +1537,10 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     .map((c, idx) => `<tr><td>匹配 ${idx + 1}</td><td>${safeHtml(c.name)}</td><td>${safeHtml(c.matchBars)}根</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.range)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
     .join("");
   const noMatchHtml = `<div class="no-match"><strong>暂无超过${MIN_PATTERN_SCORE}%的经典形态匹配。</strong><p>当前K线不强行归类；请等待新的确认K线、关键位突破/跌破，或切换更大周期再观察。</p></div>`;
-  const topMatchHtml = `<div class="top-match"><h2>超过${MIN_PATTERN_SCORE}%的形态匹配</h2><p>只匹配最新末尾K线，按倒数3根到最多${safeHtml(options.maxMatchBars || 6)}根检测，只显示达到阈值的书中/规则库形态。</p>${cards.length ? `<table><thead><tr><th>排名</th><th>形态</th><th>匹配K线</th><th>匹配度</th><th>方向</th><th>匹配区间</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table>` : noMatchHtml}</div>`;
+  const topMatchHtml = `<div class="top-match"><h2>超过${MIN_PATTERN_SCORE}%的形态匹配</h2><p>只匹配最新末尾K线，按倒数1根到最多${safeHtml(options.maxMatchBars || 8)}根检测；匹配度采用规则分与图形DTW相似度的保守值。</p>${cards.length ? `<table><thead><tr><th>排名</th><th>形态</th><th>匹配K线</th><th>匹配度</th><th>方向</th><th>匹配区间</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table>` : noMatchHtml}</div>`;
   const cardHtml = cards
     .map(
-      (c, idx) => `<article class="card"><div class="head"><div><h2>匹配 ${idx + 1} · ${safeHtml(c.name)} · ${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</h2><p>匹配区间：${safeHtml(c.range)}；匹配K线：${safeHtml(c.matchBars)}根</p></div><div class="score">${c.score}%<span>${safeHtml(c.matchBars)}根K线匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>规则库标准轮廓</h3>${patternSketchSvg(c)}<p>右图是书中/规则库标准结构的归一化示意，用于和左侧高亮K线逐根对照。</p></div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>规则库含义</th><td>${safeHtml(c.meaning)}</td></tr><tr><th>确认/失败位</th><td><span class="price">${safeHtml(c.confirm)}</span> / <span class="price">${safeHtml(c.failure)}</span></td></tr></table></div></article>`
+      (c, idx) => `<article class="card"><div class="head"><div><h2>匹配 ${idx + 1} · ${safeHtml(c.name)} · ${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</h2><p>匹配区间：${safeHtml(c.range)}；匹配K线：${safeHtml(c.matchBars)}根；规则分/图形分：${safeHtml(c.ruleScore)}% / ${safeHtml(c.shapeScore)}%</p></div><div class="score">${c.score}%<span>${safeHtml(c.matchBars)}根K线匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>规则库标准轮廓</h3>${patternSketchSvg(c)}<p>右图是书中/规则库标准结构的归一化示意，用于和左侧高亮K线逐根对照。</p></div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>规则库含义</th><td>${safeHtml(c.meaning)}</td></tr><tr><th>确认/失败位</th><td><span class="price">${safeHtml(c.confirm)}</span> / <span class="price">${safeHtml(c.failure)}</span></td></tr></table></div></article>`
     )
     .join("");
   const matrix = [
@@ -1273,7 +1583,7 @@ export default async function handler(req, res) {
     const provider = data.provider || "deepseek";
     const interval = data.interval || "60m";
     const requestedRange = data.range || "10d";
-    const maxMatchBars = Math.max(3, Math.min(10, Number(data.maxMatchBars) || 6));
+    const maxMatchBars = Math.max(1, Math.min(8, Number(data.maxMatchBars) || 8));
     const range = normalizeRangeForInterval(requestedRange, interval);
     const resolved = await resolveMarketBars(data.symbol, data.market, range, interval);
     const { display, market, bars } = resolved;
@@ -1314,10 +1624,17 @@ export default async function handler(req, res) {
         rank: `匹配 ${idx + 1}`,
         name: card.name,
         score: card.score,
+        ruleScore: card.ruleScore,
+        shapeScore: card.shapeScore,
         matchBars: card.matchBars,
         bias: card.bias,
         judgement: card.judgement,
+        canonicalName: card.canonicalName,
+        english: card.english,
+        family: card.family,
+        implementationStatus: card.implementationStatus,
       })),
+      pattern_coverage: patternCoverageSummary(),
     });
   } catch (error) {
     return sendJson(res, 500, { ok: false, error: error.message || String(error) });
