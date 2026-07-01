@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>K线形态相似度 AI｜十方斋</title>
+  <title>K线形态相识度AI智能匹配和趋势预测｜十方斋</title>
   <meta name="description" content="通过界面选择标的、周期、报告类型，生成K线形态相似度HTML报告。">
   <style>
     :root {
@@ -29,9 +29,9 @@
     }
 
     .shell {
-      width: min(1180px, calc(100vw - 32px));
+      width: min(1220px, calc(100vw - 32px));
       margin: 0 auto;
-      padding: 26px 0 64px;
+      padding: 18px 0 56px;
     }
 
     .topbar {
@@ -39,12 +39,12 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 18px;
+      margin-bottom: 12px;
     }
 
     .brand h1 {
       margin: 0;
-      font-size: 28px;
+      font-size: 26px;
       line-height: 1.2;
       letter-spacing: 0;
     }
@@ -84,7 +84,7 @@
 
     .layout {
       display: grid;
-      grid-template-columns: 380px minmax(0, 1fr);
+      grid-template-columns: 360px minmax(0, 1fr);
       gap: 18px;
       align-items: start;
     }
@@ -97,19 +97,19 @@
     }
 
     form.panel {
-      padding: 18px;
+      padding: 14px;
     }
 
     .output.panel {
-      padding: 18px;
+      padding: 16px;
       min-height: 420px;
     }
 
     label {
       display: block;
-      margin: 14px 0 7px;
+      margin: 9px 0 5px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
     }
 
@@ -119,15 +119,15 @@
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 6px;
-      padding: 10px 11px;
+      padding: 8px 10px;
       color: var(--text);
       background: #fff;
       font: inherit;
     }
 
     textarea {
-      min-height: 76px;
-      resize: vertical;
+      min-height: 38px;
+      resize: none;
     }
 
     .row {
@@ -136,33 +136,64 @@
       gap: 10px;
     }
 
-    .checks {
+    .module-dropdown {
+      position: relative;
+      margin-top: 0;
+    }
+
+    .module-dropdown summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .module-dropdown summary::-webkit-details-marker { display: none; }
+
+    .module-options {
+      position: absolute;
+      z-index: 5;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin-top: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, .14);
     }
 
     .check {
       display: flex;
       align-items: center;
-      gap: 8px;
-      min-height: 40px;
-      padding: 9px;
+      gap: 7px;
+      min-height: 34px;
+      padding: 7px;
       border: 1px solid var(--line);
       border-radius: 6px;
       color: var(--text);
-      font-size: 13px;
+      font-size: 12px;
+      margin: 0;
     }
 
     .check input { width: auto; }
 
     .primary {
       width: 100%;
-      margin-top: 18px;
+      margin-top: 12px;
       border: 0;
       border-radius: 6px;
-      padding: 12px 14px;
+      padding: 11px 14px;
       background: var(--blue);
       color: #fff;
       font-weight: 800;
@@ -298,7 +329,7 @@
     @media (max-width: 560px) {
       .shell { width: min(100vw - 20px, 1180px); padding-top: 16px; }
       .row,
-      .checks,
+      .module-options,
       .cards { grid-template-columns: 1fr; }
       .brand h1 { font-size: 23px; }
     }
@@ -308,9 +339,9 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>K线形态相似度 AI</h1>
+        <h1>K线形态相识度AI智能匹配和趋势预测</h1>
         <div class="brand-meta">
-          <p>选择市场、标的、周期和分析模块，由后端拉取最新行情并生成 HTML 报告。</p>
+          <p>选择条件，由后端拉取最新行情并生成 HTML 报告。</p>
           <span class="version" id="appVersion">版本加载中</span>
         </div>
       </div>
@@ -319,17 +350,6 @@
 
     <div class="layout">
       <form id="reportForm" class="panel">
-        <label>报告菜单</label>
-        <select name="menu">
-          <option value="1">1 相似度</option>
-          <option value="2">2 卖Put</option>
-          <option value="3">3 指定形态</option>
-          <option value="4">4 多周期</option>
-          <option value="6">6 完整诊断</option>
-          <option value="7">7 期权风险</option>
-          <option value="8">8 保值/对冲</option>
-        </select>
-
         <div class="row">
           <div>
             <label>AI 提供商</label>
@@ -339,60 +359,80 @@
             </select>
           </div>
           <div>
-            <label>市场</label>
-            <select name="market">
-              <option value="crypto" selected>虚拟货币</option>
-              <option value="us">美股</option>
-              <option value="hk">港股</option>
-              <option value="cn">A股</option>
+            <label>报告类型</label>
+            <select name="menu">
+              <option value="1">1 相似度</option>
+              <option value="2">2 卖Put</option>
+              <option value="3">3 指定形态</option>
+              <option value="4">4 多周期</option>
+              <option value="6">6 完整诊断</option>
+              <option value="7">7 期权风险</option>
+              <option value="8">8 保值/对冲</option>
             </select>
           </div>
         </div>
 
         <div class="row">
           <div>
+            <label>市场</label>
+            <select name="market">
+              <option value="" selected>自动识别</option>
+              <option value="us">美股</option>
+              <option value="hk">港股</option>
+              <option value="cn">A股</option>
+              <option value="crypto">虚拟货币</option>
+            </select>
+          </div>
+          <div>
             <label>标的</label>
             <input name="symbol" value="BTC" placeholder="MSTR / BTC / QQQ">
           </div>
+        </div>
+
+        <div class="row">
           <div>
             <label>周期</label>
             <select name="interval">
-              <option value="60m">60m</option>
-              <option value="30m">30m</option>
-              <option value="15m">15m</option>
-              <option value="1d">1d</option>
+              <option value="60m">60分钟</option>
+              <option value="30m">30分钟</option>
+              <option value="15m">15分钟</option>
+              <option value="1d">日线</option>
+            </select>
+          </div>
+          <div>
+            <label>K线范围</label>
+            <select name="range">
+              <option value="10d">10日</option>
+              <option value="5d">5日</option>
+              <option value="1mo">1个月</option>
+              <option value="3mo">3个月</option>
+              <option value="6mo">6个月</option>
             </select>
           </div>
         </div>
 
-        <label>数据范围</label>
-        <select name="range">
-          <option value="10d">10日</option>
-          <option value="5d">5日</option>
-          <option value="1mo">1个月</option>
-          <option value="3mo">3个月</option>
-          <option value="6mo">6个月</option>
-        </select>
-
         <label>增强模块</label>
-        <div class="checks">
-          <label class="check"><input type="checkbox" name="modules" value="top5"> Top形态匹配</label>
-          <label class="check"><input type="checkbox" name="modules" value="momentum"> 动量</label>
-          <label class="check"><input type="checkbox" name="modules" value="volume"> 成交量</label>
-          <label class="check"><input type="checkbox" name="modules" value="sellput"> 卖Put</label>
-          <label class="check"><input type="checkbox" name="modules" value="options"> 期权</label>
-          <label class="check"><input type="checkbox" name="modules" value="hedge"> 保值</label>
-        </div>
+        <details class="module-dropdown" id="moduleDropdown">
+          <summary><span id="moduleSummary">未选择增强模块</span><span>▾</span></summary>
+          <div class="module-options">
+            <label class="check"><input type="checkbox" name="modules" value="top5"> Top形态匹配</label>
+            <label class="check"><input type="checkbox" name="modules" value="momentum"> 动量</label>
+            <label class="check"><input type="checkbox" name="modules" value="volume"> 成交量</label>
+            <label class="check"><input type="checkbox" name="modules" value="sellput"> 卖Put</label>
+            <label class="check"><input type="checkbox" name="modules" value="options"> 期权</label>
+            <label class="check"><input type="checkbox" name="modules" value="hedge"> 保值</label>
+          </div>
+        </details>
 
         <label>额外要求</label>
-        <textarea name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。"></textarea>
+        <input name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。">
 
         <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
       </form>
 
       <main class="output panel">
         <h2>生成结果</h2>
-        <div id="result" class="status">等待生成报告。</div>
+        <div id="result" class="status">请先选择条件，然后点击生成报告。</div>
         <div id="preview"></div>
       </main>
     </div>
@@ -404,9 +444,10 @@
     const result = document.getElementById('result');
     const preview = document.getElementById('preview');
     const appVersion = document.getElementById('appVersion');
+    const moduleSummary = document.getElementById('moduleSummary');
 
     const defaultApiBase = 'https://donew-beta.vercel.app';
-    const appVersionText = '2.3.1｜全形态库+60%阈值｜2026-07-01 11:48';
+    const appVersionText = '2.4.0｜紧凑表单+自动市场｜2026-07-01 14:05';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     let latestBlobUrl = '';
@@ -429,6 +470,12 @@
     }
 
     form.elements.interval.addEventListener('change', normalizeDailyRange);
+    form.querySelectorAll('input[name="modules"]').forEach((item) => {
+      item.addEventListener('change', () => {
+        const selected = [...form.querySelectorAll('input[name="modules"]:checked')].map((el) => el.closest('label').textContent.trim());
+        moduleSummary.textContent = selected.length ? selected.join('、') : '未选择增强模块';
+      });
+    });
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();

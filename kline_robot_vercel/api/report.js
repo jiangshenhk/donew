@@ -167,6 +167,22 @@ async function fetchYahooBars(symbol, range, interval) {
   return { meta, bars };
 }
 
+async function resolveMarketBars(rawSymbol, selectedMarket, range, interval) {
+  const requested = String(selectedMarket || "").trim().toLowerCase();
+  const marketOrder = requested ? [requested] : ["us", "hk", "cn", "crypto"];
+  const errors = [];
+  for (const market of marketOrder) {
+    try {
+      const symbol = normalizeSymbol(rawSymbol, market);
+      const data = await fetchYahooBars(symbol.yahoo, range, interval);
+      return { ...symbol, market, bars: data.bars, meta: data.meta };
+    } catch (error) {
+      errors.push(error?.message || String(error));
+    }
+  }
+  throw new Error(`找不到代码：${rawSymbol || ""}，已按美股、港股、A股、虚拟货币尝试。请检查代码或手动指定市场。${errors.length ? ` (${errors.at(-1)})` : ""}`);
+}
+
 function ema(values, span) {
   if (!values.length) return [];
   const alpha = 2 / (span + 1);
@@ -1239,12 +1255,11 @@ export default async function handler(req, res) {
   try {
     const data = req.body || {};
     const provider = data.provider || "deepseek";
-    const market = data.market || "crypto";
-    const { yahoo, display } = normalizeSymbol(data.symbol, market);
     const interval = data.interval || "60m";
     const requestedRange = data.range || "10d";
     const range = normalizeRangeForInterval(requestedRange, interval);
-    const { bars } = await fetchYahooBars(yahoo, range, interval);
+    const resolved = await resolveMarketBars(data.symbol, data.market, range, interval);
+    const { display, market, bars } = resolved;
     const cards = patternCards(bars);
     const options = {
       menu: data.menu || "1",
