@@ -406,12 +406,13 @@
     const appVersion = document.getElementById('appVersion');
 
     const defaultApiBase = 'https://donew-beta.vercel.app';
-    const appVersionText = '2.1.9｜代码容错+中文范围｜2026-07-01 00:58';
+    const appVersionText = '2.2.0｜计时器+标准图修正｜2026-07-01 01:10';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     let latestBlobUrl = '';
     let latestHtml = '';
     let latestName = 'kline-report.html';
+    let runTimer = null;
 
     function directionClass(value) {
       if (value === '偏空') return 'bear';
@@ -433,7 +434,15 @@
       event.preventDefault();
       btn.disabled = true;
       preview.innerHTML = '';
-      result.textContent = '正在拉取最新行情并生成报告...';
+      const startAt = Date.now();
+      clearInterval(runTimer);
+      const updateRunning = () => {
+        const seconds = Math.floor((Date.now() - startAt) / 1000);
+        result.textContent = `正在运行 ${seconds} 秒：拉取最新行情、匹配形态并生成报告...`;
+        btn.textContent = `生成中 ${seconds}s`;
+      };
+      updateRunning();
+      runTimer = setInterval(updateRunning, 1000);
 
       normalizeDailyRange();
       const data = new FormData(form);
@@ -492,6 +501,9 @@
       } catch (error) {
         result.textContent = error.message;
       } finally {
+        clearInterval(runTimer);
+        runTimer = null;
+        btn.textContent = '生成最新 HTML 报告';
         btn.disabled = false;
       }
     });

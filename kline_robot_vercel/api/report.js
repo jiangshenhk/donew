@@ -505,30 +505,66 @@ function miniHighlightChartSvg(bars, card) {
   });
 }
 
+function standardPatternBars(card) {
+  const name = card.name || "";
+  const count = Math.max(3, Math.min(12, (card.endIndex || 0) - (card.startIndex || 0) + 1 || 5));
+  const makeSeries = (anchors) => {
+    if (count === anchors.length) return anchors;
+    return Array.from({ length: count }, (_, i) => {
+      const t = count === 1 ? 0 : i / (count - 1);
+      const scaled = t * (anchors.length - 1);
+      const left = Math.floor(scaled);
+      const right = Math.min(anchors.length - 1, left + 1);
+      const ratio = scaled - left;
+      return anchors[left] + (anchors[right] - anchors[left]) * ratio;
+    });
+  };
+  const toBars = (closes, opens) =>
+    closes.map((close, i) => {
+      const open = opens[i];
+      const body = Math.abs(close - open);
+      const wick = Math.max(1.2, body * 0.35);
+      return {
+        date: String(i + 1),
+        open,
+        high: Math.max(open, close) + wick,
+        low: Math.min(open, close) - wick,
+        close,
+      };
+    });
+
+  if (name.includes("放量破位")) {
+    const closes = makeSeries([106, 108, 105, 96, 98, 94]);
+    const opens = makeSeries([103, 106, 107, 105, 96, 98]);
+    return toBars(closes, opens);
+  }
+  if (name.includes("高位冲高失败") || name.includes("黄昏星")) {
+    const closes = makeSeries([98, 105, 107, 106, 99, 96]);
+    const opens = makeSeries([95, 98, 106, 107, 105, 99]);
+    return toBars(closes, opens);
+  }
+  if (name.includes("弱修复")) {
+    const closes = makeSeries([107, 99, 97, 101, 100, 96]);
+    const opens = makeSeries([109, 107, 99, 98, 101, 100]);
+    return toBars(closes, opens);
+  }
+  if (name.includes("平头底部") || name.includes("支撑测试")) {
+    const closes = makeSeries([100, 97, 101, 98, 102, 104]);
+    const opens = makeSeries([104, 100, 98, 101, 99, 102]);
+    return toBars(closes, opens).map((bar) => ({ ...bar, low: Math.min(bar.low, 96) }));
+  }
+  if (name.includes("大阴线未修复")) {
+    const closes = makeSeries([97, 99, 98, 97, 96]);
+    const opens = makeSeries([108, 97, 99, 98, 97]);
+    return toBars(closes, opens);
+  }
+  const closes = makeSeries([104, 99, 103, 101, 104]);
+  const opens = makeSeries([99, 104, 100, 102, 101]);
+  return toBars(closes, opens);
+}
+
 function patternSketchSvg(card) {
-  const bias = card.bias;
-  const flat = bias === "中性";
-  const bullish = bias === "偏多";
-  const sketch = flat
-    ? [
-        { date: "1", open: 104, high: 108, low: 96, close: 99 },
-        { date: "2", open: 100, high: 105, low: 96, close: 103 },
-        { date: "3", open: 102, high: 106, low: 97, close: 101 },
-        { date: "4", open: 101, high: 107, low: 96, close: 104 },
-      ]
-    : bullish
-      ? [
-          { date: "1", open: 98, high: 101, low: 94, close: 96 },
-          { date: "2", open: 96, high: 100, low: 93, close: 99 },
-          { date: "3", open: 99, high: 106, low: 98, close: 104 },
-          { date: "4", open: 104, high: 110, low: 103, close: 108 },
-        ]
-      : [
-          { date: "1", open: 96, high: 106, low: 94, close: 104 },
-          { date: "2", open: 105, high: 109, low: 102, close: 103 },
-          { date: "3", open: 103, high: 104, low: 94, close: 96 },
-          { date: "4", open: 97, high: 99, low: 91, close: 93 },
-        ];
+  const sketch = standardPatternBars(card);
   return drawMiniCandles({
     bars: sketch,
     highlightStart: 0,
