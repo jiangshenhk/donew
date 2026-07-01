@@ -872,7 +872,7 @@ function patternCards(bars) {
   const deduped = [];
   const used = new Set();
   for (const card of candidates.sort((a, b) => b.score - a.score || b.endIndex - a.endIndex)) {
-    const key = `${card.name}:${card.startIndex}:${card.endIndex}`;
+    const key = card.name;
     if (used.has(key)) continue;
     used.add(key);
     deduped.push(card);
@@ -1278,7 +1278,7 @@ export default async function handler(req, res) {
       filename,
       html,
       top5: cards.map((card, idx) => ({
-        rank: `TOP ${idx + 1}`,
+        rank: `匹配 ${idx + 1}`,
         name: card.name,
         score: card.score,
         bias: card.bias,
