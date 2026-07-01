@@ -1,4 +1,48 @@
 const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
+const MIN_PATTERN_SCORE = 60;
+const CANDLE_PATTERN_LIBRARY = [
+  "启明星",
+  "十字启明星",
+  "黄昏星",
+  "十字黄昏星",
+  "锤子线扩展",
+  "上吊线扩展",
+  "流星线扩展",
+  "倒锤子线扩展",
+  "看涨吞没扩展",
+  "看跌吞没扩展",
+  "乌云盖顶扩展",
+  "刺透形态扩展",
+  "看涨孕线扩展",
+  "看跌孕线扩展",
+  "十字孕线扩展",
+  "普通十字线扩展",
+  "长腿十字",
+  "墓碑十字扩展",
+  "蜻蜓十字扩展",
+  "平头顶部扩展",
+  "平头底部扩展",
+  "看涨捉腰带线扩展",
+  "看跌捉腰带线扩展",
+  "看涨反击线",
+  "看跌反击线",
+  "向上窗口",
+  "向下窗口",
+  "高价位跳空突破",
+  "低价位跳空破位",
+  "上升三法",
+  "下降三法",
+  "铺垫形态",
+  "三白兵",
+  "三只乌鸦",
+  "前进受阻",
+  "停顿形态",
+  "塔形顶部",
+  "塔形底部",
+  "圆形顶部",
+  "圆形底部",
+  "大阴线未修复",
+];
 
 function corsHeaders() {
   return {
@@ -162,79 +206,679 @@ function momentum(values, period = 10) {
   return pct(values[values.length - period - 1], values[values.length - 1]);
 }
 
+function candleInfo(bar) {
+  const range = Math.max(bar.high - bar.low, Math.abs(bar.close) * 0.0001, 0.0001);
+  const body = Math.abs(bar.close - bar.open);
+  const upper = bar.high - Math.max(bar.open, bar.close);
+  const lower = Math.min(bar.open, bar.close) - bar.low;
+  return {
+    range,
+    body,
+    bodyRatio: body / range,
+    upperRatio: upper / range,
+    lowerRatio: lower / range,
+    closePos: (bar.close - bar.low) / range,
+    isBull: bar.close > bar.open,
+    isBear: bar.close < bar.open,
+    isDoji: body / range <= 0.16,
+    isLongBody: body / range >= 0.55,
+    mid: (bar.open + bar.close) / 2,
+  };
+}
+
+function closeTrend(bars, start, end) {
+  if (start < 0 || end <= start || end >= bars.length) return 0;
+  return pct(bars[start].close, bars[end].close);
+}
+
+function avgVolume(bars, start, end) {
+  const subset = bars.slice(Math.max(0, start), Math.min(bars.length, end + 1)).filter((b) => Number.isFinite(b.volume));
+  if (!subset.length) return 0;
+  return subset.reduce((sum, b) => sum + b.volume, 0) / subset.length;
+}
+
+function clampScore(value) {
+  return Math.max(45, Math.min(96, Math.round(value)));
+}
+
+function makeCard(bars, data) {
+  const startIndex = Math.max(0, data.startIndex);
+  const endIndex = Math.min(bars.length - 1, data.endIndex);
+  return {
+    ...data,
+    startIndex,
+    endIndex,
+    score: clampScore(data.score),
+    range: `${bars[startIndex].date} 至 ${bars[endIndex].date}`,
+    confirm: formatPrice(data.confirm),
+    failure: formatPrice(data.failure),
+  };
+}
+
+function patternTemplates(name) {
+  const templates = {
+    "启明星": [
+      [112, 114, 96, 98],
+      [97, 101, 94, 96],
+      [96, 111, 95, 109],
+    ],
+    "十字启明星": [
+      [112, 114, 96, 98],
+      [96, 101, 93, 96.4],
+      [97, 112, 96, 110],
+    ],
+    "黄昏星": [
+      [96, 113, 95, 111],
+      [112, 115, 110, 112.2],
+      [111, 112, 96, 98],
+    ],
+    "十字黄昏星": [
+      [96, 113, 95, 111],
+      [112, 116, 110, 112.1],
+      [111, 112, 96, 98],
+    ],
+    "看涨吞没扩展": [
+      [105, 107, 96, 98],
+      [97, 111, 95, 110],
+      [110, 114, 108, 113],
+    ],
+    "看跌吞没扩展": [
+      [96, 107, 95, 105],
+      [106, 108, 94, 95],
+      [95, 96, 90, 91],
+    ],
+    "乌云盖顶扩展": [
+      [95, 111, 94, 110],
+      [112, 114, 100, 101],
+      [101, 103, 96, 98],
+    ],
+    "刺透形态扩展": [
+      [110, 111, 94, 96],
+      [94, 106, 93, 105],
+      [105, 110, 103, 108],
+    ],
+    "锤子线扩展": [
+      [108, 110, 96, 98],
+      [97, 100, 88, 99],
+      [99, 108, 98, 106],
+    ],
+    "倒锤子线扩展": [
+      [108, 110, 96, 98],
+      [98, 110, 97, 99],
+      [99, 108, 98, 106],
+    ],
+    "上吊线扩展": [
+      [96, 108, 95, 107],
+      [107, 109, 95, 106],
+      [106, 107, 96, 98],
+    ],
+    "流星线扩展": [
+      [96, 108, 95, 107],
+      [108, 118, 106, 107],
+      [106, 107, 96, 98],
+    ],
+    "看涨孕线扩展": [
+      [110, 112, 94, 96],
+      [98, 103, 97, 101],
+      [101, 108, 100, 106],
+    ],
+    "看跌孕线扩展": [
+      [96, 112, 95, 110],
+      [104, 107, 102, 103],
+      [103, 104, 96, 98],
+    ],
+    "十字孕线扩展": [
+      [96, 112, 95, 110],
+      [104, 107, 102, 104.2],
+      [104, 105, 96, 98],
+    ],
+    "普通十字线扩展": [
+      [96, 106, 95, 105],
+      [105, 110, 100, 105.2],
+      [105, 106, 97, 99],
+    ],
+    "长腿十字": [
+      [98, 106, 96, 105],
+      [104, 116, 92, 104.2],
+      [104, 108, 96, 99],
+    ],
+    "墓碑十字扩展": [
+      [96, 108, 95, 107],
+      [107, 118, 106, 107.2],
+      [106, 107, 96, 98],
+    ],
+    "蜻蜓十字扩展": [
+      [108, 110, 96, 98],
+      [98, 99, 88, 98.2],
+      [99, 108, 98, 106],
+    ],
+    "平头底部扩展": [
+      [108, 110, 96, 99],
+      [100, 104, 96, 102],
+      [102, 109, 98, 107],
+    ],
+    "平头顶部扩展": [
+      [96, 110, 95, 108],
+      [107, 110, 101, 102],
+      [102, 104, 94, 96],
+    ],
+    "向上窗口": [
+      [96, 104, 95, 103],
+      [108, 114, 107, 112],
+      [112, 116, 110, 115],
+    ],
+    "向下窗口": [
+      [108, 114, 107, 110],
+      [103, 104, 95, 97],
+      [97, 99, 92, 94],
+    ],
+    "高价位跳空突破": [
+      [96, 106, 95, 104],
+      [108, 116, 107, 114],
+      [114, 119, 112, 118],
+    ],
+    "低价位跳空破位": [
+      [114, 116, 108, 110],
+      [104, 105, 96, 98],
+      [98, 99, 92, 94],
+    ],
+    "看涨捉腰带线扩展": [
+      [108, 110, 96, 98],
+      [96, 112, 95, 111],
+      [111, 116, 109, 114],
+    ],
+    "看跌捉腰带线扩展": [
+      [96, 108, 95, 107],
+      [108, 109, 94, 95],
+      [95, 96, 90, 92],
+    ],
+    "看涨反击线": [
+      [110, 112, 96, 98],
+      [95, 104, 94, 98.5],
+      [99, 108, 98, 106],
+    ],
+    "看跌反击线": [
+      [96, 110, 95, 108],
+      [111, 112, 100, 107.8],
+      [107, 108, 98, 100],
+    ],
+    "上升三法": [
+      [95, 113, 94, 111],
+      [110, 111, 105, 107],
+      [107, 108, 102, 104],
+      [104, 106, 101, 103],
+      [103, 116, 102, 115],
+    ],
+    "下降三法": [
+      [115, 116, 96, 98],
+      [99, 105, 98, 103],
+      [103, 108, 102, 106],
+      [106, 109, 104, 107],
+      [107, 108, 92, 94],
+    ],
+    "铺垫形态": [
+      [95, 112, 94, 110],
+      [111, 114, 108, 112],
+      [111, 113, 107, 109],
+      [108, 110, 104, 106],
+      [106, 118, 105, 116],
+    ],
+    "三白兵": [
+      [96, 105, 95, 104],
+      [103, 111, 102, 110],
+      [109, 116, 108, 115],
+    ],
+    "三只乌鸦": [
+      [115, 116, 106, 107],
+      [108, 109, 99, 100],
+      [101, 102, 93, 94],
+    ],
+    "前进受阻": [
+      [96, 108, 95, 107],
+      [107, 114, 106, 112],
+      [112, 116, 111, 113],
+    ],
+    "停顿形态": [
+      [96, 108, 95, 107],
+      [107, 114, 106, 112],
+      [112, 113, 109, 110],
+    ],
+    "塔形底部": [
+      [112, 113, 101, 103],
+      [103, 104, 96, 98],
+      [98, 100, 95, 99],
+      [99, 106, 98, 105],
+      [105, 114, 104, 113],
+    ],
+    "塔形顶部": [
+      [96, 108, 95, 107],
+      [107, 113, 106, 112],
+      [112, 114, 109, 111],
+      [111, 112, 103, 104],
+      [104, 105, 94, 96],
+    ],
+    "圆形底部": [
+      [110, 112, 103, 104],
+      [104, 106, 98, 100],
+      [100, 102, 96, 101],
+      [101, 108, 100, 106],
+      [106, 114, 105, 112],
+    ],
+    "圆形顶部": [
+      [96, 106, 95, 104],
+      [104, 112, 103, 110],
+      [110, 114, 108, 109],
+      [109, 110, 101, 103],
+      [103, 104, 94, 96],
+    ],
+    "大阴线未修复": [
+      [112, 114, 96, 98],
+      [99, 103, 97, 101],
+      [101, 102, 96, 99],
+    ],
+  };
+  const key = Object.keys(templates).find((k) => name.includes(k.replace("扩展", "")) || k.includes(name.replace("扩展", "")));
+  return (templates[key] || templates["启明星"]).map(([open, high, low, close], index) => ({ date: String(index + 1), open, high, low, close }));
+}
+
+function addPattern(candidates, bars, data) {
+  if (data.endIndex - data.startIndex + 1 < 3) return;
+  if (!Number.isFinite(data.score) || data.score < MIN_PATTERN_SCORE) return;
+  candidates.push(makeCard(bars, data));
+}
+
 function patternCards(bars) {
   const n = bars.length;
+  const candidates = [];
   const last = bars[n - 1];
-  const support = Math.min(...bars.slice(-10).map((b) => b.low));
-  const prevHigh = Math.max(...bars.slice(-10, -3).map((b) => b.high));
-  const bigDrop = last.close < bars[n - 4].close;
-  return [
-    {
-      startIndex: n - 4,
-      endIndex: n - 1,
-      name: "放量破位 / 下跌中继风险",
-      score: bigDrop ? 88 : 76,
-      bias: "偏空",
-      range: `${bars[n - 4].date} 至 ${last.date}`,
-      why: `近几根K线从 ${formatPrice(bars[n - 4].close)} 附近回落到 ${formatPrice(last.close)}，短线反弹被快速回吐。`,
-      meaning: "大阴线后未修复，通常先按风险结构处理，等待重新站回关键压力。",
-      judgement: "中继/风险",
-      confirm: formatPrice(Math.max(...bars.slice(-4).map((b) => b.high))),
-      failure: formatPrice(support),
-    },
-    {
-      startIndex: n - 6,
-      endIndex: n - 3,
-      name: "高位冲高失败 / 黄昏星扩展",
-      score: 82,
-      bias: "偏空",
-      range: `${bars[n - 6].date} 至 ${bars[n - 3].date}`,
-      why: "前段快速拉升后，在高位形成停顿，随后长阴回落。",
-      meaning: "上涨后出现停顿与回落，说明高位供给增强。",
-      judgement: "风险",
-      confirm: formatPrice(prevHigh),
-      failure: formatPrice(bars[n - 3].low),
-    },
-    {
-      startIndex: n - 8,
-      endIndex: n - 1,
-      name: "破位后弱修复",
-      score: 74,
-      bias: "偏空",
-      range: `${bars[n - 8].date} 至 ${last.date}`,
-      why: "低位反弹曾出现，但未能持续站稳，随后重新压回低位区。",
-      meaning: "反弹没有修复前一段下跌中轴，容易演化为弱修复。",
-      judgement: "修复失败观察",
-      confirm: formatPrice((bars[n - 4].open + bars[n - 4].close) / 2),
-      failure: formatPrice(support),
-    },
-    {
-      startIndex: n - 10,
-      endIndex: n - 1,
-      name: "平头底部观察 / 支撑测试",
-      score: 68,
-      bias: "中性",
-      range: `${bars[n - 10].date} 至 ${last.date}`,
-      why: `近期低点集中在 ${formatPrice(support)} 附近，但当前尚未形成明确向上确认。`,
-      meaning: "多次测试同一区域可能形成支撑，但跌破则支撑失败。",
-      judgement: "观察",
-      confirm: formatPrice(Math.max(...bars.slice(-5).map((b) => b.close))),
-      failure: formatPrice(support),
-    },
-    {
-      startIndex: n - 3,
+  const avgVol = avgVolume(bars, n - 20, n - 1);
+
+  for (let i = Math.max(2, n - 18); i < n; i++) {
+    const a = bars[i - 2];
+    const b = bars[i - 1];
+    const c = bars[i];
+    const ai = candleInfo(a);
+    const bi = candleInfo(b);
+    const ci = candleInfo(c);
+    const priorTrend = closeTrend(bars, Math.max(0, i - 7), i - 2);
+    const windowHigh = Math.max(...bars.slice(Math.max(0, i - 8), i + 1).map((x) => x.high));
+    const windowLow = Math.min(...bars.slice(Math.max(0, i - 8), i + 1).map((x) => x.low));
+
+    if (priorTrend < -1 && ai.isBear && ai.isLongBody && bi.bodyRatio <= 0.32 && ci.isBull && c.close > ai.mid) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: bi.isDoji ? "十字启明星" : "启明星",
+        score: 74 + Math.abs(priorTrend) * 2 + (c.close > a.open ? 8 : 0),
+        bias: "偏多",
+        why: "下跌后先出现长阴，再出现犹豫小实体，随后阳线收回前一根阴线中轴。",
+        meaning: "下跌、犹豫、反攻的三段式结构，只有继续站稳确认位才代表反转质量提高。",
+        judgement: "止跌观察",
+        confirm: Math.max(a.high, c.high),
+        failure: Math.min(a.low, b.low, c.low),
+      });
+    }
+
+    if (priorTrend > 1 && ai.isBull && ai.isLongBody && bi.bodyRatio <= 0.32 && ci.isBear && c.close < ai.mid) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: bi.isDoji ? "十字黄昏星" : "黄昏星",
+        score: 74 + Math.abs(priorTrend) * 2 + (c.close < a.open ? 8 : 0),
+        bias: "偏空",
+        why: "上涨后先长阳推进，中间停顿犹豫，随后阴线跌回前一根阳线中轴下方。",
+        meaning: "上涨、犹豫、回落的顶部警告结构，高位出现时需要防止趋势转弱。",
+        judgement: "顶部风险",
+        confirm: Math.max(a.high, b.high, c.high),
+        failure: Math.min(a.low, c.low),
+      });
+    }
+
+    if (priorTrend < 0 && ai.isBear && bi.isBull && b.open < a.close && b.close > a.open && ci.isBull) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "看涨吞没扩展",
+        score: 70 + Math.abs(priorTrend) * 2 + ci.bodyRatio * 10,
+        bias: "偏多",
+        why: "下跌背景后出现阳线完全吞没前一根阴线，随后继续修复。",
+        meaning: "后一方完全压过前一方，说明短线多方开始夺回收盘控制权。",
+        judgement: "反击观察",
+        confirm: Math.max(b.high, c.high),
+        failure: Math.min(a.low, b.low),
+      });
+    }
+
+    if (priorTrend > 0 && ai.isBull && bi.isBear && b.open > a.close && b.close < a.open && ci.isBear) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "看跌吞没扩展",
+        score: 70 + Math.abs(priorTrend) * 2 + ci.bodyRatio * 10,
+        bias: "偏空",
+        why: "上涨背景后出现阴线完全吞没前一根阳线，随后继续转弱。",
+        meaning: "卖方完全压过买方，说明高位供给明显增强。",
+        judgement: "顶部风险",
+        confirm: Math.max(a.high, b.high),
+        failure: Math.min(b.low, c.low),
+      });
+    }
+
+    if (priorTrend > 0 && ai.isBull && bi.isBear && b.open > a.high * 0.998 && b.close < ai.mid && b.close > a.open && ci.close <= b.close) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "乌云盖顶扩展",
+        score: 68 + Math.abs(priorTrend) * 2,
+        bias: "偏空",
+        why: "上涨后冲高开出，但收盘切入前一根阳线实体中部以下，后续仍偏弱。",
+        meaning: "高位买方进攻失败，卖压切入阳线实体，是顶部风险信号。",
+        judgement: "风险",
+        confirm: Math.max(a.high, b.high),
+        failure: Math.min(b.low, c.low),
+      });
+    }
+
+    if (priorTrend < 0 && ai.isBear && bi.isBull && b.open < a.low * 1.002 && b.close > ai.mid && b.close < a.open && ci.close >= b.close) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "刺透形态扩展",
+        score: 68 + Math.abs(priorTrend) * 2,
+        bias: "偏多",
+        why: "下跌后低开或下探，但收盘切回前一根阴线实体中部以上，后续有所修复。",
+        meaning: "空方继续打低失败，多方开始刺入前一根阴线实体。",
+        judgement: "止跌观察",
+        confirm: Math.max(a.high, b.high, c.high),
+        failure: Math.min(a.low, b.low),
+      });
+    }
+
+    if (priorTrend < 0 && bi.lowerRatio >= 0.55 && bi.upperRatio <= 0.22 && bi.bodyRatio <= 0.35 && ci.isBull) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "锤子线扩展",
+        score: 64 + bi.lowerRatio * 22 + (ci.close > b.high ? 6 : 0),
+        bias: "偏多",
+        why: "下跌背景中出现长下影，说明低位被买回，后一根K线继续确认。",
+        meaning: "空方打低后被多方收回，是低位承接线索，但需要后续确认。",
+        judgement: "止跌观察",
+        confirm: Math.max(b.high, c.high),
+        failure: b.low,
+      });
+    }
+
+    if (priorTrend < 0 && bi.upperRatio >= 0.5 && bi.lowerRatio <= 0.25 && bi.bodyRatio <= 0.35 && ci.isBull) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "倒锤子线扩展",
+        score: 61 + bi.upperRatio * 18 + (ci.close > b.high ? 6 : 0),
+        bias: "偏多",
+        why: "下跌背景中出现向上试探的长上影，后一根K线继续修复，说明低位有反攻尝试。",
+        meaning: "倒锤子线本身只是止跌线索，必须等待后一根K线确认。",
+        judgement: "止跌观察",
+        confirm: Math.max(b.high, c.high),
+        failure: Math.min(b.low, c.low),
+      });
+    }
+
+    if (priorTrend > 0 && bi.upperRatio >= 0.55 && bi.lowerRatio <= 0.22 && bi.bodyRatio <= 0.35 && ci.isBear) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "流星线扩展",
+        score: 64 + bi.upperRatio * 22 + (ci.close < b.low ? 6 : 0),
+        bias: "偏空",
+        why: "上涨背景中出现长上影，说明冲高失败，后一根K线继续回落。",
+        meaning: "多方上攻后被卖压打回，是高位警告线索。",
+        judgement: "顶部风险",
+        confirm: b.high,
+        failure: Math.min(b.low, c.low),
+      });
+    }
+
+    if (priorTrend > 0 && bi.lowerRatio >= 0.5 && bi.upperRatio <= 0.25 && bi.bodyRatio <= 0.35 && ci.isBear) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "上吊线扩展",
+        score: 61 + bi.lowerRatio * 18 + (ci.close < b.low ? 6 : 0),
+        bias: "偏空",
+        why: "上涨背景中出现长下影，说明支撑被测试，后一根K线转弱。",
+        meaning: "上吊线在高位才有警告意义，需要后一根K线跌破或回落确认。",
+        judgement: "顶部观察",
+        confirm: b.high,
+        failure: Math.min(b.low, c.low),
+      });
+    }
+
+    const bullishBelt = priorTrend < 0 && bi.isBull && bi.isLongBody && bi.open <= b.low + bi.range * 0.12 && bi.closePos >= 0.78 && ci.close >= b.close;
+    const bearishBelt = priorTrend > 0 && bi.isBear && bi.isLongBody && bi.open >= b.high - bi.range * 0.12 && bi.closePos <= 0.22 && ci.close <= b.close;
+    if (bullishBelt || bearishBelt) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: bullishBelt ? "看涨捉腰带线扩展" : "看跌捉腰带线扩展",
+        score: 66 + bi.bodyRatio * 18,
+        bias: bullishBelt ? "偏多" : "偏空",
+        why: bullishBelt ? "下跌背景后出现接近最低开盘的大阳线，后一根继续保持修复。" : "上涨背景后出现接近最高开盘的大阴线，后一根继续保持转弱。",
+        meaning: "捉腰带线代表一方从开盘到收盘持续控制，但仍要结合位置确认。",
+        judgement: bullishBelt ? "反击观察" : "风险",
+        confirm: bullishBelt ? Math.max(b.high, c.high) : b.high,
+        failure: bullishBelt ? b.low : Math.min(b.low, c.low),
+      });
+    }
+
+    const counterCloseDiff = Math.abs(a.close - b.close) / Math.max(a.close, b.close, 1);
+    const bullishCounter = priorTrend < 0 && ai.isBear && bi.isBull && counterCloseDiff <= 0.004 && ci.isBull;
+    const bearishCounter = priorTrend > 0 && ai.isBull && bi.isBear && counterCloseDiff <= 0.004 && ci.isBear;
+    if (bullishCounter || bearishCounter) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: bullishCounter ? "看涨反击线" : "看跌反击线",
+        score: 62 + (0.004 - counterCloseDiff) * 3000 + ci.bodyRatio * 8,
+        bias: bullishCounter ? "偏多" : "偏空",
+        why: "两根相反方向K线收盘价接近，说明原趋势遭遇反方向反击，后一根给出延续线索。",
+        meaning: "反击线强调收盘价附近的多空争夺，强度弱于吞没，必须看后续确认。",
+        judgement: bullishCounter ? "反击观察" : "风险",
+        confirm: Math.max(a.high, b.high, c.high),
+        failure: Math.min(a.low, b.low, c.low),
+      });
+    }
+
+    if (ai.isLongBody && bi.bodyRatio <= 0.38 && Math.max(b.open, b.close) < Math.max(a.open, a.close) && Math.min(b.open, b.close) > Math.min(a.open, a.close)) {
+      const bearish = priorTrend > 0 && a.isBull && c.isBear;
+      const bullish = priorTrend < 0 && a.isBear && c.isBull;
+      if (bearish || bullish) {
+        addPattern(candidates, bars, {
+          startIndex: i - 2,
+          endIndex: i,
+          name: bullish ? "看涨孕线扩展" : "看跌孕线扩展",
+          score: 62 + Math.abs(priorTrend) * 2 + (bi.isDoji ? 6 : 0),
+          bias: bullish ? "偏多" : "偏空",
+          why: "大实体后出现被包含的小实体，原趋势动能收缩，后一根K线给出方向线索。",
+          meaning: "孕线代表原趋势失去单边推进能力，需要结合后续突破方向判断。",
+          judgement: bullish ? "止跌观察" : "风险",
+          confirm: bullish ? Math.max(b.high, c.high) : Math.max(a.high, b.high),
+          failure: bullish ? Math.min(a.low, b.low) : Math.min(b.low, c.low),
+        });
+      }
+    }
+
+    const lowDiff = Math.abs(a.low - b.low) / Math.max(a.low, b.low, 1);
+    const highDiff = Math.abs(a.high - b.high) / Math.max(a.high, b.high, 1);
+    if (priorTrend < 0 && lowDiff <= 0.0035 && ci.isBull) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "平头底部扩展",
+        score: 66 + (0.0035 - lowDiff) * 4000 + ci.bodyRatio * 8,
+        bias: "中性",
+        why: "连续K线低点接近，说明同一区域被反复测试，后一根K线出现修复。",
+        meaning: "多次测试同一区域可能形成支撑，但跌破共同低点则支撑失败。",
+        judgement: "支撑观察",
+        confirm: Math.max(a.high, b.high, c.high),
+        failure: Math.min(a.low, b.low),
+      });
+    }
+
+    if (priorTrend > 0 && highDiff <= 0.0035 && ci.isBear) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: "平头顶部扩展",
+        score: 66 + (0.0035 - highDiff) * 4000 + ci.bodyRatio * 8,
+        bias: "偏空",
+        why: "连续K线高点接近，说明同一区域上攻受阻，后一根K线回落。",
+        meaning: "多次冲击同一区域失败，容易演化为顶部压力。",
+        judgement: "压力观察",
+        confirm: Math.max(a.high, b.high),
+        failure: Math.min(b.low, c.low),
+      });
+    }
+
+    const upGap = b.low > a.high && c.low >= a.high;
+    const downGap = b.high < a.low && c.high <= a.low;
+    if (upGap || downGap) {
+      const strongGap = Math.abs(pct(a.close, b.open)) >= 1.2;
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: upGap ? (strongGap ? "高价位跳空突破" : "向上窗口") : strongGap ? "低价位跳空破位" : "向下窗口",
+        score: 72 + Math.min(12, Math.abs(pct(a.close, b.open))),
+        bias: upGap ? "偏多" : "偏空",
+        why: upGap ? "价格跳空向上后缺口没有马上回补，窗口区域形成短线支撑。" : "价格跳空向下后缺口没有马上回补，窗口区域形成短线压力。",
+        meaning: "窗口代表情绪跳变；不回补时原方向仍占优，回补则原方向力量减弱。",
+        judgement: upGap ? "突破观察" : "破位风险",
+        confirm: upGap ? Math.max(b.high, c.high) : Math.max(a.high, b.high),
+        failure: upGap ? a.high : a.low,
+      });
+    }
+
+    if (ci.isDoji && (ci.upperRatio > 0.35 || ci.lowerRatio > 0.35)) {
+      const bearish = priorTrend > 0 && c.closePos < 0.55;
+      const bullish = priorTrend < 0 && c.closePos > 0.45;
+      if (bearish || bullish) {
+        addPattern(candidates, bars, {
+          startIndex: i - 2,
+          endIndex: i,
+          name: ci.upperRatio > 0.55 ? "墓碑十字扩展" : ci.lowerRatio > 0.55 ? "蜻蜓十字扩展" : "十字线扩展",
+          score: 58 + Math.max(ci.upperRatio, ci.lowerRatio) * 22 + Math.abs(priorTrend),
+          bias: bearish ? "偏空" : bullish ? "偏多" : "中性",
+          why: "原趋势推进后出现十字线，说明多空暂时平衡，趋势动能开始犹豫。",
+          meaning: "十字线本身不是结论，必须看位置和后一根K线确认。",
+          judgement: bearish ? "顶部观察" : "止跌观察",
+          confirm: c.high,
+          failure: c.low,
+        });
+      }
+    }
+
+    if (i >= 4) {
+      const five = bars.slice(i - 4, i + 1);
+      const info = five.map(candleInfo);
+      const first = five[0];
+      const lastFive = five[4];
+      const inner = five.slice(1, 4);
+      const risingThree = info[0].isBull && info[0].isLongBody && inner.every((x) => x.high < first.high && x.low > first.low) && info[4].isBull && lastFive.close > first.high;
+      const fallingThree = info[0].isBear && info[0].isLongBody && inner.every((x) => x.high < first.high && x.low > first.low) && info[4].isBear && lastFive.close < first.low;
+      const matHold = info[0].isBull && info[0].isLongBody && inner[0].low > first.high && info[4].isBull && lastFive.close > Math.max(...inner.map((x) => x.high));
+      if (risingThree || fallingThree || matHold) {
+        addPattern(candidates, bars, {
+          startIndex: i - 4,
+          endIndex: i,
+          name: matHold ? "铺垫形态" : risingThree ? "上升三法" : "下降三法",
+          score: 84 + (lastFive.volume > avgVol ? 4 : 0),
+          bias: fallingThree ? "偏空" : "偏多",
+          why: matHold ? "强阳后高位小实体整理，最后再度向上突破整理区。" : risingThree ? "强阳后小实体回调没有跌破阳线范围，最后再度向上突破。" : "强阴后小实体反弹没有突破阴线范围，最后再度向下破位。",
+          meaning: matHold ? "铺垫形态是上升三法的更强变体，强调跳空后的高位整理和再突破。" : "三法结构属于顺势中继，重点看整理是否守住第一根实体范围以及第五根是否突破。",
+          judgement: fallingThree ? "下跌中继" : "顺势延续",
+          confirm: fallingThree ? first.high : lastFive.high,
+          failure: fallingThree ? lastFive.low : first.low,
+        });
+      }
+
+      const towerTop = info.slice(0, 2).every((x) => x.isBull) && info[2].bodyRatio <= 0.35 && info.slice(3).every((x) => x.isBear) && closeTrend(five, 0, 4) < -1;
+      const towerBottom = info.slice(0, 2).every((x) => x.isBear) && info[2].bodyRatio <= 0.35 && info.slice(3).every((x) => x.isBull) && closeTrend(five, 0, 4) > 1;
+      const roundTop = info[0].isBull && info[1].isBull && info[2].bodyRatio <= 0.45 && info[3].isBear && info[4].isBear;
+      const roundBottom = info[0].isBear && info[1].isBear && info[2].bodyRatio <= 0.45 && info[3].isBull && info[4].isBull;
+      if (towerTop || towerBottom || roundTop || roundBottom) {
+        addPattern(candidates, bars, {
+          startIndex: i - 4,
+          endIndex: i,
+          name: towerBottom ? "塔形底部" : towerTop ? "塔形顶部" : roundBottom ? "圆形底部" : "圆形顶部",
+          score: 66 + Math.abs(closeTrend(five, 0, 4)) * 2,
+          bias: towerBottom || roundBottom ? "偏多" : "偏空",
+          why: towerBottom || roundBottom ? "连续转弱后进入停顿，随后连续阳线修复。" : "连续转强后进入停顿，随后连续阴线回落。",
+          meaning: towerTop || towerBottom ? "塔形结构强调节奏由单边推进转向停顿，再向反方向展开。" : "圆形结构强调动能逐步衰减后转向，确认速度通常慢于星线或吞没。",
+          judgement: towerBottom || roundBottom ? "底部观察" : "顶部风险",
+          confirm: towerBottom || roundBottom ? windowHigh : Math.max(...five.map((x) => x.high)),
+          failure: towerBottom || roundBottom ? windowLow : Math.min(...five.map((x) => x.low)),
+        });
+      }
+    }
+  }
+
+  for (let i = Math.max(2, n - 12); i < n; i++) {
+    const three = bars.slice(i - 2, i + 1);
+    const info = three.map(candleInfo);
+    const soldiers = info.every((x) => x.isBull && x.bodyRatio >= 0.45) && three[1].close > three[0].close && three[2].close > three[1].close;
+    const crows = info.every((x) => x.isBear && x.bodyRatio >= 0.45) && three[1].close < three[0].close && three[2].close < three[1].close;
+    const blocked = info.every((x) => x.isBull) && three[1].close > three[0].close && three[2].close > three[1].close && info[2].bodyRatio < info[0].bodyRatio * 0.6 && info[2].upperRatio > 0.25;
+    const stalled = info[0].isBull && info[1].isBull && info[2].bodyRatio <= 0.32 && three[2].close <= three[1].close;
+    if (soldiers || crows || blocked || stalled) {
+      addPattern(candidates, bars, {
+        startIndex: i - 2,
+        endIndex: i,
+        name: blocked ? "前进受阻" : stalled ? "停顿形态" : soldiers ? "三白兵" : "三只乌鸦",
+        score: (blocked || stalled ? 66 : 78) + info.reduce((sum, x) => sum + x.bodyRatio, 0) * 5,
+        bias: soldiers && !blocked && !stalled ? "偏多" : "偏空",
+        why: blocked ? "连续阳线推进但第三根实体变小并带上影，说明上攻开始受阻。" : stalled ? "上涨后第三根明显停顿，说明原趋势动能减弱。" : soldiers ? "连续三根阳线逐步抬高收盘，买方持续控制节奏。" : "连续三根阴线逐步压低收盘，卖方持续控制节奏。",
+        meaning: blocked ? "前进受阻是三白兵的弱化形态，提示高位上涨动能衰减。" : stalled ? "停顿形态表示上涨推进暂停，后续若回落则顶部风险提高。" : soldiers ? "三白兵代表连续反攻，但高位也要防前进受阻。" : "三只乌鸦代表连续派发或下跌延续，通常不宜急着抄底。",
+        judgement: soldiers && !blocked && !stalled ? "连续转强" : blocked || stalled ? "顶部观察" : "下跌延续",
+        confirm: Math.max(...three.map((x) => x.high)),
+        failure: Math.min(...three.map((x) => x.low)),
+      });
+    }
+  }
+
+  const unresolvedDropIndex = (() => {
+    for (let i = n - 2; i >= Math.max(1, n - 8); i--) {
+      const info = candleInfo(bars[i]);
+      const half = (bars[i].open + bars[i].close) / 2;
+      if (info.isBear && info.isLongBody && last.close < half) return i;
+    }
+    return -1;
+  })();
+  if (unresolvedDropIndex >= 0) {
+    const b = bars[unresolvedDropIndex];
+    addPattern(candidates, bars, {
+      startIndex: unresolvedDropIndex,
       endIndex: n - 1,
       name: "大阴线未修复",
-      score: 66,
+      score: 62 + Math.min(20, Math.abs(pct(b.close, last.close)) * 3),
       bias: "偏空",
-      range: `${bars[n - 3].date} 至 ${last.date}`,
-      why: "最新下跌段的中轴仍未收复，短线只能先看修复确认。",
-      meaning: "站不上大阴线中轴前，不宜把反弹直接当成反转。",
+      why: "最近大阴线的中轴仍未收复，短线反弹还不能视作反转。",
+      meaning: "大阴线后反弹没有超过实体中轴，通常先按弱修复或中继风险处理。",
       judgement: "只观察",
-      confirm: formatPrice((bars[n - 3].open + bars[n - 3].close) / 2),
-      failure: formatPrice(last.low),
-    },
-  ];
+      confirm: (b.open + b.close) / 2,
+      failure: Math.min(...bars.slice(unresolvedDropIndex).map((x) => x.low)),
+    });
+  }
+
+  const deduped = [];
+  const used = new Set();
+  for (const card of candidates.sort((a, b) => b.score - a.score || b.endIndex - a.endIndex)) {
+    const key = `${card.name}:${card.startIndex}:${card.endIndex}`;
+    if (used.has(key)) continue;
+    used.add(key);
+    deduped.push(card);
+    if (deduped.length >= 5) break;
+  }
+  return deduped;
 }
 
 function aiPrompt() {
@@ -245,9 +889,9 @@ function aiPrompt() {
     "结构必须包含四块：",
     "1. <div class=\"ai-thesis\"><strong>核心判断：</strong>...</div>，一句话说明主方向和风险优先级。",
     "2. <div class=\"ai-level-grid\">，里面用两个 <div class=\"ai-level\"> 分别写确认位和失败位，数字用 <strong>。",
-    "3. <ol class=\"ai-top5\"> 写Top5方向概括，每条不超过32个中文字符，方向用括号标注：偏多/偏空/中性。",
+    "3. <ol class=\"ai-top5\"> 写超过60%的匹配形态概括；如没有超过60%的形态，明确说明暂无高可信经典形态。",
     "4. <p class=\"ai-risk\"> 写风险提示。",
-    "要求：最终结论前置；禁止确定性语言；必须给出确认位、失败位、Top5方向概括、风险提示；文字克制、可扫描。",
+    "要求：最终结论前置；禁止确定性语言；必须给出确认位、失败位、超过60%的形态概括、风险提示；文字克制、可扫描。",
   ].join("\n");
 }
 
@@ -505,71 +1149,28 @@ function miniHighlightChartSvg(bars, card) {
   });
 }
 
-function standardPatternBars(card) {
-  const name = card.name || "";
-  const count = Math.max(3, Math.min(12, (card.endIndex || 0) - (card.startIndex || 0) + 1 || 5));
-  const makeSeries = (anchors) => {
-    if (count === anchors.length) return anchors;
-    return Array.from({ length: count }, (_, i) => {
-      const t = count === 1 ? 0 : i / (count - 1);
-      const scaled = t * (anchors.length - 1);
-      const left = Math.floor(scaled);
-      const right = Math.min(anchors.length - 1, left + 1);
-      const ratio = scaled - left;
-      return anchors[left] + (anchors[right] - anchors[left]) * ratio;
-    });
-  };
-  const toBars = (closes, opens) =>
-    closes.map((close, i) => {
-      const open = opens[i];
-      const body = Math.abs(close - open);
-      const wick = Math.max(1.2, body * 0.35);
-      return {
-        date: String(i + 1),
-        open,
-        high: Math.max(open, close) + wick,
-        low: Math.min(open, close) - wick,
-        close,
-      };
-    });
-
-  if (name.includes("放量破位")) {
-    const closes = makeSeries([106, 108, 105, 96, 98, 94]);
-    const opens = makeSeries([103, 106, 107, 105, 96, 98]);
-    return toBars(closes, opens);
-  }
-  if (name.includes("高位冲高失败") || name.includes("黄昏星")) {
-    const closes = makeSeries([98, 105, 107, 106, 99, 96]);
-    const opens = makeSeries([95, 98, 106, 107, 105, 99]);
-    return toBars(closes, opens);
-  }
-  if (name.includes("弱修复")) {
-    const closes = makeSeries([107, 99, 97, 101, 100, 96]);
-    const opens = makeSeries([109, 107, 99, 98, 101, 100]);
-    return toBars(closes, opens);
-  }
-  if (name.includes("平头底部") || name.includes("支撑测试")) {
-    const closes = makeSeries([100, 97, 101, 98, 102, 104]);
-    const opens = makeSeries([104, 100, 98, 101, 99, 102]);
-    return toBars(closes, opens).map((bar) => ({ ...bar, low: Math.min(bar.low, 96) }));
-  }
-  if (name.includes("大阴线未修复")) {
-    const closes = makeSeries([97, 99, 98, 97, 96]);
-    const opens = makeSeries([108, 97, 99, 98, 97]);
-    return toBars(closes, opens);
-  }
-  const closes = makeSeries([104, 99, 103, 101, 104]);
-  const opens = makeSeries([99, 104, 100, 102, 101]);
-  return toBars(closes, opens);
+function normalizedPatternBars(bars, card) {
+  const subset = bars.slice(card.startIndex, card.endIndex + 1);
+  const high = Math.max(...subset.map((b) => b.high));
+  const low = Math.min(...subset.map((b) => b.low));
+  const span = high - low || Math.max(high, 1) * 0.01;
+  const scale = (value) => 94 + ((value - low) / span) * 18;
+  return subset.map((bar, index) => ({
+    date: String(index + 1),
+    open: scale(bar.open),
+    high: scale(bar.high),
+    low: scale(bar.low),
+    close: scale(bar.close),
+  }));
 }
 
 function patternSketchSvg(card) {
-  const sketch = standardPatternBars(card);
+  const sketch = patternTemplates(card.name);
   return drawMiniCandles({
     bars: sketch,
     highlightStart: 0,
     highlightEnd: sketch.length - 1,
-    label: `${card.name} 标准示意`,
+    label: `${card.name} 标准轮廓`,
   });
 }
 
@@ -592,18 +1193,22 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   const mom10 = momentum(closes);
   const recent = bars.slice(-14);
   const title = `${displaySymbol}｜${interval} 三根K线以上形态匹配报告`;
-  const final = `${displaySymbol} ${interval} 当前主结构是：前段反弹冲高后快速回落，最新价 ${formatPrice(last.close)} 已接近近期低位。短线不是反转确认，而是破位后的支撑观察；需要先站回 ${formatPrice(pressure1)}，再修复 ${formatPrice(pressure2)} 附近压力，下降中继风险才会下降。若跌破 ${formatPrice(support)}，支撑结构失败。`;
+  const final =
+    cards.length > 0
+      ? `${displaySymbol} ${interval} 当前超过${MIN_PATTERN_SCORE}%的主要匹配是「${cards[0].name}」，最新价 ${formatPrice(last.close)}。后续重点看确认位 ${cards[0].confirm} 与失败位 ${cards[0].failure}；确认位未站稳前，只能按观察结构处理。`
+      : `${displaySymbol} ${interval} 当前没有超过${MIN_PATTERN_SCORE}%的经典蜡烛图形态匹配。最新价 ${formatPrice(last.close)}；此时不应强行套形态，重点观察 ${formatPrice(pressure1)} 上方确认与 ${formatPrice(support)} 下方失效。`;
   const top5Rows = cards
-    .map((c, idx) => `<tr><td>TOP ${idx + 1}</td><td>${safeHtml(c.name)}</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.range)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
+    .map((c, idx) => `<tr><td>匹配 ${idx + 1}</td><td>${safeHtml(c.name)}</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.range)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
     .join("");
-  const topMatchHtml = `<div class="top-match"><h2>Top形态匹配情况</h2><p>最少3根K线匹配，按形态相似度与当前结构相关性排序。</p><table><thead><tr><th>排名</th><th>形态</th><th>匹配度</th><th>方向</th><th>匹配区间</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table></div>`;
+  const noMatchHtml = `<div class="no-match"><strong>暂无超过${MIN_PATTERN_SCORE}%的经典形态匹配。</strong><p>当前K线不强行归类；请等待新的确认K线、关键位突破/跌破，或切换更大周期再观察。</p></div>`;
+  const topMatchHtml = `<div class="top-match"><h2>超过${MIN_PATTERN_SCORE}%的形态匹配</h2><p>最少3根K线匹配，只显示达到阈值的书中/规则库形态。</p>${cards.length ? `<table><thead><tr><th>排名</th><th>形态</th><th>匹配度</th><th>方向</th><th>匹配区间</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table>` : noMatchHtml}</div>`;
   const cardHtml = cards
     .map(
-      (c, idx) => `<article class="card"><div class="head"><div><h2>TOP ${idx + 1} · ${safeHtml(c.name)}</h2><p>匹配区间：${safeHtml(c.range)}</p></div><div class="score">${c.score}%<span>三根以上匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>标准形态示意</h3>${patternSketchSvg(c)}<p>标准图用于表达形态结构，不代表价格预测。</p></div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>规则库含义</th><td>${safeHtml(c.meaning)}</td></tr><tr><th>结构判断</th><td>${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</td></tr><tr><th>确认位</th><td class="price">${safeHtml(c.confirm)}</td></tr><tr><th>失败位</th><td class="price">${safeHtml(c.failure)}</td></tr></table></div></article>`
+      (c, idx) => `<article class="card"><div class="head"><div><h2>匹配 ${idx + 1} · ${safeHtml(c.name)}</h2><p>匹配区间：${safeHtml(c.range)}</p></div><div class="score">${c.score}%<span>三根以上匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>规则库标准轮廓</h3>${patternSketchSvg(c)}<p>右图是书中/规则库标准结构的归一化示意，用于和左侧高亮K线逐根对照。</p></div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>规则库含义</th><td>${safeHtml(c.meaning)}</td></tr><tr><th>结构判断</th><td>${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</td></tr><tr><th>确认位</th><td class="price">${safeHtml(c.confirm)}</td></tr><tr><th>失败位</th><td class="price">${safeHtml(c.failure)}</td></tr></table></div></article>`
     )
     .join("");
   const matrix = [
-    ["形态", "偏空风险", "Top结构偏向破位后弱修复与下跌中继风险。"],
+    ["形态", cards[0]?.bias === "偏多" ? "偏多修复" : cards[0]?.bias === "偏空" ? "偏空风险" : "中性观察", cards[0] ? `最高匹配为「${cards[0].name}」，匹配度 ${cards[0].score}%。` : `暂无超过${MIN_PATTERN_SCORE}%的经典形态匹配，不强行归类。`],
     ["位置", "中性观察", `价格接近近期低点 ${formatPrice(support)}，但还没有向上确认。`],
     ["均线", "偏空风险", `最新价 ${formatPrice(last.close)}，E20 ${formatPrice(e20)}，E60 ${formatPrice(e60)}，仍在短线压力下。`],
     ["RSI", (rsi14 || 50) < 45 ? "偏空风险" : "中性观察", rsi14 == null ? "RSI数据不足。" : `RSI14=${rsi14.toFixed(1)}，只作为强弱辅助，不单独决定方向。`],
@@ -624,7 +1229,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     .join("");
   const chartHtml = candleChartSvg(bars, cards);
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
-:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px}.summary div{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:10px;padding:14px}.tag{display:inline-block;background:var(--gold);color:#0a1120;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:800;margin-bottom:10px}.summary h3{margin:0 0 6px;font-size:14px}.summary p{margin:0;font-size:14px}.verdict{border:1px solid rgba(255,209,102,.38);background:rgba(255,209,102,.08);border-radius:14px;padding:18px;margin-top:22px}.verdict p{color:#f6e6b2}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-level-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.ai-level{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);border-radius:10px;padding:12px;color:var(--muted)}.ai-level strong,.ai-top5 strong{color:#edf2ff}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-risk{border-top:1px solid rgba(255,255,255,.10);padding-top:12px;margin-top:14px;color:#f0c7c7}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:14px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:18px}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 10px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}@media(max-width:760px){.summary,.ai-level-grid,.compare{grid-template-columns:1fr}.head{display:block}.score{text-align:left;margin-top:10px}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><p class="sub">模式：${safeHtml(options.menu)}；数据源：Yahoo Finance；周期 ${safeHtml(interval)}；最新K线可能随交易继续变化。</p><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(interval)}</div><div class="pill">样本：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div><div class="pill">确认等级：D</div></div>${topMatchHtml}<div class="summary"><div><span class="tag">主结构</span><h3>总体结构</h3><p>反弹冲高后快速回落</p></div><div><span class="tag">风险</span><h3>当前状态</h3><p>大阴线未修复，低位支撑观察</p></div><div><span class="tag">确认位</span><h3>核心确认</h3><p>${formatPrice(pressure1)} → ${formatPrice(pressure2)}</p></div><div><span class="tag">失败位</span><h3>核心失败</h3><p>跌破 ${formatPrice(support)}</p></div></div></section><section class="verdict"><h2>AI最终结论</h2><p>${safeHtml(final)}</p></section>${chartHtml}${gptHtml || ""}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><section class="section"><h2>关键位置判断</h2><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></section><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
+:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:20px}.summary div{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:10px;padding:14px}.tag{display:inline-block;background:var(--gold);color:#0a1120;border-radius:999px;padding:3px 8px;font-size:12px;font-weight:800;margin-bottom:10px}.summary h3{margin:0 0 6px;font-size:14px}.summary p{margin:0;font-size:14px}.verdict{border:1px solid rgba(255,209,102,.38);background:rgba(255,209,102,.08);border-radius:14px;padding:18px;margin-top:22px}.verdict p{color:#f6e6b2}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-level-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.ai-level{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);border-radius:10px;padding:12px;color:var(--muted)}.ai-level strong,.ai-top5 strong{color:#edf2ff}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-risk{border-top:1px solid rgba(255,255,255,.10);padding-top:12px;margin-top:14px;color:#f0c7c7}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:14px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:18px}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 10px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}@media(max-width:760px){.summary,.ai-level-grid,.compare{grid-template-columns:1fr}.head{display:block}.score{text-align:left;margin-top:10px}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><p class="sub">模式：${safeHtml(options.menu)}；数据源：Yahoo Finance；周期 ${safeHtml(interval)}；最新K线可能随交易继续变化。</p><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(interval)}</div><div class="pill">样本：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div><div class="pill">确认等级：D</div></div>${topMatchHtml}<div class="summary"><div><span class="tag">主结构</span><h3>总体结构</h3><p>反弹冲高后快速回落</p></div><div><span class="tag">风险</span><h3>当前状态</h3><p>大阴线未修复，低位支撑观察</p></div><div><span class="tag">确认位</span><h3>核心确认</h3><p>${formatPrice(pressure1)} → ${formatPrice(pressure2)}</p></div><div><span class="tag">失败位</span><h3>核心失败</h3><p>跌破 ${formatPrice(support)}</p></div></div></section><section class="verdict"><h2>AI最终结论</h2><p>${safeHtml(final)}</p></section>${chartHtml}${gptHtml || ""}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml || noMatchHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><section class="section"><h2>关键位置判断</h2><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></section><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
 }
 
 export default async function handler(req, res) {
