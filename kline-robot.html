@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>K线形态相识度AI智能匹配和趋势预测｜十方斋</title>
+  <title>AI智能匹配K线形态&趋势判断｜十方斋</title>
   <meta name="description" content="通过界面选择标的、周期、报告类型，生成K线形态相似度HTML报告。">
   <style>
     :root {
@@ -255,6 +255,9 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 14px;
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
     }
 
     th,
@@ -339,7 +342,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>K线形态相识度AI智能匹配和趋势预测</h1>
+        <h1>AI智能匹配K线形态&趋势判断</h1>
         <div class="brand-meta">
           <p>选择条件，由后端拉取最新行情并生成 HTML 报告。</p>
           <span class="version" id="appVersion">版本加载中</span>
@@ -385,7 +388,7 @@
           </div>
           <div>
             <label>标的</label>
-            <input name="symbol" value="BTC" placeholder="MSTR / BTC / 600570 / 00700">
+            <input name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700">
           </div>
         </div>
 
@@ -402,8 +405,8 @@
           <div>
             <label>K线范围</label>
             <select name="range">
+              <option value="5d" selected>5日</option>
               <option value="10d">10日</option>
-              <option value="5d">5日</option>
               <option value="1mo">1个月</option>
               <option value="3mo">3个月</option>
               <option value="6mo">6个月</option>
@@ -436,7 +439,9 @@
           <option value="5">5根</option>
           <option value="6">6根</option>
           <option value="7">7根</option>
-          <option value="8" selected>8根</option>
+          <option value="8">8根</option>
+          <option value="9">9根</option>
+          <option value="10" selected>10根</option>
         </select>
 
         <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
@@ -459,7 +464,7 @@
     const moduleSummary = document.getElementById('moduleSummary');
 
     const defaultApiBase = 'https://donew-beta.vercel.app';
-    const appVersionText = '2.6.1｜统一形态目录';
+    const appVersionText = '2.7.2｜60%门槛+轮廓兜底';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     let latestBlobUrl = '';
@@ -473,15 +478,17 @@
       return 'flat';
     }
 
-    function normalizeDailyRange() {
+    function syncRangeForInterval() {
       const interval = form.elements.interval.value;
       const range = form.elements.range;
-      if (interval === '1d' && (range.value === '5d' || range.value === '10d')) {
+      if (interval === '1d') {
         range.value = '1mo';
+      } else if (interval === '60m') {
+        range.value = '5d';
       }
     }
 
-    form.elements.interval.addEventListener('change', normalizeDailyRange);
+    form.elements.interval.addEventListener('change', syncRangeForInterval);
     form.querySelectorAll('input[name="modules"]').forEach((item) => {
       item.addEventListener('change', () => {
         const selected = [...form.querySelectorAll('input[name="modules"]:checked')].map((el) => el.closest('label').textContent.trim());
@@ -503,7 +510,7 @@
       updateRunning();
       runTimer = setInterval(updateRunning, 1000);
 
-      normalizeDailyRange();
+      syncRangeForInterval();
       const data = new FormData(form);
 
       const payload = {
