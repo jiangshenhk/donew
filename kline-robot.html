@@ -44,23 +44,13 @@
 
     .brand h1 {
       margin: 0;
-      font-size: 26px;
-      line-height: 1.2;
-      letter-spacing: 0;
-    }
-
-    .brand-meta {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: 8px 12px;
-      margin-top: 7px;
-    }
-
-    .brand-meta p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.6;
+      gap: 10px;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: 0;
     }
 
     .version {
@@ -73,6 +63,7 @@
       color: #61708f;
       font-size: 12px;
       font-weight: 800;
+      line-height: 1;
     }
 
     .home {
@@ -327,14 +318,40 @@
       .home { display: inline-block; margin-top: 10px; }
       .layout { grid-template-columns: 1fr; }
       .cards { grid-template-columns: 1fr 1fr; }
+      .output.panel { min-height: 260px; }
+      iframe { height: 560px; }
     }
 
     @media (max-width: 560px) {
-      .shell { width: min(100vw - 20px, 1180px); padding-top: 16px; }
+      .shell { width: min(100vw - 12px, 1180px); padding: 10px 0 36px; }
+      .topbar { margin-bottom: 8px; }
       .row,
       .module-options,
       .cards { grid-template-columns: 1fr; }
-      .brand h1 { font-size: 23px; }
+      .brand h1 { gap: 7px; font-size: 22px; }
+      .version { padding: 5px 8px; font-size: 11px; }
+      .home { margin-top: 6px; font-size: 13px; }
+      .layout { gap: 10px; }
+      form.panel,
+      .output.panel { padding: 11px; }
+      label { margin: 7px 0 4px; }
+      input,
+      select,
+      textarea,
+      .module-dropdown summary { min-height: 40px; padding: 8px 9px; font-size: 16px; }
+      .module-dropdown[open] .module-options {
+        position: static;
+        margin-top: 6px;
+        box-shadow: none;
+      }
+      .primary { margin-top: 10px; padding: 11px 12px; }
+      .metric { padding: 10px; }
+      .metric span { font-size: 17px; }
+      th,
+      td { padding: 9px; font-size: 13px; }
+      .actions { gap: 8px; }
+      .action { flex: 1 1 140px; min-height: 38px; padding: 8px 10px; }
+      iframe { height: 520px; margin-top: 12px; }
     }
   </style>
 </head>
@@ -342,11 +359,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI智能匹配K线形态&趋势判断</h1>
-        <div class="brand-meta">
-          <p>选择条件，由后端拉取最新行情并生成 HTML 报告。</p>
-          <span class="version" id="appVersion">版本加载中</span>
-        </div>
+        <h1>AI智能匹配K线形态&趋势判断 <span class="version" id="appVersion">版本加载中</span></h1>
       </div>
       <a class="home" href="./#/">返回十方斋</a>
     </div>
@@ -374,6 +387,11 @@
             </select>
           </div>
         </div>
+
+        <label>历史记录</label>
+        <select id="historySelect">
+          <option value="">选择历史标的</option>
+        </select>
 
         <div class="row">
           <div>
@@ -462,11 +480,14 @@
     const preview = document.getElementById('preview');
     const appVersion = document.getElementById('appVersion');
     const moduleSummary = document.getElementById('moduleSummary');
+    const historySelect = document.getElementById('historySelect');
 
-    const defaultApiBase = 'https://donew-beta.vercel.app';
-    const appVersionText = '2.7.2｜60%门槛+轮廓兜底';
+    const query = new URLSearchParams(window.location.search);
+    const defaultApiBase = query.get('apiBase') || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8794' : 'https://donew-beta.vercel.app');
+    const appVersionText = '2.7.6｜历史+手机优化';
     appVersion.textContent = `版本 ${appVersionText}`;
 
+    const historyKey = 'klineRobotHistory.v1';
     let latestBlobUrl = '';
     let latestHtml = '';
     let latestName = 'kline-report.html';
@@ -476,6 +497,80 @@
       if (value === '偏空') return 'bear';
       if (value === '偏多') return 'bull';
       return 'flat';
+    }
+
+    function moduleLabels() {
+      return [...form.querySelectorAll('input[name="modules"]:checked')].map((el) => el.closest('label').textContent.trim());
+    }
+
+    function syncModuleSummary() {
+      const selected = moduleLabels();
+      moduleSummary.textContent = selected.length ? selected.join('、') : '未选择增强模块';
+    }
+
+    function readHistory() {
+      try {
+        const items = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function writeHistory(items) {
+      localStorage.setItem(historyKey, JSON.stringify(items.slice(0, 12)));
+    }
+
+    function marketText(value) {
+      return ({ us: '美股', hk: '港股', cn: 'A股', crypto: '虚拟货币' })[value] || '自动';
+    }
+
+    function renderHistory() {
+      const items = readHistory();
+      historySelect.innerHTML = '<option value="">选择历史标的</option>';
+      items.forEach((item, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = `${item.symbol || '-'} · ${marketText(item.market)} · ${item.interval || ''} · ${item.range || ''}`;
+        historySelect.appendChild(option);
+      });
+    }
+
+    function applyHistory(item) {
+      if (!item) return;
+      form.elements.provider.value = item.provider || 'deepseek';
+      form.elements.menu.value = item.menu || '1';
+      form.elements.market.value = item.market || '';
+      form.elements.symbol.value = item.symbol || '^IXIC';
+      form.elements.interval.value = item.interval || '60m';
+      form.elements.range.value = item.range || (item.interval === '1d' ? '1mo' : '5d');
+      form.elements.maxMatchBars.value = item.maxMatchBars || '10';
+      form.elements.extra.value = item.extra || '';
+      const moduleValues = new Set(item.modules || []);
+      form.querySelectorAll('input[name="modules"]').forEach((input) => {
+        input.checked = moduleValues.has(input.value);
+      });
+      syncModuleSummary();
+    }
+
+    function rememberPayload(payload, displaySymbol) {
+      const clean = {
+        provider: payload.provider || 'deepseek',
+        menu: payload.menu || '1',
+        market: payload.market || '',
+        symbol: payload.symbol || '',
+        displaySymbol: displaySymbol || payload.symbol || '',
+        interval: payload.interval || '60m',
+        range: payload.range || '5d',
+        maxMatchBars: payload.maxMatchBars || '10',
+        modules: payload.modules || [],
+        extra: payload.extra || '',
+        updatedAt: Date.now()
+      };
+      const key = [clean.market, clean.symbol.toUpperCase(), clean.interval, clean.range, clean.maxMatchBars].join('|');
+      const items = readHistory().filter((item) => [item.market, String(item.symbol || '').toUpperCase(), item.interval, item.range, item.maxMatchBars].join('|') !== key);
+      writeHistory([clean, ...items]);
+      renderHistory();
     }
 
     function syncRangeForInterval() {
@@ -490,11 +585,13 @@
 
     form.elements.interval.addEventListener('change', syncRangeForInterval);
     form.querySelectorAll('input[name="modules"]').forEach((item) => {
-      item.addEventListener('change', () => {
-        const selected = [...form.querySelectorAll('input[name="modules"]:checked')].map((el) => el.closest('label').textContent.trim());
-        moduleSummary.textContent = selected.length ? selected.join('、') : '未选择增强模块';
-      });
+      item.addEventListener('change', syncModuleSummary);
     });
+    historySelect.addEventListener('change', () => {
+      const item = readHistory()[Number(historySelect.value)];
+      applyHistory(item);
+    });
+    renderHistory();
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -533,6 +630,7 @@
         });
         const json = await res.json();
         if (!res.ok || !json.ok) throw new Error(json.error || '生成失败');
+        rememberPayload(payload, json.symbol);
 
         latestHtml = json.html;
         latestName = json.filename || 'kline-report.html';

@@ -136,6 +136,35 @@ function displayNameFor(symbol, display, meta) {
   return SYMBOL_NAME_MAP[key] || meta?.shortName || meta?.longName || display;
 }
 
+async function fetchTencentDisplayName(symbol, market) {
+  const selectedMarket = String(market || "").toLowerCase();
+  let query = "";
+  const upper = String(symbol || "").toUpperCase();
+  if (selectedMarket === "cn") {
+    const matched = upper.match(/^(\d{6})\.(SS|SZ)$/);
+    if (!matched) return "";
+    query = `${matched[2] === "SS" ? "sh" : "sz"}${matched[1]}`;
+  } else if (selectedMarket === "hk") {
+    const matched = upper.match(/^(\d{4})\.HK$/);
+    if (!matched) return "";
+    query = `hk0${matched[1]}`;
+  } else {
+    return "";
+  }
+  try {
+    const res = await fetch(`https://qt.gtimg.cn/q=${query}`, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!res.ok) return "";
+    const buffer = await res.arrayBuffer();
+    const text = new TextDecoder("gb18030").decode(buffer);
+    const body = text.split('"')[1] || "";
+    const fields = body.split("~");
+    const name = fields[1] || "";
+    return /[\u4e00-\u9fff]/.test(name) ? name : "";
+  } catch {
+    return "";
+  }
+}
+
 function safeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -218,9 +247,10 @@ async function resolveMarketBars(rawSymbol, selectedMarket, range, interval) {
       const symbol = normalizeSymbol(rawSymbol, market);
       const data = await fetchYahooBars(symbol.yahoo, range, interval);
       const timezone = data.meta?.exchangeTimezoneName || "UTC";
+      const chineseName = await fetchTencentDisplayName(symbol.yahoo, market);
       return {
         ...symbol,
-        displayName: displayNameFor(symbol.yahoo, symbol.display, data.meta),
+        displayName: chineseName || displayNameFor(symbol.yahoo, symbol.display, data.meta),
         market,
         timezone,
         timeLabel: marketTimeLabel(market, timezone),
@@ -641,6 +671,22 @@ function patternCatalogEntry(name) {
   return PATTERN_CATALOG.find((pattern) => pattern.name === canonical) || null;
 }
 
+function patternLengthRange(name) {
+  const catalog = patternCatalogEntry(name);
+  const value = String(catalog?.bars || "").trim();
+  const range = value.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (range) return { min: Number(range[1]), max: Number(range[2]) };
+  const exact = value.match(/^\d+$/);
+  if (exact) return { min: Number(value), max: Number(value) };
+  const template = PATTERN_TEMPLATE_LIBRARY[patternTemplateKey(name)] || [];
+  return { min: template.length || 1, max: template.length || 1 };
+}
+
+function isAllowedPatternLength(name, length) {
+  const range = patternLengthRange(name);
+  return length >= range.min && length <= range.max;
+}
+
 function patternTemplateKey(name) {
   const raw = String(name || "").trim();
   if (PATTERN_TEMPLATE_LIBRARY[raw]) return raw;
@@ -753,7 +799,9 @@ function shapeSimilarityScore(actualBars, templateBars) {
 }
 
 function addPattern(candidates, bars, data) {
-  if (data.endIndex - data.startIndex + 1 < 1) return;
+  const length = data.endIndex - data.startIndex + 1;
+  if (length < 1) return;
+  if (!isAllowedPatternLength(data.name, length)) return;
   if (!Number.isFinite(data.score) || data.score < MIN_PATTERN_SCORE) return;
   const card = makeCard(bars, data);
   if (card.score >= MIN_PATTERN_SCORE) candidates.push(card);
@@ -767,7 +815,8 @@ function addTemplateSweepCandidates(candidates, bars, maxBars) {
     const actual = bars.slice(startIndex, n);
     for (const [name, templateRaw] of Object.entries(PATTERN_TEMPLATE_LIBRARY)) {
       const template = templateRaw.map(([open, high, low, close], index) => ({ date: String(index + 1), open, high, low, close }));
-      if (Math.abs(template.length - len) > Math.max(1, Math.floor(len / 3))) continue;
+      if (!isAllowedPatternLength(name, len)) continue;
+      if (template.length !== len) continue;
       const shapeScore = shapeSimilarityScore(actual, template);
       if (shapeScore < MIN_PATTERN_SCORE) continue;
       const catalog = patternCatalogEntry(name);
@@ -1280,11 +1329,10 @@ function aiPrompt() {
     "你是K线形态相似度与卖Put风险判断AI。请基于输入JSON生成简短中文HTML解读。",
     "只返回HTML片段，不要返回Markdown代码块，不要使用style属性。",
     "根节点必须是 <section class=\"section ai-brief\"><h2>AI 综合解读</h2>。",
-    "结构必须包含三块：",
+    "结构必须包含两块：",
     "1. <div class=\"ai-thesis\"><strong>核心判断：</strong>...</div>，一句话说明主方向和风险优先级。",
     `2. <ol class="ai-top5"> 写超过${MIN_PATTERN_SCORE}%的匹配形态概括；如没有超过${MIN_PATTERN_SCORE}%的形态，明确说明暂无高可信经典形态，并解释是规则分或图形分未同时达标，不要强行套形态。`,
-    "3. <p class=\"ai-risk\"> 写风险提示。",
-    `要求：最终结论前置；禁止确定性语言；必须提到超过${MIN_PATTERN_SCORE}%的形态概括或无高可信匹配原因；文字克制、可扫描。确认位和失败位已经在K线图标注，不要再单独输出确认/失败位卡片。`,
+    `要求：最终结论前置；禁止确定性语言；必须提到超过${MIN_PATTERN_SCORE}%的形态概括或无高可信匹配原因；文字克制、可扫描。确认位和失败位已经在K线图标注，不要再单独输出确认/失败位卡片，也不要输出风险提示段。`,
   ].join("\n");
 }
 
@@ -1292,12 +1340,29 @@ function aiFailureHtml(providerName, detail) {
   return `<section class="section"><h2>AI 综合解读</h2><p>${safeHtml(providerName)} 调用失败，已保留规则版报告。${safeHtml(detail || "")}</p></section>`;
 }
 
+function colorAiBiasText(html) {
+  return String(html || "")
+    .split(/(<[^>]+>)/g)
+    .map((part) => {
+      if (part.startsWith("<")) return part;
+      return part
+        .replaceAll("偏多", '<span class="ai-bias ai-bull">偏多</span>')
+        .replaceAll("偏空", '<span class="ai-bias ai-bear">偏空</span>')
+        .replaceAll("中性", '<span class="ai-bias ai-flat">中性</span>');
+    })
+    .join("");
+}
+
 function normalizeAiHtml(html) {
-  const text = String(html || "")
+  let text = String(html || "")
     .replace(/```html/gi, "")
     .replace(/```/g, "")
     .trim();
   if (!text) return '<section class="section ai-brief"><h2>AI 综合解读</h2><p>AI 已调用，但返回内容为空。</p></section>';
+  text = text.replace(/<p\b[^>]*class=["'][^"']*ai-risk[^"']*["'][^>]*>[\s\S]*?<\/p>/gi, "");
+  text = text.replace(/<p\b[^>]*>[\s\S]*?所有匹配均基于图形轮廓相似度[\s\S]*?<\/p>/gi, "");
+  text = text.replace(/所有匹配均基于图形轮廓相似度[\s\S]*?(?:<\/section>|$)/gi, "</section>");
+  text = colorAiBiasText(text);
   if (/class=["'][^"']*ai-brief/.test(text)) return text;
   if (/<section\b/i.test(text)) {
     return text.replace(/<section\b([^>]*)>/i, (match, attrs) => {
@@ -1610,7 +1675,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   const topMatchHtml = `<div class="top-match"><h2>超过${MIN_PATTERN_SCORE}%的形态匹配</h2><p>只匹配最新末尾K线，按倒数1根到最多${safeHtml(maxMatchBars)}根检测；匹配度采用规则分与图形DTW相似度的保守值。</p>${cards.length ? `<table><thead><tr><th>形态</th><th>匹配条数</th><th>匹配度</th><th>方向</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table>` : noMatchHtml}</div>`;
   const cardHtml = cards
     .map(
-      (c, idx) => `<article class="card"><div class="head"><div><h2>匹配 ${idx + 1} · ${safeHtml(c.name)} · ${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</h2><p>匹配区间：${safeHtml(c.range)}；匹配K线：${safeHtml(c.matchBars)}根；规则分/图形分：${safeHtml(c.ruleScore)}% / ${safeHtml(c.shapeScore)}%</p></div><div class="score">${c.score}%<span>${safeHtml(c.matchBars)}根K线匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>规则库标准轮廓</h3>${patternSketchSvg(c)}</div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>确认/失败位</th><td><span class="price">${safeHtml(c.confirm)}</span> / <span class="price">${safeHtml(c.failure)}</span></td></tr></table></div></article>`
+      (c, idx) => `<article class="card"><div class="head"><div><h2>匹配 ${idx + 1} · ${safeHtml(c.name)} · ${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</h2><p>匹配区间（市场时间）：${safeHtml(c.range)}；匹配K线：${safeHtml(c.matchBars)}根；规则分/图形分：${safeHtml(c.ruleScore)}% / ${safeHtml(c.shapeScore)}%</p></div><div class="score">${c.score}%<span>${safeHtml(c.matchBars)}根K线匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>规则库标准轮廓</h3>${patternSketchSvg(c)}</div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>确认/失败位</th><td><span class="price">${safeHtml(c.confirm)}</span> / <span class="price">${safeHtml(c.failure)}</span></td></tr></table></div></article>`
     )
     .join("");
   const matrix = [
@@ -1641,7 +1706,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     e20,
   });
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
-:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px;display:block;overflow-x:auto;white-space:nowrap}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 strong{color:#edf2ff}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-risk{border-top:1px solid rgba(255,255,255,.10);padding-top:12px;margin-top:14px;color:#f0c7c7}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:14px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:18px}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 10px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}@media(max-width:760px){.compare{grid-template-columns:1fr}.head{display:block}.score{text-align:left;margin-top:10px}.wrap{padding-left:12px;padding-right:12px}h1{font-size:24px}.section,.hero{padding:16px}.visual-box{margin-left:0;margin-right:0}.detail-box{margin-left:0;margin-right:0}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><p class="sub">模式：${safeHtml(options.menu)}；数据源：Yahoo Finance；周期 ${safeHtml(intervalText)}；最新K线可能随交易继续变化。</p><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(intervalText)}</div><div class="pill">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div></div>${topMatchHtml}</section>${chartHtml}${gptHtml || ""}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml || noMatchHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><details class="section collapsible"><summary><h2>关键位置判断</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></details><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
+:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px;display:block;overflow-x:auto;white-space:nowrap}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 strong{color:#edf2ff}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-bias{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;font-weight:800}.ai-bull{color:#ff7a88;background:rgba(255,122,136,.12)}.ai-bear{color:#40d98a;background:rgba(64,217,138,.12)}.ai-flat{color:#ffd166;background:rgba(255,209,102,.12)}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:14px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:18px;align-items:stretch}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0;display:flex;flex-direction:column}.chart-panel h3{min-height:24px}.chart-panel .chart{flex:1;min-height:300px}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 10px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}@media(max-width:760px){.compare{grid-template-columns:1fr}.head{display:block}.score{text-align:left;margin-top:10px}.wrap{padding-left:12px;padding-right:12px}h1{font-size:24px}.section,.hero{padding:16px}.visual-box{margin-left:0;margin-right:0}.detail-box{margin-left:0;margin-right:0}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><p class="sub">模式：${safeHtml(options.menu)}；数据源：Yahoo Finance；周期 ${safeHtml(intervalText)}；最新K线可能随交易继续变化。</p><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(intervalText)}</div><div class="pill">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div></div>${topMatchHtml}</section>${gptHtml || ""}${chartHtml}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml || noMatchHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><details class="section collapsible"><summary><h2>关键位置判断</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></details><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
 }
 
 export default async function handler(req, res) {
