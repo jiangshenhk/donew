@@ -1484,7 +1484,7 @@ function candleChartSvg(bars, cards, keyLevels = {}) {
   const volumeHeight = 70;
   const innerWidth = width - pad.left - pad.right;
   const trendPaths = Array.isArray(keyLevels.trendPaths) ? keyLevels.trendPaths : [];
-  const futureSlots = trendPaths.length ? 8 : 0;
+  const futureSlots = trendPaths.length ? 12 : 0;
   const keyLineItems = [
     { value: keyLevels.failure ?? keyLevels.support, color: "#40d98a", label: "失败" },
     { value: keyLevels.latest, color: "#edf2ff", label: "最新" },
@@ -1562,14 +1562,14 @@ function candleChartSvg(bars, cards, keyLevels = {}) {
       const controlX = startX + (endX - startX) * 0.48;
       const labelWidth = path.name === "震荡" ? 198 : 174;
       const labelHeight = 48;
-      const safeRightGap = 78;
+      const safeRightGap = 18;
       const labelRight = width - pad.right - safeRightGap;
       const labelX = Math.max(pad.left, labelRight - labelWidth);
       const rawLabelY = path.name === "偏多"
-        ? Math.min(targetY - labelHeight - 16, pad.top + 72)
+        ? pad.top + 22
         : path.name === "偏空"
-          ? Math.max(targetY + 14, pad.top + priceHeight - labelHeight - 42)
-          : Math.min(Math.max(midY + 12, pad.top + 150), pad.top + priceHeight - labelHeight - 70);
+          ? pad.top + priceHeight - labelHeight - 10
+          : pad.top + priceHeight * 0.58;
       const labelY = Math.max(pad.top + 12, Math.min(pad.top + priceHeight - labelHeight - 8, rawLabelY));
       return `<path d="M ${startX.toFixed(1)} ${startY.toFixed(1)} Q ${controlX.toFixed(1)} ${midY.toFixed(1)} ${endX.toFixed(1)} ${targetY.toFixed(1)}" fill="none" stroke="${path.color}" stroke-width="2.4" stroke-dasharray="8 6" marker-end="url(#trendArrow${index})" opacity=".95"/><rect x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" width="${labelWidth}" height="${labelHeight}" rx="9" fill="#0b1227" stroke="${path.color}" stroke-width="1.6" opacity=".96"/><line x1="${(labelX + 12).toFixed(1)}" y1="${(labelY + 18).toFixed(1)}" x2="${(labelX + 34).toFixed(1)}" y2="${(labelY + 18).toFixed(1)}" stroke="${path.color}" stroke-width="2.6" stroke-dasharray="6 5"/><text x="${(labelX + 44).toFixed(1)}" y="${(labelY + 23).toFixed(1)}" fill="${path.color}" font-size="15" font-weight="800">${safeHtml(path.name)} ${safeHtml(path.probability)}%</text><text x="${(labelX + 12).toFixed(1)}" y="${(labelY + 40).toFixed(1)}" fill="#cbd6ef" font-size="12">${safeHtml(path.trigger)}</text>`;
     })
