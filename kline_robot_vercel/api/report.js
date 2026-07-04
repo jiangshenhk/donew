@@ -117,7 +117,7 @@ function marketOrderFor(rawSymbol, selectedMarket) {
 }
 
 function normalizeRangeForInterval(range, interval) {
-  const normalizedInterval = String(interval || "60m").toLowerCase();
+  const normalizedInterval = String(interval || "1d").toLowerCase();
   const normalizedRange = String(range || (normalizedInterval === "1d" ? "1mo" : "5d"));
   if (normalizedInterval === "1d" && ["5d", "10d"].includes(normalizedRange)) return "1mo";
   return normalizedRange;
@@ -1484,6 +1484,8 @@ function candleChartSvg(bars, cards, keyLevels = {}) {
   const volumeHeight = 70;
   const innerWidth = width - pad.left - pad.right;
   const trendPaths = Array.isArray(keyLevels.trendPaths) ? keyLevels.trendPaths : [];
+  const historicalTrendStats = keyLevels.historicalTrendStats;
+  const hasHistoricalTrendStats = historicalTrendStats && !historicalTrendStats.insufficient && historicalTrendStats.valid >= 8;
   const futureSlots = trendPaths.length ? 12 : 0;
   const keyLineItems = [
     { value: keyLevels.failure ?? keyLevels.support, color: "#40d98a", label: "失败" },
@@ -1574,7 +1576,11 @@ function candleChartSvg(bars, cards, keyLevels = {}) {
       return `<path d="M ${startX.toFixed(1)} ${startY.toFixed(1)} Q ${controlX.toFixed(1)} ${midY.toFixed(1)} ${endX.toFixed(1)} ${targetY.toFixed(1)}" fill="none" stroke="${path.color}" stroke-width="2.4" stroke-dasharray="8 6" marker-end="url(#trendArrow${index})" opacity=".95"/><rect x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" width="${labelWidth}" height="${labelHeight}" rx="9" fill="#0b1227" stroke="${path.color}" stroke-width="1.6" opacity=".96"/><line x1="${(labelX + 12).toFixed(1)}" y1="${(labelY + 18).toFixed(1)}" x2="${(labelX + 34).toFixed(1)}" y2="${(labelY + 18).toFixed(1)}" stroke="${path.color}" stroke-width="2.6" stroke-dasharray="6 5"/><text x="${(labelX + 44).toFixed(1)}" y="${(labelY + 23).toFixed(1)}" fill="${path.color}" font-size="15" font-weight="800">${safeHtml(path.name)} ${safeHtml(path.probability)}%</text><text x="${(labelX + 12).toFixed(1)}" y="${(labelY + 40).toFixed(1)}" fill="#cbd6ef" font-size="12">${safeHtml(path.trigger)}</text>`;
     })
     .join("");
-  const trendNote = trendPaths.length ? "；右侧虚线箭头为测试模式模拟路径，标注概率与触发条件" : "";
+  const trendNote = trendPaths.length
+    ? hasHistoricalTrendStats
+      ? `；右侧虚线箭头为历史样本统计路径，样本 ${safeHtml(historicalTrendStats.valid)}，后 ${safeHtml(historicalTrendStats.horizon)} 根K线`
+      : "；右侧虚线箭头为测试模式模拟路径，标注概率与触发条件"
+    : "";
   return `<section class="section chart-section"><h2>价格图形 + 未来方向概率</h2><p>最近 ${chartBars.length} 根K线，已在图上标注关键位置${trendNote}。</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}">${trendDefs}<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量 · 关键位置</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${keyLines}${labels}<circle cx="${startX.toFixed(1)}" cy="${startY.toFixed(1)}" r="4" fill="#edf2ff"/>${trendOverlay}</svg></div></section>`;
 }
 
@@ -1682,7 +1688,108 @@ function intervalLabel(interval) {
   return value;
 }
 
-function futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14 }) {
+function historicalScanRange(interval) {
+  const value = String(interval || "1d").toLowerCase();
+  if (value === "1d") return "5y";
+  if (value === "60m") return "60d";
+  if (value === "30m") return "30d";
+  if (value === "15m") return "30d";
+  return "1y";
+}
+
+function marketSampleSymbols(market, currentYahoo) {
+  const current = String(currentYahoo || "").toUpperCase();
+  const samples = {
+    us: ["^IXIC", "QQQ", "SPY", "AAPL", "NVDA", "TSLA", "MSTR"],
+    hk: ["^HSI", "0700.HK", "9988.HK", "3690.HK", "0388.HK", "1299.HK"],
+    cn: ["000001.SS", "399001.SZ", "600570.SS", "600519.SS", "000858.SZ", "300750.SZ"],
+    crypto: ["BTC-USD", "ETH-USD", "SOL-USD"],
+  }[String(market || "us").toLowerCase()] || ["^IXIC", "QQQ", "SPY"];
+  return [current, ...samples.map((item) => String(item).toUpperCase())]
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index)
+    .slice(0, 5);
+}
+
+async function fetchHistoricalSampleSets({ yahoo, market, interval, scope }) {
+  const symbols = String(scope || "0") === "1" ? marketSampleSymbols(market, yahoo) : [String(yahoo || "").toUpperCase()];
+  const range = historicalScanRange(interval);
+  const sets = [];
+  for (const symbol of symbols) {
+    try {
+      const data = await fetchYahooBars(symbol, range, interval);
+      if (data.bars.length >= 40) sets.push({ symbol, bars: data.bars });
+    } catch {
+      // Some cross-market samples may not exist for every interval; skip quietly.
+    }
+  }
+  return sets;
+}
+
+function outcomeThresholdPercent(bars, endIndex) {
+  const start = Math.max(1, endIndex - 20);
+  const slice = bars.slice(start, endIndex + 1);
+  if (!slice.length) return 0.6;
+  const avgRangePct = slice.reduce((sum, bar) => sum + ((bar.high - bar.low) / Math.max(Math.abs(bar.close), 1)) * 100, 0) / slice.length;
+  return Math.max(0.35, Math.min(2.5, avgRangePct * 0.35));
+}
+
+function matchingHistoricalCard(historyCards, currentCards) {
+  for (const current of currentCards) {
+    const matched = historyCards.find((card) => card.canonicalName === current.canonicalName && card.matchBars === current.matchBars);
+    if (matched) return matched;
+  }
+  for (const current of currentCards) {
+    const matched = historyCards.find((card) => card.canonicalName === current.canonicalName);
+    if (matched) return matched;
+  }
+  return null;
+}
+
+function scanHistoricalTrendStats(sampleSets, currentCards, maxMatchBars, horizon = 5) {
+  if (!currentCards.length || !sampleSets.length) return null;
+  const patternNames = currentCards.map((card) => card.canonicalName || card.name).filter(Boolean);
+  const counts = { bull: 0, bear: 0, flat: 0 };
+  let total = 0;
+  let valid = 0;
+  for (const set of sampleSets) {
+    const bars = set.bars || [];
+    const firstEnd = Math.max(30, Number(maxMatchBars) + 20);
+    const lastEnd = bars.length - horizon - 2;
+    const scanStart = Math.max(firstEnd, lastEnd - 900);
+    for (let endIndex = scanStart; endIndex <= lastEnd; endIndex++) {
+      const historyCards = patternCards(bars.slice(0, endIndex + 1), maxMatchBars);
+      const matched = matchingHistoricalCard(historyCards, currentCards);
+      if (!matched) continue;
+      total += 1;
+      const future = bars[endIndex + horizon];
+      if (!future) continue;
+      const change = pct(bars[endIndex].close, future.close);
+      const threshold = outcomeThresholdPercent(bars, endIndex);
+      valid += 1;
+      if (change >= threshold) counts.bull += 1;
+      else if (change <= -threshold) counts.bear += 1;
+      else counts.flat += 1;
+    }
+  }
+  if (!valid) return { total, valid, horizon, patternNames, insufficient: true };
+  const ratio = (value) => Math.round((value / valid) * 100);
+  return {
+    total,
+    valid,
+    horizon,
+    patternNames,
+    insufficient: valid < 8,
+    bull: counts.bull,
+    bear: counts.bear,
+    flat: counts.flat,
+    bullProbability: ratio(counts.bull),
+    bearProbability: ratio(counts.bear),
+    flatProbability: ratio(counts.flat),
+  };
+}
+
+function futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats }) {
   const bullCount = cards.filter((card) => card.bias === "偏多").length;
   const bearCount = cards.filter((card) => card.bias === "偏空").length;
   const flatCount = cards.filter((card) => card.bias === "中性").length;
@@ -1704,30 +1811,35 @@ function futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60
   const bullTarget = Math.max(pressure2, pressure1, last.close * 1.01);
   const bearTarget = Math.min(support, last.close * 0.99);
   const flatTarget = (Math.max(pressure1, last.close) + Math.min(support, last.close)) / 2;
+  const hasHistory = historicalTrendStats && !historicalTrendStats.insufficient && historicalTrendStats.valid >= 8;
+  const bullProbability = hasHistory ? historicalTrendStats.bullProbability : probability(scores.bull);
+  const bearProbability = hasHistory ? historicalTrendStats.bearProbability : probability(scores.bear);
+  const flatProbability = hasHistory ? historicalTrendStats.flatProbability : probability(scores.flat);
+  const historySuffix = hasHistory ? `｜样本${historicalTrendStats.valid}` : "";
   return [
     {
       name: "偏多",
       color: "#ff7a88",
-      probability: probability(scores.bull),
+      probability: bullProbability,
       target: bullTarget,
       mid: Math.max(pressure1, (last.close + bullTarget) / 2),
-      trigger: `站回${formatPrice(pressure1)}`,
+      trigger: `站回${formatPrice(pressure1)}${historySuffix}`,
     },
     {
       name: "偏空",
       color: "#40d98a",
-      probability: probability(scores.bear),
+      probability: bearProbability,
       target: bearTarget,
       mid: Math.min(support, (last.close + bearTarget) / 2),
-      trigger: `跌破${formatPrice(support)}`,
+      trigger: `跌破${formatPrice(support)}${historySuffix}`,
     },
     {
       name: "震荡",
       color: "#ffd166",
-      probability: probability(scores.flat),
+      probability: flatProbability,
       target: flatTarget,
       mid: last.close,
-      trigger: `区间${formatPrice(support)}-${formatPrice(pressure1)}`,
+      trigger: `区间${formatPrice(support)}-${formatPrice(pressure1)}${historySuffix}`,
     },
   ].sort((a, b) => b.probability - a.probability);
 }
@@ -1778,7 +1890,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     .map((r) => `<tr><td class="price">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`)
     .join("");
   const trendPaths = String(options.menu || "") === "9"
-    ? futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14 })
+    ? futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats: options.historicalTrendStats })
     : [];
   const chartHtml = candleChartSvg(bars, cards, {
     failure: support,
@@ -1787,6 +1899,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     pressure: pressure2,
     e20,
     trendPaths,
+    historicalTrendStats: options.historicalTrendStats,
   });
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
 :root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px;display:block;overflow-x:auto;white-space:nowrap}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 strong{color:#edf2ff}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-bias{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;font-weight:800}.ai-bull{color:#ff7a88;background:rgba(255,122,136,.12)}.ai-bear{color:#40d98a;background:rgba(64,217,138,.12)}.ai-flat{color:#ffd166;background:rgba(255,209,102,.12)}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:14px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:18px;align-items:stretch}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0;display:flex;flex-direction:column}.chart-panel h3{min-height:24px}.chart-panel .chart{flex:1;min-height:300px}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 10px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}@media(max-width:760px){.compare{grid-template-columns:1fr}.head{display:block}.score{text-align:left;margin-top:10px}.wrap{padding-left:12px;padding-right:12px}h1{font-size:24px}.section,.hero{padding:16px}.visual-box{margin-left:0;margin-right:0}.detail-box{margin-left:0;margin-right:0}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><p class="sub">模式：${safeHtml(options.menu)}；数据源：Yahoo Finance；周期 ${safeHtml(intervalText)}；最新K线可能随交易继续变化。</p><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(intervalText)}</div><div class="pill">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div></div>${topMatchHtml}</section>${gptHtml || ""}${chartHtml}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml || noMatchHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><details class="section collapsible"><summary><h2>关键位置判断</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></details><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
@@ -1799,14 +1912,20 @@ export default async function handler(req, res) {
   try {
     const data = req.body || {};
     const provider = data.provider || "deepseek";
-    const interval = data.interval || "60m";
+    const interval = data.interval || "1d";
     const requestedRange = data.range || (interval === "1d" ? "1mo" : "5d");
     const maxMatchBars = Math.max(1, Math.min(10, Number(data.maxMatchBars) || 10));
     const trendSampleScope = String(data.trendSampleScope ?? "0") === "1" ? "1" : "0";
     const range = normalizeRangeForInterval(requestedRange, interval);
     const resolved = await resolveMarketBars(data.symbol || "^IXIC", data.market, range, interval);
-    const { display, displayName, market, bars, timeLabel, timezone } = resolved;
+    const { yahoo, display, displayName, market, bars, timeLabel, timezone } = resolved;
     const cards = patternCards(bars, maxMatchBars);
+    const historicalSampleSets = String(data.menu || "1") === "9"
+      ? await fetchHistoricalSampleSets({ yahoo, market, interval, scope: trendSampleScope })
+      : [];
+    const historicalTrendStats = String(data.menu || "1") === "9"
+      ? scanHistoricalTrendStats(historicalSampleSets, cards, maxMatchBars, 5)
+      : null;
     const options = {
       menu: data.menu || "1",
       provider,
@@ -1815,6 +1934,7 @@ export default async function handler(req, res) {
       timeLabel,
       maxMatchBars,
       trendSampleScope,
+      historicalTrendStats,
       modules: data.modules || [],
       extra: data.extra || "",
     };
@@ -1826,6 +1946,7 @@ export default async function handler(req, res) {
       latest_bar: bars.at(-1),
       recent_bars: bars.slice(-14),
       top5: cards.map((card, idx) => ({ rank: idx + 1, ...card })),
+      historical_trend_stats: historicalTrendStats,
       options,
     };
     const ai = await callAI(payload, provider);
@@ -1844,6 +1965,7 @@ export default async function handler(req, res) {
       used_gpt: ai.used,
       ai_provider: ai.provider,
       trend_sample_scope: trendSampleScope,
+      historical_trend_stats: historicalTrendStats,
       message: ai.message,
       filename,
       html,

@@ -418,15 +418,15 @@
               <option value="60m">60分钟</option>
               <option value="30m">30分钟</option>
               <option value="15m">15分钟</option>
-              <option value="1d">日线</option>
+              <option value="1d" selected>日线</option>
             </select>
           </div>
           <div>
             <label>K线范围</label>
             <select name="range">
-              <option value="5d" selected>5日</option>
+              <option value="5d">5日</option>
               <option value="10d">10日</option>
-              <option value="1mo">1个月</option>
+              <option value="1mo" selected>1个月</option>
               <option value="3mo">3个月</option>
               <option value="6mo">6个月</option>
             </select>
@@ -494,7 +494,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.8.6｜趋势样本范围';
+    const appVersionText = '2.8.8｜历史胜率';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -552,7 +552,7 @@
       form.elements.menu.value = item.menu || '1';
       form.elements.market.value = item.market || '';
       form.elements.symbol.value = item.symbol || '^IXIC';
-      form.elements.interval.value = item.interval || '60m';
+      form.elements.interval.value = item.interval || '1d';
       form.elements.range.value = item.range || (item.interval === '1d' ? '1mo' : '5d');
       form.elements.maxMatchBars.value = item.maxMatchBars || '10';
       form.elements.trendSampleScope.value = item.trendSampleScope || '0';
@@ -571,8 +571,8 @@
         market: payload.market || '',
         symbol: payload.symbol || '',
         displaySymbol: displaySymbol || payload.symbol || '',
-        interval: payload.interval || '60m',
-        range: payload.range || '5d',
+        interval: payload.interval || '1d',
+        range: payload.range || '1mo',
         maxMatchBars: payload.maxMatchBars || '10',
         trendSampleScope: payload.trendSampleScope || '0',
         modules: payload.modules || [],
