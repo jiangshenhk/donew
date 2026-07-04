@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI智能匹配K线形态&趋势判断｜十方斋</title>
+  <meta name="description" content="通过界面选择标的、周期、报告类型，生成K线形态相似度HTML报告。">
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #64748b;
+      --line: #dfe5ef;
+      --blue: #2563eb;
+      --ink: #0f172a;
+      --red: #b42336;
+      --green: #067647;
+      --gold: #b7791f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    .shell {
+      width: min(1220px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 18px 0 56px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .version {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #61708f;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .home {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, .06);
+    }
+
+    form.panel {
+      padding: 14px;
+    }
+
+    .output.panel {
+      padding: 16px;
+      min-height: 420px;
+    }
+
+    label {
+      display: block;
+      margin: 9px 0 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--text);
+      background: #fff;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 38px;
+      resize: none;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .module-dropdown {
+      position: relative;
+      margin-top: 0;
+    }
+
+    .module-dropdown summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .module-dropdown summary::-webkit-details-marker { display: none; }
+
+    .module-options {
+      position: absolute;
+      z-index: 5;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, .14);
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 7px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      margin: 0;
+    }
+
+    .check input { width: auto; }
+
+    .primary {
+      width: 100%;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 6px;
+      padding: 11px 14px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .primary:disabled {
+      opacity: .7;
+      cursor: wait;
+    }
+
+    .hint,
+    .status {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .warning {
+      margin-top: 14px;
+      padding: 11px 12px;
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      background: #fbfcff;
+    }
+
+    .metric b {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric span {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #334155;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .bear { background: #ecfdf3; color: var(--green); }
+    .bull { background: #fff1f3; color: var(--red); }
+    .flat { background: #f1f5f9; color: #475569; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 9px 13px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 800;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .action.secondary {
+      background: #eef2ff;
+      color: #3730a3;
+    }
+
+    iframe {
+      width: 100%;
+      height: 680px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-top: 16px;
+      background: #fff;
+    }
+
+    @media (max-width: 900px) {
+      .topbar { display: block; }
+      .home { display: inline-block; margin-top: 10px; }
+      .layout { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr 1fr; }
+      .output.panel { min-height: 260px; }
+      iframe { height: 560px; }
+    }
+
+    @media (max-width: 560px) {
+      .shell { width: min(100vw - 12px, 1180px); padding: 10px 0 36px; }
+      .topbar { margin-bottom: 8px; }
+      .row,
+      .module-options,
+      .cards { grid-template-columns: 1fr; }
+      .brand h1 { gap: 7px; font-size: 22px; }
+      .version { padding: 5px 8px; font-size: 11px; }
+      .home { margin-top: 6px; font-size: 13px; }
+      .layout { gap: 10px; }
+      form.panel,
+      .output.panel { padding: 11px; }
+      label { margin: 7px 0 4px; }
+      input,
+      select,
+      textarea,
+      .module-dropdown summary { min-height: 40px; padding: 8px 9px; font-size: 16px; }
+      .module-dropdown[open] .module-options {
+        position: static;
+        margin-top: 6px;
+        box-shadow: none;
+      }
+      .primary { margin-top: 10px; padding: 11px 12px; }
+      .metric { padding: 10px; }
+      .metric span { font-size: 17px; }
+      th,
+      td { padding: 9px; font-size: 13px; }
+      .actions { gap: 8px; }
+      .action { flex: 1 1 140px; min-height: 38px; padding: 8px 10px; }
+      iframe { height: 520px; margin-top: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <h1>AI智能匹配K线形态&趋势判断 <span class="version" id="appVersion">版本加载中</span></h1>
+      </div>
+      <a class="home" href="./#/">返回十方斋</a>
+    </div>
+
+    <div class="layout">
+      <form id="reportForm" class="panel">
+        <div class="row">
+          <div>
+            <label>AI 提供商</label>
+            <select name="provider">
+              <option value="deepseek" selected>DeepSeek</option>
+              <option value="openai">GPT</option>
+            </select>
+          </div>
+          <div>
+            <label>报告类型</label>
+            <select name="menu">
+              <option value="1">1 相似度</option>
+              <option value="2">2 卖Put</option>
+              <option value="3">3 指定形态</option>
+              <option value="4">4 多周期</option>
+              <option value="6">6 完整诊断</option>
+              <option value="7">7 期权风险</option>
+              <option value="8">8 保值/对冲</option>
+            </select>
+          </div>
+        </div>
+
+        <label>历史记录</label>
+        <select id="historySelect">
+          <option value="">选择历史标的</option>
+        </select>
+
+        <div class="row">
+          <div>
+            <label>市场</label>
+            <select name="market">
+              <option value="" selected>自动识别</option>
+              <option value="us">美股</option>
+              <option value="hk">港股</option>
+              <option value="cn">A股</option>
+              <option value="crypto">虚拟货币</option>
+            </select>
+          </div>
+          <div>
+            <label>标的</label>
+            <input name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700">
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>周期</label>
+            <select name="interval">
+              <option value="60m">60分钟</option>
+              <option value="30m">30分钟</option>
+              <option value="15m">15分钟</option>
+              <option value="1d">日线</option>
+            </select>
+          </div>
+          <div>
+            <label>K线范围</label>
+            <select name="range">
+              <option value="5d" selected>5日</option>
+              <option value="10d">10日</option>
+              <option value="1mo">1个月</option>
+              <option value="3mo">3个月</option>
+              <option value="6mo">6个月</option>
+            </select>
+          </div>
+        </div>
+
+        <label>增强模块</label>
+        <details class="module-dropdown" id="moduleDropdown">
+          <summary><span id="moduleSummary">未选择增强模块</span><span>▾</span></summary>
+          <div class="module-options">
+            <label class="check"><input type="checkbox" name="modules" value="top5"> Top形态匹配</label>
+            <label class="check"><input type="checkbox" name="modules" value="momentum"> 动量</label>
+            <label class="check"><input type="checkbox" name="modules" value="volume"> 成交量</label>
+            <label class="check"><input type="checkbox" name="modules" value="sellput"> 卖Put</label>
+            <label class="check"><input type="checkbox" name="modules" value="options"> 期权</label>
+            <label class="check"><input type="checkbox" name="modules" value="hedge"> 保值</label>
+          </div>
+        </details>
+
+        <label>额外要求</label>
+        <input name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。">
+
+        <label>最大匹配条数</label>
+        <select name="maxMatchBars">
+          <option value="1">1根</option>
+          <option value="2">2根</option>
+          <option value="3">3根</option>
+          <option value="4">4根</option>
+          <option value="5">5根</option>
+          <option value="6">6根</option>
+          <option value="7">7根</option>
+          <option value="8">8根</option>
+          <option value="9">9根</option>
+          <option value="10" selected>10根</option>
+        </select>
+
+        <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
+      </form>
+
+      <main class="output panel">
+        <h2>生成结果</h2>
+        <div id="result" class="status">请先选择条件，然后点击生成报告。</div>
+        <div id="preview"></div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('reportForm');
+    const btn = document.getElementById('submitBtn');
+    const result = document.getElementById('result');
+    const preview = document.getElementById('preview');
+    const appVersion = document.getElementById('appVersion');
+    const moduleSummary = document.getElementById('moduleSummary');
+    const historySelect = document.getElementById('historySelect');
+
+    const query = new URLSearchParams(window.location.search);
+    const defaultApiBase = query.get('apiBase')
+      || (window.location.protocol === 'file:'
+        ? 'http://127.0.0.1:8794'
+        : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
+    const appVersionText = '2.7.6｜历史+手机优化';
+    appVersion.textContent = `版本 ${appVersionText}`;
+
+    const historyKey = 'klineRobotHistory.v1';
+    let latestBlobUrl = '';
+    let latestHtml = '';
+    let latestName = 'kline-report.html';
+    let runTimer = null;
+
+    function directionClass(value) {
+      if (value === '偏空') return 'bear';
+      if (value === '偏多') return 'bull';
+      return 'flat';
+    }
+
+    function moduleLabels() {
+      return [...form.querySelectorAll('input[name="modules"]:checked')].map((el) => el.closest('label').textContent.trim());
+    }
+
+    function syncModuleSummary() {
+      const selected = moduleLabels();
+      moduleSummary.textContent = selected.length ? selected.join('、') : '未选择增强模块';
+    }
+
+    function readHistory() {
+      try {
+        const items = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function writeHistory(items) {
+      localStorage.setItem(historyKey, JSON.stringify(items.slice(0, 12)));
+    }
+
+    function marketText(value) {
+      return ({ us: '美股', hk: '港股', cn: 'A股', crypto: '虚拟货币' })[value] || '自动';
+    }
+
+    function renderHistory() {
+      const items = readHistory();
+      historySelect.innerHTML = '<option value="">选择历史标的</option>';
+      items.forEach((item, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = `${item.symbol || '-'} · ${marketText(item.market)} · ${item.interval || ''} · ${item.range || ''}`;
+        historySelect.appendChild(option);
+      });
+    }
+
+    function applyHistory(item) {
+      if (!item) return;
+      form.elements.provider.value = item.provider || 'deepseek';
+      form.elements.menu.value = item.menu || '1';
+      form.elements.market.value = item.market || '';
+      form.elements.symbol.value = item.symbol || '^IXIC';
+      form.elements.interval.value = item.interval || '60m';
+      form.elements.range.value = item.range || (item.interval === '1d' ? '1mo' : '5d');
+      form.elements.maxMatchBars.value = item.maxMatchBars || '10';
+      form.elements.extra.value = item.extra || '';
+      const moduleValues = new Set(item.modules || []);
+      form.querySelectorAll('input[name="modules"]').forEach((input) => {
+        input.checked = moduleValues.has(input.value);
+      });
+      syncModuleSummary();
+    }
+
+    function rememberPayload(payload, displaySymbol) {
+      const clean = {
+        provider: payload.provider || 'deepseek',
+        menu: payload.menu || '1',
+        market: payload.market || '',
+        symbol: payload.symbol || '',
+        displaySymbol: displaySymbol || payload.symbol || '',
+        interval: payload.interval || '60m',
+        range: payload.range || '5d',
+        maxMatchBars: payload.maxMatchBars || '10',
+        modules: payload.modules || [],
+        extra: payload.extra || '',
+        updatedAt: Date.now()
+      };
+      const key = [clean.market, clean.symbol.toUpperCase(), clean.interval, clean.range, clean.maxMatchBars].join('|');
+      const items = readHistory().filter((item) => [item.market, String(item.symbol || '').toUpperCase(), item.interval, item.range, item.maxMatchBars].join('|') !== key);
+      writeHistory([clean, ...items]);
+      renderHistory();
+    }
+
+    function syncRangeForInterval() {
+      const interval = form.elements.interval.value;
+      const range = form.elements.range;
+      if (interval === '1d') {
+        range.value = '1mo';
+      } else if (interval === '60m') {
+        range.value = '5d';
+      }
+    }
+
+    form.elements.interval.addEventListener('change', syncRangeForInterval);
+    form.querySelectorAll('input[name="modules"]').forEach((item) => {
+      item.addEventListener('change', syncModuleSummary);
+    });
+    historySelect.addEventListener('change', () => {
+      const item = readHistory()[Number(historySelect.value)];
+      applyHistory(item);
+    });
+    renderHistory();
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      btn.disabled = true;
+      preview.innerHTML = '';
+      const startAt = Date.now();
+      clearInterval(runTimer);
+      const updateRunning = () => {
+        const seconds = Math.floor((Date.now() - startAt) / 1000);
+        result.textContent = `正在运行 ${seconds} 秒：拉取最新行情、匹配形态并生成报告...`;
+        btn.textContent = `生成中 ${seconds}s`;
+      };
+      updateRunning();
+      runTimer = setInterval(updateRunning, 1000);
+
+      syncRangeForInterval();
+      const data = new FormData(form);
+
+      const payload = {
+        menu: data.get('menu'),
+        provider: data.get('provider'),
+        market: data.get('market'),
+        symbol: data.get('symbol'),
+        interval: data.get('interval'),
+        range: data.get('range'),
+        maxMatchBars: data.get('maxMatchBars'),
+        extra: data.get('extra'),
+        modules: data.getAll('modules')
+      };
+
+      try {
+        const res = await fetch(defaultApiBase + '/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.error || '生成失败');
+        rememberPayload(payload, json.symbol);
+
+        latestHtml = json.html;
+        latestName = json.filename || 'kline-report.html';
+        if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
+        latestBlobUrl = URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' }));
+
+        result.innerHTML = `
+          <div class="cards">
+            <div class="metric"><b>标的</b><span>${json.symbol}</span></div>
+            <div class="metric"><b>周期</b><span>${json.interval}</span></div>
+            <div class="metric"><b>AI</b><span>${json.used_gpt ? '已调用' : '未调用'}</span></div>
+            <div class="metric"><b>状态</b><span>${json.status}</span></div>
+          </div>
+          <div class="actions">
+            <a class="action" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
+            <button class="action secondary" id="downloadBtn" type="button">下载 HTML</button>
+          </div>
+          <p class="status">${json.message || ''}</p>
+          <table>
+            <thead><tr><th>排名</th><th>形态</th><th>匹配K线</th><th>匹配度</th><th>规则/图形</th><th>方向</th><th>状态</th></tr></thead>
+            <tbody>${json.top5.map(row => `<tr><td>${row.rank}</td><td>${row.name}</td><td>${row.matchBars || '-'}根</td><td>${row.score}%</td><td>${row.ruleScore || '-'}% / ${row.shapeScore || '-'}%</td><td><span class="pill ${directionClass(row.bias)}">${row.bias}</span></td><td>${row.judgement}</td></tr>`).join('')}</tbody>
+          </table>
+        `;
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = latestBlobUrl;
+          a.download = latestName;
+          a.click();
+        });
+
+        preview.innerHTML = `<iframe title="K线报告预览" src="${latestBlobUrl}"></iframe>`;
+      } catch (error) {
+        result.textContent = error.message;
+      } finally {
+        clearInterval(runTimer);
+        runTimer = null;
+        btn.textContent = '生成最新 HTML 报告';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
