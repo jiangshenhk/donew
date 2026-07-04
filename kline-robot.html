@@ -488,7 +488,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.7.7｜测试模式+图片下载';
+    const appVersionText = '2.7.9｜图片下载修复';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -587,6 +587,20 @@
       }
     }
 
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 1000);
+    }
+
     async function downloadReportImage() {
       const frame = preview.querySelector('iframe');
       if (!frame) throw new Error('请先生成报告。');
@@ -606,25 +620,37 @@
             ${serialized}
           </foreignObject>
         </svg>`;
-      const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
       try {
         const image = new Image();
-        await new Promise((resolve, reject) => {
+        const imageLoaded = await new Promise((resolve) => {
           image.onload = resolve;
-          image.onerror = () => reject(new Error('图片生成失败，请尝试新窗口打开报告后截图。'));
+          image.onerror = () => resolve(false);
           image.src = svgUrl;
         });
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#090f1f';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(image, 0, 0);
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = latestName.replace(/\.html?$/i, '.png') || 'kline-report.png';
-        a.click();
+        if (imageLoaded === false) {
+          downloadBlob(svgBlob, latestName.replace(/\.html?$/i, '.svg') || 'kline-report.svg');
+          return;
+        }
+        let pngBlob = null;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#090f1f';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(image, 0, 0);
+          pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+        } catch {
+          pngBlob = null;
+        }
+        if (!pngBlob) {
+          downloadBlob(svgBlob, latestName.replace(/\.html?$/i, '.svg') || 'kline-report.svg');
+          return;
+        }
+        downloadBlob(pngBlob, latestName.replace(/\.html?$/i, '.png') || 'kline-report.png');
       } finally {
         URL.revokeObjectURL(svgUrl);
       }
