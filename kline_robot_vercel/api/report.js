@@ -1560,17 +1560,22 @@ function candleChartSvg(bars, cards, keyLevels = {}) {
       const targetY = yPrice(path.target);
       const midY = yPrice(path.mid ?? ((last.close + path.target) / 2));
       const controlX = startX + (endX - startX) * 0.48;
-      return `<path d="M ${startX.toFixed(1)} ${startY.toFixed(1)} Q ${controlX.toFixed(1)} ${midY.toFixed(1)} ${endX.toFixed(1)} ${targetY.toFixed(1)}" fill="none" stroke="${path.color}" stroke-width="2.4" stroke-dasharray="8 6" marker-end="url(#trendArrow${index})" opacity=".95"/>`;
+      const labelWidth = path.name === "震荡" ? 198 : 174;
+      const labelHeight = 48;
+      const safeRightGap = 78;
+      const labelRight = width - pad.right - safeRightGap;
+      const labelX = Math.max(pad.left, labelRight - labelWidth);
+      const rawLabelY = path.name === "偏多"
+        ? Math.min(targetY - labelHeight - 16, pad.top + 72)
+        : path.name === "偏空"
+          ? Math.max(targetY + 14, pad.top + priceHeight - labelHeight - 42)
+          : Math.min(Math.max(midY + 12, pad.top + 150), pad.top + priceHeight - labelHeight - 70);
+      const labelY = Math.max(pad.top + 12, Math.min(pad.top + priceHeight - labelHeight - 8, rawLabelY));
+      return `<path d="M ${startX.toFixed(1)} ${startY.toFixed(1)} Q ${controlX.toFixed(1)} ${midY.toFixed(1)} ${endX.toFixed(1)} ${targetY.toFixed(1)}" fill="none" stroke="${path.color}" stroke-width="2.4" stroke-dasharray="8 6" marker-end="url(#trendArrow${index})" opacity=".95"/><rect x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" width="${labelWidth}" height="${labelHeight}" rx="9" fill="#0b1227" stroke="${path.color}" stroke-width="1.6" opacity=".96"/><line x1="${(labelX + 12).toFixed(1)}" y1="${(labelY + 18).toFixed(1)}" x2="${(labelX + 34).toFixed(1)}" y2="${(labelY + 18).toFixed(1)}" stroke="${path.color}" stroke-width="2.6" stroke-dasharray="6 5"/><text x="${(labelX + 44).toFixed(1)}" y="${(labelY + 23).toFixed(1)}" fill="${path.color}" font-size="15" font-weight="800">${safeHtml(path.name)} ${safeHtml(path.probability)}%</text><text x="${(labelX + 12).toFixed(1)}" y="${(labelY + 40).toFixed(1)}" fill="#cbd6ef" font-size="12">${safeHtml(path.trigger)}</text>`;
     })
     .join("");
-  const trendLegend = trendPaths.length
-    ? `<g><rect x="${(width - pad.right - 190).toFixed(1)}" y="${(pad.top + 10).toFixed(1)}" width="178" height="92" rx="10" fill="#0b1227" stroke="rgba(255,255,255,.18)" opacity=".96"/><text x="${(width - pad.right - 176).toFixed(1)}" y="${(pad.top + 30).toFixed(1)}" fill="#edf2ff" font-size="12" font-weight="800">模拟路径</text>${trendPaths.map((path, index) => {
-      const y = pad.top + 50 + index * 20;
-      return `<line x1="${(width - pad.right - 176).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(width - pad.right - 160).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${path.color}" stroke-width="2.4" stroke-dasharray="5 4"/><text x="${(width - pad.right - 152).toFixed(1)}" y="${(y + 4).toFixed(1)}" fill="${path.color}" font-size="12" font-weight="800">${safeHtml(path.name)} ${safeHtml(path.probability)}%</text><text x="${(width - pad.right - 90).toFixed(1)}" y="${(y + 4).toFixed(1)}" fill="#cbd6ef" font-size="11">${safeHtml(path.trigger)}</text>`;
-    }).join("")}</g>`
-    : "";
   const trendNote = trendPaths.length ? "；右侧虚线箭头为测试模式模拟路径，标注概率与触发条件" : "";
-  return `<section class="section chart-section"><h2>价格图形 + 未来方向概率</h2><p>最近 ${chartBars.length} 根K线，已在图上标注关键位置${trendNote}。</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}">${trendDefs}<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量 · 关键位置</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${keyLines}${labels}<circle cx="${startX.toFixed(1)}" cy="${startY.toFixed(1)}" r="4" fill="#edf2ff"/>${trendOverlay}${trendLegend}</svg></div></section>`;
+  return `<section class="section chart-section"><h2>价格图形 + 未来方向概率</h2><p>最近 ${chartBars.length} 根K线，已在图上标注关键位置${trendNote}。</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}">${trendDefs}<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量 · 关键位置</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${keyLines}${labels}<circle cx="${startX.toFixed(1)}" cy="${startY.toFixed(1)}" r="4" fill="#edf2ff"/>${trendOverlay}</svg></div></section>`;
 }
 
 function directionMarkup(bias) {

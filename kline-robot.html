@@ -488,7 +488,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.8.1｜未来方向概率';
+    const appVersionText = '2.8.4｜趋势标签定位';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -587,6 +587,29 @@
       }
     }
 
+    function localTimestamp() {
+      const date = new Date();
+      const pad = (value) => String(value).padStart(2, '0');
+      return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate())
+      ].join('') + '_' + [
+        pad(date.getHours()),
+        pad(date.getMinutes()),
+        pad(date.getSeconds())
+      ].join('');
+    }
+
+    function downloadFileName(extension) {
+      const cleanExt = String(extension || 'html').replace(/^\./, '');
+      const base = (latestName || 'kline-report.html')
+        .replace(/\.html?$/i, '')
+        .replace(/\.(png|svg)$/i, '')
+        .replace(/[\\/:*?"<>|]+/g, '_');
+      return `${base}_${localTimestamp()}.${cleanExt}`;
+    }
+
     function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -630,7 +653,7 @@
           image.src = svgUrl;
         });
         if (imageLoaded === false) {
-          downloadBlob(svgBlob, latestName.replace(/\.html?$/i, '.svg') || 'kline-report.svg');
+          downloadBlob(svgBlob, downloadFileName('svg'));
           return;
         }
         let pngBlob = null;
@@ -647,10 +670,10 @@
           pngBlob = null;
         }
         if (!pngBlob) {
-          downloadBlob(svgBlob, latestName.replace(/\.html?$/i, '.svg') || 'kline-report.svg');
+          downloadBlob(svgBlob, downloadFileName('svg'));
           return;
         }
-        downloadBlob(pngBlob, latestName.replace(/\.html?$/i, '.png') || 'kline-report.png');
+        downloadBlob(pngBlob, downloadFileName('png'));
       } finally {
         URL.revokeObjectURL(svgUrl);
       }
@@ -731,7 +754,7 @@
         document.getElementById('downloadBtn').addEventListener('click', () => {
           const a = document.createElement('a');
           a.href = latestBlobUrl;
-          a.download = latestName;
+          a.download = downloadFileName('html');
           a.click();
         });
         document.getElementById('downloadImageBtn').addEventListener('click', async () => {
