@@ -1802,6 +1802,7 @@ export default async function handler(req, res) {
     const interval = data.interval || "60m";
     const requestedRange = data.range || (interval === "1d" ? "1mo" : "5d");
     const maxMatchBars = Math.max(1, Math.min(10, Number(data.maxMatchBars) || 10));
+    const trendSampleScope = String(data.trendSampleScope ?? "0") === "1" ? "1" : "0";
     const range = normalizeRangeForInterval(requestedRange, interval);
     const resolved = await resolveMarketBars(data.symbol || "^IXIC", data.market, range, interval);
     const { display, displayName, market, bars, timeLabel, timezone } = resolved;
@@ -1813,6 +1814,7 @@ export default async function handler(req, res) {
       timezone,
       timeLabel,
       maxMatchBars,
+      trendSampleScope,
       modules: data.modules || [],
       extra: data.extra || "",
     };
@@ -1841,6 +1843,7 @@ export default async function handler(req, res) {
       timezone,
       used_gpt: ai.used,
       ai_provider: ai.provider,
+      trend_sample_scope: trendSampleScope,
       message: ai.message,
       filename,
       html,

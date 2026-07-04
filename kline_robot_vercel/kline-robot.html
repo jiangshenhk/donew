@@ -463,6 +463,12 @@
           <option value="10" selected>10根</option>
         </select>
 
+        <label>未来趋势历史数据范围</label>
+        <select name="trendSampleScope">
+          <option value="0" selected>0 自己历史K线</option>
+          <option value="1">1 同市场扩展样本</option>
+        </select>
+
         <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
       </form>
 
@@ -488,7 +494,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.8.5｜趋势右侧槽位';
+    const appVersionText = '2.8.6｜趋势样本范围';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -549,6 +555,7 @@
       form.elements.interval.value = item.interval || '60m';
       form.elements.range.value = item.range || (item.interval === '1d' ? '1mo' : '5d');
       form.elements.maxMatchBars.value = item.maxMatchBars || '10';
+      form.elements.trendSampleScope.value = item.trendSampleScope || '0';
       form.elements.extra.value = item.extra || '';
       const moduleValues = new Set(item.modules || []);
       form.querySelectorAll('input[name="modules"]').forEach((input) => {
@@ -567,12 +574,13 @@
         interval: payload.interval || '60m',
         range: payload.range || '5d',
         maxMatchBars: payload.maxMatchBars || '10',
+        trendSampleScope: payload.trendSampleScope || '0',
         modules: payload.modules || [],
         extra: payload.extra || '',
         updatedAt: Date.now()
       };
-      const key = [clean.market, clean.symbol.toUpperCase(), clean.interval, clean.range, clean.maxMatchBars].join('|');
-      const items = readHistory().filter((item) => [item.market, String(item.symbol || '').toUpperCase(), item.interval, item.range, item.maxMatchBars].join('|') !== key);
+      const key = [clean.market, clean.symbol.toUpperCase(), clean.interval, clean.range, clean.maxMatchBars, clean.trendSampleScope].join('|');
+      const items = readHistory().filter((item) => [item.market, String(item.symbol || '').toUpperCase(), item.interval, item.range, item.maxMatchBars, item.trendSampleScope || '0'].join('|') !== key);
       writeHistory([clean, ...items]);
       renderHistory();
     }
@@ -714,6 +722,7 @@
         interval: data.get('interval'),
         range: data.get('range'),
         maxMatchBars: data.get('maxMatchBars'),
+        trendSampleScope: data.get('trendSampleScope'),
         extra: data.get('extra'),
         modules: data.getAll('modules')
       };
