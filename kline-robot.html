@@ -483,7 +483,10 @@
     const historySelect = document.getElementById('historySelect');
 
     const query = new URLSearchParams(window.location.search);
-    const defaultApiBase = query.get('apiBase') || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8794' : 'https://donew-beta.vercel.app');
+    const defaultApiBase = query.get('apiBase')
+      || (window.location.protocol === 'file:'
+        ? 'http://127.0.0.1:8794'
+        : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
     const appVersionText = '2.7.6｜历史+手机优化';
     appVersion.textContent = `版本 ${appVersionText}`;
 
