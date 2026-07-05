@@ -803,7 +803,7 @@
           downloadBlob(svgBlob, downloadFileName('svg'));
           return;
         }
-        let pngBlob = null;
+        let jpgBlob = null;
         try {
           const canvas = document.createElement('canvas');
           canvas.width = width;
@@ -812,15 +812,15 @@
           ctx.fillStyle = '#090f1f';
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(image, 0, 0);
-          pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
         } catch {
-          pngBlob = null;
+          jpgBlob = null;
         }
-        if (!pngBlob) {
+        if (!jpgBlob) {
           downloadBlob(svgBlob, downloadFileName('svg'));
           return;
         }
-        downloadBlob(pngBlob, downloadFileName('png'));
+        downloadBlob(jpgBlob, downloadFileName('jpg'));
       } finally {
         URL.revokeObjectURL(svgUrl);
       }
