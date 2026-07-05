@@ -4,7 +4,43 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>AI智能匹配K线形态&趋势判断｜十方斋</title>
-  <meta name="description" content="通过界面选择标的、周期、报告类型，生成K线形态相似度HTML报告。">
+  <meta name="description" content="十方斋K线形态相似度AI工具，支持美股、港股、A股、指数和虚拟货币，按1-10根K线匹配经典蜡烛图形态，并结合历史曲线样本估算后续方向概率。">
+  <meta name="keywords" content="K线形态, 蜡烛图, K线相似度, 趋势判断, 股票技术分析, AI投资工具, 十方斋">
+  <meta name="author" content="十方斋">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <link rel="canonical" href="https://donew-beta.vercel.app/kline-robot.html">
+  <meta property="og:title" content="AI智能匹配K线形态&趋势判断｜十方斋">
+  <meta property="og:description" content="选择市场、标的、周期和K线范围，自动生成K线形态相似度与历史曲线方向概率报告。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://donew-beta.vercel.app/kline-robot.html">
+  <meta property="og:site_name" content="十方斋">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="AI智能匹配K线形态&趋势判断｜十方斋">
+  <meta name="twitter:description" content="K线形态相似度AI工具，结合经典蜡烛图规则与历史曲线样本辅助判断后续趋势。">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "AI智能匹配K线形态&趋势判断",
+    "alternateName": "K线形态相似度AI工具",
+    "url": "https://donew-beta.vercel.app/kline-robot.html",
+    "applicationCategory": "FinanceApplication",
+    "operatingSystem": "Web",
+    "inLanguage": "zh-CN",
+    "description": "通过市场、标的、周期和K线范围选择，生成K线形态相似度、经典蜡烛图匹配和历史曲线方向概率报告。",
+    "creator": {
+      "@type": "Organization",
+      "name": "十方斋",
+      "url": "https://jiangshenhk.github.io/donew/"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
   <style>
     :root {
       --bg: #f6f8fc;
@@ -73,6 +109,26 @@
       white-space: nowrap;
     }
 
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .visit-count {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .visit-count strong {
+      color: var(--ink);
+      font-weight: 900;
+    }
+
     .layout {
       display: grid;
       grid-template-columns: 360px minmax(0, 1fr);
@@ -125,6 +181,61 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
+    }
+
+    .label-help {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 9px 0 5px;
+    }
+
+    .label-help label {
+      margin: 0;
+    }
+
+    .help-tip {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: help;
+      user-select: none;
+    }
+
+    .help-tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      z-index: 10;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      width: min(300px, 78vw);
+      transform: translateX(-50%);
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0f172a;
+      color: #fff;
+      box-shadow: 0 14px 32px rgba(15, 23, 42, .22);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.55;
+      white-space: normal;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease;
+    }
+
+    .help-tip:hover::after,
+    .help-tip:focus::after {
+      opacity: 1;
     }
 
     .module-dropdown {
@@ -353,6 +464,7 @@
       .action { flex: 1 1 140px; min-height: 38px; padding: 8px 10px; }
       iframe { height: 520px; margin-top: 12px; }
     }
+    .test-only[hidden] { display: none !important; }
   </style>
 </head>
 <body>
@@ -361,7 +473,10 @@
       <div class="brand">
         <h1>AI智能匹配K线形态&趋势判断 <span class="version" id="appVersion">版本加载中</span></h1>
       </div>
-      <a class="home" href="./#/">返回十方斋</a>
+      <div class="top-actions">
+        <span class="visit-count">本页访问 <strong id="busuanzi_value_page_pv">--</strong> 次</span>
+        <a class="home" href="./#/">返回十方斋</a>
+      </div>
     </div>
 
     <div class="layout">
@@ -400,8 +515,11 @@
             </select>
           </div>
           <div>
-            <label>标的</label>
-            <input name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700">
+            <div class="label-help">
+              <label for="symbolInput">标的</label>
+              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="格式：港股输入 00700；A股输入 600000 / 000001；美股输入 mstr；指数输入 ^IXIC。代码参考 Yahoo 金融。">?</button>
+            </div>
+            <input id="symbolInput" name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700">
           </div>
         </div>
 
@@ -427,21 +545,33 @@
           </div>
         </div>
 
-        <label>增强模块</label>
-        <details class="module-dropdown" id="moduleDropdown">
-          <summary><span id="moduleSummary">未选择增强模块</span><span>▾</span></summary>
-          <div class="module-options">
-            <label class="check"><input type="checkbox" name="modules" value="top5"> Top形态匹配</label>
-            <label class="check"><input type="checkbox" name="modules" value="momentum"> 动量</label>
-            <label class="check"><input type="checkbox" name="modules" value="volume"> 成交量</label>
-            <label class="check"><input type="checkbox" name="modules" value="sellput"> 卖Put</label>
-            <label class="check"><input type="checkbox" name="modules" value="options"> 期权</label>
-            <label class="check"><input type="checkbox" name="modules" value="hedge"> 保值</label>
-          </div>
-        </details>
+        <div class="test-only" hidden>
+          <label>增强模块</label>
+          <details class="module-dropdown" id="moduleDropdown">
+            <summary><span id="moduleSummary">未选择增强模块</span><span>▾</span></summary>
+            <div class="module-options">
+              <label class="check"><input type="checkbox" name="modules" value="top5"> Top形态匹配</label>
+              <label class="check"><input type="checkbox" name="modules" value="momentum"> 动量</label>
+              <label class="check"><input type="checkbox" name="modules" value="volume"> 成交量</label>
+              <label class="check"><input type="checkbox" name="modules" value="sellput"> 卖Put</label>
+              <label class="check"><input type="checkbox" name="modules" value="options"> 期权</label>
+              <label class="check"><input type="checkbox" name="modules" value="hedge"> 保值</label>
+            </div>
+          </details>
+        </div>
 
-        <label>额外要求</label>
-        <input name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。">
+        <div class="test-only" hidden>
+          <label>额外要求</label>
+          <input name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。">
+        </div>
+
+        <div class="test-only" hidden>
+          <label>未来趋势历史数据范围</label>
+          <select name="trendSampleScope">
+            <option value="0" selected>0 自己历史K线</option>
+            <option value="1">1 同市场扩展样本</option>
+          </select>
+        </div>
 
         <label>最大匹配条数</label>
         <select name="maxMatchBars">
@@ -455,12 +585,6 @@
           <option value="8">8根</option>
           <option value="9">9根</option>
           <option value="10" selected>10根</option>
-        </select>
-
-        <label>未来趋势历史数据范围</label>
-        <select name="trendSampleScope">
-          <option value="0" selected>0 自己历史K线</option>
-          <option value="1">1 同市场扩展样本</option>
         </select>
 
         <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
@@ -512,6 +636,26 @@
       moduleSummary.textContent = selected.length ? selected.join('、') : '未选择增强模块';
     }
 
+    function syncTestOnlyFields() {
+      const isTestMode = form.elements.menu.value === '9';
+      form.querySelectorAll('.test-only').forEach((block) => {
+        block.hidden = !isTestMode;
+        block.querySelectorAll('input, select, textarea, button').forEach((field) => {
+          field.disabled = !isTestMode;
+          if (!isTestMode) {
+            if (field.type === 'checkbox' || field.type === 'radio') field.checked = false;
+            else if (field.name === 'extra') field.value = '';
+            else if (field.name === 'trendSampleScope') field.value = '0';
+          }
+        });
+      });
+      if (!isTestMode) {
+        const dropdown = document.getElementById('moduleDropdown');
+        if (dropdown) dropdown.open = false;
+      }
+      syncModuleSummary();
+    }
+
     function readHistory() {
       try {
         const items = JSON.parse(localStorage.getItem(historyKey) || '[]');
@@ -556,6 +700,7 @@
         input.checked = moduleValues.has(input.value);
       });
       syncModuleSummary();
+      syncTestOnlyFields();
     }
 
     function rememberPayload(payload, displaySymbol) {
@@ -682,6 +827,7 @@
     }
 
     form.elements.interval.addEventListener('change', syncRangeForInterval);
+    form.elements.menu.addEventListener('change', syncTestOnlyFields);
     form.querySelectorAll('input[name="modules"]').forEach((item) => {
       item.addEventListener('change', syncModuleSummary);
     });
@@ -690,6 +836,7 @@
       applyHistory(item);
     });
     renderHistory();
+    syncTestOnlyFields();
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();

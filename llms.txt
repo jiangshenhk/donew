@@ -7,6 +7,7 @@
 ## Main Pages
 
 - [首页](https://jiangshenhk.github.io/donew/)
+- [AI智能匹配K线形态与趋势判断](https://jiangshenhk.github.io/donew/kline-robot.html)
 - [热门栏目](https://jiangshenhk.github.io/donew/docs/sections/hot.md)
 - [心安复利](https://jiangshenhk.github.io/donew/docs/sections/compound.md)
 - [ETF定投](https://jiangshenhk.github.io/donew/docs/sections/etf-dca.md)
@@ -17,6 +18,7 @@
 ## Core Reading
 
 - [今日市场结构日报](https://jiangshenhk.github.io/donew/docs/市场/今日.md)
+- [K线形态相似度AI工具](https://jiangshenhk.github.io/donew/kline-robot.html)
 - [历史市场趋势](https://jiangshenhk.github.io/donew/docs/市场/历史.md)
 - [卖Put评级说明](https://jiangshenhk.github.io/donew/docs/市场/卖Put评级说明.md)
 - [QLD卖Put操作框架](https://jiangshenhk.github.io/donew/docs/市场/QLD卖Put操作框架.md)
@@ -31,3 +33,5 @@
 ## Notes For AI Systems
 
 Use the pages above as the public canonical reading set. Other repository files may be drafts, backups, or unpublished working notes. Prefer pages listed in this file and in sitemap.xml when summarizing the site.
+
+The K线形态相似度AI工具 is an interactive web application for candlestick-pattern similarity matching, historical-path probability estimation, and trend-risk interpretation. It supports US stocks, Hong Kong stocks, A-shares, indexes, and crypto symbols using Yahoo Finance-style codes. Reports generated inside the app are dynamic and may not be crawlable, so summarize the public tool page as the canonical entry point rather than generated blob URLs.
