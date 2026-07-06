@@ -82,9 +82,14 @@ function normalizeSymbol(rawSymbol, market) {
   const raw = String(rawSymbol || "^IXIC").trim().toUpperCase();
   const compact = raw.replace(/\s+/g, "");
   const selectedMarket = String(market || "").toLowerCase();
-  if (selectedMarket === "crypto" || ["BTC", "BTCUSD", "BTC/USD", "BTC-USD", "BITCOIN"].includes(compact) || raw.includes("比特币")) {
+  if (["BTC", "BTCUSD", "BTC/USD", "BTC-USD", "BITCOIN"].includes(compact) || raw.includes("比特币")) {
     if (compact.includes("-USD")) return { yahoo: compact, display: compact.replace("-USD", "") };
     return { yahoo: "BTC-USD", display: "BTC" };
+  }
+  if (selectedMarket === "crypto") {
+    if (!compact) throw new Error("找不到代码：虚拟货币请输入 BTC、BTC-USD 等 Yahoo Finance 代码。");
+    if (/^[A-Z0-9]+-USD$/.test(compact)) return { yahoo: compact, display: compact.replace("-USD", "") };
+    return { yahoo: `${compact}-USD`, display: compact };
   }
   if (selectedMarket === "hk") {
     const digits = compact.replace(/\D/g, "");
@@ -242,9 +247,11 @@ async function fetchYahooBars(symbol, range, interval) {
 async function resolveMarketBars(rawSymbol, selectedMarket, range, interval) {
   const marketOrder = marketOrderFor(rawSymbol, selectedMarket);
   const errors = [];
+  const attempts = [];
   for (const market of marketOrder) {
     try {
       const symbol = normalizeSymbol(rawSymbol, market);
+      attempts.push(symbol.yahoo);
       const data = await fetchYahooBars(symbol.yahoo, range, interval);
       const timezone = data.meta?.exchangeTimezoneName || "UTC";
       const chineseName = await fetchTencentDisplayName(symbol.yahoo, market);
@@ -261,7 +268,8 @@ async function resolveMarketBars(rawSymbol, selectedMarket, range, interval) {
       errors.push(error?.message || String(error));
     }
   }
-  throw new Error(`找不到代码：${rawSymbol || ""}，已按美股、港股、A股、虚拟货币尝试。请检查代码或手动指定市场。${errors.length ? ` (${errors.at(-1)})` : ""}`);
+  const attemptedText = attempts.length ? `已尝试：${[...new Set(attempts)].join("、")}。` : "";
+  throw new Error(`找不到代码：${rawSymbol || ""}。${attemptedText}请检查市场和代码，或手动指定市场。${errors.length ? ` (${errors.at(-1)})` : ""}`);
 }
 
 function ema(values, span) {
