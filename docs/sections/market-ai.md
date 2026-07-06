@@ -6,6 +6,7 @@
 
 ## 今天先看
 
+- [每日/周度市场分析工具](https://jiangshenhk.github.io/donew/market-analysis-tool.html)
 - [今日市场趋势](/docs/市场/今日.md)
 - [历史市场趋势](/docs/市场/历史.md)
 - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
@@ -58,6 +59,8 @@ QLD / MSTR 这类标的适不适合卖 Put？
 
 ## 相关入口
 
+- [每日/周度市场分析工具](https://jiangshenhk.github.io/donew/market-analysis-tool.html)
+- [AI智能匹配K线形态与趋势判断](https://jiangshenhk.github.io/donew/kline-robot.html?apiBase=https%3A%2F%2Fdonew-beta.vercel.app)
 - [卖Put评级说明](/docs/市场/卖Put评级说明.md)
 - [风险评分说明](/docs/市场/风险评分说明.md)
 - [QLD卖Put操作框架](/docs/市场/QLD卖Put操作框架.md)

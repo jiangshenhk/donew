@@ -202,6 +202,7 @@
 </div>
 
 <div class="quick-row">
+  <a href="https://jiangshenhk.github.io/donew/market-analysis-tool.html" class="quick-link">每日/周度分析工具</a>
   <a href="#/docs/市场/今日.md" class="quick-link">AI每日市场判断</a>
   <a href="#/docs/市场/卖Put评级说明.md" class="quick-link">AI筛选Put</a>
   <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投ETF收益PK</a>

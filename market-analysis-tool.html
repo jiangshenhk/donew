@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>每日/周度市场分析工具｜十方斋</title>
+  <meta name="description" content="十方斋菜单6市场风向分析工具。点击生成今日早报、晚报或本周周报，自动整理7天卖Put市场风向、执行等级和归档。">
+  <meta name="keywords" content="市场结构日报, 市场结构周报, Sell Put, 市场风向, 7天卖Put, 十方斋">
+  <meta name="author" content="十方斋">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <link rel="canonical" href="https://jiangshenhk.github.io/donew/market-analysis-tool.html">
+  <meta property="og:title" content="每日/周度市场分析工具｜十方斋">
+  <meta property="og:description" content="按菜单6自动生成市场结构日报、晚报和周报，并可本地归档回看。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://jiangshenhk.github.io/donew/market-analysis-tool.html">
+  <meta property="og:site_name" content="十方斋">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="每日/周度市场分析工具｜十方斋">
+  <meta name="twitter:description" content="菜单6市场风向分析工具。">
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --panel: #fff;
+      --ink: #0f172a;
+      --text: #243044;
+      --muted: #64748b;
+      --line: #dfe5ef;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --green: #067647;
+      --green-soft: #ecfdf5;
+      --amber: #b7791f;
+      --amber-soft: #fffbeb;
+      --red: #b42336;
+      --red-soft: #fef2f2;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    button, select, textarea {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1260px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 18px 0 54px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--ink);
+      font-size: 26px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .version {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #61708f;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .home {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, .06);
+    }
+
+    .control {
+      padding: 14px;
+    }
+
+    .output {
+      min-height: 650px;
+      padding: 16px;
+    }
+
+    .section-title {
+      margin: 4px 0 10px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 850;
+    }
+
+    .generate-stack {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      min-height: 38px;
+      padding: 8px 12px;
+      color: var(--ink);
+      background: #fff;
+      font-weight: 850;
+      cursor: pointer;
+    }
+
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      min-height: 38px;
+      padding: 8px 10px;
+      color: var(--text);
+      background: #fff;
+      font-weight: 750;
+    }
+
+    label {
+      display: block;
+      margin: 9px 0 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, .08);
+    }
+
+    button.primary {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+      color: var(--ink);
+    }
+
+    .generate-card {
+      display: grid;
+      gap: 4px;
+      justify-items: start;
+      min-height: 70px;
+      text-align: left;
+    }
+
+    .generate-card strong {
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .generate-card span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .note {
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      background: var(--blue-soft);
+      color: #1e3a8a;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.7;
+      margin: 0 0 12px;
+    }
+
+    .status {
+      min-height: 20px;
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+
+    .status.error {
+      color: var(--red);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .meta-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 10px;
+    }
+
+    .meta-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .meta-card strong {
+      display: block;
+      color: var(--ink);
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .tabs, .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .tab {
+      color: var(--muted);
+      min-height: 34px;
+      font-size: 13px;
+    }
+
+    .tab.active {
+      border-color: #cbd5e1;
+      background: #f8fafc;
+      color: var(--ink);
+    }
+
+    .view {
+      display: none;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .report-preview {
+      display: grid;
+      gap: 12px;
+    }
+
+    .report-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 14px;
+    }
+
+    .report-card h2, .report-card h3 {
+      margin: 0 0 8px;
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    .report-card p, .report-card li {
+      line-height: 1.72;
+    }
+
+    .report-card table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .report-card th, .report-card td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .markdown-output {
+      width: 100%;
+      min-height: 560px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--text);
+      background: #fff;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      white-space: pre;
+      resize: vertical;
+    }
+
+    .filename {
+      display: inline-flex;
+      align-items: center;
+      margin: 0 0 10px;
+      padding: 6px 9px;
+      border-radius: 6px;
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .archive-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .saved-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+    }
+
+    .saved-card strong {
+      display: block;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.4;
+      margin-bottom: 4px;
+    }
+
+    .saved-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .card-actions button {
+      min-height: 32px;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .empty-state {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: #fff;
+      padding: 18px;
+      line-height: 1.7;
+    }
+
+    .public-links {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .public-links a {
+      display: block;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      text-decoration: none;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+
+    .public-links span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        width: min(100vw - 22px, 1260px);
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 22px;
+      }
+
+      .meta-grid,
+      .public-links,
+      .saved-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <h1>每日/周度市场分析工具 <span class="version">v2.0.1</span></h1>
+      <a class="home" href="./">返回十方斋首页</a>
+    </header>
+
+    <div class="layout">
+      <section class="panel control">
+        <label for="providerSelect">AI 提供商</label>
+        <select id="providerSelect">
+          <option value="deepseek" selected>DeepSeek</option>
+          <option value="openai">GPT</option>
+        </select>
+
+        <p class="section-title">生成最新报告</p>
+        <div class="generate-stack">
+          <button class="generate-card primary" type="button" data-kind="morning">
+            <strong>生成今日早报</strong>
+            <span>盘前预案：最新完整美股交易日 + 盘后消息 + 亚洲/欧洲早盘</span>
+          </button>
+          <button class="generate-card" type="button" data-kind="evening">
+            <strong>生成今日晚报</strong>
+            <span>盘后复盘：今天真正交易了什么，次日升仓还是降级</span>
+          </button>
+          <button class="generate-card" type="button" data-kind="weekly">
+            <strong>生成本周周报</strong>
+            <span>周度结构复盘：资金流向迁移与下周核心观察点</span>
+          </button>
+        </div>
+
+        <div class="meta-grid" id="metaGrid">
+          <div class="meta-card"><span>短期风向</span><strong>未生成</strong></div>
+          <div class="meta-card"><span>执行等级</span><strong>未生成</strong></div>
+          <div class="meta-card"><span>事件风险</span><strong>未生成</strong></div>
+          <div class="meta-card"><span>数据时间</span><strong>未生成</strong></div>
+        </div>
+
+        <div class="toolbar">
+          <button type="button" id="saveCurrent">归档当前报告</button>
+          <button type="button" id="refreshCurrent">重新生成</button>
+        </div>
+        <div class="status" id="status">请选择一种报告类型。</div>
+      </section>
+
+      <section class="panel output">
+        <div class="tabs" role="tablist" aria-label="输出视图">
+          <button type="button" class="tab active" data-view="preview">当前报告</button>
+          <button type="button" class="tab" data-view="markdown">Markdown</button>
+          <button type="button" class="tab" data-view="archive">我的归档</button>
+          <button type="button" class="tab" data-view="public">公开归档</button>
+        </div>
+
+        <div id="previewView" class="view active">
+          <div class="report-preview" id="preview">
+            <div class="empty-state">点击左侧按钮生成最新早报、晚报或周报。</div>
+          </div>
+        </div>
+
+        <div id="markdownView" class="view">
+          <p class="filename" id="filenameLabel">尚未生成报告</p>
+          <textarea id="markdownOutput" class="markdown-output" spellcheck="false"></textarea>
+          <div class="toolbar">
+            <button type="button" class="primary" id="copyMarkdown">复制 Markdown</button>
+            <button type="button" id="downloadMarkdown">下载 .md</button>
+            <button type="button" id="copyArchive">复制历史归档行</button>
+          </div>
+        </div>
+
+        <div id="archiveView" class="view">
+          <p class="filename">保存在当前浏览器的报告</p>
+          <div id="savedArchive" class="archive-list"></div>
+        </div>
+
+        <div id="publicView" class="view">
+          <p class="filename">公开网站上的历史与最新内容</p>
+          <div class="public-links">
+            <a href="./#/docs/市场/今日.md">查看今日市场趋势<span>打开当前发布的最新日报/周报摘要</span></a>
+            <a href="./#/docs/市场/历史.md">查看历史归档<span>按月份查看已发布的早报、晚报和周报</span></a>
+            <a href="./#/docs/市场/每日市场判断怎么看.md">怎么看市场日报<span>回看日报各模块的判断方法</span></a>
+            <a href="./#/docs/市场/风险评分说明.md">风险评分说明<span>理解风险分数和 Sell Put 操作关系</span></a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const defaultApiBase = "https://donew-beta.vercel.app";
+    const params = new URLSearchParams(location.search);
+    const apiBase = (params.get("apiBase") || defaultApiBase).replace(/\/$/, "");
+    const storageKey = "shifangzhai-menu6-market-reports-v1";
+    let currentReport = null;
+    let currentKind = "morning";
+
+    function $(selector) {
+      return document.querySelector(selector);
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setStatus(text, isError = false) {
+      const node = $("#status");
+      node.textContent = text;
+      node.classList.toggle("error", isError);
+    }
+
+    function switchView(view) {
+      document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.view === view));
+      document.querySelectorAll(".view").forEach(node => node.classList.remove("active"));
+      $(`#${view}View`).classList.add("active");
+      if (view === "archive") renderSavedArchive();
+    }
+
+    function reportTypeLabel(kind) {
+      if (kind === "weekly") return "周报";
+      return kind === "evening" ? "晚8点日报" : "早8点日报";
+    }
+
+    async function generateReport(kind) {
+      currentKind = kind;
+      setStatus(`正在生成${reportTypeLabel(kind)}...`);
+      switchView("preview");
+      $("#preview").innerHTML = '<div class="empty-state">正在获取菜单6市场风向数据并生成报告...</div>';
+
+      try {
+        const provider = $("#providerSelect").value || "deepseek";
+        const response = await fetch(`${apiBase}/api/market-report?kind=${encodeURIComponent(kind)}&provider=${encodeURIComponent(provider)}`, {
+          headers: { "accept": "application/json" }
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.message || `HTTP ${response.status}`);
+        }
+        currentReport = payload.report;
+        renderReport(currentReport);
+        setStatus(`已生成：${currentReport.fileName}`);
+      } catch (error) {
+        currentReport = null;
+        renderUnavailable(error);
+        setStatus(`生成失败：${error.message}`, true);
+      }
+    }
+
+    function renderUnavailable(error) {
+      $("#metaGrid").innerHTML = `
+        <div class="meta-card"><span>短期风向</span><strong>服务不可用</strong></div>
+        <div class="meta-card"><span>执行等级</span><strong>服务不可用</strong></div>
+        <div class="meta-card"><span>事件风险</span><strong>服务不可用</strong></div>
+        <div class="meta-card"><span>API</span><strong>${escapeHtml(apiBase)}</strong></div>
+      `;
+      $("#filenameLabel").textContent = "尚未生成报告";
+      $("#markdownOutput").value = "";
+      $("#preview").innerHTML = `
+        <div class="empty-state">
+          市场风向API暂时不可用，页面不会让你手填报告。请部署或启动 <code>/api/market-report</code> 后再点击生成。<br>
+          错误：${escapeHtml(error.message)}
+        </div>
+      `;
+    }
+
+    function renderReport(report) {
+      $("#metaGrid").innerHTML = `
+        <div class="meta-card"><span>短期风向</span><strong>${escapeHtml(report.windLight)}</strong></div>
+        <div class="meta-card"><span>执行等级</span><strong>${escapeHtml(report.executionLevel)}</strong></div>
+        <div class="meta-card"><span>事件风险</span><strong>${escapeHtml(report.eventRisk)}</strong></div>
+        <div class="meta-card"><span>AI</span><strong>${escapeHtml(report.aiProvider || "DeepSeek")}</strong></div>
+      `;
+      $("#filenameLabel").textContent = report.fileName;
+      $("#markdownOutput").value = report.markdown;
+      $("#preview").innerHTML = `
+        <article class="report-card">
+          <h2>${escapeHtml(report.title)}</h2>
+          <p><strong>一句话结论：</strong>${escapeHtml(report.headline)}</p>
+          <p><strong>今日短期风向：</strong>${escapeHtml(report.windLight)}</p>
+          <p><strong>真正交易：</strong>${escapeHtml(report.trueTheme)}</p>
+          <p><strong>谁在说真话：</strong>${escapeHtml(report.truthTeller)}</p>
+          <table>
+            <tr><th>项目</th><th>判断</th></tr>
+            <tr><td>市场阶段</td><td>${escapeHtml(report.marketStage)}</td></tr>
+            <tr><td>资金流向</td><td>${escapeHtml(report.capitalFlow)}</td></tr>
+            <tr><td>风险评分</td><td>${escapeHtml(report.riskScore)} / 10</td></tr>
+            <tr><td>7天卖put环境</td><td>${escapeHtml(report.putEnvironment)}</td></tr>
+            <tr><td>整体执行等级</td><td>${escapeHtml(report.executionLevel)}</td></tr>
+          </table>
+        </article>
+        <article class="report-card">
+          <h3>最终执行表</h3>
+          <table>
+            <tr><th>标的</th><th>操作</th><th>失效条件</th></tr>
+            ${report.targets.map(item => `
+              <tr>
+                <td>${escapeHtml(item.symbol)}</td>
+                <td>${escapeHtml(item.action)}</td>
+                <td>${escapeHtml(item.invalid)}</td>
+              </tr>
+            `).join("")}
+          </table>
+        </article>
+      `;
+    }
+
+    function loadSavedReports() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        return Array.isArray(saved) ? saved : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function writeSavedReports(reports) {
+      localStorage.setItem(storageKey, JSON.stringify(reports.slice(0, 100)));
+    }
+
+    function saveCurrentReport() {
+      if (!currentReport) {
+        setStatus("请先生成报告。", true);
+        return;
+      }
+      const reports = loadSavedReports().filter(report => report.fileName !== currentReport.fileName);
+      writeSavedReports([{ ...currentReport, savedAt: new Date().toISOString() }, ...reports]);
+      renderSavedArchive();
+      switchView("archive");
+      setStatus("已归档到当前浏览器。");
+    }
+
+    function renderSavedArchive() {
+      const container = $("#savedArchive");
+      const reports = loadSavedReports();
+      if (!reports.length) {
+        container.innerHTML = '<div class="empty-state">还没有归档。生成报告后点击“归档当前报告”，以后就能在这里回看。</div>';
+        return;
+      }
+      container.innerHTML = reports.map(report => `
+        <article class="saved-card">
+          <div>
+            <strong>${escapeHtml(report.title)}</strong>
+            <span>${escapeHtml(report.fileName)} / ${escapeHtml(report.windLight)} / ${escapeHtml(report.executionLevel)}</span>
+            <span>${escapeHtml(report.headline)}</span>
+          </div>
+          <div class="card-actions">
+            <button type="button" data-action="view" data-id="${escapeHtml(report.id)}">查看</button>
+            <button type="button" data-action="copy" data-id="${escapeHtml(report.id)}">复制</button>
+            <button type="button" data-action="download" data-id="${escapeHtml(report.id)}">下载</button>
+            <button type="button" data-action="delete" data-id="${escapeHtml(report.id)}">删除</button>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function findSavedReport(id) {
+      return loadSavedReports().find(report => report.id === id);
+    }
+
+    async function copyText(text) {
+      if (!text) {
+        setStatus("没有可复制的内容。", true);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("已复制。");
+      } catch (error) {
+        setStatus("当前浏览器不支持自动复制，请在 Markdown 区手动选择。", true);
+      }
+    }
+
+    function downloadText(fileName, text) {
+      if (!text) {
+        setStatus("没有可下载的内容。", true);
+        return;
+      }
+      const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    }
+
+    document.querySelectorAll("[data-kind]").forEach(button => {
+      button.addEventListener("click", () => generateReport(button.dataset.kind));
+    });
+
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => switchView(tab.dataset.view));
+    });
+
+    $("#saveCurrent").addEventListener("click", saveCurrentReport);
+    $("#refreshCurrent").addEventListener("click", () => generateReport(currentKind));
+    $("#copyMarkdown").addEventListener("click", () => copyText(currentReport?.markdown || ""));
+    $("#copyArchive").addEventListener("click", () => copyText(currentReport?.archiveRow || ""));
+    $("#downloadMarkdown").addEventListener("click", () => downloadText(currentReport?.fileName || "market-report.md", currentReport?.markdown || ""));
+
+    $("#savedArchive").addEventListener("click", event => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const report = findSavedReport(button.dataset.id);
+      if (!report) return;
+      if (button.dataset.action === "view") {
+        currentReport = report;
+        renderReport(report);
+        switchView("preview");
+        setStatus(`已打开归档：${report.fileName}`);
+      }
+      if (button.dataset.action === "copy") copyText(report.markdown);
+      if (button.dataset.action === "download") downloadText(report.fileName, report.markdown);
+      if (button.dataset.action === "delete") {
+        writeSavedReports(loadSavedReports().filter(item => item.id !== report.id));
+        renderSavedArchive();
+        setStatus("已删除归档。");
+      }
+    });
+
+    renderSavedArchive();
+  </script>
+</body>
+</html>

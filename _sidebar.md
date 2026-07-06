@@ -100,6 +100,7 @@
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
 
 - **[🤖 AI市场趋势判断](/docs/sections/market-ai.md)**
+  - <a href="https://jiangshenhk.github.io/donew/market-analysis-tool.html">每日/周度市场分析工具</a>
   - <a href="https://jiangshenhk.github.io/donew/kline-robot.html?apiBase=https%3A%2F%2Fdonew-beta.vercel.app">AI智能匹配K线形态与趋势判断</a>
   - [今日市场趋势](/docs/市场/今日.md)
   - [历史市场趋势](/docs/市场/历史.md)
