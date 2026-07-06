@@ -3,6 +3,9 @@
   "functions": {
     "api/report.js": {
       "maxDuration": 60
+    },
+    "api/market-report.js": {
+      "maxDuration": 60
     }
   }
 }
