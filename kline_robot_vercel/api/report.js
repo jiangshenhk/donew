@@ -141,6 +141,77 @@ function displayNameFor(symbol, display, meta) {
   return SYMBOL_NAME_MAP[key] || meta?.shortName || meta?.longName || display;
 }
 
+function stooqSymbolFor(symbol, market) {
+  const upper = String(symbol || "").toUpperCase();
+  const indexMap = {
+    "^IXIC": "^ixic",
+    "^GSPC": "^spx",
+    "^DJI": "^dji",
+    "^NDX": "^ndx",
+  };
+  if (indexMap[upper]) return indexMap[upper];
+  if (String(market || "").toLowerCase() === "us" && /^[A-Z][A-Z0-9.-]*$/.test(upper)) {
+    return `${upper.toLowerCase()}.us`;
+  }
+  return "";
+}
+
+function stooqLookbackDays(range) {
+  const value = String(range || "1mo").toLowerCase();
+  if (value.endsWith("y")) return Math.max(370, Number.parseInt(value, 10) * 370 || 370);
+  if (value.endsWith("mo")) return Math.max(45, Number.parseInt(value, 10) * 35 || 45);
+  if (value.endsWith("d")) return Math.max(35, Number.parseInt(value, 10) * 3 || 35);
+  return 60;
+}
+
+function ymdCompact(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+async function fetchStooqBars(symbol, range, interval, market) {
+  if (String(interval || "").toLowerCase() !== "1d") throw new Error("备用行情源只支持日线。");
+  const stooqSymbol = stooqSymbolFor(symbol, market);
+  if (!stooqSymbol) throw new Error(`备用行情源暂不支持：${symbol}`);
+  const end = new Date();
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - stooqLookbackDays(range));
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d&d1=${ymdCompact(start)}&d2=${ymdCompact(end)}`;
+  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  if (!res.ok) throw new Error(`备用行情源无法取得：${symbol}`);
+  const text = await res.text();
+  const rows = text.trim().split(/\r?\n/).slice(1);
+  const bars = rows
+    .map((line) => line.split(","))
+    .filter((parts) => parts.length >= 6 && parts.every(Boolean))
+    .map(([date, open, high, low, close, volume]) => {
+      const ts = Math.floor(new Date(`${date}T16:00:00-05:00`).getTime() / 1000);
+      return {
+        ts,
+        date: toBarTime(ts, "America/New_York"),
+        open: Number(open),
+        high: Number(high),
+        low: Number(low),
+        close: Number(close),
+        volume: Number(volume || 0),
+      };
+    })
+    .filter((bar) => [bar.open, bar.high, bar.low, bar.close].every((v) => Number.isFinite(v)))
+    .sort((a, b) => a.ts - b.ts);
+  if (bars.length < 20) throw new Error("备用行情源可用K线数量不足。");
+  return {
+    meta: {
+      symbol,
+      shortName: displayNameFor(symbol, symbol, {}),
+      longName: displayNameFor(symbol, symbol, {}),
+      exchangeTimezoneName: "America/New_York",
+    },
+    bars,
+  };
+}
+
 async function fetchTencentDisplayName(symbol, market) {
   const selectedMarket = String(market || "").toLowerCase();
   let query = "";
@@ -209,39 +280,44 @@ function toBarTime(ts, timezone) {
   }
 }
 
-async function fetchYahooBars(symbol, range, interval) {
+async function fetchYahooBars(symbol, range, interval, market = "") {
   const url = `${YAHOO_BASE}${encodeURIComponent(symbol)}?range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}&events=history&includePrePost=false`;
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-  if (!res.ok) throw new Error(`找不到代码：${symbol}，请检查市场和代码是否正确。`);
-  const payload = await res.json();
-  const result = payload?.chart?.result?.[0];
-  if (!result) {
-    const detail = payload?.chart?.error?.description || payload?.chart?.error?.code || "";
-    throw new Error(`找不到代码：${symbol}，请检查市场和代码是否正确。${detail ? ` (${detail})` : ""}`);
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!res.ok) throw new Error(`找不到代码：${symbol}，请检查市场和代码是否正确。`);
+    const payload = await res.json();
+    const result = payload?.chart?.result?.[0];
+    if (!result) {
+      const detail = payload?.chart?.error?.description || payload?.chart?.error?.code || "";
+      throw new Error(`找不到代码：${symbol}，请检查市场和代码是否正确。${detail ? ` (${detail})` : ""}`);
+    }
+    const meta = result.meta || {};
+    const quote = result.indicators?.quote?.[0] || {};
+    const timestamps = result.timestamp || [];
+    const timezone = meta.exchangeTimezoneName || "UTC";
+    const bars = [];
+    for (let i = 0; i < timestamps.length; i++) {
+      const open = quote.open?.[i];
+      const high = quote.high?.[i];
+      const low = quote.low?.[i];
+      const close = quote.close?.[i];
+      if ([open, high, low, close].some((v) => v === null || v === undefined || Number.isNaN(Number(v)))) continue;
+      bars.push({
+        ts: timestamps[i],
+        date: toBarTime(timestamps[i], timezone),
+        open: Number(open),
+        high: Number(high),
+        low: Number(low),
+        close: Number(close),
+        volume: Number(quote.volume?.[i] || 0),
+      });
+    }
+    if (bars.length < 20) throw new Error("可用K线数量不足：请把数据范围调大，例如选择1个月或3个月。");
+    return { meta, bars };
+  } catch (error) {
+    if (String(interval || "").toLowerCase() === "1d") return fetchStooqBars(symbol, range, interval, market);
+    throw error;
   }
-  const meta = result.meta || {};
-  const quote = result.indicators?.quote?.[0] || {};
-  const timestamps = result.timestamp || [];
-  const timezone = meta.exchangeTimezoneName || "UTC";
-  const bars = [];
-  for (let i = 0; i < timestamps.length; i++) {
-    const open = quote.open?.[i];
-    const high = quote.high?.[i];
-    const low = quote.low?.[i];
-    const close = quote.close?.[i];
-    if ([open, high, low, close].some((v) => v === null || v === undefined || Number.isNaN(Number(v)))) continue;
-    bars.push({
-      ts: timestamps[i],
-      date: toBarTime(timestamps[i], timezone),
-      open: Number(open),
-      high: Number(high),
-      low: Number(low),
-      close: Number(close),
-      volume: Number(quote.volume?.[i] || 0),
-    });
-  }
-  if (bars.length < 20) throw new Error("可用K线数量不足：请把数据范围调大，例如选择1个月或3个月。");
-  return { meta, bars };
 }
 
 async function resolveMarketBars(rawSymbol, selectedMarket, range, interval) {
@@ -252,7 +328,7 @@ async function resolveMarketBars(rawSymbol, selectedMarket, range, interval) {
     try {
       const symbol = normalizeSymbol(rawSymbol, market);
       attempts.push(symbol.yahoo);
-      const data = await fetchYahooBars(symbol.yahoo, range, interval);
+      const data = await fetchYahooBars(symbol.yahoo, range, interval, market);
       const timezone = data.meta?.exchangeTimezoneName || "UTC";
       const chineseName = await fetchTencentDisplayName(symbol.yahoo, market);
       return {
@@ -1727,7 +1803,7 @@ async function fetchHistoricalSampleSets({ yahoo, market, interval, scope }) {
   const sets = [];
   for (const symbol of symbols) {
     try {
-      const data = await fetchYahooBars(symbol, range, interval);
+      const data = await fetchYahooBars(symbol, range, interval, market);
       if (data.bars.length >= 40) sets.push({ symbol, bars: data.bars });
     } catch {
       // Some cross-market samples may not exist for every interval; skip quietly.
