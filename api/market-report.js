@@ -205,6 +205,12 @@ function formatPctValue(value, digits = 2) {
   return `${n > 0 ? "+" : ""}${n.toFixed(digits)}%`;
 }
 
+function formatPrice(value) {
+  const n = numberOrNull(value);
+  if (n === null) return "-";
+  return n.toFixed(2);
+}
+
 function formatRiskValue(value, digits = 1) {
   const n = numberOrNull(value);
   if (n === null) return "-";
