@@ -518,7 +518,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.0.8</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.0.9</span></h1>
       <a class="home" href="./">返回十方斋首页</a>
     </header>
 
@@ -569,6 +569,11 @@
         </div>
 
         <div id="previewView" class="view active">
+          <div class="toolbar">
+            <button type="button" class="primary" id="openCurrent">新窗口打开报告</button>
+            <button type="button" id="downloadCurrentHtml">下载 HTML</button>
+            <button type="button" id="downloadCurrentImage">下载图片</button>
+          </div>
           <div class="report-preview" id="preview">
             <div class="empty-state">点击左侧按钮生成最新早报、晚报或周报。</div>
           </div>
@@ -581,11 +586,6 @@
             <button type="button" class="primary" id="copyMarkdown">输出 MD</button>
             <button type="button" id="downloadMarkdown">下载 MD</button>
             <button type="button" id="copyArchive">输出归档行</button>
-          </div>
-          <div class="toolbar">
-            <button type="button" id="openCurrent">输出 HTML</button>
-            <button type="button" id="downloadCurrentHtml">下载 HTML</button>
-            <button type="button" id="downloadCurrentImage">输出图片</button>
           </div>
         </div>
 
