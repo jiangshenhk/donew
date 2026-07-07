@@ -518,7 +518,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.0.5</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.0.6</span></h1>
       <a class="home" href="./">返回十方斋首页</a>
     </header>
 
@@ -534,15 +534,15 @@
         <div class="generate-stack">
           <button class="generate-card primary" type="button" data-kind="morning">
             <strong>生成今日早报</strong>
-            <span>盘前预案：最新完整美股交易日 + 盘后消息 + 亚洲/欧洲早盘</span>
+            <span>早报汇总：美股昨晚交易 + 盘后消息 + 欧洲交易 + 亚洲早盘</span>
           </button>
           <button class="generate-card" type="button" data-kind="evening">
             <strong>生成今日晚报</strong>
-            <span>盘后复盘：今天真正交易了什么，次日升仓还是降级</span>
+            <span>晚报复盘：香港收盘后到美股开盘前，今天真正交易了什么</span>
           </button>
           <button class="generate-card" type="button" data-kind="weekly">
             <strong>生成本周周报</strong>
-            <span>周度结构复盘：资金流向迁移与下周核心观察点</span>
+            <span>周度结构复盘：周六收盘后到周一开盘前的窗口总结</span>
           </button>
         </div>
 
@@ -978,7 +978,7 @@
 
     function reportTypeLabel(kind) {
       if (kind === "weekly") return "周报";
-      return kind === "evening" ? "晚8点日报" : "早8点日报";
+      return kind === "evening" ? "晚报" : "早报";
     }
 
     async function generateReport(kind) {

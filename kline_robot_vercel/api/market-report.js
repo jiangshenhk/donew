@@ -49,10 +49,10 @@ function kindMeta(kind) {
       sessionLabel: "周报",
       title: `${date}市场结构周报`,
       fileName: `${date}市场结构周报.md`,
-      basis: `${date}｜${weekday(date)}｜基于周五收盘、周末新闻与最新跨资产数据`,
+      basis: `${date}｜${weekday(date)}｜基于周六美股收盘后到周一开盘前的周末窗口，以及最新跨资产数据`,
     };
   }
-  const sessionLabel = kind === "evening" ? "晚8点" : "早8点";
+  const sessionLabel = kind === "evening" ? "晚报" : "早报";
   return {
     kind,
     date,
@@ -60,7 +60,10 @@ function kindMeta(kind) {
     sessionLabel,
     title: `${date}市场结构日报（${sessionLabel}）`,
     fileName: `${date}市场结构日报(${sessionLabel}).md`,
-    basis: `${date}｜${weekday(date)}${sessionLabel}｜基于最近一个完整美股交易日、盘后消息与最新跨资产数据`,
+    basis:
+      kind === "evening"
+        ? `${date}｜${weekday(date)}｜基于香港收盘后、美股开盘前窗口的盘后复盘与最新跨资产数据`
+        : `${date}｜${weekday(date)}｜基于美股昨晚交易、盘后交易、欧洲交易与亚洲早盘的汇总`,
   };
 }
 
@@ -226,8 +229,8 @@ function headlineFor(kind, classification) {
         : "本周市场仍有修复，但结构并不统一，卖 Put 只能保守筛选，优先看半导体和低Delta机会。";
   }
   const leadBase = kind === "evening"
-    ? "今晚先看收盘确认，再决定明天是否进入候选池"
-    : "今天可以把候选池打开，但仍要先看风向";
+    ? "香港收盘后先看这波复盘，再决定美股开盘前是否进入候选池"
+    : "先汇总昨晚美股、盘后、欧洲和亚洲早盘，再决定今天是否进入候选池";
   return classification.executionLevel === "D"
     ? `${leadBase}：当前短期风向偏逆风，7天卖 Put 不适合新增，优先暂停高beta标的并等待VIX、利率和BTC重新确认。`
     : classification.executionLevel === "B"
@@ -244,10 +247,16 @@ function finalCommandFor(kind, classification) {
         : "下周可以保留卖 Put 候选，但仍要先复核VIX、10Y、BTC与半导体结构。";
   }
   return classification.executionLevel === "D"
-    ? "今天不新增7天Put，先观察VIX、10Y/DXY、半导体和BTC是否止稳。"
+    ? (kind === "evening"
+        ? "今晚不新增7天Put，先观察VIX、10Y/DXY、半导体和BTC是否止稳。"
+        : "今天不新增7天Put，先观察VIX、10Y/DXY、半导体和BTC是否止稳。")
     : classification.executionLevel === "B"
-      ? "今天只允许远OTM小仓观察，等VIX、10Y、BTC和半导体确认后再提高风险。"
-      : "今天可小仓筛选7天Put，但必须复核实时IV、bid-ask、OI、事件日历和breakeven。";
+      ? (kind === "evening"
+          ? "今晚只允许远OTM小仓观察，等VIX、10Y、BTC和半导体确认后再提高风险。"
+          : "今天只允许远OTM小仓观察，等VIX、10Y、BTC和半导体确认后再提高风险。")
+      : (kind === "evening"
+          ? "今晚可小仓筛选7天Put，但必须复核实时IV、bid-ask、OI、事件日历和breakeven。"
+          : "今天可小仓筛选7天Put，但必须复核实时IV、bid-ask、OI、事件日历和breakeven。");
 }
 
 function overviewRows(classification) {
@@ -315,16 +324,18 @@ function aiAppendix(aiText) {
 
 function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel) {
   const isEvening = meta.kind === "evening";
-  const sessionText = isEvening ? "晚8点版" : "早8点版";
-  const titleBasis = isEvening ? "对应美东盘前与早盘" : "基于美股最近一个完整交易日收盘、盘后消息与跨资产数据";
+  const sessionText = isEvening ? "香港时间晚报版" : "香港时间早报版";
+  const titleBasis = isEvening
+    ? "对应香港收盘后与美股开盘前窗口"
+    : "基于美股昨晚交易、盘后交易、欧洲交易与亚洲早盘";
   const titleMeta = [retrievedAtLabel ? `数据补取至${retrievedAtLabel}` : "", titleBasis].filter(Boolean).join("；");
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
   const overview = overviewRows(classification);
   const executionRows = targets.map(t => `| ${t.symbol} | ${t.wind} | ${t.level} | ${t.action} | ${t.delta} | ${t.dte} | ${t.cushion} | ${t.size} | ${t.invalid} |`).join("\n");
   const dataPreamble = isEvening
-    ? `> **数据口径：** 本文是美股早盘与盘后消息后的晚报判断，不把盘中价格当作收盘确认；具体期权合约须在券商端复核实时 Delta、Bid/Ask、OI 与保证金。`
-    : `> **数据口径：** 本文用于早报复盘与当日卖 Put 风控准备；市场快照来自最近一个完整美股交易日收盘、盘后消息与亚洲时段数据。`;
+    ? `> **数据口径：** 本文用于香港收盘后到美股开盘前的晚报复盘，不把盘中价格当作收盘确认；具体期权合约须在券商端复核实时 Delta、Bid/Ask、OI 与保证金。`
+    : `> **数据口径：** 本文用于早报汇总昨晚美股交易、盘后交易、欧洲交易与亚洲早盘，不把盘中价格当作收盘确认；市场快照来自最新跨资产数据。`;
 
   return {
     headline,
