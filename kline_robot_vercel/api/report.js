@@ -116,6 +116,7 @@ function marketOrderFor(rawSymbol, selectedMarket) {
   const requested = String(selectedMarket || "").trim().toLowerCase();
   if (requested) return [requested];
   const compact = String(rawSymbol || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (compact.startsWith("^")) return ["us"];
   if (/^(SH|SZ)?\d{6}(\.(SS|SZ|SH))?$/.test(compact)) return ["cn", "us", "hk", "crypto"];
   if (/^0?\d{4}$/.test(compact) || /^0\d{4}$/.test(compact)) return ["hk", "us", "cn", "crypto"];
   return ["us", "hk", "cn", "crypto"];
@@ -141,22 +142,7 @@ function displayNameFor(symbol, display, meta) {
   return SYMBOL_NAME_MAP[key] || meta?.shortName || meta?.longName || display;
 }
 
-function stooqSymbolFor(symbol, market) {
-  const upper = String(symbol || "").toUpperCase();
-  const indexMap = {
-    "^IXIC": "^ixic",
-    "^GSPC": "^spx",
-    "^DJI": "^dji",
-    "^NDX": "^ndx",
-  };
-  if (indexMap[upper]) return indexMap[upper];
-  if (String(market || "").toLowerCase() === "us" && /^[A-Z][A-Z0-9.-]*$/.test(upper)) {
-    return `${upper.toLowerCase()}.us`;
-  }
-  return "";
-}
-
-function stooqLookbackDays(range) {
+function dailyLookbackDays(range) {
   const value = String(range || "1mo").toLowerCase();
   if (value.endsWith("y")) return Math.max(370, Number.parseInt(value, 10) * 370 || 370);
   if (value.endsWith("mo")) return Math.max(45, Number.parseInt(value, 10) * 35 || 45);
@@ -171,26 +157,77 @@ function ymdCompact(date) {
   return `${year}${month}${day}`;
 }
 
-async function fetchStooqBars(symbol, range, interval, market) {
-  if (String(interval || "").toLowerCase() !== "1d") throw new Error("备用行情源只支持日线。");
-  const stooqSymbol = stooqSymbolFor(symbol, market);
-  if (!stooqSymbol) throw new Error(`备用行情源暂不支持：${symbol}`);
+function eastmoneyStaticSecid(symbol, market) {
+  const upper = String(symbol || "").toUpperCase();
+  const selectedMarket = String(market || "").toLowerCase();
+  const indexMap = {
+    "^IXIC": "100.NDX",
+    "^GSPC": "100.SPX",
+    "^DJI": "100.DJI",
+    "^NDX": "100.NDX",
+  };
+  if (indexMap[upper]) return indexMap[upper];
+  const cn = upper.match(/^(\d{6})\.(SS|SZ)$/) || upper.match(/^(\d{6})$/);
+  if (selectedMarket === "cn" && cn) {
+    const code = cn[1];
+    return `${code.startsWith("6") || code.startsWith("9") ? "1" : "0"}.${code}`;
+  }
+  const hk = upper.match(/^(\d{4,5})\.HK$/) || upper.match(/^0?(\d{4})$/);
+  if (selectedMarket === "hk" && hk) return `116.${hk[1].padStart(5, "0")}`;
+  return "";
+}
+
+async function eastmoneyLookupSecid(symbol, market) {
+  const staticSecid = eastmoneyStaticSecid(symbol, market);
+  if (staticSecid) return staticSecid;
+  if (String(market || "").toLowerCase() !== "us") return "";
+  const code = String(symbol || "").toUpperCase();
+  if (!/^[A-Z][A-Z0-9.-]*$/.test(code)) return "";
+  const candidates = ["105", "106", "107", "102"];
+  for (const marketId of candidates) {
+    try {
+      const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${marketId}.${encodeURIComponent(code)}&fields=f57,f58,f107,f152`;
+      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", Referer: "https://quote.eastmoney.com/" } });
+      if (!res.ok) continue;
+      const payload = await res.json();
+      const data = payload?.data;
+      if (data?.f57 && Number.isFinite(Number(data.f107))) return `${data.f107}.${data.f57}`;
+    } catch {
+      // Try the next Eastmoney market id.
+    }
+  }
+  return "";
+}
+
+function eastmoneyTimezone(market) {
+  const value = String(market || "").toLowerCase();
+  if (value === "cn") return "Asia/Shanghai";
+  if (value === "hk") return "Asia/Hong_Kong";
+  return "America/New_York";
+}
+
+async function fetchEastmoneyDailyBars(symbol, range, interval, market) {
+  if (String(interval || "").toLowerCase() !== "1d") throw new Error("东财备用行情源只支持日线。");
+  const secid = await eastmoneyLookupSecid(symbol, market);
+  if (!secid) throw new Error(`东财备用行情源暂不支持：${symbol}`);
   const end = new Date();
   const start = new Date(end);
-  start.setUTCDate(start.getUTCDate() - stooqLookbackDays(range));
-  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d&d1=${ymdCompact(start)}&d2=${ymdCompact(end)}`;
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-  if (!res.ok) throw new Error(`备用行情源无法取得：${symbol}`);
-  const text = await res.text();
-  const rows = text.trim().split(/\r?\n/).slice(1);
-  const bars = rows
-    .map((line) => line.split(","))
-    .filter((parts) => parts.length >= 6 && parts.every(Boolean))
-    .map(([date, open, high, low, close, volume]) => {
-      const ts = Math.floor(new Date(`${date}T16:00:00-05:00`).getTime() / 1000);
+  start.setUTCDate(start.getUTCDate() - dailyLookbackDays(range));
+  const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${encodeURIComponent(secid)}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=${ymdCompact(start)}&end=${ymdCompact(end)}&_=${Date.now()}`;
+  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", Referer: "https://quote.eastmoney.com/" } });
+  if (!res.ok) throw new Error(`东财备用行情源无法取得：${symbol}`);
+  const payload = await res.json();
+  const data = payload?.data;
+  const timezone = eastmoneyTimezone(market);
+  const bars = (data?.klines || [])
+    .map((line) => String(line).split(","))
+    .filter((parts) => parts.length >= 6)
+    .map(([date, open, close, high, low, volume]) => {
+      const closeTime = timezone === "America/New_York" ? `${date}T16:00:00-04:00` : `${date}T15:00:00+08:00`;
+      const ts = Math.floor(new Date(closeTime).getTime() / 1000);
       return {
         ts,
-        date: toBarTime(ts, "America/New_York"),
+        date: toBarTime(ts, timezone),
         open: Number(open),
         high: Number(high),
         low: Number(low),
@@ -200,13 +237,13 @@ async function fetchStooqBars(symbol, range, interval, market) {
     })
     .filter((bar) => [bar.open, bar.high, bar.low, bar.close].every((v) => Number.isFinite(v)))
     .sort((a, b) => a.ts - b.ts);
-  if (bars.length < 20) throw new Error("备用行情源可用K线数量不足。");
+  if (bars.length < 20) throw new Error("东财备用行情源可用K线数量不足。");
   return {
     meta: {
       symbol,
-      shortName: displayNameFor(symbol, symbol, {}),
-      longName: displayNameFor(symbol, symbol, {}),
-      exchangeTimezoneName: "America/New_York",
+      shortName: data?.name || displayNameFor(symbol, symbol, {}),
+      longName: data?.name || displayNameFor(symbol, symbol, {}),
+      exchangeTimezoneName: timezone,
     },
     bars,
   };
@@ -315,7 +352,7 @@ async function fetchYahooBars(symbol, range, interval, market = "") {
     if (bars.length < 20) throw new Error("可用K线数量不足：请把数据范围调大，例如选择1个月或3个月。");
     return { meta, bars };
   } catch (error) {
-    if (String(interval || "").toLowerCase() === "1d") return fetchStooqBars(symbol, range, interval, market);
+    if (String(interval || "").toLowerCase() === "1d") return fetchEastmoneyDailyBars(symbol, range, interval, market);
     throw error;
   }
 }
