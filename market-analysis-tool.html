@@ -307,6 +307,78 @@
       vertical-align: top;
     }
 
+    .markdown-body {
+      line-height: 1.72;
+    }
+
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3,
+    .markdown-body h4 {
+      margin: 18px 0 10px;
+      color: var(--ink);
+      letter-spacing: 0;
+    }
+
+    .markdown-body h1 { font-size: 24px; }
+    .markdown-body h2 { font-size: 20px; }
+    .markdown-body h3 { font-size: 17px; }
+    .markdown-body h4 { font-size: 15px; }
+
+    .markdown-body p {
+      margin: 8px 0;
+    }
+
+    .markdown-body blockquote {
+      margin: 12px 0;
+      padding: 10px 14px;
+      border-left: 4px solid var(--blue);
+      background: #f8fbff;
+      color: var(--text);
+    }
+
+    .markdown-body pre {
+      overflow-x: auto;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .markdown-body code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.95em;
+    }
+
+    .markdown-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+
+    .markdown-body th,
+    .markdown-body td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .markdown-body ul,
+    .markdown-body ol {
+      margin: 8px 0 8px 20px;
+      padding: 0;
+    }
+
+    .markdown-body hr {
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: 16px 0;
+    }
+
     .markdown-output {
       width: 100%;
       min-height: 560px;
@@ -551,6 +623,138 @@
         .replaceAll("'", "&#039;");
     }
 
+    function inlineMarkdown(text) {
+      return escapeHtml(text)
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+    }
+
+    function renderMarkdown(markdown) {
+      const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
+      const out = [];
+      let inCode = false;
+      let codeLines = [];
+      let listType = "";
+      let listItems = [];
+
+      const closeList = () => {
+        if (!listType) return;
+        out.push(`<${listType}>${listItems.map(item => `<li>${item}</li>`).join("")}</${listType}>`);
+        listType = "";
+        listItems = [];
+      };
+
+      const closeCode = () => {
+        if (!inCode) return;
+        out.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+        inCode = false;
+        codeLines = [];
+      };
+
+      const flushTable = (tableLines) => {
+        if (!tableLines.length) return;
+        const rows = tableLines.map(line => line.trim().replace(/^\||\|$/g, "").split("|").map(cell => cell.trim()));
+        if (rows.length < 2) return;
+        const header = rows[0];
+        const body = rows.slice(2).filter(row => row.some(cell => cell));
+        const headHtml = header.map(cell => `<th>${inlineMarkdown(cell)}</th>`).join("");
+        const bodyHtml = body.map(row => `<tr>${row.map(cell => `<td>${inlineMarkdown(cell)}</td>`).join("")}</tr>`).join("");
+        out.push(`<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`);
+      };
+
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        if (trimmed.startsWith("```")) {
+          if (inCode) {
+            closeCode();
+          } else {
+            closeList();
+            inCode = true;
+            codeLines = [];
+          }
+          continue;
+        }
+        if (inCode) {
+          codeLines.push(line);
+          continue;
+        }
+
+        const isTableRow = /^\|.+\|$/.test(trimmed);
+        if (isTableRow) {
+          closeList();
+          const tableLines = [];
+          while (i < lines.length && /^\|.+\|$/.test(lines[i].trim())) {
+            tableLines.push(lines[i]);
+            i += 1;
+          }
+          i -= 1;
+          flushTable(tableLines);
+          continue;
+        }
+
+        if (!trimmed) {
+          closeList();
+          out.push("");
+          continue;
+        }
+
+        const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
+        if (heading) {
+          closeList();
+          const level = heading[1].length;
+          out.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+          continue;
+        }
+
+        if (/^>\s?/.test(trimmed)) {
+          closeList();
+          out.push(`<blockquote>${inlineMarkdown(trimmed.replace(/^>\s?/, ""))}</blockquote>`);
+          continue;
+        }
+
+        if (/^( {4,}|\t)/.test(line)) {
+          closeList();
+          const blockLines = [line.replace(/^( {4}|\t)/, "")];
+          while (i + 1 < lines.length && /^( {4,}|\t)/.test(lines[i + 1])) {
+            i += 1;
+            blockLines.push(lines[i].replace(/^( {4}|\t)/, ""));
+          }
+          out.push(`<pre><code>${escapeHtml(blockLines.join("\n"))}</code></pre>`);
+          continue;
+        }
+
+        const bullet = trimmed.match(/^[-*]\s+(.*)$/);
+        if (bullet) {
+          if (listType !== "ul") {
+            closeList();
+            listType = "ul";
+          }
+          listItems.push(inlineMarkdown(bullet[1]));
+          continue;
+        }
+
+        const ordered = trimmed.match(/^\d+\.\s+(.*)$/);
+        if (ordered) {
+          if (listType !== "ol") {
+            closeList();
+            listType = "ol";
+          }
+          listItems.push(inlineMarkdown(ordered[1]));
+          continue;
+        }
+
+        closeList();
+        out.push(`<p>${inlineMarkdown(trimmed)}</p>`);
+      }
+
+      closeCode();
+      closeList();
+      return out.filter(Boolean).join("\n");
+    }
+
     function setStatus(text, isError = false) {
       const node = $("#status");
       node.textContent = text;
@@ -648,6 +852,9 @@
               </tr>
             `).join("")}
           </table>
+        </article>
+        <article class="report-card markdown-body">
+          ${renderMarkdown(report.markdown)}
         </article>
       `;
     }
