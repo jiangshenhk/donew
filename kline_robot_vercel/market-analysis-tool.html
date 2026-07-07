@@ -557,11 +557,6 @@
           <button type="button" id="saveCurrent">归档当前报告</button>
           <button type="button" id="refreshCurrent">重新生成</button>
         </div>
-        <div class="toolbar">
-          <button type="button" id="openCurrent">新窗口打开报告</button>
-          <button type="button" id="downloadCurrentHtml">下载 HTML</button>
-          <button type="button" id="downloadCurrentImage">下载图片</button>
-        </div>
         <div class="status" id="status">请选择一种报告类型。</div>
       </section>
 
@@ -583,9 +578,14 @@
           <p class="filename" id="filenameLabel">尚未生成报告</p>
           <textarea id="markdownOutput" class="markdown-output" spellcheck="false"></textarea>
           <div class="toolbar">
-            <button type="button" class="primary" id="copyMarkdown">复制 Markdown</button>
-            <button type="button" id="downloadMarkdown">下载 .md</button>
-            <button type="button" id="copyArchive">复制历史归档行</button>
+            <button type="button" class="primary" id="copyMarkdown">输出 MD</button>
+            <button type="button" id="downloadMarkdown">下载 MD</button>
+            <button type="button" id="copyArchive">输出归档行</button>
+          </div>
+          <div class="toolbar">
+            <button type="button" id="openCurrent">输出 HTML</button>
+            <button type="button" id="downloadCurrentHtml">下载 HTML</button>
+            <button type="button" id="downloadCurrentImage">输出图片</button>
           </div>
         </div>
 
