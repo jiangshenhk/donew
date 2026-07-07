@@ -315,6 +315,9 @@ function aiAppendix(aiText) {
 
 function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel) {
   const isEvening = meta.kind === "evening";
+  const sessionText = isEvening ? "晚8点版" : "早8点版";
+  const titleBasis = isEvening ? "对应美东盘前与早盘" : "基于美股最近一个完整交易日收盘、盘后消息与跨资产数据";
+  const titleMeta = [retrievedAtLabel ? `数据补取至${retrievedAtLabel}` : "", titleBasis].filter(Boolean).join("；");
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
   const overview = overviewRows(classification);
@@ -327,7 +330,7 @@ function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAt
     headline,
     finalCommand,
     markdown: `# 📊 市场结构日报
-**${displayDate(meta.date)}｜${weekday(meta.date)}${isEvening ? "盘前" : "盘后"}（${retrievedAtLabel ? `数据补取至${retrievedAtLabel}；` : ""}基于美股最近一个完整交易日收盘、盘后消息与跨资产数据）**
+**${displayDate(meta.date)}｜香港时间${weekday(meta.date)}${sessionText}（${titleMeta}）**
 
 ${dataPreamble}
 

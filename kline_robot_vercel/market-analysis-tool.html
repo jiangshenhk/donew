@@ -446,7 +446,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>每日/周度市场分析工具 <span class="version">v2.0.3</span></h1>
+      <h1>每日/周度市场分析工具 <span class="version">v2.0.4</span></h1>
       <a class="home" href="./">返回十方斋首页</a>
     </header>
 
@@ -573,7 +573,7 @@
       currentKind = kind;
       setStatus(`正在生成${reportTypeLabel(kind)}...`);
       switchView("preview");
-      $("#preview").innerHTML = '<div class="empty-state">正在获取菜单6市场风向数据并生成报告...</div>';
+      $("#preview").innerHTML = '<div class="empty-state">正在获取数据生成报告...</div>';
 
       try {
         const provider = $("#providerSelect").value || "deepseek";
