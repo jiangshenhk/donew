@@ -322,7 +322,7 @@ function aiAppendix(aiText) {
   return cleaned ? `\n## AI 市场风向解读\n\n${cleaned}\n` : "";
 }
 
-function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel) {
+function buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText) {
   const isEvening = meta.kind === "evening";
   const sessionText = isEvening ? "香港时间晚报版" : "香港时间早报版";
   const titleBasis = isEvening
@@ -332,20 +332,40 @@ function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAt
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
   const overview = overviewRows(classification);
-  const executionRows = targets.map(t => `| ${t.symbol} | ${t.wind} | ${t.level} | ${t.action} | ${t.delta} | ${t.dte} | ${t.cushion} | ${t.size} | ${t.invalid} |`).join("\n");
+  const qqq = row(snapshot, "QQQ");
+  const spy = row(snapshot, "SPY");
+  const qld = row(snapshot, "QLD");
+  const smh = row(snapshot, "SMH");
+  const soxx = row(snapshot, "SOXX");
+  const btc = row(snapshot, "BTC-USD");
+  const mstr = row(snapshot, "MSTR");
+  const dxy = row(snapshot, "DX-Y.NYB");
+  const tnx = row(snapshot, "^TNX");
+  const vix = row(snapshot, "^VIX");
+  const cl = row(snapshot, "CL=F");
+  const intc = row(snapshot, "INTC");
+  const qldTarget = targets.find(t => t.symbol === "QLD");
+  const eemTarget = targets.find(t => t.symbol === "EEM");
+  const mstrTarget = targets.find(t => t.symbol === "MSTR");
+  const intcTarget = targets.find(t => t.symbol === "INTC");
+  const hoodTarget = targets.find(t => t.symbol === "HOOD");
   const dataPreamble = isEvening
     ? `> **数据口径：** 本文用于香港收盘后到美股开盘前的晚报复盘，不把盘中价格当作收盘确认；具体期权合约须在券商端复核实时 Delta、Bid/Ask、OI 与保证金。`
     : `> **数据口径：** 本文用于早报汇总昨晚美股交易、盘后交易、欧洲交易与亚洲早盘，不把盘中价格当作收盘确认；市场快照来自最新跨资产数据。`;
+  const trendNote = classification.executionLevel === "D"
+    ? "这更像趋势里的再压力测试，不是反转确认。"
+    : classification.executionLevel === "B"
+      ? "这更像震荡里的分化修复，能交易，但不适合追。"
+      : "这更像顺风修复，但仍要看次日承接。";
+  const aiBlock = aiAppendix(aiText);
 
   return {
     headline,
     finalCommand,
-    markdown: `# 📊 市场结构日报
+    markdown: `# AI每日市场情况分析
 **${displayDate(meta.date)}｜香港时间${weekday(meta.date)}${sessionText}（${titleMeta}）**
 
 ${dataPreamble}
-
-## 1）${isEvening ? "今晚市场在交易什么？" : "本期市场在交易什么？"}
 
 **一句话结论：${headline}**
 
@@ -353,132 +373,72 @@ ${dataPreamble}
 |:---|:---|
 ${overview}
 
-**短期风向：${classification.windLight}。**  
-**今天真正交易的是：${classification.trueTheme}。**  
-**真正说真话的是：${classification.truthTeller}。**
+## 1）今天市场在交易什么
 
-## 2）资金流向异动｜今日最重要变化
+**今天真正交易的是：${classification.trueTheme}。**  
+**真正说真话的是：${classification.truthTeller}。**  
+**短期风向：${classification.windLight}。**
+
+${isEvening
+      ? "今晚更关注香港收盘后到美股开盘前的验证：油价、10Y、BTC 和高 beta 是否继续给出压力信号。"
+      : "今天先汇总昨晚美股交易、盘后交易、欧洲交易与亚洲早盘，再判断风险偏好是继续修复还是开始分化。"}
+
+## 2）资金流向异动
 
 | 异动 | 变化 | 指标 | 信号解读 |
 |:---|:---|:---|:---|
 ${flowRows(snapshot, classification, meta.kind)}
 
-## 3）策略矩阵
+## 3）利率和风险偏好
+
+| 维度 | 观察 | 结论 |
+|:---|:---|:---|
+| **利率** | 美10Y ${formatPrice(tnx.last)}，日变化 ${formatPctValue(tnx.changePct)}；美元指数 ${formatPrice(dxy.last)}，日变化 ${formatPctValue(dxy.changePct)} | ${tnx.changePct > 0 ? "利率偏上行，成长股估值压力回来了。" : "利率回落，有利于成长股修复，但不代表趋势已经翻多。"} |
+| **风险偏好** | VIX ${formatPrice(vix.last)}，日变化 ${formatPctValue(vix.changePct)}；BTC ${formatPrice(btc.last)}，MSTR ${formatPrice(mstr.last)} | ${vix.changePct < 0 ? "风险偏好有修复，但还要看是否扩散。" : "波动率没有真正降下来，风险偏好仍需验证。"} |
+| **成长股** | QQQ ${formatPrice(qqq.last)}，QLD ${formatPrice(qld.last)}；SMH ${formatPrice(smh.last)}，SOXX ${formatPrice(soxx.last)} | ${smh.changePct > soxx.changePct ? "半导体仍在主导，但是否能扩散到 QLD 还要确认。" : "成长股修复存在，但半导体与指数之间仍要比强弱。"} |
+
+## 4）关键资产联动
+
+| 观测对 | 当前关系 | 含义 |
+|:---|:---|:---|
+| **油价 vs 纳指** | ${formatPrice(cl.last)} / ${formatPctValue(cl.changePct)} | 油价回落时更利于科技，油价回升时科技估值会重新受压。 |
+| **10Y vs QLD** | ${formatPrice(tnx.last)} / ${formatPctValue(tnx.changePct)} | 10Y 上行时，QLD 只能低 Delta 远 OTM。 |
+| **VIX vs 纳指** | ${formatPrice(vix.last)} / ${formatPctValue(vix.changePct)} | VIX 不降，卖 Put 不能把权利金当安全垫。 |
+| **BTC vs MSTR** | ${formatPrice(btc.last)} / ${formatPctValue(btc.changePct)} | BTC 没有确认前，MSTR 继续按弱风险资产处理。 |
+| **SMH / SOXX vs INTC** | SMH ${formatPctValue(smh.changePct)}，SOXX ${formatPctValue(soxx.changePct)}，INTC ${formatPctValue(intc.changePct)} | 半导体链是主线，但 INTC 需要单独看竞争和事件风险。 |
+
+## 5）这是趋势，还是波动？
+
+${trendNote}
+
+## 6）策略判断
 
 | 资产 | 买CALL | 卖PUT | 核心逻辑 |
 |:---|:---:|:---:|:---|
-| **QQQ / QLD** | ⚠️ | ⚠️ | ${classification.executionLevel === "D" ? "先防守后观察；不追高卖近价 Put。" : "先看风险偏好与市场宽度，再决定是否只做远 OTM 小仓。"} |
-| **SPY** | ⚠️ | ⚠️ | 作为较低 beta 的观察对照，不主动加仓。 |
-| **IWM** | ⚠️ | ⚠️ | 风险偏好扩散时才更有意义，不是主进攻标的。 |
-| **EEM** | ⚠️ | ⚠️ | 受美元和利率共同制约，只能做候选，不是机械卖方标的。 |
-| **MSTR / BTC** | ❌ | ❌ | BTC 未确认前继续 0 交易。 |
-| **INTC** | ⚠️ | ⚠️ | 半导体 beta + 个股波动叠加，不能把高 IV 当安全垫。 |
-| **GLD / IAU** | ⚠️ | ⚠️ | 只作观察对冲，不是今日主线。 |
-| **USO / XLE** | ❌ | ❌ | 地缘与油价 headline 波动大，不追涨也不贴价卖 put。 |
+| **QQQ / QLD** | ${classification.executionLevel === "D" ? "❌" : "⚠️"} | ⚠️ | ${classification.executionLevel === "D" ? "利率和油价同时施压，先防守。" : "可以观察，但仍然优先远 OTM、小仓。"} |
+| **SPY** | ⚠️ | ⚠️ | 宽基比 QLD 稳，但不代表风险偏好已经全面确认。 |
+| **MSTR / BTC** | ❌ | ❌ | BTC 没确认前，MSTR 继续 0 交易。 |
+| **INTC** | ${classification.executionLevel === "A" ? "⚠️" : "❌"} | ⚠️ | ${classification.executionLevel === "D" ? "竞争和事件风险还没出清。" : "只能按更远 OTM 和愿意接货的位置看。"} |
+| **EEM** | ⚠️ | ⚠️ | 美元和利率压制仍在，只能做候选。 |
+| **GLD / IAU** | ⚠️ | ${classification.executionLevel === "D" ? "❌" : "⚠️"} | 若美元和实际利率偏强，无息资产不占优。 |
+| **USO / XLE** | ⚠️ | ⚠️ | 油价带来 headline 波动，不追涨。 |
 
 > **整体策略**：${finalCommand}
 
-## 4）资金流向与资产联动
-
-### A. 跨资产资金流向
-
-| 方向 | 7日/当前趋势 | 观测指标 | 信号解读 |
-|:---|:---|:---|:---|
-| 能源风险溢价 → 科技/半导体 | ${formatPctValue(row(snapshot, "CL=F").changePct)} | WTI / SMH / SOXX | 油价回落通常给科技估值减压。 |
-| 黄金避险 → 风险资产 | ${formatPctValue(row(snapshot, "GC=F").changePct)} | Gold | 避险需求是否下降，但未必会平均流向所有风险资产。 |
-| 大盘成长 → 半导体链 | ${formatPctValue(row(snapshot, "SMH").changePct)} / ${formatPctValue(row(snapshot, "SOXX").changePct)} | SMH / SOXX | 半导体是否仍是最清晰主线。 |
-| 风险资产 → 加密链 | ${formatPctValue(row(snapshot, "BTC-USD").changePct)} | BTC / MSTR | risk-on 是否扩散到 crypto beta。 |
-| 美元偏强 → 压制非美 / 高 beta | ${formatPctValue(row(snapshot, "DX-Y.NYB").changePct)} | DXY | EEM 与高 beta 卖 Put 必须拉远安全垫。 |
-
-### B. 关键联动
-
-| 观测对 | 当前关系 | 变化 | 含义 |
-|:---|:---|:---|:---|
-| **油价 vs 纳指/半导体** | 油价回落支持科技估值 | 利多 | QLD 从禁守转为候选，但需确认。 |
-| **10Y vs 科技股** | ${formatPrice(row(snapshot, "^TNX").last)} | ${formatPctValue(row(snapshot, "^TNX").changePct)} | 对 QQQ/SMH 是关键支撑或压制。 |
-| **VIX vs 纳指** | ${formatPrice(row(snapshot, "^VIX").last)} | ${formatPctValue(row(snapshot, "^VIX").changePct)} | 不能把高权利金当作安全。 |
-| **BTC vs MSTR** | 同向强弱决定 MSTR 是否恢复观察 | ${formatPctValue(row(snapshot, "MSTR").changePct)} | MSTR 不轻易升档。 |
-| **SMH / SOXX vs INTC** | INTC 是高波动个股，不是普通 ETF | ${formatPctValue(row(snapshot, "INTC").changePct)} | 不能机械跟随半导体指数卖 Put。 |
-
-### C. 谁在说真话？
-
-- **${isEvening ? "今晚" : "今天"}真正说真话的是：半导体链、BTC/MSTR、美元和 VIX。**
-- **我的判断：** 半导体可以确认风险修复的核心方向，但 BTC/MSTR 与美元没有确认全面 risk-on；所以卖 Put 可以恢复候选，但不能恢复激进。
-
-## 5）宏观资产数据
-
-| 资产 | 当前 | 日/均线变化 | 解读 |
-|:---|:---|:---|:---|
-${macroRows(snapshot)}
-
-## 6）风险资产表现
-
-| 资产 | 当前/收盘 | 20日变化 | 50日变化 | 资金流向 |
-|:---|---:|---:|---:|:---|
-${riskRows(snapshot)}
-
-### 科技/半导体关键观察
-
-| 股票/ETF | 当日结构 | 解读 |
-|:---|:---|:---|
-| **SMH** | ${formatPctValue(row(snapshot, "SMH").vs20Pct)} / ${formatPctValue(row(snapshot, "SMH").vs50Pct)} | 半导体中期强，短线仍可能震荡。 |
-| **SOXX** | ${formatPctValue(row(snapshot, "SOXX").vs20Pct)} / ${formatPctValue(row(snapshot, "SOXX").vs50Pct)} | 半导体链往往比 QQQ 更先表达主线。 |
-| **INTC** | ${formatPctValue(row(snapshot, "INTC").changePct)}，但 IV 仍高 | 这是高波动个股，不是低风险收租标的。 |
-
-## 7）驱动拆解
-
-    油价 / 10Y / DXY / VIX 的组合
-        ↓
-    科技估值压力或缓和
-        ↓
-    资金优先回到半导体，而不是平均买入所有风险资产
-        ↓
-    QQQ/QLD 是否重新站回趋势位
-        ↓
-    BTC、IBIT、MSTR 是否确认
-        ↓
-    今天可准备卖 Put，但只做远 OTM、小仓、盘中确认
-
-## 8）核心变化 & 下一步看点
-
-### A. 今天真正发生的变化
-
-1. **风险从“事件压制”切回“分化修复”，但不是全面进攻。**
-2. **半导体链是真主线，SMH / SOXX 往往比 QQQ 更先给出确认。**
-3. **加密链是否确认，直接决定 MSTR 能否从禁卖转观察。**
-4. **INTC 有半导体 beta 支撑，但它仍然是高波动个股。**
-
-### B. 下一个观察点
-
-| 关注点 | 重要性 | 影响 |
-|:---|:---|:---|
-| QQQ / QLD 能否重新站回 20 日线 | 🔴 高 | 决定 QLD 从观察转为执行候选。 |
-| SMH / SOXX 是否继续强于 QQQ | 🔴 高 | 决定半导体主线是否仍可支撑风险偏好。 |
-| VIX 是否回落到 20 日线下方 | 🔴 高 | 决定卖 Put 是否能提高一点 Delta。 |
-| BTC 是否站稳，MSTR 是否停止相对走弱 | 🔴 高 | 这是 MSTR 从禁卖转观察的前提。 |
-| INTC 是否守住关键区间 | 🔴 高 | 低于预期区间则暂停 INTC 卖 Put。 |
-| DXY 是否继续上行 | 🟡 中 | 若美元继续强，EEM 与高 beta 都降级。 |
-
-## 9）落到我的卖 Put 策略
-
 ### 对 QLD
-
 - **当前判断：** ${classification.executionLevel === "D" ? "暂停新增 / 只观察。" : "谨慎卖 / 盘中确认后才可小仓。"}
-- **原因：** ${classification.executionLevel === "D" ? "风险偏好仍偏弱，不能按修复盘处理。" : "半导体和油价/10Y的组合可以给支撑，但不适合追近价。"}
-- **执行框架：** 优先 4-10 DTE，Delta 约 0.08-0.15，安全垫至少 8%-10%；若 QQQ 盘中弱于 SPY 或 VIX 上行，暂停。
+- **原因：** ${classification.executionLevel === "D" ? "油价和利率把估值压力重新抬起来了。" : "半导体和油价/10Y的组合可以给支撑，但不适合追近价。"}
+- **执行框架：** 优先 4-10 DTE，Delta 约 0.08-0.15，安全垫至少 8%-10%。
 
 ### 对 MSTR
-
 - **当前判断：** 暂停新增 / 0 交易。
-- **原因：** BTC 未确认前，MSTR 的高 IV 主要是尾部风险，不是机会。
+- **原因：** BTC 未确认前，MSTR 的高 IV 主要是尾部风险。
 
 ### 对 INTC
-
-- **当前判断：** 只做观察；若一定做，只能极远 OTM、小仓、且愿意接货。
-- **原因：** INTC 是半导体 beta + 个股高波动，不应把高 IV 直接当成卖方优势。
+- **当前判断：** ${classification.executionLevel === "D" ? "只观察；不因高 IV 追高卖。" : "只观察；若一定做，只能极远 OTM、小仓、且愿意接货。"}
+- **原因：** ${classification.executionLevel === "D" ? "独立竞争和事件风险还没出清。" : "半导体 beta 有支撑，但个股风险仍然真实存在。"}
 
 ### 今天动作建议
-
 - [ ] 直接卖 7 天内 Put
 - [ ] 贴价卖 Put
 - [ ] 因为 IV 高就开仓
@@ -490,19 +450,20 @@ ${riskRows(snapshot)}
 
 **一句话交易建议：${finalCommand}**
 
-## 10）市场日志
+## 7）市场日志
 
 | 日期 | 核心变量 | 资金流向异动 | 风险评分 | 策略 |
 |:---|:---|:---|:---|:---|
 | ${displayDate(meta.date)} | ${classification.marketStage} | ${classification.capitalFlow} | ${classification.riskScore} | ${classification.executionLevel} |
 
-## 11）最后的话
+## 最后的话
 
-1. 今天/今晚是修复，不是翻篇。
-2. 真正决定后续的是油价、VIX、10Y 和 DXY。
-3. 如果 headline 反复，反弹会被重新定义。
-4. 对策略来说，已经从“恐慌里卖”切换到“反弹后保守卖”。
-5. INTC 只有在确认它不是独立事件风险时，才继续按低 Delta 候选处理。
+1. 今天/今晚看的是结构，不是噪音。
+2. 利率、油价、VIX、DXY 还是最先要盯的四个变量。
+3. 如果半导体和 BTC 没有确认，卖 Put 只能远、轻、慢。
+4. INTC 现在不是普通半导体 beta，必须单独看竞争和事件风险。
+
+${aiBlock ? `${aiBlock}\n` : ""}
 
 ## 数据来源
 
@@ -514,6 +475,10 @@ ${riskRows(snapshot)}
   };
 }
 
+function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText) {
+  return buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText);
+}
+
 function buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText) {
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
@@ -523,7 +488,7 @@ function buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText) {
   return {
     headline,
     finalCommand,
-    markdown: `# 📊 市场结构周报
+    markdown: `# AI每周市场情况分析
 **${displayDate(meta.date)}｜${weekday(meta.date)}复盘（基于周五收盘、周末新闻与跨资产数据）**
 
 **一句话结论：${headline}**
@@ -667,7 +632,7 @@ ${aiAppendix(aiText)}
 function buildRuleMarkdown(meta, snapshot, classification, targets, aiText, retrievedAtLabel) {
   return meta.kind === "weekly"
     ? buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText)
-    : buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel);
+    : buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText);
 }
 
 function marketPrompt() {
