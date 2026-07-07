@@ -313,7 +313,7 @@ function aiAppendix(aiText) {
   return cleaned ? `\n## AI 市场风向解读\n\n${cleaned}\n` : "";
 }
 
-function buildDailyMarkdown(meta, snapshot, classification, targets, aiText) {
+function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel) {
   const isEvening = meta.kind === "evening";
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
@@ -327,7 +327,7 @@ function buildDailyMarkdown(meta, snapshot, classification, targets, aiText) {
     headline,
     finalCommand,
     markdown: `# 📊 市场结构日报
-**${displayDate(meta.date)}｜香港时间${weekday(meta.date)}${isEvening ? "晚8点版" : "早8点版"}（基于美股最近一个完整交易日收盘、盘后消息与跨资产数据）**
+**${displayDate(meta.date)}｜${weekday(meta.date)}${isEvening ? "盘前" : "盘后"}（${retrievedAtLabel ? `数据补取至${retrievedAtLabel}；` : ""}基于美股最近一个完整交易日收盘、盘后消息与跨资产数据）**
 
 ${dataPreamble}
 
@@ -482,9 +482,13 @@ ${riskRows(snapshot)}
 |:---|:---|:---|:---|:---|
 | ${displayDate(meta.date)} | ${classification.marketStage} | ${classification.capitalFlow} | ${classification.riskScore} | ${classification.executionLevel} |
 
-## 11）AI 参考解读
+## 11）最后的话
 
-${aiAppendix(aiText)}
+1. 今天/今晚是修复，不是翻篇。
+2. 真正决定后续的是油价、VIX、10Y 和 DXY。
+3. 如果 headline 反复，反弹会被重新定义。
+4. 对策略来说，已经从“恐慌里卖”切换到“反弹后保守卖”。
+5. INTC 只有在确认它不是独立事件风险时，才继续按低 Delta 候选处理。
 
 ## 数据来源
 
@@ -646,10 +650,10 @@ ${aiAppendix(aiText)}
   };
 }
 
-function buildRuleMarkdown(meta, snapshot, classification, targets, aiSection) {
+function buildRuleMarkdown(meta, snapshot, classification, targets, aiText, retrievedAtLabel) {
   return meta.kind === "weekly"
-    ? buildWeeklyMarkdown(meta, snapshot, classification, targets, aiSection)
-    : buildDailyMarkdown(meta, snapshot, classification, targets, aiSection);
+    ? buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText)
+    : buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel);
 }
 
 function marketPrompt() {
@@ -712,7 +716,7 @@ export default async function handler(req, res) {
     const classification = classify(snapshot);
     const targets = targetRows(snapshot, classification);
     const ai = await callAI({ meta, snapshot, classification, targets }, provider);
-    const built = buildRuleMarkdown(meta, snapshot, classification, targets, ai.text);
+    const built = buildRuleMarkdown(meta, snapshot, classification, targets, ai.text, new Date().toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false }));
     const report = {
       id: `${meta.fileName}-${Date.now()}`,
       ...meta,
