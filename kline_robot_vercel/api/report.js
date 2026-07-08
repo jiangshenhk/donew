@@ -2179,6 +2179,19 @@ export default async function handler(req, res) {
       modules: data.modules || [],
       extra: data.extra || "",
     };
+    const analysisAngles = buildAnalysisAngles({
+      bars,
+      cards,
+      last: bars.at(-1),
+      support: Math.min(...bars.slice(-10).map((b) => b.low)),
+      pressure1: Math.max(...bars.slice(-4).map((b) => b.high)),
+      pressure2: Math.max(...bars.slice(-10).map((b) => b.high)),
+      e20: ema(bars.map((b) => b.close), 20).at(-1),
+      e60: ema(bars.map((b) => b.close), 60).at(-1),
+      mom10: momentum(bars.map((b) => b.close)),
+      rsi14: rsi(bars.map((b) => b.close)),
+      historicalTrendStats,
+    });
     const payload = {
       symbol: displayName,
       code: display,
