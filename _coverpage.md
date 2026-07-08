@@ -73,6 +73,19 @@
     overflow: hidden;
   }
 
+  .main-card,
+  .main-card:hover,
+  .main-card:focus,
+  .main-card:active,
+  .main-card *,
+  .main-card:hover *,
+  .main-card:focus *,
+  .main-card:active * {
+    text-decoration: none !important;
+    border-bottom: none !important;
+    box-shadow: none;
+  }
+
   .main-card::after {
     content: "";
     position: absolute;
@@ -86,25 +99,27 @@
 
   .main-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 22px 46px rgba(37, 99, 235, 0.26);
+    box-shadow: 0 22px 46px rgba(37, 99, 235, 0.26) !important;
   }
 
   .main-card strong {
     display: block;
     font-size: 1.16rem;
-    color: white;
-    margin-bottom: 10px;
+    color: white !important;
+    margin-bottom: 12px;
     position: relative;
     z-index: 1;
+    line-height: 1.35;
   }
 
   .main-card span {
     display: block;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.92) !important;
     font-size: 0.92rem;
     line-height: 1.75;
     position: relative;
     z-index: 1;
+    font-weight: 600;
   }
 
   .main-card.mindset {
