@@ -612,7 +612,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.9.4｜识别规则对齐';
+    const appVersionText = '2.9.6｜三角度叠加';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -771,6 +771,15 @@
       }, 1000);
     }
 
+    function dataUrlToBlob(dataUrl) {
+      const [meta, base64] = dataUrl.split(',');
+      const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+      const binary = atob(base64 || '');
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mime });
+    }
+
     async function downloadReportImage() {
       const frame = preview.querySelector('iframe');
       if (!frame) throw new Error('请先生成报告。');
@@ -794,15 +803,13 @@
       const svgUrl = URL.createObjectURL(svgBlob);
       try {
         const image = new Image();
-        const imageLoaded = await new Promise((resolve) => {
-          image.onload = resolve;
+        const loadImage = (src) => new Promise((resolve) => {
+          image.onload = () => resolve(true);
           image.onerror = () => resolve(false);
-          image.src = svgUrl;
+          image.src = src;
         });
-        if (imageLoaded === false) {
-          downloadBlob(svgBlob, downloadFileName('svg'));
-          return;
-        }
+        const imageLoaded = await loadImage(svgUrl) || await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+        if (!imageLoaded) throw new Error('图片导出失败：SVG 无法渲染为 JPG。');
         let jpgBlob = null;
         try {
           const canvas = document.createElement('canvas');
@@ -813,13 +820,13 @@
           ctx.fillRect(0, 0, width, height);
           ctx.drawImage(image, 0, 0);
           jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+          if (!jpgBlob) {
+            jpgBlob = dataUrlToBlob(canvas.toDataURL('image/jpeg', 0.92));
+          }
         } catch {
           jpgBlob = null;
         }
-        if (!jpgBlob) {
-          downloadBlob(svgBlob, downloadFileName('svg'));
-          return;
-        }
+        if (!jpgBlob) throw new Error('图片导出失败：无法生成 JPG 文件。');
         downloadBlob(jpgBlob, downloadFileName('jpg'));
       } finally {
         URL.revokeObjectURL(svgUrl);

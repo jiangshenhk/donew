@@ -1453,6 +1453,7 @@ function aiPrompt() {
     "你是K线形态相似度与卖Put风险判断AI。请基于输入JSON生成简短中文HTML解读。",
     "只返回HTML片段，不要返回Markdown代码块，不要使用style属性。",
     "根节点必须是 <section class=\"section ai-brief\"><h2>K线形态匹配 <span class=\"trend-title-accent\">AI</span> 解读</h2>。",
+    "请同时从三个角度组织结论：1) K线相似度，2) 历史趋势拟合（如提供的 historical_trend_stats），3) ABC动量结构（analysis_angles/abc_momentum）。",
     "结构必须包含两块：",
     "1. <div class=\"ai-thesis\"><strong>核心判断：</strong>...</div>，一句话说明主方向和风险优先级。",
     `2. <ol class="ai-top5"> 写超过${MIN_PATTERN_SCORE}%的匹配形态概括；如没有超过${MIN_PATTERN_SCORE}%的形态，明确说明暂无高可信经典形态，并解释是规则分或图形分未同时达标，不要强行套形态。`,
@@ -1970,6 +1971,118 @@ function futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60
   ].sort((a, b) => b.probability - a.probability);
 }
 
+function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, e60, mom10, rsi14 }) {
+  const aboveE20 = Number.isFinite(e20) && last.close >= e20;
+  const aboveE60 = Number.isFinite(e60) && last.close >= e60;
+  const recentTrend = closeTrend(bars, Math.max(0, bars.length - 8), bars.length - 1);
+  const recentVol = avgVolume(bars, Math.max(0, bars.length - 5), bars.length - 1);
+  const prevVol = avgVolume(bars, Math.max(0, bars.length - 15), Math.max(0, bars.length - 6));
+  const volRatio = prevVol > 0 ? recentVol / prevVol : 1;
+  const momentum = Number.isFinite(mom10) ? mom10 : 0;
+  const rsi = Number.isFinite(rsi14) ? rsi14 : 50;
+  let stage = "ABC待确认";
+  let bias = "中性";
+  let note = "当前更像整理区，A / B / C 的分界需要下一段价格和量能确认。";
+  if (momentum >= 3 && aboveE20 && aboveE60) {
+    stage = "C 段延续";
+    bias = "偏多";
+    note = "动量较强且价格站上中期均线，更像 C 段再次上冲后的延续。";
+  } else if (momentum >= 1 && aboveE20) {
+    stage = "B→C 过渡";
+    bias = "偏多";
+    note = "回踩后动量开始修复，若重新放量就更接近 C 段确认。";
+  } else if (momentum <= -3 && !aboveE20) {
+    stage = "A 段后回撤";
+    bias = "偏空";
+    note = "上冲后动量转弱，若失去 E20，容易演化为 A 段后的回撤或失效。";
+  } else if (momentum < 0 && aboveE20) {
+    stage = "B 段健康回踩";
+    bias = "中性";
+    note = "价格仍守住中期均线，但动量在消化，常见于 B 段回调或横盘整理。";
+  } else if (!aboveE20 && recentTrend < 0) {
+    stage = "A 段失败 / 转弱";
+    bias = "偏空";
+    note = "价格偏离中期均线且最近趋势转弱，更像 A 段后失守，需要防止继续回落。";
+  } else if (aboveE20 && recentTrend > 0) {
+    stage = "B 段止跌 / 等待 C";
+    bias = "中性";
+    note = "结构还守得住，但还没到强确认；更像 B 段止跌后等待 C 段触发。";
+  }
+  const volume = prevVol > 0 ? (volRatio >= 1.12 ? "放量" : volRatio <= 0.88 ? "缩量" : "平量") : "量能不足";
+  return {
+    stage,
+    bias,
+    note,
+    volume,
+    momentum: Number.isFinite(mom10) ? mom10.toFixed(2) : null,
+    rsi: Number.isFinite(rsi14) ? rsi14.toFixed(1) : null,
+    keyLevels: [
+      `A 段突破位 ${formatPrice(pressure2)}`,
+      `B 段低点 ${formatPrice(support)}`,
+      `C 段确认位 ${formatPrice(pressure1)}`,
+    ],
+    strength: aboveE20 ? "站上 E20" : "压在 E20 下",
+    volumeDetail: prevVol > 0 ? `近5根均量 ${Math.round(recentVol).toLocaleString()} / 前10根均量 ${Math.round(prevVol).toLocaleString()}` : "成交量基准不足",
+  };
+}
+
+function buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats }) {
+  const top = cards[0];
+  const trendPaths = futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats });
+  const abc = summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, e60, mom10, rsi14 });
+  const similarity = top
+    ? {
+        title: top.name,
+        score: top.score,
+        matchBars: top.matchBars,
+        bias: top.bias,
+        judgement: top.judgement,
+        detail: `规则 / 图形分：${top.ruleScore}% / ${top.shapeScore}%`,
+        note: "这是“像不像”的判断，主要回答当前末尾K线是否接近某个经典轮廓。",
+      }
+    : {
+        title: `暂无超过${MIN_PATTERN_SCORE}%的高可信形态`,
+        score: null,
+        matchBars: 0,
+        bias: "中性",
+        judgement: "不强行套形态",
+        detail: "规则分或图形分未同时达标。",
+        note: "系统仍会继续看价格图和后续确认，而不会硬套经典轮廓。",
+      };
+  const trend = historicalTrendStats && !historicalTrendStats.insufficient && historicalTrendStats.valid >= 8
+    ? {
+        available: true,
+        source: `历史样本 ${historicalTrendStats.valid}，回看后 ${historicalTrendStats.horizon} 根K线`,
+        rows: [
+          ["偏多", `${historicalTrendStats.bullProbability}%`, "历史相似样本后向上超过阈值"],
+          ["偏空", `${historicalTrendStats.bearProbability}%`, "历史相似样本后向下超过阈值"],
+          ["震荡", `${historicalTrendStats.flatProbability}%`, "历史相似样本后未走出明显方向"],
+        ],
+        note: "这部分就是 9 测试模式里的历史样本统计，直接回答“过去类似后通常怎么走”。",
+      }
+    : {
+        available: false,
+        source: "请使用 9 测试模式生成历史样本统计",
+        rows: [
+          ["偏多", "--", "样本不足"],
+          ["偏空", "--", "样本不足"],
+          ["震荡", "--", "样本不足"],
+        ],
+        note: "当前没有足够的 9 测试模式历史样本，暂时只能看当前结构与动量。",
+      };
+  return { similarity, trend, abc, trendPaths };
+}
+
+function threeAngleSummaryHtml({ angles }) {
+  const trendRows = angles.trend.rows
+    .map((row) => `<tr><td>${safeHtml(row[0])}</td><td class="price">${safeHtml(row[1])}</td><td>${safeHtml(row[2])}</td></tr>`)
+    .join("");
+  const similarityHtml = angles.similarity.score
+    ? `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong> <span class="price">${angles.similarity.score}%</span> · ${safeHtml(angles.similarity.matchBars)}根匹配 · ${directionMarkup(angles.similarity.bias)}</p><ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>状态：${safeHtml(angles.similarity.judgement)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`
+    : `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong></p><ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`;
+  return `<section class="section lens-section"><h2>三角度叠加分析</h2><p>把 <span class="trend-title-accent">K线相似度</span>、<span class="trend-title-accent">历史趋势拟合</span>、<span class="trend-title-accent">ABC动量结构</span> 放在一起看：先看像不像，再看过去类似后怎么走，最后看当前处在哪一段。</p><div class="lens-grid"><article class="lens-card"><h3>1. K线相似度（匹配K线样子）</h3>${similarityHtml}</article><article class="lens-card"><h3>2. 历史趋势拟合（9测试模式）</h3><p><strong>${safeHtml(angles.trend.source)}</strong></p><table class="lens-table"><thead><tr><th>方向</th><th>概率</th><th>触发条件</th></tr></thead><tbody>${trendRows}</tbody></table><p class="lens-note">${safeHtml(angles.trend.note)}</p></article><article class="lens-card"><h3>3. ABC动量结构</h3><p><strong>${safeHtml(angles.abc.stage)}</strong> · ${directionMarkup(angles.abc.bias)}</p><ul class="lens-list"><li>动量：${angles.abc.momentum == null ? "数据不足" : `${safeHtml(angles.abc.momentum)}%`}</li><li>RSI：${angles.abc.rsi == null ? "数据不足" : safeHtml(angles.abc.rsi)}</li><li>量能：${safeHtml(angles.abc.volume)}；${safeHtml(angles.abc.volumeDetail)}</li><li>${safeHtml(angles.abc.note)}</li><li>${safeHtml(angles.abc.keyLevels.join("；"))}</li></ul></article></div></section>`;
+}
+
 function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, options }) {
   const closes = bars.map((b) => b.close);
   const last = bars[bars.length - 1];
@@ -1985,6 +2098,8 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   const intervalText = intervalLabel(interval);
   const maxMatchBars = options.maxMatchBars || 10;
   const title = `${displaySymbol}｜${intervalText} 1-${safeHtml(maxMatchBars)}根K线形态匹配`;
+  const analysisAngles = buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats: options.historicalTrendStats });
+  const threeAngleHtml = threeAngleSummaryHtml({ angles: analysisAngles });
   const top5Rows = cards
     .map((c) => `<tr><td>${safeHtml(c.name)}</td><td>${safeHtml(c.matchBars)}根</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
     .join("");
@@ -2028,7 +2143,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     historicalTrendStats: options.historicalTrendStats,
   });
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
-:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px;display:block;overflow-x:auto;white-space:nowrap}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.trend-title-accent,.trend-stat{color:var(--gold);font-weight:900}.trend-note{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px;margin-left:8px;border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:9px;padding:6px 10px;color:#f6e6b2;font-weight:800}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 strong{color:#edf2ff}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-bias{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;font-weight:800}.ai-bull{color:#ff7a88;background:rgba(255,122,136,.12)}.ai-bear{color:#40d98a;background:rgba(64,217,138,.12)}.ai-flat{color:#ffd166;background:rgba(255,209,102,.12)}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:12px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:14px;align-items:start}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0;display:block}.chart-panel h3{min-height:0}.chart-panel .chart{display:block;min-height:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 8px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}@media(max-width:760px){.compare{grid-template-columns:1fr;gap:12px}.head{display:block}.score{text-align:left;margin-top:10px}.wrap{padding-left:12px;padding-right:12px}h1{font-size:24px}.section,.hero{padding:16px}.trend-note{display:flex;margin:8px 0 0}.visual-box{margin-left:0;margin-right:0;padding:10px}.panel h3{margin-bottom:6px}.detail-box{margin-left:0;margin-right:0}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(intervalText)}</div><div class="pill">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div></div>${topMatchHtml}</section>${gptHtml || ""}${chartHtml}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml || noMatchHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><details class="section collapsible"><summary><h2>关键位置判断</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></details><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
+:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px;display:block;overflow-x:auto;white-space:nowrap}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.trend-title-accent,.trend-stat{color:var(--gold);font-weight:900}.trend-note{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px;margin-left:8px;border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:9px;padding:6px 10px;color:#f6e6b2;font-weight:800}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 strong{color:#edf2ff}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-bias{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;font-weight:800}.ai-bull{color:#ff7a88;background:rgba(255,122,136,.12)}.ai-bear{color:#40d98a;background:rgba(64,217,138,.12)}.ai-flat{color:#ffd166;background:rgba(255,209,102,.12)}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:12px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:14px;align-items:start}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0;display:block}.chart-panel h3{min-height:0}.chart-panel .chart{display:block;min-height:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 8px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}.lens-section{margin-top:22px;padding:20px}.lens-section p{margin-top:0}.lens-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}.lens-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;min-width:0}.lens-card h3{margin:0 0 10px;font-size:16px}.lens-list{margin:10px 0 0;padding-left:18px;color:#cbd6ef}.lens-list li{margin:6px 0}.lens-note{margin-top:10px;color:#cbd6ef;line-height:1.5}.lens-table{width:100%;display:table;overflow:visible;white-space:nowrap;margin-top:10px}.lens-table th,.lens-table td{padding:10px 8px;font-size:13px}.lens-table th{background:rgba(255,255,255,.03)}.angle-kicker{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px}.angle-kicker span{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px;color:#d7e3ff}.angle-kicker .gold{color:#f6e6b2;border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.08)}@media(max-width:760px){.compare{grid-template-columns:1fr;gap:12px}.head{display:block}.score{text-align:left;margin-top:10px}.wrap{padding-left:12px;padding-right:12px}h1{font-size:24px}.section,.hero{padding:16px}.trend-note{display:flex;margin:8px 0 0}.visual-box{margin-left:0;margin-right:0;padding:10px}.panel h3{margin-bottom:6px}.detail-box{margin-left:0;margin-right:0}.lens-grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(intervalText)}</div><div class="pill">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div></div>${topMatchHtml}</section>${threeAngleHtml}${gptHtml || ""}${chartHtml}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml || noMatchHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><details class="section collapsible"><summary><h2>关键位置判断</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></details><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
 }
 
 export default async function handler(req, res) {
@@ -2073,6 +2188,7 @@ export default async function handler(req, res) {
       recent_bars: bars.slice(-14),
       top5: cards.map((card, idx) => ({ rank: idx + 1, ...card })),
       historical_trend_stats: historicalTrendStats,
+      analysis_angles: analysisAngles,
       options,
     };
     const ai = await callAI(payload, provider);
