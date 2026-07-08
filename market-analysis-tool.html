@@ -524,7 +524,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.0</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.1</span></h1>
       <a class="home" href="./">返回十方斋首页</a>
     </header>
 
@@ -1016,34 +1016,6 @@
       $("#filenameLabel").textContent = report.fileName;
       $("#markdownOutput").value = report.markdown;
       $("#preview").innerHTML = `
-        <article class="report-card">
-          <h2>${escapeHtml(report.title)}</h2>
-          <p><strong>一句话结论：</strong>${escapeHtml(report.headline)}</p>
-          <p><strong>今日短期风向：</strong>${escapeHtml(report.windLight)}</p>
-          <p><strong>真正交易：</strong>${escapeHtml(report.trueTheme)}</p>
-          <p><strong>谁在说真话：</strong>${escapeHtml(report.truthTeller)}</p>
-          <table>
-            <tr><th>项目</th><th>判断</th></tr>
-            <tr><td>市场阶段</td><td>${escapeHtml(report.marketStage)}</td></tr>
-            <tr><td>资金流向</td><td>${escapeHtml(report.capitalFlow)}</td></tr>
-            <tr><td>风险评分</td><td>${escapeHtml(report.riskScore)} / 10</td></tr>
-            <tr><td>7天卖put环境</td><td>${escapeHtml(report.putEnvironment)}</td></tr>
-            <tr><td>整体执行等级</td><td>${escapeHtml(report.executionLevel)}</td></tr>
-          </table>
-        </article>
-        <article class="report-card">
-          <h3>最终执行表</h3>
-          <table>
-            <tr><th>标的</th><th>操作</th><th>失效条件</th></tr>
-            ${report.targets.map(item => `
-              <tr>
-                <td>${escapeHtml(item.symbol)}</td>
-                <td>${escapeHtml(item.action)}</td>
-                <td>${escapeHtml(item.invalid)}</td>
-              </tr>
-            `).join("")}
-          </table>
-        </article>
         <article class="report-card markdown-body">
           ${renderMarkdown(report.markdown)}
         </article>
