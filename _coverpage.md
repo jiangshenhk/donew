@@ -52,9 +52,9 @@
 
   .main-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 18px;
-    max-width: 860px;
+    max-width: 980px;
     margin: 34px auto 18px;
   }
 
@@ -92,6 +92,12 @@
     line-height: 1.75;
   }
 
+  .main-card.mindset {
+    background: #2563eb;
+    color: white !important;
+    border-color: #2563eb;
+  }
+
   .main-card.weapon-one {
     background: linear-gradient(135deg, #2563eb, #7c3aed);
     color: white !important;
@@ -104,6 +110,8 @@
     border-color: rgba(15, 118, 110, 0.45);
   }
 
+  .main-card.mindset strong,
+  .main-card.mindset span,
   .main-card.weapon-one strong,
   .main-card.weapon-one span,
   .main-card.weapon-two strong,
@@ -189,10 +197,15 @@
  <span class="sub-quote">站在时间这一边，用AI和数据，重新理解复利投资。</span> -->
 
 <div class="cover-highlight">
-  <strong>核心思想：</strong>暴富是概率事件，复利是时间过程。用 ETF 定投建立底仓，用 Sell Put 增强现金流，再用 AI 工具判断市场环境与个股结构。
+  <strong>核心思想：</strong>暴富是概率事件，复利是时间过程。先把财富观理清楚，再用 AI 工具判断市场环境与个股结构，最后才执行 ETF 定投或 Sell Put。
 </div>
 
 <div class="main-grid">
+  <a href="#/docs/other/calm-wealth-mindset.md" class="main-card mindset">
+    <strong>❤️ 心安复利</strong>
+    <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span>
+  </a>
+
   <a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
     <strong>⚔️ AI市场风向判断</strong>
     <span>每天先看大环境：利率、黄金、BTC、纳指、风险偏好，到底适不适合执行定投或 Sell Put。</span>
@@ -210,7 +223,6 @@
   <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投ETF收益PK</a>
   <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺拜财富众神</a>
   <a href="#/docs/市场/今日.md" class="quick-link">AI每日市场判断</a>
-  <a href="#/docs/other/calm-wealth-mindset.md" class="quick-link">心安复利</a>
 </div>
 
 <div class="site-counter">
