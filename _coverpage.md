@@ -208,7 +208,7 @@
 
   <a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
     <strong>⚔️ AI看市场</strong>
-    <span>每天先看大环境：利率、黄金、BTC、纳指、风险偏好。</span>
+    <span>先看大环境：利率、黄金、BTC、纳指、风险偏好。</span>
   </a>
 
   <a href="https://donew-beta.vercel.app/kline-robot.html" target="_blank" class="main-card weapon-two">
