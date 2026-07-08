@@ -52,8 +52,8 @@
 
   .main-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
     max-width: 860px;
     margin: 34px auto 18px;
   }
@@ -61,14 +61,14 @@
   .main-card {
     background: white;
     border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 20px 18px;
+    border-radius: 18px;
+    padding: 24px 22px;
     text-align: left;
     text-decoration: none !important;
     color: #334155 !important;
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
     transition: all 0.25s ease;
-    min-height: 128px;
+    min-height: 148px;
     display: block;
   }
 
@@ -80,26 +80,34 @@
 
   .main-card strong {
     display: block;
-    font-size: 1.08rem;
+    font-size: 1.16rem;
     color: #1e293b;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
 
   .main-card span {
     display: block;
     color: #64748b;
-    font-size: 0.9rem;
-    line-height: 1.65;
+    font-size: 0.92rem;
+    line-height: 1.75;
   }
 
-  .main-card.featured {
-    background: #2563eb;
+  .main-card.weapon-one {
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
     color: white !important;
-    border-color: #2563eb;
+    border-color: rgba(37, 99, 235, 0.45);
   }
 
-  .main-card.featured strong,
-  .main-card.featured span { color: white; }
+  .main-card.weapon-two {
+    background: linear-gradient(135deg, #0f766e, #2563eb);
+    color: white !important;
+    border-color: rgba(15, 118, 110, 0.45);
+  }
+
+  .main-card.weapon-one strong,
+  .main-card.weapon-one span,
+  .main-card.weapon-two strong,
+  .main-card.weapon-two span { color: white; }
 
   .quick-row {
     max-width: 860px;
@@ -181,32 +189,28 @@
  <span class="sub-quote">站在时间这一边，用AI和数据，重新理解复利投资。</span> -->
 
 <div class="cover-highlight">
-  <strong>核心思想：</strong>暴富是概率事件，复利是时间过程。普通人最现实的财富路径，不是寻找一次小概率暴富，而是尽早站到时间这一边。
+  <strong>核心思想：</strong>暴富是概率事件，复利是时间过程。用 ETF 定投建立底仓，用 Sell Put 增强现金流，再用 AI 工具判断市场环境与个股结构。
 </div>
 
 <div class="main-grid">
-  <a href="#/docs/other/calm-wealth-mindset.md" class="main-card featured">
-    <strong>心安复利</strong>
-    <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span>
+  <a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
+    <strong>⚔️ 武器 1：AI 市场判断工具</strong>
+    <span>每天先看大环境：利率、黄金、BTC、纳指、风险偏好，到底适不适合执行定投或 Sell Put。</span>
   </a>
 
-  <a href="#/docs/复利/ETF定投方法.md" class="main-card">
-    <strong>时间武器一：<br>ETF定投</strong>
-    <span>用长期参与和持续投入，降低择时压力，让时间慢慢摊平波动。</span>
-  </a>
-
-  <a href="#/docs/SellPut/how-to-sell-put.md" class="main-card">
-    <strong>时间武器二：<br>Sell Put</strong>
-    <span>用愿意接货的价格等待好资产，把等待过程变成权利金现金流。</span>
+  <a href="https://donew-beta.vercel.app/kline-robot.html" target="_blank" class="main-card weapon-two">
+    <strong>🧭 武器 2：K 线相似度机器人</strong>
+    <span>再看具体标的：K 线结构、动量状态、相似形态、关键确认位和失败位，辅助判断单票风险。</span>
   </a>
 </div>
 
 <div class="quick-row">
-  <a href="https://jiangshenhk.github.io/donew/market-analysis-tool.html" class="quick-link">每日/周度分析工具</a>
-  <a href="#/docs/市场/今日.md" class="quick-link">AI每日市场判断</a>
-  <a href="#/docs/市场/卖Put评级说明.md" class="quick-link">AI筛选Put</a>
+  <a href="#/docs/复利/ETF定投方法.md" class="quick-link">时间武器一：ETF 定投</a>
+  <a href="#/docs/SellPut/how-to-sell-put.md" class="quick-link">时间武器二：Sell Put</a>
   <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投ETF收益PK</a>
   <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺拜财富众神</a>
+  <a href="#/docs/市场/今日.md" class="quick-link">AI每日市场判断</a>
+  <a href="#/docs/other/calm-wealth-mindset.md" class="quick-link">心安复利</a>
 </div>
 
 <div class="site-counter">
