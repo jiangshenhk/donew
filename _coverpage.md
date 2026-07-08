@@ -194,12 +194,12 @@
 
 <div class="main-grid">
   <a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
-    <strong>⚔️ 武器 1：AI 市场判断工具</strong>
+    <strong>⚔️ AI市场风向判断</strong>
     <span>每天先看大环境：利率、黄金、BTC、纳指、风险偏好，到底适不适合执行定投或 Sell Put。</span>
   </a>
 
   <a href="https://donew-beta.vercel.app/kline-robot.html" target="_blank" class="main-card weapon-two">
-    <strong>🧭 武器 2：K 线相似度机器人</strong>
+    <strong>🧭 单票K线技术判断</strong>
     <span>再看具体标的：K 线结构、动量状态、相似形态、关键确认位和失败位，辅助判断单票风险。</span>
   </a>
 </div>
