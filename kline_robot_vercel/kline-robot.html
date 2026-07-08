@@ -227,7 +227,7 @@
       font-size: 12px;
       font-weight: 600;
       line-height: 1.55;
-      white-space: normal;
+      white-space: pre-line;
       opacity: 0;
       pointer-events: none;
       transition: opacity .15s ease;
@@ -517,7 +517,7 @@
           <div>
             <div class="label-help">
               <label for="symbolInput">标的</label>
-              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="格式：港股输入 00700；A股输入 600000 / 000001；美股输入 mstr；指数输入 ^IXIC。代码参考 Yahoo 金融。">?</button>
+              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="识别规则：&#10;1. 不选市场时自动识别：^ 开头先按指数/主题尝试；6位数字先按A股；4-5位数字或 0 开头数字先按港股；其余先按美股。&#10;2. 选了市场就优先按所选市场解析。&#10;3. 找不到时会按 Yahoo Finance 代码继续尝试。&#10;&#10;输入示例：&#10;A股：000001、000015、000688、600570、000001.SZ、600570.SS&#10;港股：^HSI、^HSTECH、03033、00700、9988、3033.HK&#10;美股：^IXIC、^NDX、SCHD、XLK、QQQ、MSTR&#10;&#10;常见指数/主题：&#10;A股 上证指数 000001 / 000001.SS｜上证红利 000015｜科创50 000688&#10;港股 恒生指数 ^HSI｜恒生科技 ^HSTECH｜恒生科技ETF 03033 / 3033.HK&#10;美股 纳指 ^IXIC｜纳指100 ^NDX｜红利 SCHD｜科技 XLK / QQQ&#10;&#10;代码优先参考 Yahoo Finance。">?</button>
             </div>
             <input id="symbolInput" name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700">
           </div>
@@ -612,7 +612,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.9.2｜东财日线';
+    const appVersionText = '2.9.4｜识别规则对齐';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';

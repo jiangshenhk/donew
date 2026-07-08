@@ -75,6 +75,7 @@ const SYMBOL_NAME_MAP = {
   "^DJI": "道琼斯工业平均指数",
   "^NDX": "纳斯达克100指数",
   "^HSI": "恒生指数",
+  "^HSTECH": "恒生科技指数",
   "BTC-USD": "比特币",
 };
 
@@ -92,6 +93,7 @@ function normalizeSymbol(rawSymbol, market) {
     return { yahoo: `${compact}-USD`, display: compact };
   }
   if (selectedMarket === "hk") {
+    if (compact === "^HSI" || compact === "^HSTECH") return { yahoo: compact, display: compact };
     const digits = compact.replace(/\D/g, "");
     if (!digits) throw new Error(`找不到代码：${rawSymbol || ""}，港股请输入数字代码，例如 0700 或 9988。`);
     const code = digits.length === 5 && digits.startsWith("0") ? digits.slice(1) : digits.padStart(4, "0");
@@ -116,7 +118,8 @@ function marketOrderFor(rawSymbol, selectedMarket) {
   const requested = String(selectedMarket || "").trim().toLowerCase();
   if (requested) return [requested];
   const compact = String(rawSymbol || "").trim().toUpperCase().replace(/\s+/g, "");
-  if (compact.startsWith("^")) return ["us"];
+  if (compact === "^HSI" || compact === "^HSTECH") return ["hk", "us", "cn", "crypto"];
+  if (compact.startsWith("^")) return ["us", "hk", "cn", "crypto"];
   if (/^(SH|SZ)?\d{6}(\.(SS|SZ|SH))?$/.test(compact)) return ["cn", "us", "hk", "crypto"];
   if (/^0?\d{4}$/.test(compact) || /^0\d{4}$/.test(compact)) return ["hk", "us", "cn", "crypto"];
   return ["us", "hk", "cn", "crypto"];
