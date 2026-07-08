@@ -1453,7 +1453,7 @@ function aiPrompt() {
     "你是K线形态相似度与卖Put风险判断AI。请基于输入JSON生成简短中文HTML解读。",
     "只返回HTML片段，不要返回Markdown代码块，不要使用style属性。",
     "根节点必须是 <section class=\"section ai-brief\"><h2>K线形态匹配 <span class=\"trend-title-accent\">AI</span> 解读</h2>。",
-    "请同时从三个角度组织结论：1) K线相似度，2) 历史趋势拟合（如提供的 historical_trend_stats），3) ABC动量结构（analysis_angles/abc_momentum）。",
+    "请同时从三个角度组织结论：1) K线相似度，2) 历史趋势拟合（如提供的 historical_trend_stats），3) ABC/2B结构（analysis_angles/abc_momentum）。",
     "结构必须包含两块：",
     "1. <div class=\"ai-thesis\"><strong>核心判断：</strong>...</div>，一句话说明主方向和风险优先级。",
     `2. <ol class="ai-top5"> 写超过${MIN_PATTERN_SCORE}%的匹配形态概括；如没有超过${MIN_PATTERN_SCORE}%的形态，明确说明暂无高可信经典形态，并解释是规则分或图形分未同时达标，不要强行套形态。`,
@@ -1708,7 +1708,7 @@ function candleChartSvg(bars, cards, keyLevels = {}) {
       ? `<span class="trend-note">右侧虚线箭头为历史样本统计路径：<span class="trend-stat">样本 ${safeHtml(historicalTrendStats.valid)}</span><span class="trend-stat">后 ${safeHtml(historicalTrendStats.horizon)} 根K线</span></span>`
       : '<span class="trend-note">右侧虚线箭头为测试模式模拟路径，标注概率与触发条件</span>'
     : "";
-  return `<section class="section chart-section"><h2>历史曲线<span class="trend-title-accent">AI</span>预估</h2><p>最近 ${chartBars.length} 根K线，已在图上标注关键位置。${trendNote}</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}">${trendDefs}<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量 · 关键位置</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${keyLines}${labels}<circle cx="${startX.toFixed(1)}" cy="${startY.toFixed(1)}" r="4" fill="#edf2ff"/>${trendOverlay}</svg></div></section>`;
+  return `<section class="section chart-section"><h2>历史曲线<span class="trend-title-accent">AI</span>预判</h2><p>最近 ${chartBars.length} 根K线，已在图上标注关键位置。${trendNote}</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}">${trendDefs}<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量 · 关键位置</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${keyLines}${labels}<circle cx="${startX.toFixed(1)}" cy="${startY.toFixed(1)}" r="4" fill="#edf2ff"/>${trendOverlay}</svg></div></section>`;
 }
 
 function directionMarkup(bias) {
@@ -2009,10 +2009,13 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     note = "结构还守得住，但还没到强确认；更像 B 段止跌后等待 C 段触发。";
   }
   const volume = prevVol > 0 ? (volRatio >= 1.12 ? "放量" : volRatio <= 0.88 ? "缩量" : "平量") : "量能不足";
+  const phaseKey = stage.startsWith("C") ? "C" : stage.startsWith("B→C") ? "BC" : stage.startsWith("B") ? "B" : stage.startsWith("A") ? "A" : "unknown";
   return {
     stage,
+    phaseKey,
     bias,
     note,
+    summary: `当前位置更像 ${stage}，整体${bias}。${note} 动量 ${Number.isFinite(mom10) ? `${mom10.toFixed(2)}%` : "数据不足"}，RSI ${Number.isFinite(rsi14) ? rsi14.toFixed(1) : "数据不足"}，量能${volume}，A/B/C 分界仍以关键位确认。`,
     volume,
     momentum: Number.isFinite(mom10) ? mom10.toFixed(2) : null,
     rsi: Number.isFinite(rsi14) ? rsi14.toFixed(1) : null,
@@ -2024,6 +2027,18 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     strength: aboveE20 ? "站上 E20" : "压在 E20 下",
     volumeDetail: prevVol > 0 ? `近5根均量 ${Math.round(recentVol).toLocaleString()} / 前10根均量 ${Math.round(prevVol).toLocaleString()}` : "成交量基准不足",
   };
+}
+
+function abcPositionSvg(abc) {
+  const cells = [
+    { key: "A", label: "A 段", x: 18, desc: "启动 / 突破", fill: "#ff7a88" },
+    { key: "B", label: "B 段", x: 138, desc: "回踩 / 整理", fill: "#ffd166" },
+    { key: "C", label: "C 段", x: 258, desc: "延续 / 确认", fill: "#40d98a" },
+  ];
+  const active = abc.phaseKey === "BC" ? "B" : (abc.phaseKey || "unknown");
+  const markerX = active === "A" ? 72 : active === "B" ? 192 : active === "C" ? 312 : 192;
+  const activeFill = active === "A" ? "#ff7a88" : active === "B" ? "#ffd166" : active === "C" ? "#40d98a" : "#9fb0d8";
+  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 348 110" role="img" aria-label="ABC动量结构位置图"><defs><filter id="abcGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M42 82H306" stroke="rgba(255,255,255,.16)" stroke-width="6" stroke-linecap="round"/><path d="M42 82H306" stroke="rgba(255,255,255,.28)" stroke-width="1" stroke-dasharray="8 8" stroke-linecap="round"/><line x1="72" y1="28" x2="72" y2="82" stroke="${cells[0].fill}" stroke-width="2.2" opacity=".35"/><line x1="192" y1="28" x2="192" y2="82" stroke="${cells[1].fill}" stroke-width="2.2" opacity=".35"/><line x1="312" y1="28" x2="312" y2="82" stroke="${cells[2].fill}" stroke-width="2.2" opacity=".35"/><circle cx="${markerX}" cy="82" r="14" fill="${activeFill}" opacity=".18"/><path d="M${markerX - 10} 82H${markerX + 16}" stroke="${activeFill}" stroke-width="4" stroke-linecap="round" filter="url(#abcGlow)"/><path d="M${markerX + 6} 72l14 10-14 10" fill="${activeFill}" opacity=".95"/><g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800"><text x="24" y="22" fill="#d7e3ff" font-size="12">${safeHtml(abc.stage)}</text><text x="18" y="103" fill="${cells[0].fill}" font-size="12">${cells[0].label}</text><text x="138" y="103" fill="${cells[1].fill}" font-size="12">${cells[1].label}</text><text x="258" y="103" fill="${cells[2].fill}" font-size="12">${cells[2].label}</text></g></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(abc.stage)}</span>${directionMarkup(abc.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(cells.find((c) => c.key === active)?.desc || "当前位置待确认")}</span></div></div>`;
 }
 
 function buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats }) {
@@ -2080,7 +2095,84 @@ function threeAngleSummaryHtml({ angles }) {
   const similarityHtml = angles.similarity.score
     ? `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong> <span class="price">${angles.similarity.score}%</span> · ${safeHtml(angles.similarity.matchBars)}根匹配 · ${directionMarkup(angles.similarity.bias)}</p><ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>状态：${safeHtml(angles.similarity.judgement)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`
     : `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong></p><ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`;
-  return `<section class="section lens-section"><h2>三角度叠加分析</h2><p>把 <span class="trend-title-accent">K线相似度</span>、<span class="trend-title-accent">历史趋势拟合</span>、<span class="trend-title-accent">ABC动量结构</span> 放在一起看：先看像不像，再看过去类似后怎么走，最后看当前处在哪一段。</p><div class="lens-grid"><article class="lens-card"><h3>1. K线相似度（匹配K线样子）</h3>${similarityHtml}</article><article class="lens-card"><h3>2. 历史趋势拟合（9测试模式）</h3><p><strong>${safeHtml(angles.trend.source)}</strong></p><table class="lens-table"><thead><tr><th>方向</th><th>概率</th><th>触发条件</th></tr></thead><tbody>${trendRows}</tbody></table><p class="lens-note">${safeHtml(angles.trend.note)}</p></article><article class="lens-card"><h3>3. ABC动量结构</h3><p><strong>${safeHtml(angles.abc.stage)}</strong> · ${directionMarkup(angles.abc.bias)}</p><ul class="lens-list"><li>动量：${angles.abc.momentum == null ? "数据不足" : `${safeHtml(angles.abc.momentum)}%`}</li><li>RSI：${angles.abc.rsi == null ? "数据不足" : safeHtml(angles.abc.rsi)}</li><li>量能：${safeHtml(angles.abc.volume)}；${safeHtml(angles.abc.volumeDetail)}</li><li>${safeHtml(angles.abc.note)}</li><li>${safeHtml(angles.abc.keyLevels.join("；"))}</li></ul></article></div></section>`;
+  return `<section class="section lens-section"><h2>三角度叠加分析</h2><p>把 <span class="trend-title-accent">K线相似度</span>、<span class="trend-title-accent">历史趋势拟合</span>、<span class="trend-title-accent">ABC动量结构</span> 放在一起看：先看像不像，再看过去类似后怎么走，最后看当前处在哪一段。</p><div class="lens-grid"><article class="lens-card"><h3>1. K线相似度（匹配K线样子）</h3>${similarityHtml}</article><article class="lens-card"><h3>2. 历史趋势拟合（9测试模式）</h3><p><strong>${safeHtml(angles.trend.source)}</strong></p><table class="lens-table"><thead><tr><th>方向</th><th>概率</th><th>触发条件</th></tr></thead><tbody>${trendRows}</tbody></table><p class="lens-note">${safeHtml(angles.trend.note)}</p></article><article class="lens-card"><h3>3. ABC动量结构</h3><p class="lens-note">${safeHtml(angles.abc.summary)}</p>${abcPositionSvg(angles.abc)}</article></div></section>`;
+}
+
+function summarizeTwoB({ bars, last, support, pressure1, e20, mom10, rsi14 }) {
+  const n = bars.length;
+  const prev = bars.slice(Math.max(0, n - 8), Math.max(0, n - 3));
+  const recent = bars.slice(Math.max(0, n - 4));
+  const brokePrevLow = prev.length >= 2 && recent.some((bar) => bar.low < Math.min(...prev.map((x) => x.low))) && recent.some((bar) => bar.close > Math.min(...prev.map((x) => x.low)));
+  const recovered = recent.some((bar) => bar.close > support);
+  const touchedPressure = recent.some((bar) => bar.high >= pressure1);
+  let stage = "2B待确认";
+  let bias = "中性";
+  let note = "当前更像等待确认的 2B 观察区，关键看是否先跌破再快速收回，或冲高后重新失守。";
+  if (brokePrevLow && recovered) {
+    stage = "底部2B确认";
+    bias = "偏多";
+    note = "先跌破前低、随后重新收回，符合底部2B 的核心特征，后续更关注是否继续站稳。";
+  } else if (touchedPressure && last.close < pressure1) {
+    stage = "顶部2B观察";
+    bias = "偏空";
+    note = "上方尝试突破后又回到确认位下方，更像顶部2B 的反复确认过程，需防止再次转弱。";
+  } else if (last.close >= e20 && (mom10 || 0) > 0 && (rsi14 || 50) >= 50) {
+    stage = "2B偏强修复";
+    bias = "偏多";
+    note = "价格守住中短均线，动量回正，若再放量则更像 2B 后的修复延续。";
+  } else if (last.close < e20 && (mom10 || 0) < 0) {
+    stage = "2B偏弱延续";
+    bias = "偏空";
+    note = "价格仍压在均线下，动量偏弱，更像 2B 失败后的延续整理。";
+  }
+  return {
+    stage,
+    bias,
+    note,
+    summary: `当前位置更像 ${stage}，整体${bias}。${note} 重点看 ${formatPrice(support)} 的支撑与 ${formatPrice(pressure1)} 的确认。`,
+    detail: `动量 ${Number.isFinite(mom10) ? `${mom10.toFixed(2)}%` : "数据不足"}，RSI ${Number.isFinite(rsi14) ? rsi14.toFixed(1) : "数据不足"}，E20 ${formatPrice(e20)}。`,
+    keyLevels: {
+      support,
+      confirm: pressure1,
+      e20,
+    },
+    recentBars: recent.length ? recent : bars.slice(-3),
+  };
+}
+
+function twoBPositionSvg(twoB) {
+  const state = /顶部/.test(twoB.stage) ? "top" : /底部/.test(twoB.stage) ? "bottom" : "neutral";
+  const color = state === "top" ? "#ff7a88" : state === "bottom" ? "#40d98a" : "#ffd166";
+  const arrowY = state === "top" ? 34 : state === "bottom" ? 78 : 56;
+  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 348 110" role="img" aria-label="2B结构位置图"><defs><filter id="twoBGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M42 82H306" stroke="rgba(255,255,255,.16)" stroke-width="6" stroke-linecap="round"/><path d="M42 82H306" stroke="rgba(255,255,255,.28)" stroke-width="1" stroke-dasharray="8 8" stroke-linecap="round"/><circle cx="96" cy="82" r="12" fill="${color}" opacity=".2"/><circle cx="246" cy="82" r="12" fill="${color}" opacity=".16"/><path d="M96 82H246" stroke="${color}" stroke-width="4" stroke-dasharray="6 6" filter="url(#twoBGlow)" opacity=".95"/><path d="M${state === "bottom" ? 234 : 108} ${arrowY}l16 10-16 10" fill="${color}" opacity=".95"/><g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800"><text x="20" y="22" fill="#d7e3ff" font-size="12">${safeHtml(twoB.stage)}</text><text x="24" y="103" fill="${color}" font-size="12">前低 / 假跌破</text><text x="236" y="103" fill="${color}" font-size="12">确认 / 回收</text></g></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(twoB.stage)}</span>${directionMarkup(twoB.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(twoB.note)}</span></div></div>`;
+}
+
+function abcStructureSectionHtml({ abc, twoB, bars }) {
+  const recentBars = Array.isArray(bars) ? bars.slice(-8) : [];
+  const miniBars = recentBars.length >= 3 ? recentBars : (bars || []).slice(-3);
+  return `<section class="section structure-section"><h2>ABC 和 2B 结构判断</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">ABC 动量结构</span> 和 <span class="trend-title-accent">2B 反转结构</span> 放在一起，判断当前更像启动、回踩、延续，还是假跌破 / 假突破后的回收。</p><div class="structure-grid"><article class="structure-card"><h3>ABC 动量结构</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>${twoBPositionSvg(twoB)}${miniBars.length >= 3 ? `<div class="structure-mini">${drawMiniCandles({ bars: miniBars, highlightStart: Math.max(0, miniBars.length - 4), highlightEnd: miniBars.length - 1, label: "当前末尾K线位置" })}</div>` : ""}</article></div></section>`;
+}
+
+function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
+  const trendRows = angles.trend.rows
+    .map((row) => `<tr><td>${safeHtml(row[0])}</td><td class="price">${safeHtml(row[1])}</td><td>${safeHtml(row[2])}</td></tr>`)
+    .join("");
+  const similarityLine = angles.similarity.score
+    ? `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong> <span class="price">${angles.similarity.score}%</span> · ${safeHtml(angles.similarity.matchBars)}根匹配 · ${directionMarkup(angles.similarity.bias)}</p>`
+    : `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong></p>`;
+  const similarityNote = angles.similarity.score
+    ? `<ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>状态：${safeHtml(angles.similarity.judgement)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`
+    : `<ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`;
+  const trendHtml = `<table class="lens-table"><thead><tr><th>方向</th><th>概率</th><th>触发条件</th></tr></thead><tbody>${trendRows}</tbody></table><p class="lens-note">${safeHtml(angles.trend.note)}</p>`;
+  const summaryParts = [
+    angles.similarity.score ? `K线相似度更偏${angles.similarity.bias}` : '当前没有足够高的K线相似度',
+    angles.trend.available ? `历史趋势拟合已给出${angles.trend.rows[0][1]}等概率分布` : '历史趋势样本不足，仍以当前结构为主',
+    angles.abc ? `ABC判断为${angles.abc.stage}` : '',
+    twoB ? `2B判断为${twoB.stage}` : '',
+  ].filter(Boolean);
+  const abcNote = `<div class="ai-thesis"><strong>核心判断：</strong>${safeHtml(summaryParts.join('；'))}。${safeHtml(twoB ? twoB.note : angles.abc.summary)}</div>`;
+  const aiBody = gptHtml ? `<div class="ai-body">${gptHtml}</div>` : "";
+  return `<section class="section ai-brief"><h2>AI 解读</h2>${abcNote}<div class="ai-grid"><article class="ai-card"><h3>1. K线相似度（匹配K线样子）</h3>${similarityLine}${similarityNote}</article><article class="ai-card"><h3>2. 历史趋势拟合（9测试模式）</h3><p><strong>${safeHtml(angles.trend.source)}</strong></p>${trendHtml}</article></div><p class="ai-footer">ABC / 2B 补充判断：${safeHtml(angles.abc.summary)}${twoB ? ` ${safeHtml(twoB.summary)}` : ''}</p>${aiBody}</section>`;
 }
 
 function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, options }) {
@@ -2092,14 +2184,13 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   const e20 = ema(closes, 20).at(-1);
   const e60 = ema(closes, 60).at(-1);
   const rsi14 = rsi(closes);
-  const k14 = stochastic(bars);
   const mom10 = momentum(closes);
+  const twoB = summarizeTwoB({ bars, last, support, pressure1, e20, mom10, rsi14 });
+  const analysisAngles = buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats: options.historicalTrendStats });
   const recent = bars.slice(-14);
   const intervalText = intervalLabel(interval);
   const maxMatchBars = options.maxMatchBars || 10;
   const title = `${displaySymbol}｜${intervalText} 1-${safeHtml(maxMatchBars)}根K线形态匹配`;
-  const analysisAngles = buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats: options.historicalTrendStats });
-  const threeAngleHtml = threeAngleSummaryHtml({ angles: analysisAngles });
   const top5Rows = cards
     .map((c) => `<tr><td>${safeHtml(c.name)}</td><td>${safeHtml(c.matchBars)}根</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
     .join("");
@@ -2115,7 +2206,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     ["位置", "中性观察", `价格接近近期低点 ${formatPrice(support)}，但还没有向上确认。`],
     ["均线", "偏空风险", `最新价 ${formatPrice(last.close)}，E20 ${formatPrice(e20)}，E60 ${formatPrice(e60)}，仍在短线压力下。`],
     ["RSI", (rsi14 || 50) < 45 ? "偏空风险" : "中性观察", rsi14 == null ? "RSI数据不足。" : `RSI14=${rsi14.toFixed(1)}，只作为强弱辅助，不单独决定方向。`],
-    ["随机指数", (k14 || 50) < 30 ? "中性观察" : "中性观察", k14 == null ? "随机指数数据不足。" : `%K=${k14.toFixed(1)}，提示短线位置，不等于反转确认。`],
+    ["随机指数", "中性观察", "随机指数只做保留，不作为主判断。"],
     ["动力", (mom10 || 0) < 0 ? "偏空风险" : "偏多修复", mom10 == null ? "动力数据不足。" : `10根动量=${mom10.toFixed(2)}%，看反弹是否能持续。`],
     ["成交量", "偏空风险", "最近下跌段成交量较高，说明抛压仍需观察。"],
   ]
@@ -2130,20 +2221,17 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   ]
     .map((r) => `<tr><td class="price">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`)
     .join("");
-  const trendPaths = String(options.menu || "") === "9"
-    ? futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats: options.historicalTrendStats })
-    : [];
   const chartHtml = candleChartSvg(bars, cards, {
     failure: support,
     latest: last.close,
     confirm: pressure1,
     pressure: pressure2,
     e20,
-    trendPaths,
+    trendPaths: analysisAngles.trendPaths,
     historicalTrendStats: options.historicalTrendStats,
   });
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
-:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px;display:block;overflow-x:auto;white-space:nowrap}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.trend-title-accent,.trend-stat{color:var(--gold);font-weight:900}.trend-note{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px;margin-left:8px;border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:9px;padding:6px 10px;color:#f6e6b2;font-weight:800}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-top5{margin:12px 0 0;padding-left:24px}.ai-top5 strong{color:#edf2ff}.ai-top5 li{margin:6px 0;color:#cbd6ef}.ai-bias{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;font-weight:800}.ai-bull{color:#ff7a88;background:rgba(255,122,136,.12)}.ai-bear{color:#40d98a;background:rgba(64,217,138,.12)}.ai-flat{color:#ffd166;background:rgba(255,209,102,.12)}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:12px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:14px;align-items:start}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0;display:block}.chart-panel h3{min-height:0}.chart-panel .chart{display:block;min-height:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 8px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}.lens-section{margin-top:22px;padding:20px}.lens-section p{margin-top:0}.lens-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}.lens-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;min-width:0}.lens-card h3{margin:0 0 10px;font-size:16px}.lens-list{margin:10px 0 0;padding-left:18px;color:#cbd6ef}.lens-list li{margin:6px 0}.lens-note{margin-top:10px;color:#cbd6ef;line-height:1.5}.lens-table{width:100%;display:table;overflow:visible;white-space:nowrap;margin-top:10px}.lens-table th,.lens-table td{padding:10px 8px;font-size:13px}.lens-table th{background:rgba(255,255,255,.03)}.angle-kicker{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px}.angle-kicker span{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px;color:#d7e3ff}.angle-kicker .gold{color:#f6e6b2;border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.08)}@media(max-width:760px){.compare{grid-template-columns:1fr;gap:12px}.head{display:block}.score{text-align:left;margin-top:10px}.wrap{padding-left:12px;padding-right:12px}h1{font-size:24px}.section,.hero{padding:16px}.trend-note{display:flex;margin:8px 0 0}.visual-box{margin-left:0;margin-right:0;padding:10px}.panel h3{margin-bottom:6px}.detail-box{margin-left:0;margin-right:0}.lens-grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(intervalText)}</div><div class="pill">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div></div>${topMatchHtml}</section>${threeAngleHtml}${gptHtml || ""}${chartHtml}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><section class="grid">${cardHtml || noMatchHtml}</section><section class="section"><h2>信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><details class="section collapsible"><summary><h2>关键位置判断</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></details><section class="section"><h2>卖Put辅助判断</h2><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></section><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
+:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px;display:block;overflow-x:auto;white-space:nowrap}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.trend-title-accent,.trend-stat{color:var(--gold);font-weight:900}.trend-note{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px;margin-left:8px;border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:9px;padding:6px 10px;color:#f6e6b2;font-weight:800}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.ai-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;min-width:0}.ai-card h3{margin:0 0 10px;font-size:16px}.ai-footer{margin-top:12px;color:#cbd6ef}.ai-body{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:12px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:14px;align-items:start}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0;display:block}.chart-panel h3{min-height:0}.chart-panel .chart{display:block;min-height:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 8px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}.lens-section{margin-top:22px;padding:20px}.lens-section p{margin-top:0}.lens-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.lens-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;min-width:0}.lens-card h3{margin:0 0 10px;font-size:16px}.lens-list{margin:10px 0 0;padding-left:18px;color:#cbd6ef}.lens-list li{margin:6px 0}.lens-note{margin-top:10px;color:#cbd6ef;line-height:1.5}.lens-table{width:100%;display:table;overflow:visible;white-space:nowrap;margin-top:10px}.lens-table th,.lens-table td{padding:10px 8px;font-size:13px}.lens-table th{background:rgba(255,255,255,.03)}.structure-section{margin-top:22px;padding:20px}.structure-section p{margin-top:0}.structure-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.structure-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;min-width:0}.structure-card h3{margin:0 0 10px;font-size:16px}.structure-lead{margin:0 0 10px;color:#cbd6ef}.structure-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.structure-chip{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px;color:#d7e3ff}.structure-chip-gold{color:#f6e6b2;border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.08)}.structure-chip-soft{color:#edf2ff;background:rgba(255,255,255,.04)}.structure-mini{margin-top:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#0b1227}.abc-stage{margin-top:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:10px}.abc-stage-svg{display:block;width:100%;height:auto}.abc-stage-note{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;color:#cbd6ef}.abc-stage-chip{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px;color:#d7e3ff}.abc-stage-chip-soft{color:#f6e6b2;background:rgba(255,209,102,.08);border-color:rgba(255,209,102,.35)}.angle-kicker{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px}.angle-kicker span{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px;color:#d7e3ff}.angle-kicker .gold{color:#f6e6b2;border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.08)}@media(max-width:760px){.compare,.ai-grid,.structure-grid{grid-template-columns:1fr;gap:12px}.head{display:block}.score{text-align:left;margin-top:10px}.wrap{padding-left:12px;padding-right:12px}h1{font-size:24px}.section,.hero{padding:16px}.trend-note{display:flex;margin:8px 0 0}.visual-box{margin-left:0;margin-right:0;padding:10px}.panel h3{margin-bottom:6px}.detail-box{margin-left:0;margin-right:0}.lens-grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(intervalText)}</div><div class="pill">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div></div>${topMatchHtml}</section>${chartHtml}${abcStructureSectionHtml({ abc: analysisAngles.abc, twoB, bars })}${aiInterpretationSectionHtml({ angles: analysisAngles, gptHtml, twoB })}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><details class="section collapsible"><summary><h2>K线匹配详细情况</h2><span class="fold-hint">点击展开</span></summary><div class="grid">${cardHtml || noMatchHtml}</div></details><section class="section"><h2>各类指标信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><details class="section collapsible"><summary><h2>关键位置判断</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></details><details class="section collapsible"><summary><h2>卖Put辅助判断</h2><span class="fold-hint">点击展开</span></summary><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></details><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
 }
 
 export default async function handler(req, res) {
@@ -2161,12 +2249,22 @@ export default async function handler(req, res) {
     const resolved = await resolveMarketBars(data.symbol || "^IXIC", data.market, range, interval);
     const { yahoo, display, displayName, market, bars, timeLabel, timezone } = resolved;
     const cards = patternCards(bars, maxMatchBars);
+    const last = bars.at(-1);
+    const closes = bars.map((b) => b.close);
+    const support = Math.min(...bars.slice(-10).map((b) => b.low));
+    const pressure1 = Math.max(...bars.slice(-4).map((b) => b.high));
+    const pressure2 = Math.max(...bars.slice(-10).map((b) => b.high));
+    const e20 = ema(closes, 20).at(-1);
+    const e60 = ema(closes, 60).at(-1);
+    const rsi14 = rsi(closes);
+    const mom10 = momentum(closes);
     const historicalSampleSets = String(data.menu || "1") === "9"
       ? await fetchHistoricalSampleSets({ yahoo, market, interval, scope: trendSampleScope })
       : [];
     const historicalTrendStats = String(data.menu || "1") === "9"
       ? scanHistoricalTrendStats(historicalSampleSets, cards, maxMatchBars, 5)
       : null;
+    const analysisAngles = buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats });
     const options = {
       menu: data.menu || "1",
       provider,
@@ -2179,19 +2277,6 @@ export default async function handler(req, res) {
       modules: data.modules || [],
       extra: data.extra || "",
     };
-    const analysisAngles = buildAnalysisAngles({
-      bars,
-      cards,
-      last: bars.at(-1),
-      support: Math.min(...bars.slice(-10).map((b) => b.low)),
-      pressure1: Math.max(...bars.slice(-4).map((b) => b.high)),
-      pressure2: Math.max(...bars.slice(-10).map((b) => b.high)),
-      e20: ema(bars.map((b) => b.close), 20).at(-1),
-      e60: ema(bars.map((b) => b.close), 60).at(-1),
-      mom10: momentum(bars.map((b) => b.close)),
-      rsi14: rsi(bars.map((b) => b.close)),
-      historicalTrendStats,
-    });
     const payload = {
       symbol: displayName,
       code: display,
