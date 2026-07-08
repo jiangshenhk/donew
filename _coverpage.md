@@ -220,8 +220,8 @@
 <div class="quick-row">
   <a href="#/docs/复利/ETF定投方法.md" class="quick-link">ETF 定投</a>
   <a href="#/docs/SellPut/how-to-sell-put.md" class="quick-link">Sell Put</a>
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投ETF收益PK</a>
-  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺拜财富众神</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投收益PK</a>
+  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺拜财神</a>
 </div>
 
 <div class="site-counter">
