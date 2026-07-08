@@ -1,24 +1,232 @@
 <!-- _coverpage.md -->
 <style>
-.cover-main{max-width:760px;margin:0 auto;padding:48px 24px 34px;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue','Noto Sans SC',Arial,sans-serif;color:#1d1d1f;text-align:center;}
-.cover-title{margin:18px auto 0;font-size:clamp(3rem,7vw,5rem);line-height:1.05;font-weight:850;letter-spacing:-.04em;background:linear-gradient(90deg,#2563eb 0%,#6d5dfc 45%,#ec4899 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
-.core-box{max-width:660px;margin:34px auto 0;padding:22px 28px;border-radius:18px;background:rgba(255,255,255,.22);border:1px solid rgba(37,99,235,.18);box-shadow:0 14px 34px rgba(15,23,42,.04);backdrop-filter:blur(14px);color:#334155;font-size:1.08rem;line-height:1.85;font-weight:560;text-align:left;}
-.core-box strong{color:#0f172a;font-weight:800;}
-.main-card-grid{display:grid;grid-template-columns:repeat(3,205px);justify-content:center;gap:22px;margin:42px auto 0;}
-.main-card{width:205px;height:264px;border-radius:18px;padding:31px 28px;text-align:left;text-decoration:none!important;color:white!important;display:block;position:relative;overflow:hidden;box-shadow:0 18px 44px rgba(37,99,235,.18);transition:all .24s ease;border:1px solid rgba(255,255,255,.16);box-sizing:border-box;}
-.main-card:hover{transform:translateY(-4px);box-shadow:0 25px 62px rgba(37,99,235,.28);}
-.main-card::after{content:"";position:absolute;right:-74px;bottom:-88px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),rgba(255,255,255,0));}
-.card-mind{background:linear-gradient(160deg,#2563eb 0%,#2563eb 58%,#1d4ed8 100%);}
-.card-market{background:linear-gradient(145deg,#2865ed 0%,#345cf0 46%,#773be7 100%);}
-.card-kline{background:linear-gradient(145deg,#117f92 0%,#1379a8 52%,#2563dc 100%);}
-.card-title{position:relative;z-index:1;margin:2px 0 18px;font-size:1.35rem;line-height:1.2;font-weight:850;letter-spacing:-.02em;color:white;}
-.card-title .emoji{margin-right:8px;}
-.card-desc{position:relative;z-index:1;color:rgba(255,255,255,.94);font-size:1rem;line-height:1.72;font-weight:680;}
-.mini-row{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin:24px auto 0;}
-.mini-link{padding:11px 19px;border-radius:999px;color:#334155!important;background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.94);text-decoration:none!important;font-size:.95rem;font-weight:800;backdrop-filter:blur(14px);box-shadow:0 10px 24px rgba(15,23,42,.07);transition:all .22s ease;}
-.mini-link:hover{color:#2563eb!important;transform:translateY(-2px);box-shadow:0 15px 32px rgba(15,23,42,.11);}
-.site-counter{display:inline-flex;flex-wrap:wrap;justify-content:center;gap:14px;margin:28px auto 0;color:#64748b;font-size:.88rem;line-height:1.6;}
-.site-counter span{white-space:nowrap}.site-counter strong{color:#0f172a;font-weight:800}
-@media(max-width:900px){.cover-main{max-width:100%;padding:34px 18px 30px}.cover-title{font-size:2.65rem}.core-box{max-width:88vw;font-size:.98rem;padding:18px 20px}.main-card-grid{grid-template-columns:1fr;gap:18px;margin-top:30px}.main-card{width:245px;height:264px;margin:0 auto;border-radius:20px}.mini-row{gap:10px}.mini-link{font-size:.9rem;padding:10px 15px}}
+  .cover-title {
+    background: linear-gradient(90deg, #2563eb, #7c3aed, #db2777);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
+    font-family: 'Helvetica Neue', 'Noto Sans SC', sans-serif;
+    font-size: 4rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-align: center;
+    white-space: nowrap;
+    margin-bottom: 12px;
+  }
+
+  .sub-quote {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    color: #475569;
+    line-height: 1.7;
+    position: relative;
+    display: inline-block;
+    margin-top: 8px;
+  }
+
+  .sub-quote::after {
+    content: "";
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 20%, #3b82f6 50%, transparent 80%);
+    opacity: 0.35;
+  }
+
+  .cover-highlight {
+    max-width: 780px;
+    margin: 22px auto 0;
+    padding: 18px 22px;
+    border-radius: 16px;
+    background: rgba(37, 99, 235, 0.06);
+    border: 1px solid rgba(37, 99, 235, 0.12);
+    color: #334155;
+    line-height: 1.9;
+    font-size: 1rem;
+  }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    max-width: 980px;
+    margin: 34px auto 18px;
+  }
+
+  .main-card {
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 22px;
+    padding: 24px 22px;
+    text-align: left;
+    text-decoration: none !important;
+    color: white !important;
+    box-shadow: 0 16px 34px rgba(37, 99, 235, 0.18);
+    transition: all 0.25s ease;
+    min-height: 148px;
+    display: block;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .main-card::after {
+    content: "";
+    position: absolute;
+    right: -55px;
+    bottom: -70px;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
+  }
+
+  .main-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 22px 46px rgba(37, 99, 235, 0.26);
+  }
+
+  .main-card strong {
+    display: block;
+    font-size: 1.16rem;
+    color: white;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .main-card span {
+    display: block;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.92rem;
+    line-height: 1.75;
+    position: relative;
+    z-index: 1;
+  }
+
+  .main-card.mindset {
+    background: linear-gradient(145deg, #3b82f6 0%, #2563eb 58%, #1d4ed8 100%);
+  }
+
+  .main-card.weapon-one {
+    background: linear-gradient(145deg, #3b82f6 0%, #2563eb 52%, #7c3aed 100%);
+  }
+
+  .main-card.weapon-two {
+    background: linear-gradient(145deg, #0f766e 0%, #1379a8 50%, #2563eb 100%);
+  }
+
+  .quick-row {
+    max-width: 860px;
+    margin: 18px auto 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .quick-link {
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #475569 !important;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+  }
+
+  .quick-link:hover {
+    border-color: #3b82f6;
+    color: #2563eb !important;
+    background: #f8fafc;
+  }
+
+  .cover-note {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.8;
+    max-width: 760px;
+    margin: 18px auto 0;
+  }
+
+  .site-counter {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px;
+    margin: 24px auto 0;
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .site-counter span {
+    white-space: nowrap;
+  }
+
+  .site-counter strong {
+    color: #334155;
+    font-weight: 700;
+  }
+
+  @media (max-width: 768px) {
+    .cover-title {
+      font-size: 2.1rem;
+      white-space: normal;
+      letter-spacing: 0.04em;
+    }
+
+    .main-grid {
+      grid-template-columns: 1fr;
+      max-width: 92%;
+      gap: 12px;
+      margin-top: 28px;
+    }
+  }
 </style>
-<div class="cover-main"><h1 class="cover-title">十方斋｜复利投资</h1><div class="core-box"><strong>核心思想：</strong>暴富是概率事件，复利是时间过程。先把财富观理清楚，再用 AI 工具判断市场环境与个股结构，最后才执行 ETF 定投或 Sell Put。</div><div class="main-card-grid"><a href="#/docs/other/calm-wealth-mindset.md" class="main-card card-mind"><div class="card-title"><span class="emoji">💗</span>心安复利</div><div class="card-desc">先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</div></a><a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card card-market"><div class="card-title"><span class="emoji">⚔️</span>AI看市场</div><div class="card-desc">先看大环境：利率、黄金、BTC、纳指、风险偏好。</div></a><a href="https://donew-beta.vercel.app/kline-robot.html" target="_blank" class="main-card card-kline"><div class="card-title"><span class="emoji">🧭</span>AI看K线</div><div class="card-desc">判断单票结构：趋势、动量、相似形态、关键位。</div></a></div><div class="mini-row"><a href="#/docs/复利/ETF定投方法.md" class="mini-link">ETF 定投</a><a href="#/docs/SellPut/how-to-sell-put.md" class="mini-link">Sell Put</a><a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="mini-link">定投收益PK</a><a href="#/docs/other/lingyin-wealth.md" class="mini-link">灵隐寺拜财神</a></div><div class="site-counter"><span>本站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span><span>访客 <strong id="busuanzi_value_site_uv">--</strong> 人</span></div></div>
+
+<div class="cover-title">十方斋｜复利投资</div>
+
+<!-- ![封面图](/topnew2.jpg)
+
+***
+
+ <span class="sub-quote">站在时间这一边，用AI和数据，重新理解复利投资。</span> -->
+
+<div class="cover-highlight">
+  <strong>核心思想：</strong>暴富是概率事件，复利是时间过程。先把财富观理清楚，再用 AI 工具判断市场环境与个股结构，最后才执行 ETF 定投或 Sell Put。
+</div>
+
+<div class="main-grid">
+  <a href="#/docs/other/calm-wealth-mindset.md" class="main-card mindset">
+    <strong>❤️ 心安复利</strong>
+    <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span>
+  </a>
+
+  <a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
+    <strong>⚔️ AI看市场</strong>
+    <span>先看大环境：利率、黄金、BTC、纳指、风险偏好。</span>
+  </a>
+
+  <a href="https://donew-beta.vercel.app/kline-robot.html" target="_blank" class="main-card weapon-two">
+    <strong>🧭 AI看K线</strong>
+    <span>判断单票结构：趋势、动量、相似形态、关键位。</span>
+  </a>
+</div>
+
+<div class="quick-row">
+  <a href="#/docs/复利/ETF定投方法.md" class="quick-link">ETF 定投</a>
+  <a href="#/docs/SellPut/how-to-sell-put.md" class="quick-link">Sell Put</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投收益PK</a>
+  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺拜财神</a>
+</div>
+
+<div class="site-counter">
+  <span>本站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
+  <span>访客 <strong id="busuanzi_value_site_uv">--</strong> 人</span>
+</div>
