@@ -213,7 +213,7 @@
 
   <a href="https://donew-beta.vercel.app/kline-robot.html" target="_blank" class="main-card weapon-two">
     <strong>🧭 AI看K线</strong>
-    <span>再看具体标的：K 线结构、动量状态、相似形态、关键确认位和失败位，辅助判断单票风险。</span>
+    <span>判断单票结构：趋势、动量、相似形态、关键位。</span>
   </a>
 </div>
 
