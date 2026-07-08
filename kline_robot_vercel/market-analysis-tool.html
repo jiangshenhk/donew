@@ -524,7 +524,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.1.0</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.1.1</span></h1>
       <a class="home" href="./">返回十方斋首页</a>
     </header>
 
@@ -550,13 +550,6 @@
             <strong>生成本周周报</strong>
             <span>周度结构复盘：周六收盘后到周一开盘前的窗口总结</span>
           </button>
-        </div>
-
-        <div class="meta-grid" id="metaGrid">
-          <div class="meta-card"><span>短期风向</span><strong>未生成</strong></div>
-          <div class="meta-card"><span>执行等级</span><strong>未生成</strong></div>
-          <div class="meta-card"><span>事件风险</span><strong>未生成</strong></div>
-          <div class="meta-card"><span>数据时间</span><strong>未生成</strong></div>
         </div>
 
         <div class="toolbar">
@@ -1013,12 +1006,6 @@
     }
 
     function renderUnavailable(error) {
-      $("#metaGrid").innerHTML = `
-        <div class="meta-card"><span>短期风向</span><strong>服务不可用</strong></div>
-        <div class="meta-card"><span>执行等级</span><strong>服务不可用</strong></div>
-        <div class="meta-card"><span>事件风险</span><strong>服务不可用</strong></div>
-        <div class="meta-card"><span>API</span><strong>${escapeHtml(apiBase)}</strong></div>
-      `;
       $("#filenameLabel").textContent = "尚未生成报告";
       $("#markdownOutput").value = "";
       $("#preview").innerHTML = `
@@ -1030,12 +1017,6 @@
     }
 
     function renderReport(report) {
-      $("#metaGrid").innerHTML = `
-        <div class="meta-card"><span>短期风向</span><strong>${escapeHtml(report.windLight)}</strong></div>
-        <div class="meta-card"><span>执行等级</span><strong>${escapeHtml(report.executionLevel)}</strong></div>
-        <div class="meta-card"><span>事件风险</span><strong>${escapeHtml(report.eventRisk)}</strong></div>
-        <div class="meta-card"><span>AI</span><strong>${escapeHtml(report.aiProvider || "DeepSeek")}</strong></div>
-      `;
       $("#filenameLabel").textContent = report.fileName;
       $("#markdownOutput").value = report.markdown;
       $("#preview").innerHTML = `
