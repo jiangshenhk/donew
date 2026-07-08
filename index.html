@@ -20,41 +20,271 @@
   <meta name="twitter:title" content="十方斋｜复利投资">
   <meta name="twitter:description" content="记录ETF定投、Sell Put策略与每日市场结构判断。">
   <meta name="twitter:image" content="https://jiangshenhk.github.io/donew/topnew2.jpg">
+
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
+
   <style>
-    :root { --theme-color: #2563eb; --sidebar-width: 280px; --text-strong: #0f172a; --text-normal: #334155; --text-muted: #64748b; --line-soft: #e2e8f0; --bg-blue: #eff6ff; --bg-green: #ecfdf5; --bg-amber: #fffbeb; --bg-red: #fef2f2; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--text-normal); }
-    .sidebar { background: #ffffff; border-right: 1px solid #eaeaea; box-shadow: 0 0 15px rgba(0,0,0,0.05); width: var(--sidebar-width) !important; font-size: 14px; }
+    :root {
+      --theme-color: #2563eb;
+      --sidebar-width: 280px;
+      --text-strong: #0f172a;
+      --text-normal: #334155;
+      --text-muted: #64748b;
+      --line-soft: #e2e8f0;
+      --bg-blue: #eff6ff;
+      --bg-green: #ecfdf5;
+      --bg-amber: #fffbeb;
+      --bg-red: #fef2f2;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text-normal);
+    }
+
+    .sidebar {
+      background: #ffffff;
+      border-right: 1px solid #eaeaea;
+      box-shadow: 0 0 15px rgba(0,0,0,0.05);
+      width: var(--sidebar-width) !important;
+      font-size: 14px;
+    }
+
     .sidebar .sidebar-nav a { transition: all 0.2s ease; }
-    .sidebar .sidebar-nav a:hover, .sidebar .sidebar-nav a.active { color: var(--theme-color) !important; background: #f5f7fa; border-radius: 6px; }
-    .sidebar .sidebar-nav a i { width: 22px; margin-right: 8px; opacity: 0.8; }
-    .app-nav { font-size: 14px; font-weight: 500; }
-    .app-nav a { color: #475569 !important; text-decoration: none !important; margin-right: 24px; }
-    .markdown-section { max-width: 980px; padding: 32px 28px 80px; }
-    .markdown-section h1, .markdown-section h2, .markdown-section h3 { color: var(--text-strong); letter-spacing: 0.01em; }
-    .markdown-section blockquote { border-left: 4px solid var(--theme-color); background: var(--bg-blue); color: #1e3a8a; padding: 12px 16px; border-radius: 8px; }
-    .markdown-section table { width: 100%; border-collapse: collapse; table-layout: auto !important; margin: 16px 0 24px; display: table; }
-    .markdown-section th, .markdown-section td { word-break: keep-all; white-space: normal; vertical-align: middle; line-height: 1.7; padding: 10px 12px; }
-    .markdown-section table th:first-child, .markdown-section table td:first-child { white-space: nowrap; }
-    .markdown-section table td a { white-space: nowrap; display: inline-block; }
-    .signal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 20px 0 24px; }
-    .signal-card { border: 1px solid var(--line-soft); border-radius: 14px; padding: 16px 18px; background: #fff; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05); }
-    .signal-card strong { display: block; color: var(--text-strong); font-size: 16px; margin-bottom: 6px; }
-    .signal-card span, .signal-card p { color: var(--text-muted); margin: 0; line-height: 1.6; }
+
+    .sidebar .sidebar-nav a:hover,
+    .sidebar .sidebar-nav a.active {
+      color: var(--theme-color) !important;
+      background: #f5f7fa;
+      border-radius: 6px;
+    }
+
+    .sidebar .sidebar-nav a i {
+      width: 22px;
+      margin-right: 8px;
+      opacity: 0.8;
+    }
+
+    .app-nav {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .app-nav a {
+      color: #475569 !important;
+      text-decoration: none !important;
+      margin-right: 24px;
+    }
+
+    .markdown-section {
+      max-width: 980px;
+      padding: 32px 28px 80px;
+    }
+
+    .markdown-section h1,
+    .markdown-section h2,
+    .markdown-section h3 {
+      color: var(--text-strong);
+      letter-spacing: 0.01em;
+    }
+
+    .markdown-section blockquote {
+      border-left: 4px solid var(--theme-color);
+      background: var(--bg-blue);
+      color: #1e3a8a;
+      padding: 12px 16px;
+      border-radius: 8px;
+    }
+
+    .markdown-section table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto !important;
+      margin: 16px 0 24px;
+      display: table;
+    }
+
+    .markdown-section th,
+    .markdown-section td {
+      word-break: keep-all;
+      white-space: normal;
+      vertical-align: middle;
+      line-height: 1.7;
+      padding: 10px 12px;
+    }
+
+    .markdown-section table th:first-child,
+    .markdown-section table td:first-child { white-space: nowrap; }
+
+    .markdown-section table td a {
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    .signal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin: 20px 0 24px;
+    }
+
+    .signal-card {
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      padding: 16px 18px;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    }
+
+    .signal-card strong {
+      display: block;
+      color: var(--text-strong);
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .signal-card span,
+    .signal-card p {
+      color: var(--text-muted);
+      margin: 0;
+      line-height: 1.6;
+    }
+
     .signal-card.strong { background: var(--bg-green); border-color: #bbf7d0; }
     .signal-card.warning { background: var(--bg-amber); border-color: #fde68a; }
     .signal-card.action { background: var(--bg-blue); border-color: #bfdbfe; }
     .signal-card.danger { background: var(--bg-red); border-color: #fecaca; }
-    .quick-links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
-    .quick-links a { display: block; padding: 14px 16px; border: 1px solid var(--line-soft); border-radius: 12px; text-decoration: none !important; background: #fff; color: var(--text-strong) !important; font-weight: 600; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04); transition: all 0.2s ease; }
-    .quick-links a:hover { transform: translateY(-2px); border-color: var(--theme-color); color: var(--theme-color) !important; }
-    @media (max-width: 768px) { .app-nav, .github-corner { display: none !important; } .cover-main { padding-top: 22px !important; } .cover-title { font-size: 2.15rem !important; line-height: 1.2 !important; letter-spacing: 0.03em !important; max-width: 92vw !important; white-space: normal !important; margin-top: 12px !important; } .sub-quote { font-size: 0.95rem !important; max-width: 88vw !important; } .markdown-section { padding: 18px 14px 64px; } .markdown-section table { display: block; overflow-x: auto; white-space: nowrap; } .markdown-section th, .markdown-section td { padding: 8px 10px; font-size: 13px; } .signal-grid, .quick-links { grid-template-columns: 1fr; } .btn-grid { grid-template-columns: 1fr !important; max-width: 92% !important; } }
+
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .quick-links a {
+      display: block;
+      padding: 14px 16px;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      text-decoration: none !important;
+      background: #fff;
+      color: var(--text-strong) !important;
+      font-weight: 600;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+      transition: all 0.2s ease;
+    }
+
+    .quick-links a:hover {
+      transform: translateY(-2px);
+      border-color: var(--theme-color);
+      color: var(--theme-color) !important;
+    }
+
+    @media (max-width: 768px) {
+      .app-nav,
+      .github-corner {
+        display: none !important;
+      }
+
+      .cover-main {
+        padding-top: 22px !important;
+      }
+
+      .cover-title {
+        font-size: 2.15rem !important;
+        line-height: 1.2 !important;
+        letter-spacing: 0.03em !important;
+        max-width: 92vw !important;
+        white-space: normal !important;
+        margin-top: 12px !important;
+      }
+
+      .sub-quote {
+        font-size: 0.95rem !important;
+        max-width: 88vw !important;
+      }
+
+      .markdown-section {
+        padding: 18px 14px 64px;
+      }
+
+      .markdown-section table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+
+      .markdown-section th,
+      .markdown-section td {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+
+      .signal-grid,
+      .quick-links {
+        grid-template-columns: 1fr;
+      }
+
+      .btn-grid {
+        grid-template-columns: 1fr !important;
+        max-width: 92% !important;
+      }
+    }
   </style>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"十方斋｜复利投资","url":"https://jiangshenhk.github.io/donew/","description":"记录ETF定投、Sell Put策略、美股市场结构日报与复利投资方法论。","inLanguage":"zh-CN","publisher":{"@type":"Organization","name":"十方斋","url":"https://jiangshenhk.github.io/donew/"},"potentialAction":{"@type":"SearchAction","target":"https://jiangshenhk.github.io/donew/#/?q={search_term_string}","query-input":"required name=search_term_string"}}</script>
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "十方斋｜复利投资",
+      "url": "https://jiangshenhk.github.io/donew/",
+      "description": "记录ETF定投、Sell Put策略、美股市场结构日报与复利投资方法论。",
+      "inLanguage": "zh-CN",
+      "publisher": {
+        "@type": "Organization",
+        "name": "十方斋",
+        "url": "https://jiangshenhk.github.io/donew/"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://jiangshenhk.github.io/donew/#/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+  </script>
+
   <script>
-    window.$docsify = { root: '/', repo: 'jiangshenhk/donew', title: '十方斋｜复利投资', themeColor: '#2563eb', loadSidebar: true, coverpage: true, routerMode: 'hash', search: { maxAge: 86400000, paths: 'auto', placeholder: '搜索内容、ETF、Sell Put、市场日报', noData: '没有找到结果', depth: 4 } };
-    document.addEventListener('click', function(e) { const link = e.target.closest('.sidebar .sidebar-nav a'); if (!link) return; const parentLi = link.closest('li'); const subMenu = parentLi ? parentLi.querySelector('.sub-menu') : null; const caretIcon = link.querySelector('.fa-caret-right'); if (subMenu) { e.preventDefault(); subMenu.classList.toggle('active'); if (caretIcon) caretIcon.classList.toggle('rotate-90'); } });
+    window.$docsify = {
+      root: '/',
+      repo: 'jiangshenhk/donew',
+      title: '十方斋｜复利投资',
+      themeColor: '#2563eb',
+      loadSidebar: true,
+      coverpage: true,
+      routerMode: 'hash',
+      search: {
+        maxAge: 86400000,
+        paths: 'auto',
+        placeholder: '搜索内容、ETF、Sell Put、市场日报',
+        noData: '没有找到结果',
+        depth: 4
+      }
+    };
+
+    document.addEventListener('click', function(e) {
+      const link = e.target.closest('.sidebar .sidebar-nav a');
+      if (!link) return;
+      const parentLi = link.closest('li');
+      const subMenu = parentLi ? parentLi.querySelector('.sub-menu') : null;
+      const caretIcon = link.querySelector('.fa-caret-right');
+      if (subMenu) {
+        e.preventDefault();
+        subMenu.classList.toggle('active');
+        if (caretIcon) caretIcon.classList.toggle('rotate-90');
+      }
+    });
   </script>
 </head>
 <body>
@@ -68,7 +298,9 @@
     <i class="fas fa-envelope" style="color:#475569;"></i>
     <a href="#/docs/其他/联系.md">联系</a>
   </nav>
+
   <div id="app"></div>
+
   <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
   <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
   <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
