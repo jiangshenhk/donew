@@ -34,6 +34,44 @@ function hkDate() {
   return `${map.year}-${map.month}-${map.day}`;
 }
 
+function marketSessionNow(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const map = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  const minuteOfDay = Number(map.hour) * 60 + Number(map.minute);
+  const weekend = map.weekday === "Sat" || map.weekday === "Sun";
+  const phase = weekend
+    ? "closed"
+    : minuteOfDay >= 9 * 60 + 30 && minuteOfDay < 16 * 60
+      ? "regular"
+      : minuteOfDay >= 4 * 60 && minuteOfDay < 9 * 60 + 30
+        ? "premarket"
+        : minuteOfDay >= 16 * 60 && minuteOfDay < 20 * 60
+          ? "afterhours"
+          : "closed";
+  const phaseLabels = {
+    regular: "美股盘中",
+    premarket: "美股盘前",
+    afterhours: "美股盘后",
+    closed: "美股休市",
+  };
+  return {
+    phase,
+    phaseLabel: phaseLabels[phase],
+    etClock: `${pad(map.hour)}:${pad(map.minute)}`,
+    weekday: map.weekday,
+  };
+}
+
+function normalizeReportKind(kind) {
+  return String(kind || "daily").toLowerCase() === "weekly" ? "weekly" : "daily";
+}
+
 function weekday(dateValue) {
   const date = new Date(`${dateValue}T00:00:00+08:00`);
   return ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()];
@@ -41,9 +79,10 @@ function weekday(dateValue) {
 
 function kindMeta(kind) {
   const date = hkDate();
-  if (kind === "weekly") {
+  const normalized = normalizeReportKind(kind);
+  if (normalized === "weekly") {
     return {
-      kind,
+      kind: "weekly",
       date,
       typeLabel: "周报",
       sessionLabel: "周报",
@@ -52,18 +91,17 @@ function kindMeta(kind) {
       basis: `${date}｜${weekday(date)}｜基于周六美股收盘后到周一开盘前的周末窗口，以及最新跨资产数据`,
     };
   }
-  const sessionLabel = kind === "evening" ? "晚报" : "早报";
+  const session = marketSessionNow();
   return {
-    kind,
+    kind: "daily",
     date,
-    typeLabel: "日报",
-    sessionLabel,
-    title: `${date}市场结构日报（${sessionLabel}）`,
-    fileName: `${date}市场结构日报(${sessionLabel}).md`,
-    basis:
-      kind === "evening"
-        ? `${date}｜${weekday(date)}｜基于香港收盘后、美股开盘前窗口的盘后复盘与最新跨资产数据`
-        : `${date}｜${weekday(date)}｜基于美股昨晚交易、盘后交易、欧洲交易与亚洲早盘的汇总`,
+    typeLabel: "今日分析",
+    sessionLabel: "今日最新分析",
+    marketPhase: session.phase,
+    marketPhaseLabel: session.phaseLabel,
+    title: `${date}美股今日最新分析（${session.phaseLabel}）`,
+    fileName: `${date}美股今日最新分析.md`,
+    basis: `${date}｜${weekday(date)}｜以美股前一交易日收盘后到现在为止的最近24小时信息为主；当前阶段：${session.phaseLabel}`,
   };
 }
 
@@ -78,7 +116,44 @@ function pct(value) {
   return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
 }
 
-async function fetchSymbol(symbol) {
+async function fetchMarketSnapshot() {
+  const session = marketSessionNow();
+  const quoteMap = await fetchQuoteSnapshot().catch(() => ({}));
+  const rows = await Promise.all(MARKET_SYMBOLS.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session)));
+  return Object.fromEntries(rows.map(row => [row.symbol, row]));
+}
+
+function row(snapshot, symbol) {
+  return snapshot[symbol] || { symbol, error: "missing" };
+}
+
+async function fetchQuoteSnapshot() {
+  const symbols = MARKET_SYMBOLS.join(",");
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}`;
+  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  if (!res.ok) throw new Error(`Quote HTTP ${res.status}`);
+  const json = await res.json();
+  const results = json.quoteResponse?.result || [];
+  return Object.fromEntries(results.map(item => [item.symbol, item]));
+}
+
+function latestPriceFromQuote(quote, phase) {
+  if (!quote) return null;
+  if (phase === "regular" && quote.regularMarketPrice != null) return quote.regularMarketPrice;
+  if (phase === "premarket" && quote.preMarketPrice != null) return quote.preMarketPrice;
+  if (phase === "afterhours" && quote.postMarketPrice != null) return quote.postMarketPrice;
+  return quote.regularMarketPrice ?? quote.postMarketPrice ?? quote.preMarketPrice ?? null;
+}
+
+function latestChangePctFromQuote(quote, phase) {
+  if (!quote) return null;
+  if (phase === "regular" && quote.regularMarketChangePercent != null) return quote.regularMarketChangePercent;
+  if (phase === "premarket" && quote.preMarketChangePercent != null) return quote.preMarketChangePercent;
+  if (phase === "afterhours" && quote.postMarketChangePercent != null) return quote.postMarketChangePercent;
+  return quote.regularMarketChangePercent ?? quote.postMarketChangePercent ?? quote.preMarketChangePercent ?? null;
+}
+
+async function fetchSymbol(symbol, quote, session) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
   try {
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
@@ -87,16 +162,19 @@ async function fetchSymbol(symbol) {
     const result = json.chart?.result?.[0];
     const closes = (result?.indicators?.quote?.[0]?.close || []).filter(value => value !== null && value !== undefined).map(Number);
     if (!result || closes.length < 5) throw new Error("No close data");
-    const last = numberOrNull(result.meta?.regularMarketPrice) || closes.at(-1);
+    const lastChart = numberOrNull(result.meta?.regularMarketPrice) || closes.at(-1);
     const prev = closes.length > 1 ? closes.at(-2) : closes.at(-1);
+    const price = numberOrNull(latestPriceFromQuote(quote, session.phase)) ?? lastChart;
+    const changePct = numberOrNull(latestChangePctFromQuote(quote, session.phase)) ?? (prev ? (price / prev - 1) * 100 : 0);
     const sma20 = closes.slice(-20).reduce((sum, value) => sum + value, 0) / Math.min(20, closes.length);
     const sma50 = closes.slice(-50).reduce((sum, value) => sum + value, 0) / Math.min(50, closes.length);
     return {
       symbol,
-      last,
-      changePct: prev ? (last / prev - 1) * 100 : 0,
-      vs20Pct: sma20 ? (last / sma20 - 1) * 100 : 0,
-      vs50Pct: sma50 ? (last / sma50 - 1) * 100 : 0,
+      last: price,
+      changePct,
+      vs20Pct: sma20 ? (price / sma20 - 1) * 100 : 0,
+      vs50Pct: sma50 ? (price / sma50 - 1) * 100 : 0,
+      marketState: quote?.marketState || result?.meta?.marketState || "",
       retrievedAt: new Date().toISOString(),
       error: "",
     };
@@ -105,13 +183,58 @@ async function fetchSymbol(symbol) {
   }
 }
 
-async function fetchMarketSnapshot() {
-  const rows = await Promise.all(MARKET_SYMBOLS.map(fetchSymbol));
-  return Object.fromEntries(rows.map(row => [row.symbol, row]));
+function extractJin10Items(html, limit = 8) {
+  const stripped = String(html || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "\n")
+    .replace(/<style[\s\S]*?<\/style>/gi, "\n")
+    .replace(/<[^>]+>/g, "\n")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&");
+  const lines = stripped
+    .split(/\n+/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .filter(line => line.length > 6);
+  const items = [];
+  const timePattern = /^\d{2}:\d{2}:\d{2}$/;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (!timePattern.test(lines[i])) continue;
+    let headline = "";
+    for (let j = i + 1; j < Math.min(i + 6, lines.length); j += 1) {
+      const candidate = lines[j];
+      if (timePattern.test(candidate)) break;
+      if (/^(更多|登录|注册|直播|广告|首页|快讯|数据|日历|专题|频道|排行|免责声明|客服|搜索)$/i.test(candidate)) continue;
+      if (candidate.length < 8) continue;
+      headline = candidate;
+      break;
+    }
+    if (headline) {
+      items.push(headline);
+      if (items.length >= limit) break;
+    }
+  }
+  return items;
 }
 
-function row(snapshot, symbol) {
-  return snapshot[symbol] || { symbol, error: "missing" };
+async function fetchJin10News() {
+  const urls = [
+    "https://search.jin10.com/?page=1&type=flash&order=1&keyword=%E9%87%91%E5%8D%81%E6%95%B0%E6%8D%AE%E6%95%B4%E7%90%86&offset=0&vip=&basic_mode=",
+    "https://xnews.jin10.com/",
+  ];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const items = extractJin10Items(html, 8);
+      if (items.length) {
+        return { source: url, items };
+      }
+    } catch (error) {
+      continue;
+    }
+  }
+  return { source: urls[0], items: [] };
 }
 
 function classify(snapshot) {
@@ -228,9 +351,7 @@ function headlineFor(kind, classification) {
         ? "本周市场以横风震荡为主，资金在修复与回撤之间反复切换，QLD只能远OTM小仓，MSTR继续等待BTC确认。"
         : "本周市场仍有修复，但结构并不统一，卖 Put 只能保守筛选，优先看半导体和低Delta机会。";
   }
-  const leadBase = kind === "evening"
-    ? "香港收盘后先看这波复盘，再决定美股开盘前是否进入候选池"
-    : "先汇总昨晚美股、盘后、欧洲和亚洲早盘，再决定今天是否进入候选池";
+  const leadBase = "以美股前一交易日收盘后到现在为止的最近24小时信息为主，先看美股和金十快讯，再决定候选池是否打开";
   return classification.executionLevel === "D"
     ? `${leadBase}：当前短期风向偏逆风，7天卖 Put 不适合新增，优先暂停高beta标的并等待VIX、利率和BTC重新确认。`
     : classification.executionLevel === "B"
@@ -247,16 +368,10 @@ function finalCommandFor(kind, classification) {
         : "下周可以保留卖 Put 候选，但仍要先复核VIX、10Y、BTC与半导体结构。";
   }
   return classification.executionLevel === "D"
-    ? (kind === "evening"
-        ? "今晚不新增7天Put，先观察VIX、10Y/DXY、半导体和BTC是否止稳。"
-        : "今天不新增7天Put，先观察VIX、10Y/DXY、半导体和BTC是否止稳。")
+    ? "今天不新增7天Put，先观察VIX、10Y/DXY、半导体和BTC是否止稳。"
     : classification.executionLevel === "B"
-      ? (kind === "evening"
-          ? "今晚只允许远OTM小仓观察，等VIX、10Y、BTC和半导体确认后再提高风险。"
-          : "今天只允许远OTM小仓观察，等VIX、10Y、BTC和半导体确认后再提高风险。")
-      : (kind === "evening"
-          ? "今晚可小仓筛选7天Put，但必须复核实时IV、bid-ask、OI、事件日历和breakeven。"
-          : "今天可小仓筛选7天Put，但必须复核实时IV、bid-ask、OI、事件日历和breakeven。");
+      ? "今天只允许远OTM小仓观察，等VIX、10Y、BTC和半导体确认后再提高风险。"
+      : "今天可小仓筛选7天Put，但必须复核实时IV、bid-ask、OI、事件日历和breakeven。";
 }
 
 function overviewRows(classification) {
@@ -276,7 +391,7 @@ function flowRows(snapshot, classification, kind) {
   const dxy = row(snapshot, "DX-Y.NYB");
   const vix = row(snapshot, "^VIX");
   const tnx = row(snapshot, "^TNX");
-  const actionVerb = kind === "weekly" ? "本周" : "今天";
+  const actionVerb = kind === "weekly" ? "本周" : "近24小时";
   return [
     `| 🟢 **半导体明显强于大盘** | ${formatPctValue(smh.vs20Pct)}、SOXX ${formatPctValue(soxx.vs20Pct)} | SMH / SOXX | AI/半导体仍是资金承接最清晰的方向。 |`,
     `| 🟡 **纳指修复但不够强** | QQQ ${formatPctValue(qqq.vs20Pct)}，QLD ${formatPctValue(qld.vs20Pct)} | QQQ / QLD | ${actionVerb}只能把候选池打开，不能按强趋势追价。 |`,
@@ -322,44 +437,85 @@ function aiAppendix(aiText) {
   return cleaned ? `\n## AI 市场风向解读\n\n${cleaned}\n` : "";
 }
 
-function buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText) {
-  const isEvening = meta.kind === "evening";
-  const sessionText = isEvening ? "香港时间晚报版" : "香港时间早报版";
-  const titleBasis = isEvening
-    ? "对应香港收盘后与美股开盘前窗口"
-    : "基于美股昨晚交易、盘后交易、欧洲交易与亚洲早盘";
-  const titleMeta = [retrievedAtLabel ? `数据补取至${retrievedAtLabel}` : "", titleBasis].filter(Boolean).join("；");
+function buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10Items = [], jin10Source = "") {
+  const phaseLabel = meta.marketPhaseLabel || "美股最新阶段";
+  const timeLabel = marketSessionNow();
+  const titleMeta = [retrievedAtLabel ? `数据补取至${retrievedAtLabel}` : "", phaseLabel].filter(Boolean).join("；");
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
-  const dataPreamble = isEvening
-    ? `> **数据口径：** 本文用于香港收盘后到美股开盘前的晚报复盘，不把盘中价格当作收盘确认；具体期权合约须在券商端复核实时 Delta、Bid/Ask、OI 与保证金。`
-    : `> **数据口径：** 本文用于早报汇总昨晚美股交易、盘后交易、欧洲交易与亚洲早盘，不把盘中价格当作收盘确认；市场快照来自最新跨资产数据。`;
+  const dataPreamble = `> **数据口径：** 以美股前一交易日收盘后到现在为止的最近 24 小时信息为主；如果美股盘中，优先使用最新盘中行情；盘前用盘前数据，盘后用盘后数据。金十财经快讯同步纳入。`;
+  const jin10Block = jin10Items.length
+    ? jin10Items.slice(0, 5).map(item => `- ${item}`).join("\n")
+    : "- 金十快讯暂未抓到有效内容，请稍后重试。";
   const aiBlock = aiAppendix(aiText);
 
   return {
     headline,
     finalCommand,
-    markdown: `# AI每日市场情况分析
-**${displayDate(meta.date)}｜香港时间${weekday(meta.date)}${sessionText}（${titleMeta}）**
+    markdown: `# ${meta.title}
+**${displayDate(meta.date)}｜${phaseLabel}（${titleMeta}）**
 
 ${dataPreamble}
+
+**一句话结论：${headline}**
+
+## 今天市场在交易什么
+
+- **当前状态：** ${phaseLabel}，ET ${timeLabel.etClock}
+- **真正交易的是：** ${classification.trueTheme}
+- **真正说真话的是：** ${classification.truthTeller}
+- **短期风向：** ${classification.windLight}
+
+## 最近24小时金十快讯
+
+${jin10Block}
+
+## 资金与风险偏好
+
+| 项目 | 判断 |
+|:---|:---|
+${overviewRows(classification)}
+
+## 关键资产联动
+
+| 观测 | 最新信号 | 解读 |
+|:---|:---|:---|
+| **VIX / 10Y / DXY** | ${formatPctValue(row(snapshot, "^VIX").changePct)} / ${formatPctValue(row(snapshot, "^TNX").changePct)} / ${formatPctValue(row(snapshot, "DX-Y.NYB").changePct)} | 流动性与波动率是否真正放松。 |
+| **QQQ / SMH / SOXX** | ${formatPctValue(row(snapshot, "QQQ").changePct)} / ${formatPctValue(row(snapshot, "SMH").changePct)} / ${formatPctValue(row(snapshot, "SOXX").changePct)} | 科技和半导体是否继续领跑。 |
+| **BTC / MSTR** | ${formatPctValue(row(snapshot, "BTC-USD").changePct)} / ${formatPctValue(row(snapshot, "MSTR").changePct)} | 加密链是否还在拖累风险偏好。 |
+| **QLD / EEM / INTC / HOOD** | ${formatPctValue(row(snapshot, "QLD").changePct)} / ${formatPctValue(row(snapshot, "EEM").changePct)} / ${formatPctValue(row(snapshot, "INTC").changePct)} / ${formatPctValue(row(snapshot, "HOOD").changePct)} | 卖 Put 候选是否真的可交易。 |
+
+## 策略判断
+
+| 资产 | 操作 | 失效条件 |
+|:---|:---|:---|
+${targets.map(t => `| **${t.symbol}** | ${t.action} | ${t.invalid} |`).join("\n")}
+
+> **整体策略：** ${finalCommand}
 
 ## AI 市场风向解读
 
 ${aiBlock ? `${aiBlock}\n` : ""}
 
+## 市场日志
+
+| 日期 | 核心变量 | 风险评分 | 执行等级 |
+|:---|:---|:---|:---|
+| ${displayDate(meta.date)} | ${classification.marketStage} | ${classification.riskScore} | ${classification.executionLevel} |
+
 ## 数据来源
 
+- 美股行情：Yahoo Finance quote + chart
+- 金十财经：${jin10Source || "search.jin10.com"} 最近 24 小时快讯
 - 菜单6最小数据集：${meta.basis}
-- 公开行情抓取：Yahoo Finance 跨资产快照
 - AI 提示词：DeepSeek / GPT 可选
 
 > 本报告用于交易研究与风险控制记录，不构成自动下单指令。`
   };
 }
 
-function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText) {
-  return buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText);
+function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10) {
+  return buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10?.items || [], jin10?.source || "");
 }
 
 function buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText) {
@@ -512,21 +668,22 @@ ${aiAppendix(aiText)}
   };
 }
 
-function buildRuleMarkdown(meta, snapshot, classification, targets, aiText, retrievedAtLabel) {
+function buildRuleMarkdown(meta, snapshot, classification, targets, aiText, retrievedAtLabel, jin10) {
   return meta.kind === "weekly"
     ? buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText)
-    : buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText);
+    : buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10);
 }
 
 function marketPrompt() {
   return `你是熟悉美股短线市场结构、跨资产联动、AI交易拥挤度、BTC风险、半导体链和期权卖方风控的交易研究助手。
-任务：基于菜单6市场最小数据集，输出一段可嵌入Markdown报告的中文分析。
+任务：基于菜单6市场最小数据集、金十财经最近24小时快讯和最新美股行情，输出一段可嵌入Markdown报告的中文分析。
 要求：
 1. 只分析市场风向，不给具体Strike，不抓取或假设期权链。
-2. 结论前置，服务未来1-7个交易日是否允许卖Put。
-3. 必须覆盖：短期风向灯、今天真正交易什么、谁在说真话、事件风险、QLD/EEM/MSTR/INTC/HOOD如何处理。
-4. 不写宏观八股文，不把长期看好当短线卖put理由。
-5. 返回Markdown片段，以“## AI 市场风向解读”开头。`;
+2. 结论前置，优先回答最近24小时最重要的大事。
+3. 如果美股盘中，优先解释最新盘中行情；如果盘前或盘后，优先对应时段数据；如果休市，说明当前阶段和下一交易窗口。
+4. 必须覆盖：短期风向灯、今天真正交易什么、谁在说真话、金十快讯、事件风险、QLD/EEM/MSTR/INTC/HOOD如何处理。
+5. 不写宏观八股文，不把长期看好当短线卖put理由。
+6. 返回Markdown片段，以“## AI 市场风向解读”开头。`;
 }
 
 async function callOpenAI(payload) {
@@ -571,14 +728,15 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return sendJson(res, 405, { ok: false, message: "Method not allowed" });
 
   try {
-    const kind = ["morning", "evening", "weekly"].includes(String(req.query.kind)) ? String(req.query.kind) : "morning";
+    const kind = normalizeReportKind(req.query.kind);
     const provider = String(req.query.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
     const meta = kindMeta(kind);
     const snapshot = await fetchMarketSnapshot();
+    const jin10 = kind === "weekly" ? { source: "", items: [] } : await fetchJin10News();
     const classification = classify(snapshot);
     const targets = targetRows(snapshot, classification);
-    const ai = await callAI({ meta, snapshot, classification, targets }, provider);
-    const built = buildRuleMarkdown(meta, snapshot, classification, targets, ai.text, new Date().toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false }));
+    const ai = await callAI({ meta, snapshot, classification, targets, jin10 }, provider);
+    const built = buildRuleMarkdown(meta, snapshot, classification, targets, ai.text, new Date().toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false }), jin10);
     const report = {
       id: `${meta.fileName}-${Date.now()}`,
       ...meta,

@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>AI每日/每周市场情况分析｜十方斋</title>
-  <meta name="description" content="十方斋菜单6市场风向分析工具。点击生成今日早报、晚报或本周周报，自动整理7天卖Put市场风向、执行等级和归档。">
+  <meta name="description" content="十方斋菜单6市场风向分析工具。点击生成今日最新分析或本周周报，自动整理7天卖Put市场风向、执行等级和归档。">
   <meta name="keywords" content="市场结构日报, 市场结构周报, Sell Put, 市场风向, 7天卖Put, 十方斋">
   <meta name="author" content="十方斋">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
   <link rel="canonical" href="https://donew-beta.vercel.app/market-analysis-tool.html">
   <meta property="og:title" content="AI每日/每周市场情况分析｜十方斋">
-  <meta property="og:description" content="按菜单6自动生成市场结构日报、晚报和周报，并可本地归档回看。">
+  <meta property="og:description" content="按菜单6自动生成市场今日最新分析和周报，并可本地归档回看。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://donew-beta.vercel.app/market-analysis-tool.html">
   <meta property="og:site_name" content="十方斋">
@@ -524,7 +524,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.1.1</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.0</span></h1>
       <a class="home" href="./">返回十方斋首页</a>
     </header>
 
@@ -538,13 +538,9 @@
 
         <p class="section-title">生成最新报告</p>
         <div class="generate-stack">
-          <button class="generate-card primary" type="button" data-kind="morning">
-            <strong>生成今日早报</strong>
-            <span>早报汇总：美股昨晚交易 + 盘后消息 + 欧洲交易 + 亚洲早盘</span>
-          </button>
-          <button class="generate-card" type="button" data-kind="evening">
-            <strong>生成今日晚报</strong>
-            <span>晚报复盘：香港收盘后到美股开盘前，今天真正交易了什么</span>
+          <button class="generate-card primary" type="button" data-kind="daily">
+            <strong>生成今日最新分析</strong>
+            <span>美股前一交易日收盘后到现在，优先最近24小时大事 + 金十快讯 + 最新行情</span>
           </button>
           <button class="generate-card" type="button" data-kind="weekly">
             <strong>生成本周周报</strong>
@@ -574,7 +570,7 @@
             <button type="button" id="downloadCurrentImage">下载图片</button>
           </div>
           <div class="report-preview" id="preview">
-            <div class="empty-state">点击左侧按钮生成最新早报、晚报或周报。</div>
+            <div class="empty-state">点击左侧按钮生成今日最新分析或本周周报。</div>
           </div>
         </div>
 
@@ -596,9 +592,9 @@
         <div id="publicView" class="view">
           <p class="filename">公开网站上的历史与最新内容</p>
           <div class="public-links">
-            <a href="./#/docs/市场/今日.md">查看今日市场趋势<span>打开当前发布的最新日报/周报摘要</span></a>
-            <a href="./#/docs/市场/历史.md">查看历史归档<span>按月份查看已发布的早报、晚报和周报</span></a>
-            <a href="./#/docs/市场/每日市场判断怎么看.md">怎么看市场日报<span>回看日报各模块的判断方法</span></a>
+            <a href="./#/docs/市场/今日.md">查看今日最新分析<span>打开当前发布的最新今日分析/周报摘要</span></a>
+            <a href="./#/docs/市场/历史.md">查看历史归档<span>按月份查看已发布的今日分析和周报</span></a>
+            <a href="./#/docs/市场/每日市场判断怎么看.md">怎么看今日分析<span>回看今日分析各模块的判断方法</span></a>
             <a href="./#/docs/市场/风险评分说明.md">风险评分说明<span>理解风险分数和 Sell Put 操作关系</span></a>
           </div>
         </div>
@@ -612,7 +608,7 @@
     const apiBase = (params.get("apiBase") || defaultApiBase).replace(/\/$/, "");
     const storageKey = "shifangzhai-menu6-market-reports-v1";
     let currentReport = null;
-    let currentKind = "morning";
+    let currentKind = "daily";
 
     function $(selector) {
       return document.querySelector(selector);
@@ -977,7 +973,7 @@
 
     function reportTypeLabel(kind) {
       if (kind === "weekly") return "周报";
-      return kind === "evening" ? "晚报" : "早报";
+      return "今日最新分析";
     }
 
     async function generateReport(kind) {
