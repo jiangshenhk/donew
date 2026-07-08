@@ -809,22 +809,22 @@
         ctx.fillStyle = "#f6f8fc";
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0);
-        canvas.toBlob(pngBlob => {
-          if (!pngBlob) {
+        canvas.toBlob(jpgBlob => {
+          if (!jpgBlob) {
             setStatus("图片导出失败。", true);
             URL.revokeObjectURL(url);
             return;
           }
           const link = document.createElement("a");
-          link.href = URL.createObjectURL(pngBlob);
-          link.download = report.fileName.replace(/\.md$/i, ".png");
+          link.href = URL.createObjectURL(jpgBlob);
+          link.download = report.fileName.replace(/\.md$/i, ".jpg");
           document.body.appendChild(link);
           link.click();
           link.remove();
           URL.revokeObjectURL(link.href);
           URL.revokeObjectURL(url);
           setStatus("已下载图片。");
-        }, "image/png");
+        }, "image/jpeg", 0.92);
       };
       img.onerror = () => {
         setStatus("图片导出失败。", true);
