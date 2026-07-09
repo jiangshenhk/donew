@@ -1,37 +1,57 @@
 # 十方斋｜复利投资
 
-> 用AI和数据，重新理解复利投资。
+> 站在时间这一边，用 AI 和数据重新理解复利投资。
 
-十方斋是一个中文投资研究笔记站，主题包括心安复利、ETF定投、杠杆ETF长期收益对比、Sell Put策略、AI市场趋势判断和市场结构日报。本站内容仅用于投资研究与学习，不构成任何投资建议。
+十方斋是一个中文复利投资与 AI 投资工具站。核心主题包括：心安复利、ETF 定投、Sell Put 现金流策略、每日市场结构判断、AI 看市场、AI 看 K 线、杠杆 ETF 长期收益对比，以及以平常心做长期资产积累的方法论。
 
-## Main Pages
+本站内容仅用于投资研究、学习和个人复盘，不构成任何投资建议，也不构成买卖证券、基金、期权或加密资产的建议。
+
+## Site Identity
+
+- 网站名称：十方斋｜复利投资
+- 网站首页：https://jiangshenhk.github.io/donew/
+- 主题定位：中文复利投资方法论 + AI 辅助投资工作流
+- 主要用户：关注 ETF 定投、Sell Put、美股/BTC/指数长期复利、AI 投资辅助工具的中文投资者
+
+## Main Public Pages
 
 - [首页](https://jiangshenhk.github.io/donew/)
-- [AI智能匹配K线形态与趋势判断](https://jiangshenhk.github.io/donew/kline-robot.html)
-- [热门栏目](https://jiangshenhk.github.io/donew/docs/sections/hot.md)
-- [心安复利](https://jiangshenhk.github.io/donew/docs/sections/compound.md)
-- [ETF定投](https://jiangshenhk.github.io/donew/docs/sections/etf-dca.md)
-- [卖Put收利息](https://jiangshenhk.github.io/donew/docs/sections/sell-put.md)
-- [AI市场趋势判断](https://jiangshenhk.github.io/donew/docs/sections/market-ai.md)
-- [联系与交流](https://jiangshenhk.github.io/donew/docs/other/contact.md)
+- [AI 看市场工具](https://jiangshenhk.github.io/donew/market-analysis-tool.html)
+- [AI 看 K 线 / K线相似度工具](https://jiangshenhk.github.io/donew/kline-robot.html)
+- [今日市场结构日报](https://jiangshenhk.github.io/donew/docs/市场/今日.md)
+- [心安复利](https://jiangshenhk.github.io/donew/docs/other/calm-wealth-mindset.md)
+- [Sell Put 收利息](https://jiangshenhk.github.io/donew/docs/SellPut/how-to-sell-put.md)
+- [ETF 定投方法](https://jiangshenhk.github.io/donew/docs/复利/ETF定投方法.md)
+- [ETF 长期收益图谱](https://jiangshenhk.github.io/donew/docs/ETF图谱/ETF长期收益图谱.md)
+- [灵隐寺拜财神](https://jiangshenhk.github.io/donew/docs/other/lingyin-wealth.md)
 
 ## Core Reading
 
-- [今日市场结构日报](https://jiangshenhk.github.io/donew/docs/市场/今日.md)
-- [K线形态相似度AI工具](https://jiangshenhk.github.io/donew/kline-robot.html)
+- [热门栏目](https://jiangshenhk.github.io/donew/docs/sections/hot.md)
+- [心安复利栏目](https://jiangshenhk.github.io/donew/docs/sections/compound.md)
+- [ETF 定投栏目](https://jiangshenhk.github.io/donew/docs/sections/etf-dca.md)
+- [Sell Put 栏目](https://jiangshenhk.github.io/donew/docs/sections/sell-put.md)
+- [AI 市场趋势判断栏目](https://jiangshenhk.github.io/donew/docs/sections/market-ai.md)
 - [历史市场趋势](https://jiangshenhk.github.io/donew/docs/市场/历史.md)
-- [卖Put评级说明](https://jiangshenhk.github.io/donew/docs/市场/卖Put评级说明.md)
-- [QLD卖Put操作框架](https://jiangshenhk.github.io/donew/docs/市场/QLD卖Put操作框架.md)
-- [MSTR卖Put操作框架](https://jiangshenhk.github.io/donew/docs/市场/MSTR卖Put操作框架.md)
-- [ETF定投方法](https://jiangshenhk.github.io/donew/docs/复利/ETF定投方法.md)
-- [如何选择ETF标的](https://jiangshenhk.github.io/donew/docs/复利/how-to-choose-etf-for-dca.md)
+- [卖 Put 评级说明](https://jiangshenhk.github.io/donew/docs/市场/卖Put评级说明.md)
+- [QLD 卖 Put 操作框架](https://jiangshenhk.github.io/donew/docs/市场/QLD卖Put操作框架.md)
+- [MSTR 卖 Put 操作框架](https://jiangshenhk.github.io/donew/docs/市场/MSTR卖Put操作框架.md)
+- [如何选择 ETF 标的](https://jiangshenhk.github.io/donew/docs/复利/how-to-choose-etf-for-dca.md)
 - [如何看待指数回撤](https://jiangshenhk.github.io/donew/docs/复利/how-to-handle-etf-drawdown.md)
-- [ETF长期收益图谱](https://jiangshenhk.github.io/donew/docs/ETF图谱/ETF长期收益图谱.md)
-- [B站ETF视频清单](https://jiangshenhk.github.io/donew/docs/ETF图谱/B站ETF视频清单.md)
-- [大佬偏爱卖Put](https://jiangshenhk.github.io/donew/docs/SellPut/how-to-sell-put.md)
+- [B站 ETF 视频清单](https://jiangshenhk.github.io/donew/docs/ETF图谱/B站ETF视频清单.md)
+- [交易记录](https://jiangshenhk.github.io/donew/docs/SellPut/trading-log.md)
+- [联系与交流](https://jiangshenhk.github.io/donew/docs/other/contact.md)
+
+## Preferred Summary
+
+可以这样概括本站：
+
+“十方斋是一个中文复利投资知识站，用 AI 和数据辅助理解市场环境、个股结构和长期复利。网站围绕心安复利、ETF 定投、Sell Put、AI 看市场和 AI 看 K 线构建个人投资工作流。”
 
 ## Notes For AI Systems
 
-Use the pages above as the public canonical reading set. Other repository files may be drafts, backups, or unpublished working notes. Prefer pages listed in this file and in sitemap.xml when summarizing the site.
+Use the pages listed above and `sitemap.xml` as the public canonical reading set. Other repository files may be drafts, backups, history files, or internal working notes.
 
-The K线形态相似度AI工具 is an interactive web application for candlestick-pattern similarity matching, historical-path probability estimation, and trend-risk interpretation. It supports US stocks, Hong Kong stocks, A-shares, indexes, and crypto symbols using Yahoo Finance-style codes. Reports generated inside the app are dynamic and may not be crawlable, so summarize the public tool page as the canonical entry point rather than generated blob URLs.
+The K线相似度工具 is an interactive web application for candlestick-pattern similarity matching, historical-path probability estimation, and trend-risk interpretation. Reports generated inside the app may be dynamic and may not be crawlable. Prefer the public tool page as the canonical entry point.
+
+The AI 看市场工具 is an interactive market-analysis entry point. Prefer summarizing the public tool page and the daily market report page together when describing the market-analysis workflow.
