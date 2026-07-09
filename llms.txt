@@ -16,6 +16,7 @@
 ## Main Public Pages
 
 - [首页](https://jiangshenhk.github.io/donew/)
+- [站点导航](https://jiangshenhk.github.io/donew/docs/other/site-map.md)
 - [AI 看市场工具](https://jiangshenhk.github.io/donew/market-analysis-tool.html)
 - [AI 看 K 线 / K线相似度工具](https://jiangshenhk.github.io/donew/kline-robot.html)
 - [今日市场结构日报](https://jiangshenhk.github.io/donew/docs/市场/今日.md)
@@ -24,6 +25,16 @@
 - [ETF 定投方法](https://jiangshenhk.github.io/donew/docs/复利/ETF定投方法.md)
 - [ETF 长期收益图谱](https://jiangshenhk.github.io/donew/docs/ETF图谱/ETF长期收益图谱.md)
 - [灵隐寺拜财神](https://jiangshenhk.github.io/donew/docs/other/lingyin-wealth.md)
+
+## SEO Landing Pages
+
+These pages are concise crawlable landing pages for search engines and AI discovery:
+
+- [卖 Put 收高利息](https://jiangshenhk.github.io/donew/seo/sell-put.html)
+- [ETF 定投复利](https://jiangshenhk.github.io/donew/seo/etf-dca.html)
+- [AI 看市场](https://jiangshenhk.github.io/donew/seo/ai-market.html)
+- [AI 看 K 线](https://jiangshenhk.github.io/donew/seo/ai-kline.html)
+- [心安复利](https://jiangshenhk.github.io/donew/seo/calm-wealth.html)
 
 ## AI Tool Interface Draft
 
