@@ -1,0 +1,245 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "十方斋 AI 投资工具 API",
+    "version": "2.1.0.5",
+    "description": "OpenAPI contract draft for 十方斋 AI tools: AI看市场 and AI看K线. This file describes the intended API surface for AI agents and Custom GPT Actions. The actual API implementation may need to be deployed separately."
+  },
+  "servers": [
+    {
+      "url": "https://donew-beta.vercel.app",
+      "description": "Planned production API host for interactive tools"
+    }
+  ],
+  "paths": {
+    "/api/market/analyze": {
+      "post": {
+        "operationId": "market_analyze",
+        "summary": "AI看市场",
+        "description": "Analyze market environment for ETF定投、Sell Put and risk monitoring. Use this tool to judge macro and market conditions before making watchlist or option-selling decisions.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarketAnalyzeRequest"
+              },
+              "examples": {
+                "daily_us_market": {
+                  "summary": "Daily US market analysis",
+                  "value": {
+                    "market": "US",
+                    "mode": "daily",
+                    "focus": ["SPY", "QQQ", "BTC", "GLD", "TLT", "VIX"],
+                    "language": "zh-CN"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Market analysis result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketAnalyzeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/kline/analyze": {
+      "post": {
+        "operationId": "kline_analyze",
+        "summary": "AI看K线",
+        "description": "Analyze a symbol using trend, momentum, candlestick similarity and ABC structure. Use this tool to judge single-stock or crypto short-term technical risk before Sell Put or position decisions.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KlineAnalyzeRequest"
+              },
+              "examples": {
+                "mstr_hourly": {
+                  "summary": "MSTR hourly K-line analysis",
+                  "value": {
+                    "symbol": "MSTR",
+                    "interval": "1h",
+                    "mode": "similarity",
+                    "lookback": 120,
+                    "language": "zh-CN"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "K-line analysis result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KlineAnalyzeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MarketAnalyzeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "market": {
+            "type": "string",
+            "description": "Market scope, such as US, HK, CN, GLOBAL or CRYPTO.",
+            "examples": ["US"]
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["daily", "evening", "weekly", "risk_check", "sell_put_check"],
+            "description": "Analysis mode."
+          },
+          "focus": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Symbols or indexes to focus on, such as SPY, QQQ, BTC, GLD, TLT, VIX."
+          },
+          "language": {
+            "type": "string",
+            "default": "zh-CN",
+            "description": "Response language."
+          }
+        },
+        "required": ["market", "mode"]
+      },
+      "MarketAnalyzeResponse": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "extreme"]
+          },
+          "sell_put_environment": {
+            "type": "string",
+            "enum": ["favorable", "watch", "cautious", "avoid"]
+          },
+          "key_factors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "watchlist": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "KlineAnalyzeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "Ticker or market symbol, such as MSTR, QQQ, BTC-USD, 0700.HK."
+          },
+          "interval": {
+            "type": "string",
+            "enum": ["15m", "30m", "1h", "4h", "1d", "1wk"],
+            "description": "K-line interval."
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["similarity", "abc", "momentum", "sell_put_check", "full"],
+            "description": "Analysis mode."
+          },
+          "lookback": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 500,
+            "default": 120,
+            "description": "Number of bars to analyze."
+          },
+          "language": {
+            "type": "string",
+            "default": "zh-CN",
+            "description": "Response language."
+          }
+        },
+        "required": ["symbol", "interval", "mode"]
+      },
+      "KlineAnalyzeResponse": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "interval": {
+            "type": "string"
+          },
+          "conclusion": {
+            "type": "string"
+          },
+          "similarity_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "top_patterns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KlinePattern"
+            }
+          },
+          "confirm_level": {
+            "type": "number"
+          },
+          "fail_level": {
+            "type": "number"
+          },
+          "sell_put_comment": {
+            "type": "string"
+          }
+        }
+      },
+      "KlinePattern": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": ["name", "score"]
+      }
+    }
+  }
+}
