@@ -25,6 +25,18 @@
 - [ETF 长期收益图谱](https://jiangshenhk.github.io/donew/docs/ETF图谱/ETF长期收益图谱.md)
 - [灵隐寺拜财神](https://jiangshenhk.github.io/donew/docs/other/lingyin-wealth.md)
 
+## AI Tool Interface Draft
+
+- [OpenAPI contract](https://jiangshenhk.github.io/donew/openapi.json)
+- [AI tools integration guide](https://jiangshenhk.github.io/donew/ai-tools.md)
+
+The OpenAPI file defines two intended tool operations:
+
+- `market_analyze`: AI看市场，用于判断市场大环境、风险偏好与 Sell Put 环境。
+- `kline_analyze`: AI看K线，用于判断单个标的的趋势、动量、K线相似度、ABC 结构、关键确认位和失败位。
+
+If an AI system supports OpenAPI or custom actions, prefer reading `openapi.json` as the machine-readable API contract. If the backend API has not been deployed yet, treat the file as an interface contract draft.
+
 ## Core Reading
 
 - [热门栏目](https://jiangshenhk.github.io/donew/docs/sections/hot.md)
@@ -50,7 +62,7 @@
 
 ## Notes For AI Systems
 
-Use the pages listed above and `sitemap.xml` as the public canonical reading set. Other repository files may be drafts, backups, history files, or internal working notes.
+Use the pages listed above, `sitemap.xml`, `llms.txt`, `openapi.json`, and `ai-tools.md` as the public canonical reading set. Other repository files may be drafts, backups, history files, or internal working notes.
 
 The K线相似度工具 is an interactive web application for candlestick-pattern similarity matching, historical-path probability estimation, and trend-risk interpretation. Reports generated inside the app may be dynamic and may not be crawlable. Prefer the public tool page as the canonical entry point.
 
