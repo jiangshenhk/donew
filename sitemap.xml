@@ -2,133 +2,139 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://jiangshenhk.github.io/donew/</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://jiangshenhk.github.io/donew/kline-robot.html</loc>
-    <lastmod>2026-07-05</lastmod>
-    <changefreq>daily</changefreq>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://jiangshenhk.github.io/donew/market-analysis-tool.html</loc>
-    <lastmod>2026-07-06</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/sections/hot.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/sections/compound.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/sections/etf-dca.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/sections/sell-put.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/sections/market-ai.md</loc>
-    <lastmod>2026-05-27</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://jiangshenhk.github.io/donew/docs/市场/今日.md</loc>
-    <lastmod>2026-05-27</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/市场/历史.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/市场/卖Put评级说明.md</loc>
-    <lastmod>2026-05-27</lastmod>
+    <loc>https://jiangshenhk.github.io/donew/docs/other/calm-wealth-mindset.md</loc>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/市场/QLD卖Put操作框架.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/市场/MSTR卖Put操作框架.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/复利/ETF定投方法.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/复利/how-to-choose-etf-for-dca.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/复利/how-to-handle-etf-drawdown.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/ETF图谱/ETF长期收益图谱.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/ETF图谱/B站ETF视频清单.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.85</priority>
   </url>
   <url>
     <loc>https://jiangshenhk.github.io/donew/docs/SellPut/how-to-sell-put.md</loc>
-    <lastmod>2026-05-27</lastmod>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/复利/ETF定投方法.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/ETF图谱/ETF长期收益图谱.md</loc>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/SellPut/trading-log.md</loc>
-    <lastmod>2026-05-27</lastmod>
+    <loc>https://jiangshenhk.github.io/donew/docs/other/lingyin-wealth.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/sections/hot.md</loc>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/sections/compound.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/sections/etf-dca.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/sections/sell-put.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/sections/market-ai.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/市场/历史.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/市场/卖Put评级说明.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/市场/QLD卖Put操作框架.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/市场/MSTR卖Put操作框架.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/复利/how-to-choose-etf-for-dca.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/复利/how-to-handle-etf-drawdown.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://jiangshenhk.github.io/donew/docs/ETF图谱/B站ETF视频清单.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://jiangshenhk.github.io/donew/docs/other/calm-wealth-mindset.md</loc>
-    <lastmod>2026-05-27</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://jiangshenhk.github.io/donew/docs/SellPut/trading-log.md</loc>
+    <lastmod>2026-07-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.55</priority>
   </url>
   <url>
     <loc>https://jiangshenhk.github.io/donew/docs/other/contact.md</loc>
-    <lastmod>2026-05-27</lastmod>
+    <lastmod>2026-07-09</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
