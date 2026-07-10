@@ -1989,11 +1989,20 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
   const aboveE20 = Number.isFinite(e20) && last.close >= e20;
   const aboveE60 = Number.isFinite(e60) && last.close >= e60;
   const recentTrend = closeTrend(bars, Math.max(0, bars.length - 8), bars.length - 1);
+  const recentBars = bars.slice(-4);
+  const risingCloses = recentBars.slice(1).filter((bar, index) => bar.close >= recentBars[index].close).length;
+  const recentHigherHighs = recentBars.slice(1).filter((bar, index) => bar.high >= recentBars[index].high).length;
   const recentVol = avgVolume(bars, Math.max(0, bars.length - 5), bars.length - 1);
   const prevVol = avgVolume(bars, Math.max(0, bars.length - 15), Math.max(0, bars.length - 6));
   const volRatio = prevVol > 0 ? recentVol / prevVol : 1;
   const momentum = Number.isFinite(mom10) ? mom10 : 0;
   const rsi = Number.isFinite(rsi14) ? rsi14 : 50;
+  const structureSpan = Math.max(Math.abs(pressure1 - support), Math.max(Math.abs(last.close), 1) * 0.01);
+  const closePosition = Number.isFinite(structureSpan) && structureSpan > 0
+    ? (last.close - support) / structureSpan
+    : 0.5;
+  const nearConfirmZone = closePosition >= 0.72;
+  const risingIntoConfirm = recentTrend > 0 && risingCloses >= 2 && recentHigherHighs >= 2;
   let stage = "ABC待确认";
   let positionLabel = "当前位于 ABC 观察区";
   let phaseKey = "unknown";
@@ -2021,6 +2030,13 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.76;
     bias = "偏多";
     note = "回踩后重新站回确认位，若量能继续放大，更像 C 段开始。";
+  } else if (aboveE20 && risingIntoConfirm && nearConfirmZone) {
+    stage = "C 段前确认";
+    positionLabel = "当前更像 C 段前确认 / 靠近确认位";
+    phaseKey = "C";
+    progress = 0.72;
+    bias = "偏多";
+    note = "最近几根K线持续抬高、价格已靠近确认位，即使尚未正式突破，也更像 C 段前确认，而不是仍处于 B→C 回踩。";
   } else if (momentum >= 1 && aboveE20 && last.close < pressure1) {
     stage = "B→C 过渡";
     positionLabel = "当前更像 B 末段，正在向 C 过渡";
@@ -2236,8 +2252,32 @@ function summarizeTwoB({ bars, last, support, pressure1, e20, mom10, rsi14 }) {
 function twoBPositionSvg(twoB) {
   const state = /顶部/.test(twoB.stage) ? "top" : /底部/.test(twoB.stage) ? "bottom" : "neutral";
   const color = state === "top" ? "#ff7a88" : state === "bottom" ? "#40d98a" : "#ffd166";
-  const arrowY = state === "top" ? 34 : state === "bottom" ? 78 : 56;
-  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 348 110" role="img" aria-label="2B结构位置图"><defs><filter id="twoBGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M42 82H306" stroke="rgba(255,255,255,.16)" stroke-width="6" stroke-linecap="round"/><path d="M42 82H306" stroke="rgba(255,255,255,.28)" stroke-width="1" stroke-dasharray="8 8" stroke-linecap="round"/><circle cx="96" cy="82" r="12" fill="${color}" opacity=".2"/><circle cx="246" cy="82" r="12" fill="${color}" opacity=".16"/><path d="M96 82H246" stroke="${color}" stroke-width="4" stroke-dasharray="6 6" filter="url(#twoBGlow)" opacity=".95"/><path d="M${state === "bottom" ? 234 : 108} ${arrowY}l16 10-16 10" fill="${color}" opacity=".95"/><g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800"><text x="20" y="22" fill="#d7e3ff" font-size="12">${safeHtml(twoB.stage)}</text><text x="24" y="103" fill="${color}" font-size="12">前低 / 假跌破</text><text x="236" y="103" fill="${color}" font-size="12">确认 / 回收</text></g></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(twoB.stage)}</span>${directionMarkup(twoB.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(twoB.note)}</span></div></div>`;
+  const baseY = 122;
+  const topY = 48;
+  const lowY = 164;
+  const curvePath = state === "bottom"
+    ? "M42 94 C78 132, 96 138, 114 122 S158 82, 188 82 S240 168, 274 138 S316 90, 340 84"
+    : state === "top"
+      ? "M42 126 C76 88, 98 82, 116 94 S158 138, 188 138 S242 54, 276 84 S318 126, 340 132"
+      : "M42 108 C76 94, 102 90, 126 104 S174 126, 208 118 S268 92, 340 98";
+  const fakeBreakX = state === "top" ? 260 : state === "bottom" ? 260 : 190;
+  const fakeBreakY = state === "top" ? 84 : state === "bottom" ? 138 : 108;
+  const confirmX = state === "top" ? 320 : state === "bottom" ? 322 : 300;
+  const confirmY = state === "top" ? 132 : state === "bottom" ? 84 : 98;
+  const guideY = state === "top" ? 94 : 122;
+  const labelLeft = state === "top" ? "前高 / 假突破" : "前低 / 假跌破";
+  const labelRight = state === "top" ? "确认 / 回落" : "确认 / 回收";
+  const noteBox = state === "top"
+    ? { x: 192, y: 24, w: 144, h: 44 }
+    : state === "bottom"
+      ? { x: 192, y: 146, w: 144, h: 44 }
+      : { x: 184, y: 28, w: 150, h: 44 };
+  const noteText = state === "top"
+    ? "上破前高后回落"
+    : state === "bottom"
+      ? "跌破前低后收回"
+      : "等待真假突破确认";
+  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 380 206" role="img" aria-label="2B结构位置图"><defs><filter id="twoBGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="twoBArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="${color}"/></marker></defs><rect x="8" y="8" width="364" height="190" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="18" y="16" width="344" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="32" fill="#d7e3ff" font-size="12" font-weight="800">${safeHtml(twoB.stage)}</text><line x1="28" y1="${baseY}" x2="350" y2="${baseY}" stroke="rgba(255,255,255,.16)" stroke-width="2"/><line x1="28" y1="${guideY}" x2="${state === "top" ? 274 : 116}" y2="${guideY}" stroke="${state === "top" ? "#79a8ff" : "#ff6a6a"}" stroke-width="1.4" stroke-dasharray="6 6" opacity=".92"/><path d="${curvePath}" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="3"/><circle cx="${state === "top" ? 116 : 116}" cy="${guideY}" r="8" fill="${state === "top" ? "#ff7a88" : "#ff6a6a"}"/><circle cx="${fakeBreakX}" cy="${fakeBreakY}" r="8" fill="${color}"/><circle cx="${confirmX}" cy="${confirmY}" r="8" fill="${state === "top" ? "#4c8dff" : "#40d98a"}"/><path d="M${fakeBreakX + 14} ${fakeBreakY} C${fakeBreakX + 34} ${fakeBreakY}, ${confirmX - 22} ${confirmY}, ${confirmX - 8} ${confirmY}" fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="8 6" filter="url(#twoBGlow)" marker-end="url(#twoBArrow)"/><rect x="${noteBox.x}" y="${noteBox.y}" width="${noteBox.w}" height="${noteBox.h}" rx="12" fill="rgba(8,16,31,.92)" stroke="${color}" stroke-width="1.5"/><text x="${noteBox.x + 12}" y="${noteBox.y + 18}" fill="${color}" font-size="12" font-weight="800">如果当前在这里：</text><text x="${noteBox.x + 12}" y="${noteBox.y + 34}" fill="#edf2ff" font-size="12" font-weight="700">${safeHtml(noteText)}</text><text x="40" y="188" fill="${state === "top" ? "#ff7a88" : "#40d98a"}" font-size="13" font-weight="900">${safeHtml(labelLeft)}</text><text x="258" y="188" fill="${color}" font-size="13" font-weight="900">${safeHtml(labelRight)}</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(twoB.stage)}</span>${directionMarkup(twoB.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(twoB.note)}</span></div></div>`;
 }
 
 function abcStructureSectionHtml({ abc, twoB, bars }) {

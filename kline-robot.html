@@ -612,7 +612,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.9.16｜恢复后端';
+    const appVersionText = '2.9.17｜2026-7-11｜精简结果区';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -909,10 +909,6 @@
             <button class="action secondary" id="downloadImageBtn" type="button">下载图片</button>
           </div>
           <p class="status">${json.message || ''}</p>
-          <table>
-            <thead><tr><th>排名</th><th>形态</th><th>匹配K线</th><th>匹配度</th><th>规则/图形</th><th>方向</th><th>状态</th></tr></thead>
-            <tbody>${json.top5.map(row => `<tr><td>${row.rank}</td><td>${row.name}</td><td>${row.matchBars || '-'}根</td><td>${row.score}%</td><td>${row.ruleScore || '-'}% / ${row.shapeScore || '-'}%</td><td><span class="pill ${directionClass(row.bias)}">${row.bias}</span></td><td>${row.judgement}</td></tr>`).join('')}</tbody>
-          </table>
         `;
 
         document.getElementById('downloadBtn').addEventListener('click', () => {
