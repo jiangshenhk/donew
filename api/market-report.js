@@ -57,6 +57,16 @@ function corsHeaders() {
   };
 }
 
+async function timedFetch(url, options = {}, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function sendJson(res, status, data) {
   for (const [key, value] of Object.entries(corsHeaders())) res.setHeader(key, value);
   res.status(status).json(data);
@@ -193,7 +203,7 @@ function row(snapshot, symbol) {
 async function fetchQuoteSnapshot() {
   const symbols = MARKET_SYMBOLS.join(",");
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}`;
-  const res = await fetch(url, { headers: browserHeaders("https://finance.yahoo.com/") });
+  const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 6000);
   if (!res.ok) throw new Error(`Quote HTTP ${res.status}`);
   const json = await res.json();
   const results = json.quoteResponse?.result || [];
@@ -220,7 +230,7 @@ async function fetchEastmoneyKline(symbol) {
   const secid = EASTMONEY_SECID[symbol];
   if (!secid) return null;
   const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${encodeURIComponent(secid)}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20260101&end=20261231`;
-  const res = await fetch(url, { headers: browserHeaders("https://quote.eastmoney.com/") });
+  const res = await timedFetch(url, { headers: browserHeaders("https://quote.eastmoney.com/") }, 6000);
   if (!res.ok) throw new Error(`Eastmoney HTTP ${res.status}`);
   const json = await res.json();
   const klines = json.data?.klines || [];
@@ -300,7 +310,7 @@ function dataSourceRows(snapshot) {
 async function fetchSymbol(symbol, quote, session) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
   try {
-    const res = await fetch(url, { headers: browserHeaders("https://finance.yahoo.com/") });
+    const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 6000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const result = json.chart?.result?.[0];
@@ -391,7 +401,7 @@ async function fetchJin10News() {
   ];
   for (const url of urls) {
     try {
-      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const res = await timedFetch(url, { headers: { "User-Agent": "Mozilla/5.0" } }, 5000);
       if (!res.ok) continue;
       const html = await res.text();
       const items = extractJin10Items(html, 8);
@@ -967,14 +977,14 @@ function marketPrompt() {
 
 async function callOpenAI(payload) {
   if (!process.env.OPENAI_API_KEY) return { used: false, provider: "GPT", text: "## AI 市场风向解读\n\n未配置 OPENAI_API_KEY，本次使用规则版报告。" };
-  const res = await fetch("https://api.openai.com/v1/responses", {
+  const res = await timedFetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || "gpt-5",
       input: [{ role: "system", content: marketPrompt() }, { role: "user", content: JSON.stringify(payload) }],
     }),
-  });
+  }, 15000);
   if (!res.ok) return { used: false, provider: "GPT", text: `## AI 市场风向解读\n\nGPT 调用失败：${res.status}。本次使用规则版报告。` };
   const data = await res.json();
   const text = data.output_text || (data.output || []).flatMap(item => item.content || []).map(c => c.text || "").join("");
@@ -983,7 +993,7 @@ async function callOpenAI(payload) {
 
 async function callDeepSeek(payload) {
   if (!process.env.DEEPSEEK_API_KEY) return { used: false, provider: "DeepSeek", text: "## AI 市场风向解读\n\n未配置 DEEPSEEK_API_KEY，本次使用规则版报告。" };
-  const res = await fetch("https://api.deepseek.com/chat/completions", {
+  const res = await timedFetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -991,7 +1001,7 @@ async function callDeepSeek(payload) {
       messages: [{ role: "system", content: marketPrompt() }, { role: "user", content: JSON.stringify(payload) }],
       temperature: 0.2,
     }),
-  });
+  }, 15000);
   if (!res.ok) return { used: false, provider: "DeepSeek", text: `## AI 市场风向解读\n\nDeepSeek 调用失败：${res.status}。本次使用规则版报告。` };
   const data = await res.json();
   return { used: true, provider: "DeepSeek", text: data.choices?.[0]?.message?.content || "## AI 市场风向解读\n\nDeepSeek 返回为空，本次使用规则版报告。" };
