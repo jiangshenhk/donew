@@ -1500,6 +1500,20 @@ function normalizeAiHtml(html) {
   return `<section class="section ai-brief"><h2>K线形态匹配 <span class="trend-title-accent">AI</span> 解读</h2>${text}</section>`;
 }
 
+function flattenAiSection(html) {
+  const text = String(html || "").trim();
+  if (!text) return { thesis: "", body: "" };
+  const thesisMatch = text.match(/<div\b[^>]*class=["'][^"']*ai-thesis[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+  const thesis = thesisMatch ? thesisMatch[1].replace(/<strong>\s*核心判断：\s*<\/strong>/i, "").trim() : "";
+  let body = text
+    .replace(/<section\b[^>]*>/gi, "")
+    .replace(/<\/section>/gi, "")
+    .replace(/<h2\b[^>]*>[\s\S]*?<\/h2>/i, "")
+    .replace(/<div\b[^>]*class=["'][^"']*ai-thesis[^"']*["'][^>]*>[\s\S]*?<\/div>/i, "")
+    .trim();
+  return { thesis, body };
+}
+
 async function callOpenAI(payload) {
   if (!process.env.OPENAI_API_KEY) {
     return {
@@ -1708,7 +1722,7 @@ function candleChartSvg(bars, cards, keyLevels = {}) {
       ? `<span class="trend-note">右侧虚线箭头为历史样本统计路径：<span class="trend-stat">样本 ${safeHtml(historicalTrendStats.valid)}</span><span class="trend-stat">后 ${safeHtml(historicalTrendStats.horizon)} 根K线</span></span>`
       : '<span class="trend-note">右侧虚线箭头为测试模式模拟路径，标注概率与触发条件</span>'
     : "";
-  return `<section class="section chart-section"><h2>历史曲线<span class="trend-title-accent">AI</span>预判</h2><p>最近 ${chartBars.length} 根K线，已在图上标注关键位置。${trendNote}</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}">${trendDefs}<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量 · 关键位置</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${keyLines}${labels}<circle cx="${startX.toFixed(1)}" cy="${startY.toFixed(1)}" r="4" fill="#edf2ff"/>${trendOverlay}</svg></div></section>`;
+  return `<section class="section chart-section"><h2>历史K线趋势匹配，<span class="trend-title-accent">AI</span>预判趋势方向</h2><p>最近 ${chartBars.length} 根K线，已在图上标注关键位置。${trendNote}</p><div class="chart-wrap"><svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${safeHtml("K线图")}">${trendDefs}<rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="#0b1227"/><text x="${pad.left}" y="22" fill="#edf2ff" font-size="16" font-weight="700">K线与成交量 · 关键位置</text>${grid}<line x1="${pad.left}" y1="${volumeTop + volumeHeight}" x2="${width - pad.right}" y2="${volumeTop + volumeHeight}" stroke="rgba(255,255,255,.14)"/><text x="14" y="${volumeTop + 10}" fill="#9fb0d8" font-size="12">Volume</text>${candles}${keyLines}${labels}<circle cx="${startX.toFixed(1)}" cy="${startY.toFixed(1)}" r="4" fill="#edf2ff"/>${trendOverlay}</svg></div></section>`;
 }
 
 function directionMarkup(bias) {
@@ -2084,18 +2098,50 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
 }
 
 function abcPositionSvg(abc) {
-  const cells = [
-    { key: "A", label: "A 段", x: 18, desc: "启动 / 突破", fill: "#ff7a88" },
-    { key: "B", label: "B 段", x: 138, desc: "回踩 / 整理", fill: "#ffd166" },
-    { key: "C", label: "C 段", x: 258, desc: "延续 / 确认", fill: "#40d98a" },
-  ];
-  const active = abc.phaseKey === "BC" ? "B" : abc.phaseKey === "fail" ? "C" : (abc.phaseKey || "unknown");
+  const phase = abc.phaseKey || "unknown";
+  const active = phase === "BC" ? "B" : phase === "fail" ? "B" : phase;
+  const palette = {
+    A: "#ff7a88",
+    B: "#ffd166",
+    C: "#40d98a",
+    fail: "#ff7a88",
+    unknown: "#9fb0d8",
+  };
+  const color = palette[phase] || palette[active] || palette.unknown;
   const progress = Number.isFinite(abc.progress) ? Math.max(0, Math.min(1, abc.progress)) : 0.5;
-  const markerX = 42 + progress * 264;
-  const activeFill = active === "A" ? "#ff7a88" : active === "B" ? "#ffd166" : active === "C" ? "#40d98a" : abc.phaseKey === "fail" ? "#ff7a88" : "#9fb0d8";
-  const currentLabel = safeHtml(abc.positionLabel || abc.stage || "当前位置待确认");
-  const activeDesc = abc.phaseKey === "fail" ? "结构失败 / 不再按 ABC 解释" : cells.find((c) => c.key === (abc.phaseKey === "BC" ? "B" : active))?.desc || "当前位置待确认";
-  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 348 124" role="img" aria-label="ABC动量结构位置图"><defs><filter id="abcGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M42 82H306" stroke="rgba(255,255,255,.16)" stroke-width="6" stroke-linecap="round"/><path d="M42 82H306" stroke="rgba(255,255,255,.28)" stroke-width="1" stroke-dasharray="8 8" stroke-linecap="round"/><line x1="72" y1="28" x2="72" y2="82" stroke="${cells[0].fill}" stroke-width="2.2" opacity=".35"/><line x1="192" y1="28" x2="192" y2="82" stroke="${cells[1].fill}" stroke-width="2.2" opacity=".35"/><line x1="312" y1="28" x2="312" y2="82" stroke="${cells[2].fill}" stroke-width="2.2" opacity=".35"/><circle cx="${markerX}" cy="82" r="14" fill="${activeFill}" opacity=".18"/><path d="M${markerX - 10} 82H${markerX + 16}" stroke="${activeFill}" stroke-width="4" stroke-linecap="round" filter="url(#abcGlow)"/><path d="M${markerX + 6} 72l14 10-14 10" fill="${activeFill}" opacity=".95"/><rect x="18" y="4" rx="10" ry="10" width="312" height="22" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="24" y="20" fill="#d7e3ff" font-size="12" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800">${currentLabel}</text><g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800"><text x="18" y="103" fill="${cells[0].fill}" font-size="12">${cells[0].label}</text><text x="138" y="103" fill="${cells[1].fill}" font-size="12">${cells[1].label}</text><text x="258" y="103" fill="${cells[2].fill}" font-size="12">${cells[2].label}</text></g></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(abc.stage)}</span>${directionMarkup(abc.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(activeDesc)}</span></div></div>`;
+  const curve = [
+    { x: 34, y: 118 },
+    { x: 104, y: 154 },
+    { x: 214, y: 54 },
+    { x: 336, y: 150 },
+    { x: 474, y: 34 },
+  ];
+  const segmentForProgress = (value) => {
+    if (value <= 0.18) return [curve[0], curve[1], value / 0.18];
+    if (value <= 0.48) return [curve[1], curve[2], (value - 0.18) / 0.30];
+    if (value <= 0.76) return [curve[2], curve[3], (value - 0.48) / 0.28];
+    return [curve[3], curve[4], (value - 0.76) / 0.24];
+  };
+  const [from, to, localT] = segmentForProgress(progress);
+  const markerX = from.x + (to.x - from.x) * localT;
+  const markerY = from.y + (to.y - from.y) * localT;
+  const topLabel = safeHtml(abc.positionLabel || abc.stage || "当前位置待确认");
+  const currentText = phase === "fail"
+    ? ["如果当前在这里：", "ABC 结构失效，先按破位/转弱处理。"]
+    : active === "A"
+      ? ["如果当前在这里：", "A→B 上升段，重点看能否继续抬高。"]
+      : active === "B"
+        ? ["如果当前在这里：", "B→C 回踩中，先看止跌，再看是否转强。"]
+        : ["如果当前在这里：", "接近 C 确认区，重点看是否突破并延续。"];
+  const noteBox = active === "A"
+    ? { x: 274, y: 22, w: 208, h: 56, stroke: "#ff7a88", fill: "rgba(255,122,136,.08)" }
+    : active === "B" || phase === "fail"
+      ? { x: 286, y: 88, w: 206, h: 60, stroke: "#ffd166", fill: "rgba(255,209,102,.08)" }
+      : { x: 284, y: 154, w: 208, h: 60, stroke: "#40d98a", fill: "rgba(64,217,138,.08)" };
+  const pointFillA = active === "A" ? "#ff5d73" : "#ff5d73";
+  const pointFillB = active === "B" || phase === "fail" ? "#ff9b22" : "#ff9b22";
+  const pointFillC = active === "C" ? "#4c8dff" : "#4c8dff";
+  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 520 232" role="img" aria-label="ABC和2B结构位置示意图"><defs><filter id="abcGlow2" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="abcArrowHead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="${color}"/></marker></defs><rect x="8" y="8" width="504" height="216" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="16" y="16" width="488" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="32" fill="#d7e3ff" font-size="12" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800">${topLabel}</text><line x1="28" y1="176" x2="492" y2="176" stroke="rgba(255,255,255,.18)" stroke-width="2"/><line x1="28" y1="176" x2="28" y2="44" stroke="rgba(255,255,255,.18)" stroke-width="2"/><path d="M34 118 C66 168, 84 170, 104 154 S184 74, 214 54 S306 132, 336 150 S432 76, 474 34" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="3"/><line x1="28" y1="154" x2="336" y2="154" stroke="#ff6a6a" stroke-width="1.4" stroke-dasharray="6 6" opacity=".9"/><line x1="28" y1="54" x2="214" y2="54" stroke="#5f96ff" stroke-width="1.4" stroke-dasharray="6 6" opacity=".9"/><circle cx="104" cy="154" r="8" fill="${pointFillA}"/><circle cx="214" cy="54" r="8" fill="${pointFillB}"/><circle cx="336" cy="150" r="8" fill="${pointFillC}"/><text x="98" y="188" fill="#ff7a88" font-size="14" font-weight="900">A 段</text><text x="204" y="188" fill="#ffd166" font-size="14" font-weight="900">B 段</text><text x="326" y="188" fill="#40d98a" font-size="14" font-weight="900">C 段</text><path d="M${markerX - 26} ${markerY} C${markerX - 12} ${markerY}, ${markerX - 8} ${markerY}, ${markerX + 18} ${markerY}" fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="8 6" filter="url(#abcGlow2)" marker-end="url(#abcArrowHead)"/><circle cx="${markerX}" cy="${markerY}" r="7" fill="${color}" stroke="#fff" stroke-width="2"/><rect x="${noteBox.x}" y="${noteBox.y}" width="${noteBox.w}" height="${noteBox.h}" rx="12" fill="${noteBox.fill}" stroke="${noteBox.stroke}" stroke-width="1.6"/><text x="${noteBox.x + 12}" y="${noteBox.y + 22}" fill="${noteBox.stroke}" font-size="12" font-weight="800">${safeHtml(currentText[0])}</text><text x="${noteBox.x + 12}" y="${noteBox.y + 42}" fill="#edf2ff" font-size="12" font-weight="700">${safeHtml(currentText[1])}</text><text x="448" y="28" fill="rgba(255,255,255,.45)" font-size="11">价格</text><text x="466" y="208" fill="rgba(255,255,255,.45)" font-size="11">时间</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(abc.stage)}</span>${directionMarkup(abc.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(abc.positionLabel || "当前位置待确认")}</span></div></div>`;
 }
 
 function buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats }) {
@@ -2197,29 +2243,33 @@ function twoBPositionSvg(twoB) {
 function abcStructureSectionHtml({ abc, twoB, bars }) {
   const recentBars = Array.isArray(bars) ? bars.slice(-8) : [];
   const miniBars = recentBars.length >= 3 ? recentBars : (bars || []).slice(-3);
-  return `<section class="section structure-section"><h2>ABC 和 2B 结构判断</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">ABC 动量结构</span> 和 <span class="trend-title-accent">2B 反转结构</span> 放在一起，判断当前更像启动、回踩、延续，还是假跌破 / 假突破后的回收。</p><div class="structure-grid"><article class="structure-card"><h3>ABC 动量结构</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.positionLabel || "当前位置待确认")}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>${twoBPositionSvg(twoB)}${miniBars.length >= 3 ? `<div class="structure-mini">${drawMiniCandles({ bars: miniBars, highlightStart: Math.max(0, miniBars.length - 4), highlightEnd: miniBars.length - 1, label: "当前末尾K线位置" })}</div>` : ""}</article></div></section>`;
+  return `<section class="section structure-section"><h2>ABC 和 2B 结构，AI判断位置</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">ABC 动量结构</span> 和 <span class="trend-title-accent">2B 反转结构</span> 放在一起，判断当前更像启动、回踩、延续，还是假跌破 / 假突破后的回收。</p><div class="structure-grid"><article class="structure-card"><h3>ABC 动量结构</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.positionLabel || "当前位置待确认")}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>${twoBPositionSvg(twoB)}${miniBars.length >= 3 ? `<div class="structure-mini">${drawMiniCandles({ bars: miniBars, highlightStart: Math.max(0, miniBars.length - 4), highlightEnd: miniBars.length - 1, label: "当前末尾K线位置" })}</div>` : ""}</article></div></section>`;
 }
 
 function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
-  const trendRows = angles.trend.rows
-    .map((row) => `<tr><td>${safeHtml(row[0])}</td><td class="price">${safeHtml(row[1])}</td><td>${safeHtml(row[2])}</td></tr>`)
-    .join("");
-  const similarityLine = angles.similarity.score
-    ? `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong> <span class="price">${angles.similarity.score}%</span> · ${safeHtml(angles.similarity.matchBars)}根匹配 · ${directionMarkup(angles.similarity.bias)}</p>`
-    : `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong></p>`;
-  const similarityNote = angles.similarity.score
-    ? `<ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>状态：${safeHtml(angles.similarity.judgement)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`
-    : `<ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`;
-  const trendHtml = `<table class="lens-table"><thead><tr><th>方向</th><th>概率</th><th>触发条件</th></tr></thead><tbody>${trendRows}</tbody></table><p class="lens-note">${safeHtml(angles.trend.note)}</p>`;
-  const summaryParts = [
-    angles.similarity.score ? `K线相似度更偏${angles.similarity.bias}` : '当前没有足够高的K线相似度',
-    angles.trend.available ? `历史趋势拟合已给出${angles.trend.rows[0][1]}等概率分布` : '历史趋势样本不足，仍以当前结构为主',
-    angles.abc ? `ABC判断为${angles.abc.stage}` : '',
-    twoB ? `2B判断为${twoB.stage}` : '',
+  const trendTopRow = Array.isArray(angles.trend?.rows) ? angles.trend.rows[0] : null;
+  const structureBias = twoB?.bias || angles.abc?.bias || "中性";
+  const structureStage = twoB?.stage || angles.abc?.stage || "结构待确认";
+  const summaryItems = [
+    angles.similarity.score
+      ? `K线形态匹配：${angles.similarity.title}，${angles.similarity.score}% ，${angles.similarity.bias}`
+      : `K线形态匹配：暂无超过${MIN_PATTERN_SCORE}%的高可信形态，按中性处理`,
+    angles.trend.available && trendTopRow
+      ? `历史趋势拟合：${trendTopRow[0]}，概率 ${trendTopRow[1]}`
+      : "历史趋势拟合：样本不足，暂不单独定方向",
+    `ABC / 2B 结构：${structureBias}，${structureStage}`,
+  ];
+  const aiFlat = flattenAiSection(gptHtml || "");
+  const mergedThesisParts = [
+    safeHtml(summaryItems.join('；')),
+    safeHtml(angles.abc.positionLabel || angles.abc.summary),
+    safeHtml(twoB ? twoB.note : angles.abc.summary),
+    aiFlat.thesis,
   ].filter(Boolean);
-  const abcNote = `<div class="ai-thesis"><strong>核心判断：</strong>${safeHtml(summaryParts.join('；'))}。${safeHtml(angles.abc.positionLabel || angles.abc.summary)}。${safeHtml(twoB ? twoB.note : angles.abc.summary)}</div>`;
-  const aiBody = gptHtml ? `<div class="ai-body">${gptHtml}</div>` : "";
-  return `<section class="section ai-brief"><h2>AI 解读</h2>${abcNote}<div class="ai-grid"><article class="ai-card"><h3>1. K线相似度（匹配K线样子）</h3>${similarityLine}${similarityNote}</article><article class="ai-card"><h3>2. 历史趋势拟合（9测试模式）</h3><p><strong>${safeHtml(angles.trend.source)}</strong></p>${trendHtml}</article></div><p class="ai-footer">ABC / 2B 补充判断：${safeHtml(angles.abc.positionLabel || angles.abc.summary)}${twoB ? ` ${safeHtml(twoB.summary)}` : ''}</p>${aiBody}</section>`;
+  const sourceSummaryHtml = `<div class="ai-source-summary" style="margin:0 0 12px;padding:12px 16px;border:1px solid rgba(130,160,255,.18);border-radius:12px;background:rgba(18,26,51,.55)"><ol style="margin:0;padding-left:18px;display:grid;gap:6px">${summaryItems.map((item) => `<li>${safeHtml(item)}</li>`).join("")}</ol></div>`;
+  const abcNote = `<div class="ai-thesis"><strong>核心判断：</strong>${mergedThesisParts.join('。')}。</div>`;
+  const aiBody = aiFlat.body ? `<div class="ai-body">${aiFlat.body}</div>` : "";
+  return `<section class="section ai-brief"><h2>AI 解读</h2>${sourceSummaryHtml}${abcNote}${aiBody}</section>`;
 }
 
 function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, options }) {
@@ -2242,7 +2292,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     .map((c) => `<tr><td>${safeHtml(c.name)}</td><td>${safeHtml(c.matchBars)}根</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
     .join("");
   const noMatchHtml = `<div class="no-match"><strong>暂无超过${MIN_PATTERN_SCORE}%的经典形态匹配。</strong><p>系统只检测最新末尾K线，且要求规则分和图形DTW相似度同时达标。当前结构可能有反弹或回落片段，但没有达到高可信经典形态阈值，因此不强行套形态；请优先看价格图中的确认位、失败位和下一根K线。</p></div>`;
-  const topMatchHtml = `<div class="top-match"><h2>超过${MIN_PATTERN_SCORE}%的形态匹配</h2>${cards.length ? `<table><thead><tr><th>形态</th><th>匹配条数</th><th>匹配度</th><th>方向</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table>` : noMatchHtml}</div>`;
+  const topMatchHtml = `<div class="top-match"><h2>K线形态AI匹配（相识度超过${MIN_PATTERN_SCORE}%的）</h2>${cards.length ? `<table><thead><tr><th>形态</th><th>匹配条数</th><th>匹配度</th><th>方向</th><th>状态</th></tr></thead><tbody>${top5Rows}</tbody></table>` : noMatchHtml}</div>`;
   const cardHtml = cards
     .map(
       (c, idx) => `<article class="card"><div class="head"><div><h2>匹配 ${idx + 1} · ${safeHtml(c.name)} · ${directionMarkup(c.bias)} · ${safeHtml(c.judgement)}</h2><p>匹配区间（市场时间）：${safeHtml(c.range)}；匹配K线：${safeHtml(c.matchBars)}根；规则分/图形分：${safeHtml(c.ruleScore)}% / ${safeHtml(c.shapeScore)}%</p></div><div class="score">${c.score}%<span>${safeHtml(c.matchBars)}根K线匹配度</span></div></div><div class="visual-box"><div class="compare"><div class="panel chart-panel"><h3>原始K线高亮</h3>${miniHighlightChartSvg(bars, c)}</div><div class="panel chart-panel"><h3>规则库标准轮廓</h3>${patternSketchSvg(c)}</div></div></div><div class="detail-box"><p>${safeHtml(c.why)}</p><table><tr><th>确认/失败位</th><td><span class="price">${safeHtml(c.confirm)}</span> / <span class="price">${safeHtml(c.failure)}</span></td></tr></table></div></article>`
@@ -2278,7 +2328,6 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     historicalTrendStats: options.historicalTrendStats,
   });
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
-:root{--bg:#090f1f;--panel:#11182d;--text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--border:#2a355a}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:linear-gradient(180deg,#090f1f,#0d1326);color:var(--text);line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:28px 20px 80px}.hero,.section,.card{background:linear-gradient(180deg,rgba(17,24,45,.96),rgba(19,28,51,.96));border:1px solid var(--border);border-radius:14px;box-shadow:0 14px 38px rgba(0,0,0,.25)}.hero{padding:26px;background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(255,209,102,.08))}h1{margin:0 0 8px;font-size:30px}.sub,p,td{color:var(--muted)}.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.pill{border:1px solid var(--border);background:rgba(255,255,255,.055);border-radius:999px;padding:7px 12px;font-size:13px}.top-match{margin-top:20px;border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:12px;padding:16px}.top-match h2{margin:0;font-size:22px}.top-match p{margin:8px 0 0}.top-match table{margin-top:12px}.no-match{border:1px dashed rgba(255,209,102,.45);background:rgba(255,209,102,.07);border-radius:10px;margin-top:14px;padding:13px}.no-match strong{color:#ffd166}.section{margin-top:22px;padding:20px}table{width:100%;border-collapse:collapse;margin-top:14px;display:block;overflow-x:auto;white-space:nowrap}th,td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;font-size:14px}th{color:#d7e3ff;background:rgba(255,255,255,.04)}.price{color:var(--gold);font-weight:800}.chart{width:100%;height:auto;background:rgba(255,255,255,.015);border-radius:12px}.chart-section p{margin-top:0}.trend-title-accent,.trend-stat{color:var(--gold);font-weight:900}.trend-note{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px;margin-left:8px;border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:9px;padding:6px 10px;color:#f6e6b2;font-weight:800}.chart-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;background:#0b1227;margin-top:12px}.chart-wrap svg{display:block;min-width:880px;width:100%;height:auto}.ai-brief{border-color:rgba(121,168,255,.42);background:linear-gradient(180deg,rgba(121,168,255,.10),rgba(17,24,45,.96))}.ai-brief h2{margin-bottom:14px}.ai-thesis{border-left:4px solid var(--gold);background:rgba(255,209,102,.08);border-radius:10px;padding:12px 14px;margin:10px 0 14px;color:#f6e6b2}.ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.ai-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;min-width:0}.ai-card h3{margin:0 0 10px;font-size:16px}.ai-footer{margin-top:12px;color:#cbd6ef}.ai-body{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}.grid{display:grid;gap:18px;margin-top:22px}.head{display:flex;justify-content:space-between;gap:14px;padding:18px 20px 8px}.head h2{margin:0;font-size:21px}.head p{margin:5px 0 0;font-size:13px}.score{min-width:136px;text-align:right;font-size:32px;font-weight:800;color:var(--gold)}.score span{display:block;font-size:12px;font-weight:400;color:var(--muted)}.visual-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;margin:6px 20px 16px;padding:12px}.compare{display:grid;grid-template-columns:1.15fr .95fr;gap:14px;align-items:start}.panel{border:0;background:transparent;border-radius:10px;padding:0;margin:0}.chart-panel{min-width:0;display:block}.chart-panel h3{min-height:0}.chart-panel .chart{display:block;min-height:0}.detail-box{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;margin:0 auto 20px;max-width:720px}.panel h3{margin:0 0 8px;font-size:15px}.dir,.signal{display:inline-flex;align-items:center;gap:7px;font-weight:800}.dir-icon,.signal span{font-size:12px;line-height:1}.dir-bear,.signal-bear{color:#40d98a}.dir-bull,.signal-bull{color:#ff7a88}.dir-flat,.signal-flat{color:#ffd166}.collapsible summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.collapsible summary::-webkit-details-marker{display:none}.collapsible h2{margin:0}.fold-hint{color:var(--gold);font-size:13px;font-weight:800}.lens-section{margin-top:22px;padding:20px}.lens-section p{margin-top:0}.lens-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.lens-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;min-width:0}.lens-card h3{margin:0 0 10px;font-size:16px}.lens-list{margin:10px 0 0;padding-left:18px;color:#cbd6ef}.lens-list li{margin:6px 0}.lens-note{margin-top:10px;color:#cbd6ef;line-height:1.5}.lens-table{width:100%;display:table;overflow:visible;white-space:nowrap;margin-top:10px}.lens-table th,.lens-table td{padding:10px 8px;font-size:13px}.lens-table th{background:rgba(255,255,255,.03)}.structure-section{margin-top:22px;padding:20px}.structure-section p{margin-top:0}.structure-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}.structure-card{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:14px;min-width:0}.structure-card h3{margin:0 0 10px;font-size:16px}.structure-lead{margin:0 0 10px;color:#cbd6ef}.structure-meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}.structure-chip{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px;color:#d7e3ff}.structure-chip-gold{color:#f6e6b2;border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.08)}.structure-chip-soft{color:#edf2ff;background:rgba(255,255,255,.04)}.structure-mini{margin-top:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#0b1227}.abc-stage{margin-top:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:12px;padding:10px}.abc-stage-svg{display:block;width:100%;height:auto}.abc-stage-note{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;color:#cbd6ef}.abc-stage-chip{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px;color:#d7e3ff}.abc-stage-chip-soft{color:#f6e6b2;background:rgba(255,209,102,.08);border-color:rgba(255,209,102,.35)}.angle-kicker{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px}.angle-kicker span{display:inline-flex;align-items:center;border-radius:999px;padding:4px 10px;background:rgba(255,255,255,.05);border:1px solid var(--border);font-size:12px;color:#d7e3ff}.angle-kicker .gold{color:#f6e6b2;border-color:rgba(255,209,102,.35);background:rgba(255,209,102,.08)}@media(max-width:760px){.compare,.ai-grid,.structure-grid{grid-template-columns:1fr;gap:12px}.head{display:block}.score{text-align:left;margin-top:10px}.wrap{padding-left:12px;padding-right:12px}h1{font-size:24px}.section,.hero{padding:16px}.trend-note{display:flex;margin:8px 0 0}.visual-box{margin-left:0;margin-right:0;padding:10px}.panel h3{margin-bottom:6px}.detail-box{margin-left:0;margin-right:0}.lens-grid{grid-template-columns:1fr}}</style></head><body><div class="wrap"><section class="hero"><h1>${safeHtml(title)}</h1><div class="pills"><div class="pill">标的：${safeHtml(displaySymbol)}</div><div class="pill">周期：${safeHtml(intervalText)}</div><div class="pill">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(recent[0].date)} 至 ${safeHtml(last.date)}</div><div class="pill">状态：风险 / 支撑观察</div></div>${topMatchHtml}</section>${chartHtml}${abcStructureSectionHtml({ abc: analysisAngles.abc, twoB, bars })}${aiInterpretationSectionHtml({ angles: analysisAngles, gptHtml, twoB })}<details class="section collapsible"><summary><h2>最近K线总览</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></details><details class="section collapsible"><summary><h2>K线匹配详细情况</h2><span class="fold-hint">点击展开</span></summary><div class="grid">${cardHtml || noMatchHtml}</div></details><section class="section"><h2>各类指标信号解读</h2><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></section><details class="section collapsible"><summary><h2>关键位置判断</h2><span class="fold-hint">点击展开</span></summary><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></details><details class="section collapsible"><summary><h2>卖Put辅助判断</h2><span class="fold-hint">点击展开</span></summary><p>当前结构偏弱，属于“只观察/禁止近价Put”状态。若要看卖Put，至少等价格重新站回短线确认位，并且日K支撑没有破坏；Strike 应放在明确支撑与失败位下方。</p></details><p style="font-size:13px">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。期权卖方策略存在非线性风险，不应只依据K线形态执行。</p></div></body></html>`;
 }
 
 export default async function handler(req, res) {
