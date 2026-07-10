@@ -5,6 +5,32 @@ const MARKET_SYMBOLS = [
 ];
 
 const REQUIRED_TARGETS = ["QLD", "EEM", "MSTR", "INTC", "HOOD"];
+const CRITICAL_SYMBOLS = ["QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"];
+const SYMBOL_LABELS = {
+  QQQ: "QQQ",
+  SPY: "SPY",
+  IWM: "IWM",
+  QLD: "QLD",
+  TQQQ: "TQQQ",
+  SMH: "SMH",
+  SOXX: "SOXX",
+  MAGS: "MAGS",
+  EEM: "EEM",
+  FXI: "FXI",
+  KWEB: "KWEB",
+  "^VIX": "VIX",
+  VIXY: "VIXY",
+  IBIT: "IBIT",
+  "BTC-USD": "BTC",
+  MSTR: "MSTR",
+  "DX-Y.NYB": "DXY",
+  "^TNX": "10Y",
+  "JPY=X": "USDJPY",
+  "CL=F": "WTI",
+  "GC=F": "黄金",
+  INTC: "INTC",
+  HOOD: "HOOD",
+};
 const EASTMONEY_SECID = {
   QQQ: "105.QQQ",
   SPY: "105.SPY",
@@ -123,13 +149,14 @@ function kindMeta(kind) {
 }
 
 function numberOrNull(value) {
+  if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
 function pct(value) {
   const n = numberOrNull(value);
-  if (n === null) return "";
+  if (n === null) return "未取到";
   return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
 }
 
@@ -226,6 +253,48 @@ function isBadSnapshot(price, changePct, vs20Pct, vs50Pct) {
   if (numberOrNull(vs20Pct) !== null && Math.abs(vs20Pct) >= 95) return true;
   if (numberOrNull(vs50Pct) !== null && Math.abs(vs50Pct) >= 95) return true;
   return false;
+}
+
+function hasUsableSnapshot(item) {
+  if (!item) return false;
+  return isPositiveNumber(item.last) && numberOrNull(item.changePct) !== null;
+}
+
+function symbolLabel(symbol) {
+  return SYMBOL_LABELS[symbol] || symbol;
+}
+
+function snapshotWarnings(snapshot) {
+  const missingCritical = CRITICAL_SYMBOLS.filter(symbol => !hasUsableSnapshot(row(snapshot, symbol)));
+  const missingAll = MARKET_SYMBOLS.filter(symbol => !hasUsableSnapshot(row(snapshot, symbol)));
+  return {
+    missingCritical,
+    missingAll,
+    hasWarning: missingCritical.length > 0,
+  };
+}
+
+function formatSourceLabel(source) {
+  if (!source) return "未取到";
+  if (source === "yahoo") return "Yahoo Finance";
+  if (source === "eastmoney") return "东方财富";
+  if (source === "binance") return "Binance";
+  return source;
+}
+
+function buildDataWarningBlock(snapshot) {
+  const warnings = snapshotWarnings(snapshot);
+  if (!warnings.hasWarning) return "";
+  return `> **数据告警：** ${warnings.missingCritical.map(symbolLabel).join("、")} 未取到可靠最新行情，相关表格已标记为“未取到”，不要按 0 或中性处理；下单前需手动复核。`;
+}
+
+function dataSourceRows(snapshot) {
+  const focusSymbols = ["QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD", "^VIX", "^TNX", "DX-Y.NYB", "MSTR", "INTC", "HOOD"];
+  return focusSymbols.map(symbol => {
+    const item = row(snapshot, symbol);
+    const status = hasUsableSnapshot(item) ? "正常" : "缺失";
+    return `| ${symbolLabel(symbol)} | ${formatSourceLabel(item.source)} | ${status} | ${item.error || "-"} |`;
+  }).join("\n");
 }
 
 async function fetchSymbol(symbol, quote, session) {
@@ -355,6 +424,9 @@ function classify(snapshot) {
   if ((btc.changePct || 0) < -2) risk += 0.8;
   if ((iwm.changePct || 0) > (spy.changePct || 0)) risk -= 0.3;
   if ((vix.changePct || 0) < -3) risk -= 0.5;
+  const warnings = snapshotWarnings(snapshot);
+  if (warnings.missingCritical.length >= 3) risk = Math.max(risk, 7.2);
+  else if (warnings.missingCritical.length > 0) risk = Math.max(risk, 6.4);
   risk = Math.max(1, Math.min(9.5, risk));
 
   const windLight = risk >= 7.5 ? "🔴 逆风" : risk >= 6.2 ? "🟡 横风" : "🟢 顺风";
@@ -362,7 +434,7 @@ function classify(snapshot) {
   const putEnvironment = risk >= 7.5 ? "不适合" : risk >= 6.2 ? "谨慎" : "适合";
   const eventRisk = risk >= 7.5 ? "高" : risk >= 6.2 ? "中" : "低";
 
-  return {
+  const base = {
     riskScore: risk.toFixed(1),
     windLight,
     executionLevel,
@@ -372,6 +444,13 @@ function classify(snapshot) {
     trueTheme: `VIX ${pct(vix.changePct)}、10Y ${pct(tnx.changePct)}、DXY ${pct(dxy.changePct)}、半导体 ${pct(smh.changePct)}、BTC ${pct(btc.changePct)} 的组合确认`,
     truthTeller: "VIX、10Y/DXY、SMH/SOXX、BTC 与 MSTR 相对强弱",
     capitalFlow: `QQQ ${pct(qqq.changePct)}，SPY ${pct(spy.changePct)}，IWM ${pct(iwm.changePct)}；半导体SMH ${pct(smh.changePct)}，BTC ${pct(btc.changePct)}。`,
+  };
+  if (!warnings.hasWarning) return base;
+  return {
+    ...base,
+    marketStage: `${base.marketStage}（数据不完整）`,
+    trueTheme: `${base.trueTheme}；其中 ${warnings.missingCritical.map(symbolLabel).join("、")} 未取到，需谨慎解读。`,
+    capitalFlow: `${base.capitalFlow} 其中 ${warnings.missingCritical.map(symbolLabel).join("、")} 未取到，不按 0 解读。`,
   };
 }
 
@@ -432,7 +511,7 @@ function formatPctValue(value, digits = 2) {
 
 function formatPrice(value) {
   const n = numberOrNull(value);
-  if (n === null) return "-";
+  if (n === null) return "未取到";
   return n.toFixed(2);
 }
 
@@ -440,6 +519,12 @@ function formatRiskValue(value, digits = 1) {
   const n = numberOrNull(value);
   if (n === null) return "-";
   return `${n.toFixed(digits)} / 10`;
+}
+
+function formatHeadlineValue(value) {
+  const n = numberOrNull(value);
+  if (n === null) return "未取到";
+  return n > 0 ? `+${n.toFixed(2)}%` : `${n.toFixed(2)}%`;
 }
 
 function headlineFor(kind, classification) {
@@ -567,6 +652,7 @@ function buildDailyMarkdownLite(meta, snapshot, classification, targets, retriev
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
   const dataPreamble = `> **数据口径：** 以美股前一交易日收盘后到现在为止的最近24小时信息为主；如果美股盘中，优先使用最新盘中行情；如果未开盘，则使用盘前或盘后数据。金十财经快讯同步纳入。`;
+  const dataWarning = buildDataWarningBlock(snapshot);
   const jin10Block = jin10Items.length ? jin10Items.slice(0, 6).map(item => `- ${item}`).join("\n") : "- 暂未抓到最近24小时重大新闻，请稍后重试。";
   const aiBlock = aiAppendix(aiText) || "本次 AI 解读暂不可用，以下保留规则版框架。";
   const targetMap = Object.fromEntries(targets.map(item => [item.symbol, item]));
@@ -578,6 +664,8 @@ function buildDailyMarkdownLite(meta, snapshot, classification, targets, retriev
 **${displayDate(meta.date)}｜${phaseLabel}（${titleMeta}）**
 
 ${dataPreamble}
+
+${dataWarning}
 
 ## 1）本期市场在交易什么？
 
@@ -685,10 +773,14 @@ ${aiBlock}
 
 ## 数据来源
 
-- 美股行情：Yahoo Finance quote + chart
+- 默认优先源：Yahoo Finance；失败或数据异常时，自动尝试东方财富补取
 - 金十财经：${jin10Source || "search.jin10.com"} 最近 24 小时快讯
 - 菜单6最小数据集：${meta.basis}
 - AI 提示词：DeepSeek / GPT 可选
+
+| 指标 | 实际来源 | 状态 | 备注 |
+|:---|:---|:---|:---|
+${dataSourceRows(snapshot)}
 
 > 本报告用于交易研究与风险控制记录，不构成自动下单指令。`
   };
@@ -703,12 +795,15 @@ function buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText) {
   const finalCommand = finalCommandFor(meta.kind, classification);
   const overview = overviewRows(classification);
   const aiBlock = aiAppendix(aiText) || "本次 AI 解读暂不可用，以下保留规则版框架。";
+  const dataWarning = buildDataWarningBlock(snapshot);
 
   return {
     headline,
     finalCommand,
     markdown: `# ${meta.title}
 **${displayDate(meta.date)}｜${weekday(meta.date)}复盘（基于周五收盘、周末新闻与跨资产数据）**
+
+${dataWarning}
 
 **一句话结论：${headline}**
 
@@ -841,8 +936,12 @@ ${aiBlock}
 ## 数据来源
 
 - 周报所用的公开跨资产快照
-- Yahoo Finance / 公开行情抓取
+- 默认优先源：Yahoo Finance；失败或数据异常时，自动尝试东方财富补取
 - AI 提示词：DeepSeek / GPT 可选
+
+| 指标 | 实际来源 | 状态 | 备注 |
+|:---|:---|:---|:---|
+${dataSourceRows(snapshot)}
 
 > 本报告用于交易研究与风险控制记录，不构成自动下单指令.`
   };
@@ -915,7 +1014,11 @@ export default async function handler(req, res) {
     const jin10 = kind === "weekly" ? { source: "", items: [] } : await fetchJin10News();
     const classification = classify(snapshot);
     const targets = targetRows(snapshot, classification);
-    const ai = await callAI({ meta, snapshot, classification, targets, jin10 }, provider);
+    const ai = await callAI({ meta, snapshot, classification, targets, jin10 }, provider).catch(error => ({
+      used: false,
+      provider: provider === "openai" ? "GPT" : "DeepSeek",
+      text: `## AI 市场风向解读\n\nAI 分析暂时不可用：${error.message || error}。本次使用规则版报告。`,
+    }));
     const built = buildRuleMarkdown(meta, snapshot, classification, targets, ai.text, new Date().toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false }), jin10);
     const report = {
       id: `${meta.fileName}-${Date.now()}`,
@@ -933,6 +1036,7 @@ export default async function handler(req, res) {
     report.archiveRow = archiveRow(report);
     return sendJson(res, 200, { ok: true, report });
   } catch (error) {
-    return sendJson(res, 500, { ok: false, message: error.message || String(error) });
+    const message = error.message || String(error);
+    return sendJson(res, 500, { ok: false, message });
   }
 }
