@@ -171,6 +171,22 @@
       color: var(--ink);
     }
 
+    .generate-card.primary {
+      border: 0;
+      background: var(--blue);
+      color: #fff;
+      box-shadow: none;
+    }
+
+    .generate-card.primary strong,
+    .generate-card.primary span {
+      color: #fff;
+    }
+
+    .generate-card.primary span {
+      opacity: .92;
+    }
+
     .generate-card {
       display: grid;
       gap: 4px;
@@ -255,6 +271,32 @@
       min-height: 32px;
       padding: 6px 10px;
       font-size: 13px;
+    }
+
+    .toolbar-actions button {
+      min-height: 36px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: none;
+    }
+
+    .toolbar-actions .toolbar-primary {
+      border-color: #111827;
+      background: #111827;
+      color: #fff;
+    }
+
+    .toolbar-actions .toolbar-secondary {
+      border-color: #e0e7ff;
+      background: #eef2ff;
+      color: #4f46e5;
+    }
+
+    .toolbar-actions .toolbar-primary:hover,
+    .toolbar-actions .toolbar-secondary:hover {
+      box-shadow: none;
     }
 
     .tab {
@@ -525,7 +567,7 @@
   <main class="shell">
     <header class="topbar">
       <h1>AI每日/每周市场情况分析 <span class="version">v2.2.1</span></h1>
-      <a class="home" href="./">返回十方斋首页</a>
+      <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </header>
 
     <div class="layout">
@@ -548,10 +590,6 @@
           </button>
         </div>
 
-        <div class="toolbar">
-          <button type="button" id="saveCurrent">归档当前报告</button>
-          <button type="button" id="refreshCurrent">重新生成</button>
-        </div>
         <div class="status" id="status">请选择一种报告类型。</div>
       </section>
 
@@ -559,15 +597,16 @@
         <div class="tabs" role="tablist" aria-label="输出视图">
           <button type="button" class="tab active" data-view="preview">当前报告</button>
           <button type="button" class="tab" data-view="markdown">Markdown</button>
+          <button type="button" class="tab" id="saveCurrent">归档当前报告</button>
           <button type="button" class="tab" data-view="archive">我的归档</button>
           <button type="button" class="tab" data-view="public">公开归档</button>
         </div>
 
         <div id="previewView" class="view active">
-          <div class="toolbar">
-            <button type="button" class="primary" id="openCurrent">新窗口打开报告</button>
-            <button type="button" id="downloadCurrentHtml">下载 HTML</button>
-            <button type="button" id="downloadCurrentImage">下载图片</button>
+          <div class="toolbar toolbar-actions">
+            <button type="button" class="toolbar-primary" id="openCurrent">新窗口打开报告</button>
+            <button type="button" class="toolbar-secondary" id="downloadCurrentHtml">下载 HTML</button>
+            <button type="button" class="toolbar-secondary" id="downloadCurrentImage">下载图片</button>
           </div>
           <div class="report-preview" id="preview">
             <div class="empty-state">点击左侧按钮生成今日最新分析或本周周报。</div>
@@ -781,54 +820,75 @@
       URL.revokeObjectURL(link.href);
     }
 
+    function copyComputedStyles(source, target) {
+      const computed = window.getComputedStyle(source);
+      const styleText = Array.from(computed).map(name => `${name}:${computed.getPropertyValue(name)};`).join("");
+      target.setAttribute("style", styleText);
+      Array.from(source.children).forEach((child, index) => {
+        if (target.children[index]) copyComputedStyles(child, target.children[index]);
+      });
+    }
+
     async function downloadReportImage(report) {
       const node = $("#preview");
       if (!node) {
         setStatus("没有可下载的报告。", true);
         return;
       }
+      if (!currentReport) {
+        setStatus("请先生成报告。", true);
+        return;
+      }
       const rect = node.getBoundingClientRect();
       const width = Math.ceil(Math.max(rect.width, 980));
       const height = Math.ceil(node.scrollHeight + 24);
+      const clone = node.cloneNode(true);
+      copyComputedStyles(node, clone);
+      const serialized = new XMLSerializer().serializeToString(clone);
       const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
           <foreignObject width="100%" height="100%">
             <div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;background:#f6f8fc;padding:12px;box-sizing:border-box;">
-              ${node.innerHTML}
+              ${serialized}
             </div>
           </foreignObject>
         </svg>`;
-      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
+      const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
       const img = new Image();
+      img.decoding = "async";
       img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#f6f8fc";
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob(jpgBlob => {
-          if (!jpgBlob) {
-            setStatus("图片导出失败。", true);
-            URL.revokeObjectURL(url);
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            setStatus("图片导出失败：画布不可用。", true);
             return;
           }
-          const link = document.createElement("a");
-          link.href = URL.createObjectURL(jpgBlob);
-          link.download = report.fileName.replace(/\.md$/i, ".jpg");
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          URL.revokeObjectURL(link.href);
-          URL.revokeObjectURL(url);
-          setStatus("已下载图片。");
-        }, "image/jpeg", 0.92);
+          ctx.fillStyle = "#f6f8fc";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0);
+          canvas.toBlob(jpgBlob => {
+            if (!jpgBlob) {
+              setStatus("图片导出失败。", true);
+              return;
+            }
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(jpgBlob);
+            link.download = report.fileName.replace(/\.md$/i, ".jpg");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(link.href);
+            setStatus("已下载图片。");
+          }, "image/jpeg", 0.92);
+        } catch (error) {
+          setStatus(`图片导出失败：${error.message || error}`, true);
+        }
       };
       img.onerror = () => {
-        setStatus("图片导出失败。", true);
-        URL.revokeObjectURL(url);
+        setStatus("图片导出失败：浏览器未能渲染报告截图。", true);
       };
       img.src = url;
     }
@@ -997,7 +1057,7 @@
       } catch (error) {
         currentReport = null;
         renderUnavailable(error);
-        setStatus(`生成失败：${error.message}`, true);
+        setStatus("API暂时不可用，请重新生成。", true);
       }
     }
 
@@ -1006,8 +1066,7 @@
       $("#markdownOutput").value = "";
       $("#preview").innerHTML = `
         <div class="empty-state">
-          市场风向API暂时不可用，页面不会让你手填报告。请部署或启动 <code>/api/market-report</code> 后再点击生成。<br>
-          错误：${escapeHtml(error.message)}
+          API暂时不可用，请重新生成。
         </div>
       `;
     }
@@ -1112,7 +1171,6 @@
     });
 
     $("#saveCurrent").addEventListener("click", saveCurrentReport);
-    $("#refreshCurrent").addEventListener("click", () => generateReport(currentKind));
     $("#openCurrent").addEventListener("click", () => {
       if (!currentReport) return setStatus("请先生成报告。", true);
       openReportWindow(currentReport);

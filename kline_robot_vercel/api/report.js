@@ -1981,41 +1981,95 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
   const momentum = Number.isFinite(mom10) ? mom10 : 0;
   const rsi = Number.isFinite(rsi14) ? rsi14 : 50;
   let stage = "ABC待确认";
+  let positionLabel = "当前位于 ABC 观察区";
+  let phaseKey = "unknown";
+  let progress = 0.5;
   let bias = "中性";
   let note = "当前更像整理区，A / B / C 的分界需要下一段价格和量能确认。";
-  if (momentum >= 3 && aboveE20 && aboveE60) {
+  if (last.close < support && !aboveE20 && momentum < 0) {
+    stage = "结构失败";
+    positionLabel = "ABC 结构失效，优先按破位处理";
+    phaseKey = "fail";
+    progress = 1;
+    bias = "偏空";
+    note = "关键支撑被破坏后，原先的 ABC 解释优先降级，先看是否形成新的底部结构。";
+  } else if (momentum >= 3 && aboveE20 && aboveE60 && last.close >= pressure2) {
     stage = "C 段延续";
+    positionLabel = "当前更像 C 段后半段 / 延续加速";
+    phaseKey = "C";
+    progress = 0.92;
     bias = "偏多";
     note = "动量较强且价格站上中期均线，更像 C 段再次上冲后的延续。";
-  } else if (momentum >= 1 && aboveE20) {
-    stage = "B→C 过渡";
+  } else if (momentum >= 1 && aboveE20 && last.close >= pressure1) {
+    stage = "C 段启动";
+    positionLabel = "当前更像 C 段起点 / 突破确认";
+    phaseKey = "C";
+    progress = 0.76;
     bias = "偏多";
-    note = "回踩后动量开始修复，若重新放量就更接近 C 段确认。";
+    note = "回踩后重新站回确认位，若量能继续放大，更像 C 段开始。";
+  } else if (momentum >= 1 && aboveE20 && last.close < pressure1) {
+    stage = "B→C 过渡";
+    positionLabel = "当前更像 B 末段，正在向 C 过渡";
+    phaseKey = "BC";
+    progress = 0.62;
+    bias = "偏多";
+    note = "回踩后动量开始修复，但还没有完全越过确认位，属于 B 向 C 的过渡。";
   } else if (momentum <= -3 && !aboveE20) {
     stage = "A 段后回撤";
+    positionLabel = "当前更像 A 段后回撤 / 失速";
+    phaseKey = "A";
+    progress = 0.26;
     bias = "偏空";
     note = "上冲后动量转弱，若失去 E20，容易演化为 A 段后的回撤或失效。";
-  } else if (momentum < 0 && aboveE20) {
+  } else if (momentum < 0 && aboveE20 && last.close >= support) {
     stage = "B 段健康回踩";
+    positionLabel = "当前更像 B 段回踩中后段";
+    phaseKey = "B";
+    progress = 0.48;
     bias = "中性";
     note = "价格仍守住中期均线，但动量在消化，常见于 B 段回调或横盘整理。";
+  } else if (!aboveE20 && recentTrend < 0 && last.close >= support) {
+    stage = "B 段偏弱整理";
+    positionLabel = "当前更像 B 段偏弱整理 / 等待方向确认";
+    phaseKey = "B";
+    progress = 0.44;
+    bias = "中性";
+    note = "价格仍在支撑之上，但已经压在中期均线下，更像 B 段整理偏弱。";
   } else if (!aboveE20 && recentTrend < 0) {
     stage = "A 段失败 / 转弱";
+    positionLabel = "当前更像 A 段失败后的转弱区";
+    phaseKey = "A";
+    progress = 0.18;
     bias = "偏空";
     note = "价格偏离中期均线且最近趋势转弱，更像 A 段后失守，需要防止继续回落。";
-  } else if (aboveE20 && recentTrend > 0) {
+  } else if (aboveE20 && recentTrend > 0 && last.close < pressure1) {
     stage = "B 段止跌 / 等待 C";
+    positionLabel = "当前更像 B 段止跌，等待 C 段触发";
+    phaseKey = "B";
+    progress = 0.56;
     bias = "中性";
     note = "结构还守得住，但还没到强确认；更像 B 段止跌后等待 C 段触发。";
+  } else if (aboveE20 && recentTrend > 0) {
+    stage = "C 段前确认";
+    positionLabel = "当前更像 C 段前确认 / 试图突破";
+    phaseKey = "C";
+    progress = 0.7;
+    bias = "偏多";
+    note = "价格和趋势都开始向上，但仍需确认上方压力是否有效突破。";
   }
   const volume = prevVol > 0 ? (volRatio >= 1.12 ? "放量" : volRatio <= 0.88 ? "缩量" : "平量") : "量能不足";
-  const phaseKey = stage.startsWith("C") ? "C" : stage.startsWith("B→C") ? "BC" : stage.startsWith("B") ? "B" : stage.startsWith("A") ? "A" : "unknown";
+  if (phaseKey === "unknown") {
+    phaseKey = stage.startsWith("C") ? "C" : stage.startsWith("B→C") ? "BC" : stage.startsWith("B") ? "B" : stage.startsWith("A") ? "A" : "unknown";
+    progress = phaseKey === "A" ? 0.22 : phaseKey === "B" ? 0.48 : phaseKey === "BC" ? 0.64 : phaseKey === "C" ? 0.82 : 0.5;
+  }
   return {
     stage,
     phaseKey,
+    positionLabel,
+    progress,
     bias,
     note,
-    summary: `当前位置更像 ${stage}，整体${bias}。${note} 动量 ${Number.isFinite(mom10) ? `${mom10.toFixed(2)}%` : "数据不足"}，RSI ${Number.isFinite(rsi14) ? rsi14.toFixed(1) : "数据不足"}，量能${volume}，A/B/C 分界仍以关键位确认。`,
+    summary: `当前位置更像 ${stage}（${positionLabel}），整体${bias}。${note} 动量 ${Number.isFinite(mom10) ? `${mom10.toFixed(2)}%` : "数据不足"}，RSI ${Number.isFinite(rsi14) ? rsi14.toFixed(1) : "数据不足"}，量能${volume}，A/B/C 分界仍以关键位确认。`,
     volume,
     momentum: Number.isFinite(mom10) ? mom10.toFixed(2) : null,
     rsi: Number.isFinite(rsi14) ? rsi14.toFixed(1) : null,
@@ -2035,10 +2089,13 @@ function abcPositionSvg(abc) {
     { key: "B", label: "B 段", x: 138, desc: "回踩 / 整理", fill: "#ffd166" },
     { key: "C", label: "C 段", x: 258, desc: "延续 / 确认", fill: "#40d98a" },
   ];
-  const active = abc.phaseKey === "BC" ? "B" : (abc.phaseKey || "unknown");
-  const markerX = active === "A" ? 72 : active === "B" ? 192 : active === "C" ? 312 : 192;
-  const activeFill = active === "A" ? "#ff7a88" : active === "B" ? "#ffd166" : active === "C" ? "#40d98a" : "#9fb0d8";
-  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 348 110" role="img" aria-label="ABC动量结构位置图"><defs><filter id="abcGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M42 82H306" stroke="rgba(255,255,255,.16)" stroke-width="6" stroke-linecap="round"/><path d="M42 82H306" stroke="rgba(255,255,255,.28)" stroke-width="1" stroke-dasharray="8 8" stroke-linecap="round"/><line x1="72" y1="28" x2="72" y2="82" stroke="${cells[0].fill}" stroke-width="2.2" opacity=".35"/><line x1="192" y1="28" x2="192" y2="82" stroke="${cells[1].fill}" stroke-width="2.2" opacity=".35"/><line x1="312" y1="28" x2="312" y2="82" stroke="${cells[2].fill}" stroke-width="2.2" opacity=".35"/><circle cx="${markerX}" cy="82" r="14" fill="${activeFill}" opacity=".18"/><path d="M${markerX - 10} 82H${markerX + 16}" stroke="${activeFill}" stroke-width="4" stroke-linecap="round" filter="url(#abcGlow)"/><path d="M${markerX + 6} 72l14 10-14 10" fill="${activeFill}" opacity=".95"/><g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800"><text x="24" y="22" fill="#d7e3ff" font-size="12">${safeHtml(abc.stage)}</text><text x="18" y="103" fill="${cells[0].fill}" font-size="12">${cells[0].label}</text><text x="138" y="103" fill="${cells[1].fill}" font-size="12">${cells[1].label}</text><text x="258" y="103" fill="${cells[2].fill}" font-size="12">${cells[2].label}</text></g></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(abc.stage)}</span>${directionMarkup(abc.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(cells.find((c) => c.key === active)?.desc || "当前位置待确认")}</span></div></div>`;
+  const active = abc.phaseKey === "BC" ? "B" : abc.phaseKey === "fail" ? "C" : (abc.phaseKey || "unknown");
+  const progress = Number.isFinite(abc.progress) ? Math.max(0, Math.min(1, abc.progress)) : 0.5;
+  const markerX = 42 + progress * 264;
+  const activeFill = active === "A" ? "#ff7a88" : active === "B" ? "#ffd166" : active === "C" ? "#40d98a" : abc.phaseKey === "fail" ? "#ff7a88" : "#9fb0d8";
+  const currentLabel = safeHtml(abc.positionLabel || abc.stage || "当前位置待确认");
+  const activeDesc = abc.phaseKey === "fail" ? "结构失败 / 不再按 ABC 解释" : cells.find((c) => c.key === (abc.phaseKey === "BC" ? "B" : active))?.desc || "当前位置待确认";
+  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 348 124" role="img" aria-label="ABC动量结构位置图"><defs><filter id="abcGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M42 82H306" stroke="rgba(255,255,255,.16)" stroke-width="6" stroke-linecap="round"/><path d="M42 82H306" stroke="rgba(255,255,255,.28)" stroke-width="1" stroke-dasharray="8 8" stroke-linecap="round"/><line x1="72" y1="28" x2="72" y2="82" stroke="${cells[0].fill}" stroke-width="2.2" opacity=".35"/><line x1="192" y1="28" x2="192" y2="82" stroke="${cells[1].fill}" stroke-width="2.2" opacity=".35"/><line x1="312" y1="28" x2="312" y2="82" stroke="${cells[2].fill}" stroke-width="2.2" opacity=".35"/><circle cx="${markerX}" cy="82" r="14" fill="${activeFill}" opacity=".18"/><path d="M${markerX - 10} 82H${markerX + 16}" stroke="${activeFill}" stroke-width="4" stroke-linecap="round" filter="url(#abcGlow)"/><path d="M${markerX + 6} 72l14 10-14 10" fill="${activeFill}" opacity=".95"/><rect x="18" y="4" rx="10" ry="10" width="312" height="22" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="24" y="20" fill="#d7e3ff" font-size="12" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800">${currentLabel}</text><g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800"><text x="18" y="103" fill="${cells[0].fill}" font-size="12">${cells[0].label}</text><text x="138" y="103" fill="${cells[1].fill}" font-size="12">${cells[1].label}</text><text x="258" y="103" fill="${cells[2].fill}" font-size="12">${cells[2].label}</text></g></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(abc.stage)}</span>${directionMarkup(abc.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(activeDesc)}</span></div></div>`;
 }
 
 function buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats }) {
@@ -2086,16 +2143,6 @@ function buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2,
         note: "当前没有足够的 9 测试模式历史样本，暂时只能看当前结构与动量。",
       };
   return { similarity, trend, abc, trendPaths };
-}
-
-function threeAngleSummaryHtml({ angles }) {
-  const trendRows = angles.trend.rows
-    .map((row) => `<tr><td>${safeHtml(row[0])}</td><td class="price">${safeHtml(row[1])}</td><td>${safeHtml(row[2])}</td></tr>`)
-    .join("");
-  const similarityHtml = angles.similarity.score
-    ? `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong> <span class="price">${angles.similarity.score}%</span> · ${safeHtml(angles.similarity.matchBars)}根匹配 · ${directionMarkup(angles.similarity.bias)}</p><ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>状态：${safeHtml(angles.similarity.judgement)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`
-    : `<p><strong class="trend-title-accent">${safeHtml(angles.similarity.title)}</strong></p><ul class="lens-list"><li>${safeHtml(angles.similarity.detail)}</li><li>${safeHtml(angles.similarity.note)}</li></ul>`;
-  return `<section class="section lens-section"><h2>三角度叠加分析</h2><p>把 <span class="trend-title-accent">K线相似度</span>、<span class="trend-title-accent">历史趋势拟合</span>、<span class="trend-title-accent">ABC动量结构</span> 放在一起看：先看像不像，再看过去类似后怎么走，最后看当前处在哪一段。</p><div class="lens-grid"><article class="lens-card"><h3>1. K线相似度（匹配K线样子）</h3>${similarityHtml}</article><article class="lens-card"><h3>2. 历史趋势拟合（9测试模式）</h3><p><strong>${safeHtml(angles.trend.source)}</strong></p><table class="lens-table"><thead><tr><th>方向</th><th>概率</th><th>触发条件</th></tr></thead><tbody>${trendRows}</tbody></table><p class="lens-note">${safeHtml(angles.trend.note)}</p></article><article class="lens-card"><h3>3. ABC动量结构</h3><p class="lens-note">${safeHtml(angles.abc.summary)}</p>${abcPositionSvg(angles.abc)}</article></div></section>`;
 }
 
 function summarizeTwoB({ bars, last, support, pressure1, e20, mom10, rsi14 }) {
@@ -2150,7 +2197,7 @@ function twoBPositionSvg(twoB) {
 function abcStructureSectionHtml({ abc, twoB, bars }) {
   const recentBars = Array.isArray(bars) ? bars.slice(-8) : [];
   const miniBars = recentBars.length >= 3 ? recentBars : (bars || []).slice(-3);
-  return `<section class="section structure-section"><h2>ABC 和 2B 结构判断</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">ABC 动量结构</span> 和 <span class="trend-title-accent">2B 反转结构</span> 放在一起，判断当前更像启动、回踩、延续，还是假跌破 / 假突破后的回收。</p><div class="structure-grid"><article class="structure-card"><h3>ABC 动量结构</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>${twoBPositionSvg(twoB)}${miniBars.length >= 3 ? `<div class="structure-mini">${drawMiniCandles({ bars: miniBars, highlightStart: Math.max(0, miniBars.length - 4), highlightEnd: miniBars.length - 1, label: "当前末尾K线位置" })}</div>` : ""}</article></div></section>`;
+  return `<section class="section structure-section"><h2>ABC 和 2B 结构判断</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">ABC 动量结构</span> 和 <span class="trend-title-accent">2B 反转结构</span> 放在一起，判断当前更像启动、回踩、延续，还是假跌破 / 假突破后的回收。</p><div class="structure-grid"><article class="structure-card"><h3>ABC 动量结构</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.positionLabel || "当前位置待确认")}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>${twoBPositionSvg(twoB)}${miniBars.length >= 3 ? `<div class="structure-mini">${drawMiniCandles({ bars: miniBars, highlightStart: Math.max(0, miniBars.length - 4), highlightEnd: miniBars.length - 1, label: "当前末尾K线位置" })}</div>` : ""}</article></div></section>`;
 }
 
 function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
@@ -2170,9 +2217,9 @@ function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
     angles.abc ? `ABC判断为${angles.abc.stage}` : '',
     twoB ? `2B判断为${twoB.stage}` : '',
   ].filter(Boolean);
-  const abcNote = `<div class="ai-thesis"><strong>核心判断：</strong>${safeHtml(summaryParts.join('；'))}。${safeHtml(twoB ? twoB.note : angles.abc.summary)}</div>`;
+  const abcNote = `<div class="ai-thesis"><strong>核心判断：</strong>${safeHtml(summaryParts.join('；'))}。${safeHtml(angles.abc.positionLabel || angles.abc.summary)}。${safeHtml(twoB ? twoB.note : angles.abc.summary)}</div>`;
   const aiBody = gptHtml ? `<div class="ai-body">${gptHtml}</div>` : "";
-  return `<section class="section ai-brief"><h2>AI 解读</h2>${abcNote}<div class="ai-grid"><article class="ai-card"><h3>1. K线相似度（匹配K线样子）</h3>${similarityLine}${similarityNote}</article><article class="ai-card"><h3>2. 历史趋势拟合（9测试模式）</h3><p><strong>${safeHtml(angles.trend.source)}</strong></p>${trendHtml}</article></div><p class="ai-footer">ABC / 2B 补充判断：${safeHtml(angles.abc.summary)}${twoB ? ` ${safeHtml(twoB.summary)}` : ''}</p>${aiBody}</section>`;
+  return `<section class="section ai-brief"><h2>AI 解读</h2>${abcNote}<div class="ai-grid"><article class="ai-card"><h3>1. K线相似度（匹配K线样子）</h3>${similarityLine}${similarityNote}</article><article class="ai-card"><h3>2. 历史趋势拟合（9测试模式）</h3><p><strong>${safeHtml(angles.trend.source)}</strong></p>${trendHtml}</article></div><p class="ai-footer">ABC / 2B 补充判断：${safeHtml(angles.abc.positionLabel || angles.abc.summary)}${twoB ? ` ${safeHtml(twoB.summary)}` : ''}</p>${aiBody}</section>`;
 }
 
 function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, options }) {

@@ -99,8 +99,8 @@ function kindMeta(kind) {
     sessionLabel: "今日最新分析",
     marketPhase: session.phase,
     marketPhaseLabel: session.phaseLabel,
-    title: `${date}美股今日最新分析（${session.phaseLabel}）`,
-    fileName: `${date}美股今日最新分析.md`,
+    title: `${date}市场结构日报（${session.phaseLabel}）`,
+    fileName: `${date}市场结构日报.md`,
     basis: `${date}｜${weekday(date)}｜以美股前一交易日收盘后到现在为止的最近24小时信息为主；当前阶段：${session.phaseLabel}`,
   };
 }
@@ -351,12 +351,11 @@ function headlineFor(kind, classification) {
         ? "本周市场以横风震荡为主，资金在修复与回撤之间反复切换，QLD只能远OTM小仓，MSTR继续等待BTC确认。"
         : "本周市场仍有修复，但结构并不统一，卖 Put 只能保守筛选，优先看半导体和低Delta机会。";
   }
-  const leadBase = "以美股前一交易日收盘后到现在为止的最近24小时信息为主，先看美股和金十快讯，再决定候选池是否打开";
   return classification.executionLevel === "D"
-    ? `${leadBase}：当前短期风向偏逆风，7天卖 Put 不适合新增，优先暂停高beta标的并等待VIX、利率和BTC重新确认。`
+    ? "最近24小时的核心主线仍偏防守，波动率、利率与加密链没有给出顺风确认，7天卖 Put 不适合新增。"
     : classification.executionLevel === "B"
-      ? `${leadBase}：当前短期风向按横风处理，7天卖 Put 只能小仓、远OTM、等盘中确认；MSTR需等待BTC确认。`
-      : `${leadBase}：当前短期风向偏顺风，但7天卖 Put 仍需按公共参数筛选，优先小仓分批而不是追价。`;
+      ? "最近24小时的市场处于横风震荡，主线没有彻底转坏，但只能小仓、远OTM、等待盘中或收盘确认。"
+      : "最近24小时的市场处于顺风修复，主线资产给出一定确认，但卖 Put 仍要按公共参数保守筛选。";
 }
 
 function finalCommandFor(kind, classification) {
@@ -402,8 +401,25 @@ function flowRows(snapshot, classification, kind) {
 }
 
 function strategyRows(snapshot, classification) {
-  const targets = targetRows(snapshot, classification);
-  return targets.map(t => `| **${t.symbol}** | ${t.symbol === "MSTR" ? "❌" : "⚠️"} | ${t.symbol === "MSTR" || t.wind.includes("逆风") ? "❌" : "⚠️"} | ${t.action} |`).join("\n");
+  const level = classification.executionLevel;
+  const allowPut = level === "A";
+  const cautiousPut = level === "B";
+  const qldLogic = level === "D"
+    ? "纳指与波动率没有确认，暂停主动新增。"
+    : cautiousPut
+      ? "保留候选，但只允许远 OTM 小仓，等待确认。"
+      : "可作为主观察池，但仍需复核 VIX、10Y 与盘中结构。";
+  const mstrLogic = "BTC 没有给出稳定确认前，MSTR 高 IV 对应的是尾部风险。";
+  const intcLogic = "半导体主线与个股高波动并存，只能更严格筛选，不把高 IV 当优势。";
+  return [
+    `| **QQQ / QLD** | ${allowPut ? "⚠️" : cautiousPut ? "⚠️" : "❌"} | ${allowPut ? "⚠️" : cautiousPut ? "⚠️" : "❌"} | ${qldLogic} |`,
+    `| **SPY** | ⚠️ | ${level === "D" ? "⚠️" : "⚠️"} | 宽基更稳，但不是当前主进攻方向。 |`,
+    `| **MSTR** | ❌ | ❌ | ${mstrLogic} |`,
+    `| **INTC** | ❌ | ${level === "D" ? "⚠️" : "⚠️"} | ${intcLogic} |`,
+    `| **GLD / IAU** | ⚠️ | ❌ | 更适合作为风险温度计，不是当前卖 Put 主线。 |`,
+    `| **USO / XLE** | ⚠️ | ❌ | 油价是宏观变量，不代表能源标的适合直接卖 Put。 |`,
+    `| **BTC** | ${level === "A" ? "⚠️" : "❌"} | ❌ | 先看是否继续确认或拖累风险偏好。 |`,
+  ].join("\n");
 }
 
 function macroRows(snapshot) {
@@ -418,7 +434,17 @@ function macroRows(snapshot) {
   ].join("\n");
 }
 
-function riskRows(snapshot) {
+function riskRows(snapshot, mode = "daily") {
+  if (mode === "weekly") {
+    return [
+      `| **QQQ / Nasdaq** | QQQ ${formatPctValue(row(snapshot, "QQQ").changePct)}，相对20日线 ${formatPctValue(row(snapshot, "QQQ").vs20Pct)} | 科技主线强弱的直接观察窗 | 决定 QLD 能否从观察转为执行。 |`,
+      `| **SPY / S&P 500** | SPY ${formatPctValue(row(snapshot, "SPY").changePct)}，相对20日线 ${formatPctValue(row(snapshot, "SPY").vs20Pct)} | 宽基承接是否稳定 | 判断是否只是局部主线强。 |`,
+      `| **QLD** | ${formatPctValue(row(snapshot, "QLD").changePct)} / 相对20日线 ${formatPctValue(row(snapshot, "QLD").vs20Pct)} | 高 beta 承压或修复的放大器 | 决定卖 Put 的仓位和 Delta。 |`,
+      `| **SMH / SOXX** | ${formatPctValue(row(snapshot, "SMH").changePct)} / ${formatPctValue(row(snapshot, "SOXX").changePct)} | 半导体是否继续充当主线确认 | 若失速，QLD 与 INTC 同步降级。 |`,
+      `| **INTC** | ${formatPctValue(row(snapshot, "INTC").changePct)} / 相对20日线 ${formatPctValue(row(snapshot, "INTC").vs20Pct)} | 个股高波动与半导体 beta 并存 | 只能更远 OTM，不追高 strike。 |`,
+      `| **IBIT / MSTR** | ${formatPctValue(row(snapshot, "IBIT").changePct)} / ${formatPctValue(row(snapshot, "MSTR").changePct)} | 加密链是否确认或继续拖累 | MSTR 未确认前继续禁卖。 |`,
+    ].join("\n");
+  }
   return [
     `| **QQQ** | \`${formatPrice(row(snapshot, "QQQ").last)}\` | ${formatPctValue(row(snapshot, "QQQ").changePct)} | ${formatPctValue(row(snapshot, "QQQ").vs20Pct)} | ${formatPctValue(row(snapshot, "QQQ").vs50Pct)} |`,
     `| **SPY** | \`${formatPrice(row(snapshot, "SPY").last)}\` | ${formatPctValue(row(snapshot, "SPY").changePct)} | ${formatPctValue(row(snapshot, "SPY").vs20Pct)} | ${formatPctValue(row(snapshot, "SPY").vs50Pct)} |`,
@@ -433,21 +459,18 @@ function riskRows(snapshot) {
 }
 
 function aiAppendix(aiText) {
-  const cleaned = String(aiText || "").replace(/^## AI 市场风向解读\s*/i, "").trim();
-  return cleaned ? `\n## AI 市场风向解读\n\n${cleaned}\n` : "";
+  return String(aiText || "").replace(/^## AI 市场风向解读\s*/i, "").trim();
 }
 
 function buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10Items = [], jin10Source = "") {
   const phaseLabel = meta.marketPhaseLabel || "美股最新阶段";
-  const timeLabel = marketSessionNow();
   const titleMeta = [retrievedAtLabel ? `数据补取至${retrievedAtLabel}` : "", phaseLabel].filter(Boolean).join("；");
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
-  const dataPreamble = `> **数据口径：** 以美股前一交易日收盘后到现在为止的最近 24 小时信息为主；如果美股盘中，优先使用最新盘中行情；盘前用盘前数据，盘后用盘后数据。金十财经快讯同步纳入。`;
-  const jin10Block = jin10Items.length
-    ? jin10Items.slice(0, 5).map(item => `- ${item}`).join("\n")
-    : "- 金十快讯暂未抓到有效内容，请稍后重试。";
-  const aiBlock = aiAppendix(aiText);
+  const dataPreamble = `> **数据口径：** 以美股前一交易日收盘后到现在为止的最近24小时信息为主；如果美股盘中，优先使用最新盘中行情；如果未开盘，则使用盘前或盘后数据。金十财经快讯同步纳入。`;
+  const jin10Block = jin10Items.length ? jin10Items.slice(0, 6).map(item => `- ${item}`).join("\n") : "- 暂未抓到最近24小时重大新闻，请稍后重试。";
+  const aiBlock = aiAppendix(aiText) || "本次 AI 解读暂不可用，以下保留规则版框架。";
+  const targetMap = Object.fromEntries(targets.map(item => [item.symbol, item]));
 
   return {
     headline,
@@ -457,26 +480,40 @@ function buildDailyMarkdownLite(meta, snapshot, classification, targets, retriev
 
 ${dataPreamble}
 
+## 1）本期市场在交易什么？
+
 **一句话结论：${headline}**
-
-## 今天市场在交易什么
-
-- **当前状态：** ${phaseLabel}，ET ${timeLabel.etClock}
-- **真正交易的是：** ${classification.trueTheme}
-- **真正说真话的是：** ${classification.truthTeller}
-- **短期风向：** ${classification.windLight}
-
-## 最近24小时金十快讯
-
-${jin10Block}
-
-## 资金与风险偏好
 
 | 项目 | 判断 |
 |:---|:---|
 ${overviewRows(classification)}
 
-## 关键资产联动
+## 2）资金流向异动｜今日最重要变化
+
+| 异动 | 变化 | 指标 | 信号解读 |
+|:---|:---|:---|:---|
+${flowRows(snapshot, classification, meta.kind)}
+
+## 3）策略矩阵
+
+| 资产 | 买CALL | 卖PUT | 核心逻辑 |
+|:---|:---:|:---:|:---|
+${strategyRows(snapshot, classification)}
+
+> **整体策略**：\`${finalCommand}\`
+
+## 4）资金流向与资产联动
+
+### A. 跨资产资金流向
+
+| 方向 | 7日/当前趋势 | 观测指标 | 信号解读 |
+|:---|:---|:---|:---|
+| 科技主线 → 纳指 / 半导体 | ${classification.windLight} | QQQ / SMH / SOXX | 当前主线是继续扩散，还是只剩局部强势。 |
+| 利率与美元 → 高 beta 压力 | ${formatPctValue(row(snapshot, "^TNX").changePct)} / ${formatPctValue(row(snapshot, "DX-Y.NYB").changePct)} | 10Y / DXY | 决定 QLD、EEM 与高 beta 的容错率。 |
+| 风险资产 → 加密链 | ${formatPctValue(row(snapshot, "BTC-USD").changePct)} / ${formatPctValue(row(snapshot, "MSTR").changePct)} | BTC / MSTR / IBIT | 判断加密链是在确认主线，还是继续拖后腿。 |
+| 大盘成长 → 小盘 | ${formatPctValue(row(snapshot, "IWM").changePct)} | IWM vs QQQ/SPY | 小盘是否一起配合，决定 risk-on 是否扩散。 |
+
+### B. 关键联动
 
 | 观测 | 最新信号 | 解读 |
 |:---|:---|:---|
@@ -485,19 +522,63 @@ ${overviewRows(classification)}
 | **BTC / MSTR** | ${formatPctValue(row(snapshot, "BTC-USD").changePct)} / ${formatPctValue(row(snapshot, "MSTR").changePct)} | 加密链是否还在拖累风险偏好。 |
 | **QLD / EEM / INTC / HOOD** | ${formatPctValue(row(snapshot, "QLD").changePct)} / ${formatPctValue(row(snapshot, "EEM").changePct)} / ${formatPctValue(row(snapshot, "INTC").changePct)} / ${formatPctValue(row(snapshot, "HOOD").changePct)} | 卖 Put 候选是否真的可交易。 |
 
-## 策略判断
+### C. 谁在说真话？
 
-| 资产 | 操作 | 失效条件 |
-|:---|:---|:---|
-${targets.map(t => `| **${t.symbol}** | ${t.action} | ${t.invalid} |`).join("\n")}
+- **今晚/本期真正说真话的是：${classification.truthTeller}**
+- **我的判断：** ${classification.trueTheme}
 
-> **整体策略：** ${finalCommand}
+## 5）宏观资产数据
 
-## AI 市场风向解读
+| 资产 | 当前 | 日变化 | 解读 |
+|:---|:---|:---|:---|
+${macroRows(snapshot)}
 
-${aiBlock ? `${aiBlock}\n` : ""}
+## 6）风险资产表现
 
-## 市场日志
+| 资产 | 当前/收盘 | 日变化 | 20日变化 | 50日变化 |
+|:---|---:|---:|---:|---:|
+${riskRows(snapshot, "daily")}
+
+## 7）驱动拆解
+
+\`\`\`text
+${classification.marketStage}
+    ↓
+${classification.capitalFlow}
+    ↓
+${classification.trueTheme}
+    ↓
+${finalCommand}
+\`\`\`
+
+## 8）最近24小时重大新闻
+
+${jin10Block}
+
+## 9）落到我的卖 Put 策略
+
+### 对 QLD
+
+- **当前判断：** ${targetMap.QLD?.action || "继续观察"}
+- **失效条件：** ${targetMap.QLD?.invalid || "-"}
+
+### 对 MSTR
+
+- **当前判断：** ${targetMap.MSTR?.action || "继续观察"}
+- **失效条件：** ${targetMap.MSTR?.invalid || "-"}
+
+### 对 INTC
+
+- **当前判断：** ${targetMap.INTC?.action || "继续观察"}
+- **失效条件：** ${targetMap.INTC?.invalid || "-"}
+
+**一句话交易建议：** ${finalCommand}
+
+## 10）AI 市场风向解读
+
+${aiBlock}
+
+## 11）市场日志
 
 | 日期 | 核心变量 | 风险评分 | 执行等级 |
 |:---|:---|:---|:---|
@@ -514,20 +595,20 @@ ${aiBlock ? `${aiBlock}\n` : ""}
   };
 }
 
-function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10) {
-  return buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10?.items || [], jin10?.source || "");
+function buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText) {
+  return buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText);
 }
 
 function buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText) {
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
   const overview = overviewRows(classification);
-  const executionRows = targets.map(t => `| ${t.symbol} | ${t.wind} | ${t.level} | ${t.action} | ${t.delta} | ${t.dte} | ${t.cushion} | ${t.size} | ${t.invalid} |`).join("\n");
+  const aiBlock = aiAppendix(aiText) || "本次 AI 解读暂不可用，以下保留规则版框架。";
 
   return {
     headline,
     finalCommand,
-    markdown: `# AI每周市场情况分析
+    markdown: `# ${meta.title}
 **${displayDate(meta.date)}｜${weekday(meta.date)}复盘（基于周五收盘、周末新闻与跨资产数据）**
 
 **一句话结论：${headline}**
@@ -573,7 +654,7 @@ ${macroRows(snapshot)}
 
 | 资产 | 本周表现 / 最新信号 | 结构判断 | 卖put含义 |
 |:---|:---|:---|:---|
-${riskRows(snapshot)}
+${riskRows(snapshot, "weekly")}
 
 ## 四、AI 交易拥挤度与接力真空观察
 
@@ -654,9 +735,9 @@ ${riskRows(snapshot)}
 
 **一句话交易建议：${finalCommand}**
 
-## 十、AI 参考解读
+## 十、AI 市场风向解读
 
-${aiAppendix(aiText)}
+${aiBlock}
 
 ## 数据来源
 
@@ -671,18 +752,18 @@ ${aiAppendix(aiText)}
 function buildRuleMarkdown(meta, snapshot, classification, targets, aiText, retrievedAtLabel, jin10) {
   return meta.kind === "weekly"
     ? buildWeeklyMarkdown(meta, snapshot, classification, targets, aiText)
-    : buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10);
+    : buildDailyMarkdown(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10?.items || [], jin10?.source || "");
 }
 
 function marketPrompt() {
-  return `你是熟悉美股短线市场结构、跨资产联动、AI交易拥挤度、BTC风险、半导体链和期权卖方风控的交易研究助手。
-任务：基于菜单6市场最小数据集、金十财经最近24小时快讯和最新美股行情，输出一段可嵌入Markdown报告的中文分析。
+  return `你是熟悉美股、宏观、跨资产联动和期权卖方策略的市场分析助手。
+任务：基于菜单6市场最小数据集、金十财经最近24小时快讯和最新美股行情，输出一段可嵌入Markdown报告的中文分析，风格要接近“市场结构日报 / 周报”。
 要求：
-1. 只分析市场风向，不给具体Strike，不抓取或假设期权链。
-2. 结论前置，优先回答最近24小时最重要的大事。
-3. 如果美股盘中，优先解释最新盘中行情；如果盘前或盘后，优先对应时段数据；如果休市，说明当前阶段和下一交易窗口。
-4. 必须覆盖：短期风向灯、今天真正交易什么、谁在说真话、金十快讯、事件风险、QLD/EEM/MSTR/INTC/HOOD如何处理。
-5. 不写宏观八股文，不把长期看好当短线卖put理由。
+1. 只分析市场风向，不给具体 strike，不抓取或假设期权链。
+2. 先回答“市场在交易什么”，先给结论，再展开。
+3. 强调资金流向异动、跨资产联动、谁在说真话，以及这对 QLD / MSTR / INTC 卖 put 的影响。
+4. 如果美股盘中，优先解释最新盘中行情；如果盘前或盘后，优先对应时段数据；如果休市，说明当前阶段和下一交易窗口。
+5. 不写空话，不写泛泛新闻摘要，不把长期看好当短线卖 put 理由。
 6. 返回Markdown片段，以“## AI 市场风向解读”开头。`;
 }
 
