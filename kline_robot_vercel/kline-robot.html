@@ -612,7 +612,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.9.14｜AI解读汇总';
+    const appVersionText = '2.9.15｜错误兜底';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -881,8 +881,15 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const json = await res.json();
-        if (!res.ok || !json.ok) throw new Error(json.error || '生成失败');
+        const rawText = await res.text();
+        let json = null;
+        try {
+          json = JSON.parse(rawText);
+        } catch {
+          const plain = (rawText || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          throw new Error(plain || `服务端返回了非 JSON 响应（HTTP ${res.status}）`);
+        }
+        if (!res.ok || !json.ok) throw new Error(json.error || json.message || `生成失败（HTTP ${res.status}）`);
         rememberPayload(payload, json.symbol);
 
         latestHtml = json.html;
