@@ -2327,7 +2327,133 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     trendPaths: analysisAngles.trendPaths,
     historicalTrendStats: options.historicalTrendStats,
   });
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(title)}</title><style>
+  const trendStats = options.historicalTrendStats;
+  const trendStatsHtml = trendStats
+    ? `<span class="chip">历史样本 ${safeHtml(trendStats.valid ?? 0)}</span><span class="chip">后 ${safeHtml(trendStats.horizon ?? 5)} 根K线</span>`
+    : "";
+  const recentTableHtml = `<div class="table-scroll"><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>涨跌幅</th><th>成交量</th></tr></thead><tbody>${candleTable(recent)}</tbody></table></div>`;
+  const cardsSectionHtml = cards.length
+    ? `<details class="fold" open><summary>K线匹配详细情况</summary>${cardHtml}</details>`
+    : "";
+  const signalMatrixHtml = `<div class="table-scroll"><table><thead><tr><th>模块</th><th>方向</th><th>怎么理解</th></tr></thead><tbody>${matrix}</tbody></table></div>`;
+  const levelsHtml = `<div class="table-scroll"><table><thead><tr><th>位置</th><th>含义</th><th>AI动作判断</th></tr></thead><tbody>${levels}</tbody></table></div>`;
+  const aiHtml = aiInterpretationSectionHtml({ angles: analysisAngles, gptHtml, twoB });
+  const abcHtml = abcStructureSectionHtml({ abc: analysisAngles.abc, twoB, bars });
+  const sellPutHtml = cards.length
+    ? cards.some((card) => card.bias === "偏多")
+      ? "当前结构里已经出现偏多修复信号，但卖 Put 仍应放在明确支撑位下方，并等待下一根K线确认。"
+      : "当前高分形态以偏空或观察为主，卖 Put 先看支撑是否有效，避免在失效位上方过早承接。"
+    : `暂无超过${MIN_PATTERN_SCORE}%的高可信形态，卖 Put 只能参考支撑/失败位，不应仅凭当前末尾K线入场。`;
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${safeHtml(title)}</title>
+  <style>
+    :root{
+      --bg:#08101f;--panel:#101b33;--panel-2:#15213d;--line:rgba(130,160,255,.18);
+      --text:#edf2ff;--muted:#9fb0d8;--gold:#ffd166;--bull:#ff7a88;--bear:#40d98a;--flat:#b993ff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .page{max-width:1320px;margin:0 auto;padding:28px 20px 64px}
+    .hero h1{margin:0 0 10px;font-size:48px;line-height:1.08}
+    .hero p{margin:0 0 18px;color:var(--muted);font-size:18px}
+    .chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px}
+    .chip{display:inline-flex;align-items:center;padding:10px 16px;border-radius:999px;background:rgba(130,160,255,.1);border:1px solid var(--line);color:var(--text);font-size:14px;font-weight:700}
+    .section,.top-match,.ai-brief,.chart-section{margin-top:24px;padding:24px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,var(--panel),var(--panel-2))}
+    .section h2,.top-match h2,.ai-brief h2,.chart-section h2{margin:0 0 12px;font-size:22px}
+    .section p,.top-match p,.ai-brief p,.chart-section p{margin:0 0 12px;color:var(--muted);line-height:1.7}
+    .trend-title-accent{color:var(--gold)}
+    .table-scroll{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;min-width:760px}
+    th,td{padding:14px 12px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}
+    th{color:#e6edff;font-size:14px}
+    td{color:#cbd6ef}
+    .price{color:var(--gold);font-weight:800}
+    .dir,.signal{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:800}
+    .dir-icon{font-size:12px}
+    .dir-bull,.signal-bull{color:var(--bull);background:rgba(255,122,136,.12)}
+    .dir-bear,.signal-bear{color:var(--bear);background:rgba(64,217,138,.12)}
+    .dir-flat,.signal-flat{color:var(--gold);background:rgba(255,209,102,.12)}
+    .no-match{padding:16px 18px;border-radius:14px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.12)}
+    .card{margin-top:18px;padding:18px;border-radius:16px;background:rgba(10,18,39,.72);border:1px solid var(--line)}
+    .card .head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px}
+    .card .head h2{margin:0 0 8px;font-size:18px}
+    .card .head p{margin:0;color:var(--muted)}
+    .score{font-size:40px;font-weight:900;color:var(--gold);line-height:1;text-align:right;white-space:nowrap}
+    .score span{display:block;margin-top:8px;font-size:14px;color:var(--muted);font-weight:700}
+    .compare{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .panel{padding:14px;border-radius:14px;background:rgba(8,16,31,.72);border:1px solid rgba(255,255,255,.06)}
+    .panel h3{margin:0 0 10px;font-size:16px}
+    .chart,.abc-stage-svg{width:100%;height:auto;display:block}
+    .chart-wrap svg{width:100%;height:auto;display:block}
+    .detail-box{margin-top:14px}
+    .detail-box table{min-width:0}
+    .structure-grid{display:grid;grid-template-columns:1fr;gap:18px}
+    .structure-card{padding:18px;border-radius:16px;background:rgba(8,16,31,.56);border:1px solid rgba(255,255,255,.06)}
+    .structure-card h3{margin:0 0 10px;font-size:18px}
+    .structure-lead{margin:0 0 12px;color:#dbe5ff}
+    .structure-meta,.abc-stage-note{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+    .structure-chip,.abc-stage-chip{display:inline-flex;align-items:center;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,.06);color:#edf2ff;font-size:13px;font-weight:700}
+    .structure-chip-gold,.abc-stage-chip-soft{background:rgba(255,209,102,.12);color:var(--gold)}
+    .ai-thesis{margin:0 0 12px;padding:16px 18px;border-left:5px solid var(--gold);border-radius:14px;background:rgba(255,209,102,.08);font-size:16px;line-height:1.8;color:#ffecb3}
+    .ai-body{color:#d6e0f6;line-height:1.8}
+    .fold{margin-top:24px;padding:0 20px 18px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,var(--panel),var(--panel-2))}
+    .fold > summary{cursor:pointer;list-style:none;padding:18px 0;font-size:20px;font-weight:900}
+    .fold > summary::-webkit-details-marker{display:none}
+    .sellput-box{padding:18px;border-radius:16px;background:rgba(8,16,31,.56);border:1px solid rgba(255,255,255,.06);color:#d6e0f6;line-height:1.8}
+    .footer-note{margin-top:20px;color:#8ea2cf;font-size:13px;line-height:1.7}
+    @media (max-width: 900px){
+      .page{padding:18px 14px 42px}
+      .hero h1{font-size:32px}
+      .compare{grid-template-columns:1fr}
+      .card .head{flex-direction:column}
+      .score{text-align:left}
+      .section,.top-match,.ai-brief,.chart-section,.fold{padding-left:14px;padding-right:14px}
+      th,td{padding:12px 10px}
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <h1>${safeHtml(title)}</h1>
+      <p>模式：${safeHtml(options.menu || "1")}；数据源：Yahoo Finance；周期 ${safeHtml(intervalText)}；最新K线可能随交易继续变化。</p>
+      <div class="chips">
+        <span class="chip">标的：${safeHtml(displaySymbol)}</span>
+        <span class="chip">周期：${safeHtml(intervalText)}</span>
+        <span class="chip">样本（${safeHtml(options.timeLabel || "市场时间")}）：${safeHtml(bars[0]?.date || "")} 至 ${safeHtml(last.date || "")}</span>
+        <span class="chip">最大匹配：1-${safeHtml(maxMatchBars)}根</span>
+        ${trendStatsHtml}
+      </div>
+    </header>
+    ${topMatchHtml}
+    ${chartHtml}
+    ${abcHtml}
+    ${aiHtml}
+    <details class="fold">
+      <summary>最近K线总览</summary>
+      ${recentTableHtml}
+    </details>
+    ${cardsSectionHtml}
+    <details class="fold">
+      <summary>各类指标信号解读</summary>
+      ${signalMatrixHtml}
+    </details>
+    <details class="fold">
+      <summary>关键位置判断</summary>
+      ${levelsHtml}
+    </details>
+    <details class="fold">
+      <summary>卖Put辅助判断</summary>
+      <div class="sellput-box">${safeHtml(sellPutHtml)}</div>
+    </details>
+    <p class="footer-note">本报告用于K线结构学习、风险复盘和交易辅助，不构成投资建议。市场价格会变化，形态判断会随收盘价、成交量和波动率变化而更新。</p>
+  </div>
+</body>
+</html>`;
 }
 
 export default async function handler(req, res) {
