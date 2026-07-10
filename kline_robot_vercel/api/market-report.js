@@ -5,6 +5,23 @@ const MARKET_SYMBOLS = [
 ];
 
 const REQUIRED_TARGETS = ["QLD", "EEM", "MSTR", "INTC", "HOOD"];
+const EASTMONEY_SECID = {
+  QQQ: "105.QQQ",
+  SPY: "105.SPY",
+  IWM: "105.IWM",
+  QLD: "105.QLD",
+  TQQQ: "105.TQQQ",
+  SMH: "105.SMH",
+  SOXX: "105.SOXX",
+  MAGS: "105.MAGS",
+  EEM: "105.EEM",
+  FXI: "105.FXI",
+  KWEB: "105.KWEB",
+  IBIT: "105.IBIT",
+  MSTR: "105.MSTR",
+  INTC: "105.INTC",
+  HOOD: "105.HOOD",
+};
 
 function corsHeaders() {
   return {
@@ -116,6 +133,25 @@ function pct(value) {
   return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
 }
 
+function browserHeaders(referer = "") {
+  return {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Accept": "application/json,text/plain,*/*",
+    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    ...(referer ? { "Referer": referer } : {}),
+  };
+}
+
+function avg(values) {
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function isPositiveNumber(value) {
+  const n = numberOrNull(value);
+  return n !== null && n > 0;
+}
+
 async function fetchMarketSnapshot() {
   const session = marketSessionNow();
   const quoteMap = await fetchQuoteSnapshot().catch(() => ({}));
@@ -130,7 +166,7 @@ function row(snapshot, symbol) {
 async function fetchQuoteSnapshot() {
   const symbols = MARKET_SYMBOLS.join(",");
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}`;
-  const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+  const res = await fetch(url, { headers: browserHeaders("https://finance.yahoo.com/") });
   if (!res.ok) throw new Error(`Quote HTTP ${res.status}`);
   const json = await res.json();
   const results = json.quoteResponse?.result || [];
@@ -153,10 +189,49 @@ function latestChangePctFromQuote(quote, phase) {
   return quote.regularMarketChangePercent ?? quote.postMarketChangePercent ?? quote.preMarketChangePercent ?? null;
 }
 
+async function fetchEastmoneyKline(symbol) {
+  const secid = EASTMONEY_SECID[symbol];
+  if (!secid) return null;
+  const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${encodeURIComponent(secid)}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20260101&end=20261231`;
+  const res = await fetch(url, { headers: browserHeaders("https://quote.eastmoney.com/") });
+  if (!res.ok) throw new Error(`Eastmoney HTTP ${res.status}`);
+  const json = await res.json();
+  const klines = json.data?.klines || [];
+  if (klines.length < 5) throw new Error("Eastmoney no kline data");
+  const closes = klines
+    .map(line => Number(String(line).split(",")[2]))
+    .filter(value => Number.isFinite(value) && value > 0);
+  if (closes.length < 5) throw new Error("Eastmoney invalid closes");
+  const last = closes.at(-1);
+  const prev = closes.at(-2) || last;
+  const sma20 = avg(closes.slice(-20));
+  const sma50 = avg(closes.slice(-50));
+  return {
+    symbol,
+    last,
+    changePct: prev ? (last / prev - 1) * 100 : null,
+    vs20Pct: sma20 ? (last / sma20 - 1) * 100 : null,
+    vs50Pct: sma50 ? (last / sma50 - 1) * 100 : null,
+    marketState: "EASTMONEY",
+    retrievedAt: new Date().toISOString(),
+    error: "",
+    source: "eastmoney",
+  };
+}
+
+function isBadSnapshot(price, changePct, vs20Pct, vs50Pct) {
+  if (!isPositiveNumber(price)) return true;
+  if (numberOrNull(changePct) === null) return true;
+  if (Math.abs(changePct) >= 95) return true;
+  if (numberOrNull(vs20Pct) !== null && Math.abs(vs20Pct) >= 95) return true;
+  if (numberOrNull(vs50Pct) !== null && Math.abs(vs50Pct) >= 95) return true;
+  return false;
+}
+
 async function fetchSymbol(symbol, quote, session) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
   try {
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    const res = await fetch(url, { headers: browserHeaders("https://finance.yahoo.com/") });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const result = json.chart?.result?.[0];
@@ -164,11 +239,24 @@ async function fetchSymbol(symbol, quote, session) {
     if (!result || closes.length < 5) throw new Error("No close data");
     const lastChart = numberOrNull(result.meta?.regularMarketPrice) || closes.at(-1);
     const prev = closes.length > 1 ? closes.at(-2) : closes.at(-1);
-    const price = numberOrNull(latestPriceFromQuote(quote, session.phase)) ?? lastChart;
-    const changePct = numberOrNull(latestChangePctFromQuote(quote, session.phase)) ?? (prev ? (price / prev - 1) * 100 : 0);
-    const sma20 = closes.slice(-20).reduce((sum, value) => sum + value, 0) / Math.min(20, closes.length);
-    const sma50 = closes.slice(-50).reduce((sum, value) => sum + value, 0) / Math.min(50, closes.length);
-    return {
+    const quotePrice = numberOrNull(latestPriceFromQuote(quote, session.phase));
+    const derivedPrice = isPositiveNumber(quotePrice) ? quotePrice : numberOrNull(lastChart);
+    const derivedChangePct = isPositiveNumber(derivedPrice) && isPositiveNumber(prev)
+      ? (derivedPrice / prev - 1) * 100
+      : null;
+    const quoteChangePct = numberOrNull(latestChangePctFromQuote(quote, session.phase));
+    const hasMeaningfulDerivedChange = numberOrNull(derivedChangePct) !== null && Math.abs(derivedChangePct) >= 0.05;
+    const hasMeaningfulQuoteChange = quoteChangePct !== null && Math.abs(quoteChangePct) >= 0.05;
+    const shouldUseQuoteChange =
+      session.phase !== "closed" &&
+      isPositiveNumber(quotePrice) &&
+      quoteChangePct !== null &&
+      (hasMeaningfulQuoteChange || !hasMeaningfulDerivedChange);
+    const price = derivedPrice;
+    const changePct = shouldUseQuoteChange ? quoteChangePct : derivedChangePct;
+    const sma20 = avg(closes.slice(-20));
+    const sma50 = avg(closes.slice(-50));
+    const yahooRow = {
       symbol,
       last: price,
       changePct,
@@ -177,9 +265,20 @@ async function fetchSymbol(symbol, quote, session) {
       marketState: quote?.marketState || result?.meta?.marketState || "",
       retrievedAt: new Date().toISOString(),
       error: "",
+      source: "yahoo",
     };
+    if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
+      return yahooRow;
+    }
+    const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
+    if (eastmoneyRow && !isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
+      return eastmoneyRow;
+    }
+    return yahooRow;
   } catch (error) {
-    return { symbol, last: null, changePct: null, vs20Pct: null, vs50Pct: null, retrievedAt: new Date().toISOString(), error: error.message };
+    const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
+    if (eastmoneyRow) return eastmoneyRow;
+    return { symbol, last: null, changePct: null, vs20Pct: null, vs50Pct: null, retrievedAt: new Date().toISOString(), error: error.message, source: "" };
   }
 }
 
