@@ -48,6 +48,28 @@ const EASTMONEY_SECID = {
   INTC: "105.INTC",
   HOOD: "105.HOOD",
 };
+const NASDAQ_ASSET_CLASS = {
+  QQQ: "etf",
+  SPY: "etf",
+  IWM: "etf",
+  QLD: "etf",
+  TQQQ: "etf",
+  SMH: "etf",
+  SOXX: "etf",
+  MAGS: "etf",
+  EEM: "etf",
+  FXI: "etf",
+  KWEB: "etf",
+  IBIT: "etf",
+  VIXY: "etf",
+  MSTR: "stocks",
+  INTC: "stocks",
+  HOOD: "stocks",
+};
+const FRED_SERIES = {
+  "^VIX": "VIXCLS",
+  "^TNX": "DGS10",
+};
 
 function corsHeaders() {
   return {
@@ -164,6 +186,13 @@ function numberOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function parseMarketNumber(value) {
+  const text = String(value ?? "").replace(/[$,%\s,]/g, "").trim();
+  if (!text || /^N\/A$/i.test(text)) return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
+}
+
 function pct(value) {
   const n = numberOrNull(value);
   if (n === null) return "未取到";
@@ -177,6 +206,165 @@ function browserHeaders(referer = "") {
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
     ...(referer ? { "Referer": referer } : {}),
   };
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isoDaysAgo(days) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+}
+
+function parseFredCsv(csvText, valueKey) {
+  const lines = String(csvText || "").trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const rows = [];
+  for (let i = 1; i < lines.length; i += 1) {
+    const [date, raw] = lines[i].split(",");
+    const value = numberOrNull(raw);
+    if (!date || value === null) continue;
+    rows.push({ date, value });
+  }
+  if (!rows.length) throw new Error(`FRED ${valueKey} no rows`);
+  return rows;
+}
+
+async function fetchFredSeries(symbol) {
+  const series = FRED_SERIES[symbol];
+  if (!series) return null;
+  const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(series)}`;
+  const res = await timedFetch(url, { headers: browserHeaders("https://fred.stlouisfed.org/") }, 6000);
+  if (!res.ok) throw new Error(`FRED HTTP ${res.status}`);
+  const csv = await res.text();
+  const rows = parseFredCsv(csv, series);
+  if (rows.length < 5) throw new Error(`FRED ${series} insufficient rows`);
+  const values = rows.map(item => item.value);
+  const last = values.at(-1);
+  const prev = values.at(-2) || last;
+  const sma20 = avg(values.slice(-20));
+  const sma50 = avg(values.slice(-50));
+  return {
+    symbol,
+    last,
+    changePct: prev ? (last / prev - 1) * 100 : null,
+    vs20Pct: sma20 ? (last / sma20 - 1) * 100 : null,
+    vs50Pct: sma50 ? (last / sma50 - 1) * 100 : null,
+    marketState: "FRED",
+    retrievedAt: new Date().toISOString(),
+    error: "",
+    source: "fred",
+  };
+}
+
+async function fetchBinanceSnapshot() {
+  const url = "https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT";
+  const res = await timedFetch(url, { headers: browserHeaders("https://www.binance.com/") }, 6000);
+  if (!res.ok) throw new Error(`Binance HTTP ${res.status}`);
+  const json = await res.json();
+  const last = numberOrNull(json.lastPrice);
+  const changePct = numberOrNull(json.priceChangePercent);
+  if (!isPositiveNumber(last) || changePct === null) throw new Error("Binance invalid 24hr snapshot");
+  return { last, changePct };
+}
+
+async function fetchBinanceHistory() {
+  const url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=70";
+  const res = await timedFetch(url, { headers: browserHeaders("https://www.binance.com/") }, 6000);
+  if (!res.ok) throw new Error(`Binance kline HTTP ${res.status}`);
+  const json = await res.json();
+  if (!Array.isArray(json) || json.length < 5) throw new Error("Binance no kline data");
+  const closes = json.map(row => numberOrNull(row?.[4])).filter(value => value !== null);
+  if (closes.length < 5) throw new Error("Binance invalid closes");
+  return closes;
+}
+
+async function fetchBitcoinSnapshot() {
+  const [snapshot, closes] = await Promise.all([fetchBinanceSnapshot(), fetchBinanceHistory()]);
+  const sma20 = avg(closes.slice(-20));
+  const sma50 = avg(closes.slice(-50));
+  return {
+    symbol: "BTC-USD",
+    last: snapshot.last,
+    changePct: snapshot.changePct,
+    vs20Pct: sma20 ? (snapshot.last / sma20 - 1) * 100 : null,
+    vs50Pct: sma50 ? (snapshot.last / sma50 - 1) * 100 : null,
+    marketState: "BINANCE",
+    retrievedAt: new Date().toISOString(),
+    error: "",
+    source: "binance",
+  };
+}
+
+async function fetchNasdaqInfo(symbol, assetClass) {
+  const url = `https://api.nasdaq.com/api/quote/${encodeURIComponent(symbol)}/info?assetclass=${encodeURIComponent(assetClass)}`;
+  const res = await timedFetch(url, {
+    headers: {
+      ...browserHeaders("https://www.nasdaq.com/"),
+      "Origin": "https://www.nasdaq.com",
+    },
+  }, 7000);
+  if (!res.ok) throw new Error(`Nasdaq info HTTP ${res.status}`);
+  const json = await res.json();
+  const data = json.data;
+  if (!data?.primaryData) throw new Error(`Nasdaq info missing data for ${symbol}`);
+  return data;
+}
+
+async function fetchNasdaqHistory(symbol, assetClass) {
+  const fromdate = isoDaysAgo(120);
+  const todate = todayIso();
+  const url = `https://api.nasdaq.com/api/quote/${encodeURIComponent(symbol)}/historical?assetclass=${encodeURIComponent(assetClass)}&fromdate=${fromdate}&todate=${todate}&limit=80`;
+  const res = await timedFetch(url, {
+    headers: {
+      ...browserHeaders("https://www.nasdaq.com/"),
+      "Origin": "https://www.nasdaq.com",
+    },
+  }, 7000);
+  if (!res.ok) throw new Error(`Nasdaq history HTTP ${res.status}`);
+  const json = await res.json();
+  const rows = json.data?.tradesTable?.rows || [];
+  if (rows.length < 5) throw new Error(`Nasdaq history missing rows for ${symbol}`);
+  const closes = rows
+    .map(row => parseMarketNumber(row.close))
+    .filter(value => value !== null);
+  if (closes.length < 5) throw new Error(`Nasdaq history invalid closes for ${symbol}`);
+  return closes.reverse();
+}
+
+async function fetchNasdaqSnapshot(symbol) {
+  const assetClass = NASDAQ_ASSET_CLASS[symbol];
+  if (!assetClass) return null;
+  const [info, closes] = await Promise.all([
+    fetchNasdaqInfo(symbol, assetClass),
+    fetchNasdaqHistory(symbol, assetClass),
+  ]);
+  const last = parseMarketNumber(info.primaryData?.lastSalePrice) ?? closes.at(-1);
+  const changePct = parseMarketNumber(info.primaryData?.percentageChange);
+  const prev = closes.at(-2) || closes.at(-1);
+  const derivedChangePct = prev ? (last / prev - 1) * 100 : null;
+  const sma20 = avg(closes.slice(-20));
+  const sma50 = avg(closes.slice(-50));
+  return {
+    symbol,
+    last,
+    changePct: changePct ?? derivedChangePct,
+    vs20Pct: sma20 ? (last / sma20 - 1) * 100 : null,
+    vs50Pct: sma50 ? (last / sma50 - 1) * 100 : null,
+    marketState: info.marketStatus || "NASDAQ",
+    retrievedAt: new Date().toISOString(),
+    error: "",
+    source: "nasdaq",
+  };
+}
+
+async function fetchStableFallback(symbol) {
+  if (symbol === "BTC-USD") return fetchBitcoinSnapshot();
+  if (FRED_SERIES[symbol]) return fetchFredSeries(symbol);
+  if (NASDAQ_ASSET_CLASS[symbol]) return fetchNasdaqSnapshot(symbol);
+  return null;
 }
 
 function avg(values) {
@@ -288,6 +476,8 @@ function formatSourceLabel(source) {
   if (!source) return "未取到";
   if (source === "yahoo") return "Yahoo Finance";
   if (source === "eastmoney") return "东方财富";
+  if (source === "nasdaq") return "Nasdaq";
+  if (source === "fred") return "FRED";
   if (source === "binance") return "Binance";
   return source;
 }
@@ -349,12 +539,20 @@ async function fetchSymbol(symbol, quote, session) {
     if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
       return yahooRow;
     }
+    const stableRow = await fetchStableFallback(symbol).catch(() => null);
+    if (stableRow && !isBadSnapshot(stableRow.last, stableRow.changePct, stableRow.vs20Pct, stableRow.vs50Pct)) {
+      return stableRow;
+    }
     const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
     if (eastmoneyRow && !isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
       return eastmoneyRow;
     }
     return yahooRow;
   } catch (error) {
+    const stableRow = await fetchStableFallback(symbol).catch(() => null);
+    if (stableRow && !isBadSnapshot(stableRow.last, stableRow.changePct, stableRow.vs20Pct, stableRow.vs50Pct)) {
+      return stableRow;
+    }
     const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
     if (eastmoneyRow) return eastmoneyRow;
     return { symbol, last: null, changePct: null, vs20Pct: null, vs50Pct: null, retrievedAt: new Date().toISOString(), error: error.message, source: "" };
