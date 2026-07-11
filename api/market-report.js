@@ -72,7 +72,8 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
-const MARKET_FETCH_DELAY_MS = 1000;
+const MARKET_FETCH_BATCH_SIZE = 4;
+const MARKET_FETCH_BATCH_DELAY_MS = 250;
 
 function corsHeaders() {
   return {
@@ -286,6 +287,8 @@ async function fetchBinanceHistory() {
 
 async function fetchBitcoinSnapshot() {
   try {
+    const fredRow = await fetchFredSeries("BTC-USD").catch(() => null);
+    if (fredRow && !isBadSnapshot(fredRow.last, fredRow.changePct, fredRow.vs20Pct, fredRow.vs50Pct)) return fredRow;
     const [snapshot, closes] = await Promise.all([fetchBinanceSnapshot(), fetchBinanceHistory()]);
     const sma20 = avg(closes.slice(-20));
     const sma50 = avg(closes.slice(-50));
@@ -312,7 +315,7 @@ async function fetchNasdaqInfo(symbol, assetClass) {
       ...browserHeaders("https://www.nasdaq.com/"),
       "Origin": "https://www.nasdaq.com",
     },
-  }, 7000);
+  }, 4500);
   if (!res.ok) throw new Error(`Nasdaq info HTTP ${res.status}`);
   const json = await res.json();
   const data = json.data;
@@ -329,7 +332,7 @@ async function fetchNasdaqHistory(symbol, assetClass) {
       ...browserHeaders("https://www.nasdaq.com/"),
       "Origin": "https://www.nasdaq.com",
     },
-  }, 7000);
+  }, 4500);
   if (!res.ok) throw new Error(`Nasdaq history HTTP ${res.status}`);
   const json = await res.json();
   const rows = json.data?.tradesTable?.rows || [];
@@ -388,9 +391,11 @@ async function fetchMarketSnapshot() {
   const session = marketSessionNow();
   const quoteMap = await fetchQuoteSnapshot().catch(() => ({}));
   const rows = [];
-  for (const symbol of MARKET_SYMBOLS) {
-    if (rows.length) await sleep(MARKET_FETCH_DELAY_MS);
-    rows.push(await fetchSymbol(symbol, quoteMap[symbol], session));
+  for (let i = 0; i < MARKET_SYMBOLS.length; i += MARKET_FETCH_BATCH_SIZE) {
+    if (i > 0) await sleep(MARKET_FETCH_BATCH_DELAY_MS);
+    const symbols = MARKET_SYMBOLS.slice(i, i + MARKET_FETCH_BATCH_SIZE);
+    const batchRows = await Promise.all(symbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session)));
+    rows.push(...batchRows);
   }
   return Object.fromEntries(rows.map(row => [row.symbol, row]));
 }
@@ -406,7 +411,7 @@ function row(snapshot, symbol) {
 async function fetchQuoteSnapshot() {
   const symbols = MARKET_SYMBOLS.join(",");
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}`;
-  const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 6000);
+  const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 2500);
   if (!res.ok) throw new Error(`Quote HTTP ${res.status}`);
   const json = await res.json();
   const results = json.quoteResponse?.result || [];
@@ -551,9 +556,13 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
 }
 
 async function fetchSymbol(symbol, quote, session) {
+  const stableFirstRow = await fetchStableFallback(symbol).catch(() => null);
+  if (stableFirstRow && !isBadSnapshot(stableFirstRow.last, stableFirstRow.changePct, stableFirstRow.vs20Pct, stableFirstRow.vs50Pct)) {
+    return stableFirstRow;
+  }
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
   try {
-    const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 6000);
+    const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 3500);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const result = json.chart?.result?.[0];
@@ -592,20 +601,12 @@ async function fetchSymbol(symbol, quote, session) {
     if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
       return yahooRow;
     }
-    const stableRow = await fetchStableFallback(symbol).catch(() => null);
-    if (stableRow && !isBadSnapshot(stableRow.last, stableRow.changePct, stableRow.vs20Pct, stableRow.vs50Pct)) {
-      return stableRow;
-    }
     const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
     if (eastmoneyRow && !isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
       return eastmoneyRow;
     }
     return yahooRow;
   } catch (error) {
-    const stableRow = await fetchStableFallback(symbol).catch(() => null);
-    if (stableRow && !isBadSnapshot(stableRow.last, stableRow.changePct, stableRow.vs20Pct, stableRow.vs50Pct)) {
-      return stableRow;
-    }
     const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
     if (eastmoneyRow) return eastmoneyRow;
     return { symbol, last: null, changePct: null, vs20Pct: null, vs50Pct: null, retrievedAt: new Date().toISOString(), error: error.message, source: "" };
