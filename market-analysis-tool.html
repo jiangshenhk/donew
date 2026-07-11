@@ -1039,6 +1039,18 @@
           continue;
         }
 
+        if (/^<details[\s>]/i.test(trimmed)) {
+          closeList();
+          const htmlLines = [line];
+          while (i + 1 < lines.length) {
+            i += 1;
+            htmlLines.push(lines[i]);
+            if (/<\/details>/i.test(lines[i])) break;
+          }
+          out.push(htmlLines.join("\n"));
+          continue;
+        }
+
         if (!trimmed) {
           closeList();
           out.push("");

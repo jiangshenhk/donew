@@ -497,6 +497,35 @@ function dataSourceRows(snapshot) {
   }).join("\n");
 }
 
+function formatRetrievedAt(value) {
+  if (!value) return "未取到";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false });
+}
+
+function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
+  const focusSymbols = ["QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD", "^VIX", "^TNX", "DX-Y.NYB", "MSTR", "INTC", "HOOD"];
+  const rowsHtml = focusSymbols.map(symbol => {
+    const item = row(snapshot, symbol);
+    const status = hasUsableSnapshot(item) ? "正常" : "缺失";
+    return `<tr><td>${symbolLabel(symbol)}</td><td>${formatSourceLabel(item.source)}</td><td>${formatRetrievedAt(item.retrievedAt)}</td><td>${status}</td><td>${item.error || "-"}</td></tr>`;
+  }).join("");
+  return `
+<details>
+  <summary>本文所使用的价格数据来源 + 时间</summary>
+  <p>新闻补充源：${extraSourceLabel || "search.jin10.com / Reuters RSS 等公开新闻源"}。</p>
+  <table>
+    <thead>
+      <tr><th>指标</th><th>实际来源</th><th>抓取时间</th><th>状态</th><th>备注</th></tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+</details>`.trim();
+}
+
 async function fetchSymbol(symbol, quote, session) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
   try {
@@ -981,14 +1010,13 @@ ${aiBlock}
 
 ## 数据来源
 
-- 默认优先源：Yahoo Finance；失败或数据异常时，自动尝试东方财富补取
+- 美股 ETF / 个股：Nasdaq 公共接口
+- 波动率 / 利率：FRED 官方公开数据
 - 金十财经：${jin10Source || "search.jin10.com"} 最近 24 小时快讯
 - 菜单6最小数据集：${meta.basis}
 - AI 提示词：DeepSeek / GPT 可选
 
-| 指标 | 实际来源 | 状态 | 备注 |
-|:---|:---|:---|:---|
-${dataSourceRows(snapshot)}
+${dataSourceDetailsBlock(snapshot, jin10Source || "search.jin10.com")}
 
 > 本报告用于交易研究与风险控制记录，不构成自动下单指令。`
   };
@@ -1144,12 +1172,11 @@ ${aiBlock}
 ## 数据来源
 
 - 周报所用的公开跨资产快照
-- 默认优先源：Yahoo Finance；失败或数据异常时，自动尝试东方财富补取
+- 美股 ETF / 个股：Nasdaq 公共接口
+- 波动率 / 利率：FRED 官方公开数据
 - AI 提示词：DeepSeek / GPT 可选
 
-| 指标 | 实际来源 | 状态 | 备注 |
-|:---|:---|:---|:---|
-${dataSourceRows(snapshot)}
+${dataSourceDetailsBlock(snapshot, "周报未单独补取金十快讯")}
 
 > 本报告用于交易研究与风险控制记录，不构成自动下单指令.`
   };
