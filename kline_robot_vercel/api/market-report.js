@@ -239,7 +239,7 @@ function parseFredCsv(csvText, valueKey) {
 async function fetchFredSeries(symbol) {
   const series = FRED_SERIES[symbol];
   if (!series) return null;
-  const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(series)}&observation_start=${encodeURIComponent(isoDaysAgo(220))}`;
+  const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(series)}&cosd=${encodeURIComponent(isoDaysAgo(220))}`;
   const res = await timedFetch(url, { headers: browserHeaders("https://fred.stlouisfed.org/") }, 4500);
   if (!res.ok) throw new Error(`FRED HTTP ${res.status}`);
   const csv = await res.text();
