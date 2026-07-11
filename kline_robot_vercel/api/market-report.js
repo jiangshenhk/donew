@@ -67,9 +67,12 @@ const NASDAQ_ASSET_CLASS = {
   HOOD: "stocks",
 };
 const FRED_SERIES = {
+  "BTC-USD": "CBBTCUSD",
   "^VIX": "VIXCLS",
   "^TNX": "DGS10",
+  "DX-Y.NYB": "DTWEXBGS",
 };
+const MARKET_FETCH_DELAY_MS = 1000;
 
 function corsHeaders() {
   return {
@@ -282,20 +285,24 @@ async function fetchBinanceHistory() {
 }
 
 async function fetchBitcoinSnapshot() {
-  const [snapshot, closes] = await Promise.all([fetchBinanceSnapshot(), fetchBinanceHistory()]);
-  const sma20 = avg(closes.slice(-20));
-  const sma50 = avg(closes.slice(-50));
-  return {
-    symbol: "BTC-USD",
-    last: snapshot.last,
-    changePct: snapshot.changePct,
-    vs20Pct: sma20 ? (snapshot.last / sma20 - 1) * 100 : null,
-    vs50Pct: sma50 ? (snapshot.last / sma50 - 1) * 100 : null,
-    marketState: "BINANCE",
-    retrievedAt: new Date().toISOString(),
-    error: "",
-    source: "binance",
-  };
+  try {
+    const [snapshot, closes] = await Promise.all([fetchBinanceSnapshot(), fetchBinanceHistory()]);
+    const sma20 = avg(closes.slice(-20));
+    const sma50 = avg(closes.slice(-50));
+    return {
+      symbol: "BTC-USD",
+      last: snapshot.last,
+      changePct: snapshot.changePct,
+      vs20Pct: sma20 ? (snapshot.last / sma20 - 1) * 100 : null,
+      vs50Pct: sma50 ? (snapshot.last / sma50 - 1) * 100 : null,
+      marketState: "BINANCE",
+      retrievedAt: new Date().toISOString(),
+      error: "",
+      source: "binance",
+    };
+  } catch (error) {
+    return fetchFredSeries("BTC-USD");
+  }
 }
 
 async function fetchNasdaqInfo(symbol, assetClass) {
@@ -380,8 +387,16 @@ function isPositiveNumber(value) {
 async function fetchMarketSnapshot() {
   const session = marketSessionNow();
   const quoteMap = await fetchQuoteSnapshot().catch(() => ({}));
-  const rows = await Promise.all(MARKET_SYMBOLS.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session)));
+  const rows = [];
+  for (const symbol of MARKET_SYMBOLS) {
+    if (rows.length) await sleep(MARKET_FETCH_DELAY_MS);
+    rows.push(await fetchSymbol(symbol, quoteMap[symbol], session));
+  }
   return Object.fromEntries(rows.map(row => [row.symbol, row]));
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function row(snapshot, symbol) {
@@ -482,6 +497,15 @@ function formatSourceLabel(source) {
   return source;
 }
 
+function formatSourceNote(error) {
+  const text = String(error || "").trim();
+  if (!text) return "-";
+  if (/429/.test(text)) return "行情源限流，未取到可靠数据；请手动复核";
+  if (/HTTP\s+\d+/i.test(text)) return "行情源返回异常，未取到可靠数据；请手动复核";
+  if (/missing|No close data|No data/i.test(text)) return "行情源数据不完整；请手动复核";
+  return "未取到可靠数据；请手动复核";
+}
+
 function buildDataWarningBlock(snapshot) {
   const warnings = snapshotWarnings(snapshot);
   if (!warnings.hasWarning) return "";
@@ -493,7 +517,7 @@ function dataSourceRows(snapshot) {
   return focusSymbols.map(symbol => {
     const item = row(snapshot, symbol);
     const status = hasUsableSnapshot(item) ? "正常" : "缺失";
-    return `| ${symbolLabel(symbol)} | ${formatSourceLabel(item.source)} | ${status} | ${item.error || "-"} |`;
+    return `| ${symbolLabel(symbol)} | ${formatSourceLabel(item.source)} | ${status} | ${formatSourceNote(item.error)} |`;
   }).join("\n");
 }
 
@@ -509,7 +533,7 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
   const rowsHtml = focusSymbols.map(symbol => {
     const item = row(snapshot, symbol);
     const status = hasUsableSnapshot(item) ? "正常" : "缺失";
-    return `<tr><td>${symbolLabel(symbol)}</td><td>${formatSourceLabel(item.source)}</td><td>${formatRetrievedAt(item.retrievedAt)}</td><td>${status}</td><td>${item.error || "-"}</td></tr>`;
+    return `<tr><td>${symbolLabel(symbol)}</td><td>${formatSourceLabel(item.source)}</td><td>${formatRetrievedAt(item.retrievedAt)}</td><td>${status}</td><td>${formatSourceNote(item.error)}</td></tr>`;
   }).join("");
   return `
 <details>

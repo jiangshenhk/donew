@@ -377,7 +377,30 @@
 
     .markdown-body h1 { font-size: 24px; }
     .markdown-body h2 { font-size: 20px; }
-    .markdown-body h3 { font-size: 17px; }
+    .markdown-body h3,
+    .markdown-body h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      max-width: 100%;
+      margin-top: 16px;
+      padding: 3px 9px 3px 0;
+      color: var(--gold);
+      font-size: 16px;
+      font-weight: 900;
+      line-height: 1.45;
+      background: linear-gradient(90deg, rgba(255, 213, 79, .14), rgba(255, 213, 79, 0));
+    }
+    .markdown-body h3::before,
+    .markdown-body h4::before {
+      content: "";
+      width: 3px;
+      align-self: stretch;
+      min-height: 18px;
+      border-radius: 999px;
+      background: var(--gold);
+    }
     .markdown-body h4 { font-size: 15px; }
 
     .markdown-body p {
@@ -400,6 +423,35 @@
       border-left: 4px solid var(--gold);
       background: rgba(255, 213, 79, .08);
       color: #f3e3a2;
+    }
+
+    .markdown-body blockquote.data-note {
+      margin: 8px 0 10px;
+      padding: 8px 11px;
+      border-left: 2px solid rgba(148, 163, 184, .55);
+      background: rgba(148, 163, 184, .08);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .markdown-body blockquote.data-note strong,
+    .markdown-body blockquote.data-note .text-key,
+    .markdown-body blockquote.data-note .text-warn {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .markdown-body .conclusion-highlight {
+      color: var(--gold);
+      font-weight: 850;
+    }
+
+    .markdown-body .conclusion-highlight strong,
+    .markdown-body .conclusion-highlight .hl,
+    .markdown-body .conclusion-highlight .text-key {
+      color: var(--gold);
+      font-weight: 900;
     }
 
     .markdown-body pre {
@@ -632,7 +684,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.8｜2026-07-11 12:24｜前置AI解读并优化高亮</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.15｜2026-07-11 13:18｜顺序获取行情并显示进度</span></h1>
       <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </header>
 
@@ -713,8 +765,16 @@
     const params = new URLSearchParams(location.search);
     const apiBase = (params.get("apiBase") || defaultApiBase).replace(/\/$/, "");
     const storageKey = "shifangzhai-menu6-market-reports-v1";
+    const generationSteps = [
+      "QQQ", "SPY", "IWM", "QLD", "TQQQ", "SMH", "SOXX", "MAGS",
+      "EEM", "FXI", "KWEB", "VIX", "VIXY", "IBIT", "BTC", "MSTR",
+      "DXY", "10Y", "USDJPY", "WTI", "黄金", "INTC", "HOOD",
+      "最近24小时新闻", "AI分析"
+    ];
     let currentReport = null;
     let currentKind = "daily";
+    let generationTimer = null;
+    let generationStartedAt = 0;
 
     function $(selector) {
       return document.querySelector(selector);
@@ -743,7 +803,7 @@
         .replace(/(-\d+(?:\.\d+)?%)/g, '<span class="pct-down">$1</span>')
         .replace(/(^|[^\d])((?:0|0\.0+)%)(?=$|[^\d])/g, '$1<span class="pct-flat">$2</span>')
         .replace(/(未取到|数据告警)/g, '<span class="text-warn">$1</span>')
-        .replace(/(一句话结论|数据口径|风险评分|整体策略|一句话交易建议)/g, '<span class="text-key">$1</span>')
+        .replace(/(一句话结论|风险评分|整体策略|一句话交易建议)/g, '<span class="text-key">$1</span>')
         .replace(/🟢\s*顺风/g, '<span class="signal-bull">▲ 顺风</span>')
         .replace(/🔴\s*逆风/g, '<span class="signal-bear">▼ 逆风</span>')
         .replace(/🟡\s*横风/g, '<span class="signal-flat">◆ 横风</span>');
@@ -807,7 +867,30 @@
     }
     .markdown-body h1 { font-size: 24px; }
     .markdown-body h2 { font-size: 20px; }
-    .markdown-body h3 { font-size: 17px; }
+    .markdown-body h3,
+    .markdown-body h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      max-width: 100%;
+      margin-top: 16px;
+      padding: 3px 9px 3px 0;
+      color: #ffd54f;
+      font-size: 16px;
+      font-weight: 900;
+      line-height: 1.45;
+      background: linear-gradient(90deg, rgba(255, 213, 79, .14), rgba(255, 213, 79, 0));
+    }
+    .markdown-body h3::before,
+    .markdown-body h4::before {
+      content: "";
+      width: 3px;
+      align-self: stretch;
+      min-height: 18px;
+      border-radius: 999px;
+      background: #ffd54f;
+    }
     .markdown-body h4 { font-size: 15px; }
     .markdown-body p { margin: 8px 0; }
     .markdown-body strong, .markdown-body .hl { color: #f8fafc; font-weight: 850; }
@@ -817,6 +900,36 @@
       border-left: 4px solid #ffd54f;
       background: rgba(255, 213, 79, .08);
     }
+
+    .markdown-body blockquote.data-note {
+      margin: 8px 0 10px;
+      padding: 8px 11px;
+      border-left: 2px solid rgba(148, 163, 184, .55);
+      background: rgba(148, 163, 184, .08);
+      color: #94a3b8;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .markdown-body blockquote.data-note strong,
+    .markdown-body blockquote.data-note .text-key,
+    .markdown-body blockquote.data-note .text-warn {
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
+    .markdown-body .conclusion-highlight {
+      color: #ffd54f;
+      font-weight: 850;
+    }
+
+    .markdown-body .conclusion-highlight strong,
+    .markdown-body .conclusion-highlight .hl,
+    .markdown-body .conclusion-highlight .text-key {
+      color: #ffd54f;
+      font-weight: 900;
+    }
+
     .markdown-body pre {
       overflow-x: auto;
       padding: 12px;
@@ -1024,6 +1137,7 @@
       let codeLines = [];
       let listType = "";
       let listItems = [];
+      let highlightNextParagraph = false;
 
       const closeList = () => {
         if (!listType) return;
@@ -1104,13 +1218,17 @@
         if (heading) {
           closeList();
           const level = heading[1].length;
-          out.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+          const headingText = heading[2];
+          highlightNextParagraph = /市场在交易什么/.test(headingText);
+          out.push(`<h${level}>${inlineMarkdown(headingText)}</h${level}>`);
           continue;
         }
 
         if (/^>\s?/.test(trimmed)) {
           closeList();
-          out.push(`<blockquote>${inlineMarkdown(trimmed.replace(/^>\s?/, ""))}</blockquote>`);
+          const quoteText = trimmed.replace(/^>\s?/, "");
+          const quoteClass = /^(\*\*)?(数据口径|数据告警)/.test(quoteText) ? ' class="data-note"' : "";
+          out.push(`<blockquote${quoteClass}>${inlineMarkdown(quoteText)}</blockquote>`);
           continue;
         }
 
@@ -1146,7 +1264,9 @@
         }
 
         closeList();
-        out.push(`<p>${inlineMarkdown(trimmed)}</p>`);
+        const isConclusion = highlightNextParagraph || /^(\*\*)?当前[（(]/.test(trimmed);
+        highlightNextParagraph = false;
+        out.push(`<p${isConclusion ? ' class="conclusion-highlight"' : ""}>${inlineMarkdown(trimmed)}</p>`);
       }
 
       closeCode();
@@ -1172,9 +1292,36 @@
       return "今日最新分析";
     }
 
+    function stopGenerationTimer() {
+      if (generationTimer) {
+        clearInterval(generationTimer);
+        generationTimer = null;
+      }
+      generationStartedAt = 0;
+    }
+
+    function startGenerationTimer(kind) {
+      stopGenerationTimer();
+      generationStartedAt = Date.now();
+      const label = reportTypeLabel(kind);
+      const tick = () => {
+        const seconds = Math.max(0, Math.floor((Date.now() - generationStartedAt) / 1000));
+        const stepIndex = Math.min(seconds, generationSteps.length - 1);
+        const step = generationSteps[stepIndex];
+        const ordinal = Math.min(stepIndex + 1, generationSteps.length);
+        setStatus(`正在获取数据生成${label}：${step}（${ordinal}/${generationSteps.length}）... ${seconds}s`);
+        const preview = $("#preview");
+        if (preview?.querySelector(".empty-state")) {
+          preview.innerHTML = `<div class="empty-state">正在获取：${escapeHtml(step)}<br><span>已运行 ${seconds}s，请等待生成完成。</span></div>`;
+        }
+      };
+      tick();
+      generationTimer = setInterval(tick, 1000);
+    }
+
     async function generateReport(kind) {
       currentKind = kind;
-      setStatus(`正在生成${reportTypeLabel(kind)}...`);
+      startGenerationTimer(kind);
       switchView("preview");
       $("#preview").innerHTML = '<div class="empty-state">正在获取数据生成报告...</div>';
 
@@ -1194,6 +1341,8 @@
         currentReport = null;
         renderUnavailable(error);
         setStatus("API暂时不可用，请重新生成。", true);
+      } finally {
+        stopGenerationTimer();
       }
     }
 
