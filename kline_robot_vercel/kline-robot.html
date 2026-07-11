@@ -227,6 +227,7 @@
       font-size: 12px;
       font-weight: 600;
       line-height: 1.55;
+      text-align: left;
       white-space: pre-line;
       opacity: 0;
       pointer-events: none;
@@ -517,9 +518,9 @@
           <div>
             <div class="label-help">
               <label for="symbolInput">标的</label>
-              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="识别规则：&#10;1. 不选市场时自动识别：^ 开头先按指数/主题尝试；6位数字先按A股；4-5位数字或 0 开头数字先按港股；其余先按美股。&#10;2. 选了市场就优先按所选市场解析。&#10;3. 找不到时会按 Yahoo Finance 代码继续尝试。&#10;&#10;输入示例：&#10;A股：600570、600000、000001、sh600000、sz000001、600570.SH、000001.SZ&#10;港股：^HSI、^HSTECH、03033、00700、9988、3033.HK&#10;美股：^IXIC、^NDX、SCHD、XLK、QQQ、MSTR&#10;&#10;常见指数/主题：&#10;A股 上证指数 000001.SH / 000001.SS｜上证红利 000015.SH｜科创50 000688.SH&#10;港股 恒生指数 ^HSI｜恒生科技 ^HSTECH｜恒生科技ETF 03033 / 3033.HK&#10;美股 标普500 ^GSPC｜纳斯达克 ^IXIC｜道琼斯 ^DJI｜罗素2000 ^RUT｜费城半导体 ^SOX｜VIX恐慌指数 ^VIX｜纳指100 ^NDX｜红利 SCHD｜科技 XLK / QQQ&#10;&#10;说明：用户可输入 .SH，程序内部会自动兼容成 Yahoo 使用的 .SS。">?</button>
+              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="输入参考：&#10;A股：只支持数字，如 600570&#10;A股指数：上证指数 000001.SH，上证红利 000015.SH，科创50 000688.SH&#10;港股：只支持数字，如 00700&#10;港股指数：恒生指数 ^HSI，恒生科技 ^HSTECH，恒生科技ETF 03033&#10;美股：如 AAPL，QQQ&#10;美股指数：标普500 ^GSPC，纳斯达克 ^IXIC，道琼斯 ^DJI，罗素2000 ^RUT，费城半导体 ^SOX，VIX恐慌指数 ^VIX，纳指100 ^NDX，红利 SCHD，科技 XLK">?</button>
             </div>
-            <input id="symbolInput" name="symbol" value="" placeholder="MSTR / ^IXIC / 600570 / 00700" required>
+            <input id="symbolInput" name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700" required>
           </div>
         </div>
 
@@ -565,7 +566,7 @@
           <input name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。">
         </div>
 
-        <div class="test-only" hidden>
+        <div>
           <label>未来趋势历史数据范围</label>
           <select name="trendSampleScope">
             <option value="0" selected>0 自己历史K线</option>
@@ -612,7 +613,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.9.21｜2026-7-12｜共享全站计数';
+    const appVersionText = '2.9.25｜2026-7-12｜默认标的纳指';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -645,7 +646,6 @@
           if (!isTestMode) {
             if (field.type === 'checkbox' || field.type === 'radio') field.checked = false;
             else if (field.name === 'extra') field.value = '';
-            else if (field.name === 'trendSampleScope') field.value = '0';
           }
         });
       });
