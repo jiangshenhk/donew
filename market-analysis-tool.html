@@ -384,10 +384,14 @@
       margin: 8px 0;
     }
 
-    .markdown-body strong,
+    .markdown-body strong {
+      color: var(--ink);
+      font-weight: 850;
+    }
+
     .markdown-body .hl {
-      color: var(--gold);
-      font-weight: 800;
+      color: var(--ink);
+      font-weight: 850;
     }
 
     .markdown-body blockquote {
@@ -410,8 +414,13 @@
 
     .markdown-body code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 0.95em;
-      color: #f8fafc;
+      font-size: 0.92em;
+      color: #d8e2f2;
+      font-weight: 650;
+      background: rgba(148, 163, 184, .10);
+      border: 1px solid rgba(148, 163, 184, .16);
+      border-radius: 4px;
+      padding: 1px 5px;
     }
 
     .markdown-body table {
@@ -432,6 +441,21 @@
     .markdown-body th {
       color: #dfe8f7;
       background: rgba(30, 43, 69, .88);
+    }
+
+    .markdown-body td strong,
+    .markdown-body th strong {
+      color: #dfe8f7;
+      font-weight: 760;
+    }
+
+    .markdown-body td code,
+    .markdown-body th code {
+      color: #cbd5e1;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      font-weight: 650;
     }
 
     .markdown-body tr:nth-child(even) td {
@@ -558,10 +582,11 @@
       font-weight: 700;
     }
 
-    .pct-up { color: var(--green); font-weight: 800; }
-    .pct-down { color: var(--red); font-weight: 800; }
-    .pct-flat { color: var(--amber); font-weight: 800; }
+    .pct-up { color: var(--green); font-weight: 900; }
+    .pct-down { color: var(--red); font-weight: 900; }
+    .pct-flat { color: var(--muted); font-weight: 850; }
     .text-warn { color: var(--gold); font-weight: 800; }
+    .text-key { color: var(--gold); font-weight: 850; }
     .signal-bull, .signal-bear, .signal-flat {
       display: inline-flex;
       align-items: center;
@@ -607,7 +632,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.6</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.8｜2026-07-11 12:24｜前置AI解读并优化高亮</span></h1>
       <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </header>
 
@@ -706,7 +731,7 @@
 
     function inlineMarkdown(text) {
       const html = escapeHtml(text)
-        .replace(/\*\*(.+?)\*\*/g, '<strong class="hl">$1</strong>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/`([^`]+)`/g, "<code>$1</code>")
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
       return decorateInlineText(html);
@@ -718,6 +743,7 @@
         .replace(/(-\d+(?:\.\d+)?%)/g, '<span class="pct-down">$1</span>')
         .replace(/(^|[^\d])((?:0|0\.0+)%)(?=$|[^\d])/g, '$1<span class="pct-flat">$2</span>')
         .replace(/(未取到|数据告警)/g, '<span class="text-warn">$1</span>')
+        .replace(/(一句话结论|数据口径|风险评分|整体策略|一句话交易建议)/g, '<span class="text-key">$1</span>')
         .replace(/🟢\s*顺风/g, '<span class="signal-bull">▲ 顺风</span>')
         .replace(/🔴\s*逆风/g, '<span class="signal-bear">▼ 逆风</span>')
         .replace(/🟡\s*横风/g, '<span class="signal-flat">◆ 横风</span>');
@@ -784,7 +810,7 @@
     .markdown-body h3 { font-size: 17px; }
     .markdown-body h4 { font-size: 15px; }
     .markdown-body p { margin: 8px 0; }
-    .markdown-body strong, .markdown-body .hl { color: #ffd54f; font-weight: 800; }
+    .markdown-body strong, .markdown-body .hl { color: #f8fafc; font-weight: 850; }
     .markdown-body blockquote {
       margin: 12px 0;
       padding: 10px 14px;
@@ -803,7 +829,12 @@
     .markdown-body code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       font-size: 0.95em;
-      color: #f8fafc;
+      color: #d8e2f2;
+      font-weight: 650;
+      background: rgba(148, 163, 184, .10);
+      border: 1px solid rgba(148, 163, 184, .16);
+      border-radius: 4px;
+      padding: 1px 5px;
     }
     .markdown-body table {
       width: 100%;
@@ -821,6 +852,17 @@
       color: #dfe8f7;
       background: rgba(30, 43, 69, .88);
     }
+    .markdown-body td strong, .markdown-body th strong {
+      color: #dfe8f7;
+      font-weight: 760;
+    }
+    .markdown-body td code, .markdown-body th code {
+      color: #cbd5e1;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      font-weight: 650;
+    }
     .markdown-body tr:nth-child(even) td {
       background: rgba(24, 35, 58, .32);
     }
@@ -833,10 +875,11 @@
       border-top: 1px solid #24324e;
       margin: 16px 0;
     }
-    .pct-up { color: #4ade80; font-weight: 800; }
-    .pct-down { color: #fb7185; font-weight: 800; }
-    .pct-flat { color: #f4c84f; font-weight: 800; }
+    .pct-up { color: #4ade80; font-weight: 900; }
+    .pct-down { color: #fb7185; font-weight: 900; }
+    .pct-flat { color: #8ea0be; font-weight: 850; }
     .text-warn { color: #ffd54f; font-weight: 800; }
+    .text-key { color: #ffd54f; font-weight: 850; }
     .signal-bull, .signal-bear, .signal-flat {
       display: inline-flex;
       align-items: center;

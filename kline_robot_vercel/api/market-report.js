@@ -890,7 +890,9 @@ function buildDailyMarkdownLite(meta, snapshot, classification, targets, retriev
   const finalCommand = finalCommandFor(meta.kind, classification);
   const dataPreamble = `> **数据口径：** 以美股前一交易日收盘后到现在为止的最近24小时信息为主；如果美股盘中，优先使用最新盘中行情；如果未开盘，则使用盘前或盘后数据。金十财经快讯同步纳入。`;
   const dataWarning = buildDataWarningBlock(snapshot);
-  const jin10Block = jin10Items.length ? jin10Items.slice(0, 6).map(item => `- ${item}`).join("\n") : "- 暂未抓到最近24小时重大新闻，请稍后重试。";
+  const newsSection = jin10Items.length
+    ? `## 8）最近24小时重大新闻\n\n${jin10Items.slice(0, 6).map(item => `- ${item}`).join("\n")}\n`
+    : "";
   const aiBlock = aiAppendix(aiText) || "本次 AI 解读暂不可用，以下保留规则版框架。";
   const targetMap = Object.fromEntries(targets.map(item => [item.symbol, item]));
 
@@ -904,7 +906,11 @@ ${dataPreamble}
 
 ${dataWarning}
 
-## 1）本期市场在交易什么？
+## 1）AI 市场风向解读
+
+${aiBlock}
+
+## 2）本期市场在交易什么？
 
 **一句话结论：${headline}**
 
@@ -912,13 +918,13 @@ ${dataWarning}
 |:---|:---|
 ${overviewRows(classification)}
 
-## 2）资金流向异动｜今日最重要变化
+## 3）资金流向异动｜今日最重要变化
 
 | 异动 | 变化 | 指标 | 信号解读 |
 |:---|:---|:---|:---|
 ${flowRows(snapshot, classification, meta.kind)}
 
-## 3）策略矩阵
+## 4）策略矩阵
 
 | 资产 | 买CALL | 卖PUT | 核心逻辑 |
 |:---|:---:|:---:|:---|
@@ -926,7 +932,7 @@ ${strategyRows(snapshot, classification)}
 
 > **整体策略**：\`${finalCommand}\`
 
-## 4）资金流向与资产联动
+## 5）资金流向与资产联动
 
 ### A. 跨资产资金流向
 
@@ -951,19 +957,19 @@ ${strategyRows(snapshot, classification)}
 - **今晚/本期真正说真话的是：${classification.truthTeller}**
 - **我的判断：** ${classification.trueTheme}
 
-## 5）宏观资产数据
+## 6）宏观资产数据
 
 | 资产 | 当前 | 日变化 | 解读 |
 |:---|:---|:---|:---|
 ${macroRows(snapshot)}
 
-## 6）风险资产表现
+## 7）风险资产表现
 
 | 资产 | 当前/收盘 | 日变化 | 20日变化 | 50日变化 |
 |:---|---:|---:|---:|---:|
 ${riskRows(snapshot, "daily")}
 
-## 7）驱动拆解
+## 8）驱动拆解
 
 \`\`\`text
 ${classification.marketStage}
@@ -975,11 +981,10 @@ ${classification.trueTheme}
 ${finalCommand}
 \`\`\`
 
-## 8）最近24小时重大新闻
+${newsSection}
 
-${jin10Block}
-
-## 9）落到我的卖 Put 策略
+<details>
+  <summary>卖 Put 策略附录（个人执行用）</summary>
 
 ### 对 QLD
 
@@ -998,9 +1003,7 @@ ${jin10Block}
 
 **一句话交易建议：** ${finalCommand}
 
-## 10）AI 市场风向解读
-
-${aiBlock}
+</details>
 
 ## 11）市场日志
 
