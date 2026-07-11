@@ -2502,13 +2502,17 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return sendJson(res, 405, { ok: false, error: "Method not allowed" });
   try {
     const data = req.body || {};
+    const inputSymbol = String(data.symbol || "").trim();
+    if (!inputSymbol) {
+      return sendJson(res, 400, { ok: false, error: "请输入标的代码。" });
+    }
     const provider = data.provider || "deepseek";
     const interval = data.interval || "1d";
     const requestedRange = data.range || (interval === "1d" ? "1mo" : "5d");
     const maxMatchBars = Math.max(1, Math.min(10, Number(data.maxMatchBars) || 10));
     const trendSampleScope = String(data.trendSampleScope ?? "0") === "1" ? "1" : "0";
     const range = normalizeRangeForInterval(requestedRange, interval);
-    const resolved = await resolveMarketBars(data.symbol || "^IXIC", data.market, range, interval);
+    const resolved = await resolveMarketBars(inputSymbol, data.market, range, interval);
     const { yahoo, display, displayName, market, bars, timeLabel, timezone } = resolved;
     const cards = patternCards(bars, maxMatchBars);
     const last = bars.at(-1);
@@ -2520,12 +2524,8 @@ export default async function handler(req, res) {
     const e60 = ema(closes, 60).at(-1);
     const rsi14 = rsi(closes);
     const mom10 = momentum(closes);
-    const historicalSampleSets = String(data.menu || "1") === "9"
-      ? await fetchHistoricalSampleSets({ yahoo, market, interval, scope: trendSampleScope })
-      : [];
-    const historicalTrendStats = String(data.menu || "1") === "9"
-      ? scanHistoricalTrendStats(historicalSampleSets, cards, maxMatchBars, 5)
-      : null;
+    const historicalSampleSets = await fetchHistoricalSampleSets({ yahoo, market, interval, scope: trendSampleScope });
+    const historicalTrendStats = scanHistoricalTrendStats(historicalSampleSets, cards, maxMatchBars, 5);
     const analysisAngles = buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats });
     const options = {
       menu: data.menu || "1",

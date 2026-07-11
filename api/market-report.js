@@ -286,9 +286,8 @@ async function fetchBinanceHistory() {
 }
 
 async function fetchBitcoinSnapshot() {
+  let binanceError = null;
   try {
-    const fredRow = await fetchFredSeries("BTC-USD").catch(() => null);
-    if (fredRow && !isBadSnapshot(fredRow.last, fredRow.changePct, fredRow.vs20Pct, fredRow.vs50Pct)) return fredRow;
     const [snapshot, closes] = await Promise.all([fetchBinanceSnapshot(), fetchBinanceHistory()]);
     const sma20 = avg(closes.slice(-20));
     const sma50 = avg(closes.slice(-50));
@@ -304,7 +303,14 @@ async function fetchBitcoinSnapshot() {
       source: "binance",
     };
   } catch (error) {
-    return fetchFredSeries("BTC-USD");
+    binanceError = error;
+  }
+  try {
+    const fredRow = await fetchFredSeries("BTC-USD");
+    if (!isBadSnapshot(fredRow.last, fredRow.changePct, fredRow.vs20Pct, fredRow.vs50Pct)) return fredRow;
+    throw new Error("FRED invalid snapshot");
+  } catch (error) {
+    throw new Error(`Binance: ${binanceError?.message || "failed"} | FRED: ${error.message}`);
   }
 }
 
@@ -372,9 +378,20 @@ async function fetchNasdaqSnapshot(symbol) {
 
 async function fetchStableFallback(symbol) {
   if (symbol === "BTC-USD") return fetchBitcoinSnapshot();
-  if (FRED_SERIES[symbol]) return fetchFredSeries(symbol);
   if (NASDAQ_ASSET_CLASS[symbol]) return fetchNasdaqSnapshot(symbol);
   return null;
+}
+
+async function fetchFinalFallback(symbol, priorErrors = []) {
+  if (!FRED_SERIES[symbol]) return null;
+  try {
+    const fredRow = await fetchFredSeries(symbol);
+    if (!isBadSnapshot(fredRow.last, fredRow.changePct, fredRow.vs20Pct, fredRow.vs50Pct)) return fredRow;
+    throw new Error("FRED invalid snapshot");
+  } catch (error) {
+    const parts = [...priorErrors.filter(Boolean), `fred:${error.message}`];
+    throw new Error(parts.join(" | "));
+  }
 }
 
 function avg(values) {
@@ -499,6 +516,8 @@ function formatSourceLabel(source) {
   if (source === "nasdaq") return "Nasdaq";
   if (source === "fred") return "FRED";
   if (source === "binance") return "Binance";
+  if (source === "yahoo/fred") return "Yahoo / FRED";
+  if (source === "binance/fred") return "Binance / FRED";
   return source;
 }
 
@@ -557,25 +576,15 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
 }
 
 async function fetchSymbol(symbol, quote, session) {
+  const errors = [];
   let stableError = null;
   const stableFirstRow = await fetchStableFallback(symbol).catch(error => {
     stableError = error;
     return null;
   });
+  if (stableError?.message) errors.push(`stable:${stableError.message}`);
   if (stableFirstRow && !isBadSnapshot(stableFirstRow.last, stableFirstRow.changePct, stableFirstRow.vs20Pct, stableFirstRow.vs50Pct)) {
     return stableFirstRow;
-  }
-  if (FRED_SERIES[symbol]) {
-    return {
-      symbol,
-      last: null,
-      changePct: null,
-      vs20Pct: null,
-      vs50Pct: null,
-      retrievedAt: new Date().toISOString(),
-      error: stableError?.message || "FRED fallback failed",
-      source: "fred",
-    };
   }
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
   try {
@@ -622,11 +631,31 @@ async function fetchSymbol(symbol, quote, session) {
     if (eastmoneyRow && !isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
       return eastmoneyRow;
     }
+    const finalFallback = await fetchFinalFallback(symbol, errors).catch(error => {
+      errors.push(error.message);
+      return null;
+    });
+    if (finalFallback) return finalFallback;
     return yahooRow;
   } catch (error) {
+    errors.push(`yahoo:${error.message}`);
     const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
     if (eastmoneyRow) return eastmoneyRow;
-    return { symbol, last: null, changePct: null, vs20Pct: null, vs50Pct: null, retrievedAt: new Date().toISOString(), error: error.message, source: "" };
+    const finalFallback = await fetchFinalFallback(symbol, errors).catch(fallbackError => {
+      errors.push(fallbackError.message);
+      return null;
+    });
+    if (finalFallback) return finalFallback;
+    return {
+      symbol,
+      last: null,
+      changePct: null,
+      vs20Pct: null,
+      vs50Pct: null,
+      retrievedAt: new Date().toISOString(),
+      error: errors.join(" | ") || error.message,
+      source: symbol === "BTC-USD" ? "binance/fred" : FRED_SERIES[symbol] ? "yahoo/fred" : "",
+    };
   }
 }
 

@@ -474,7 +474,7 @@
         <h1>AI智能匹配K线形态&趋势判断 <span class="version" id="appVersion">版本加载中</span></h1>
       </div>
       <div class="top-actions">
-        <span class="visit-count">本页访问 <strong id="busuanzi_value_page_pv">--</strong> 次</span>
+        <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
         <a class="home" href="./#/">返回十方斋</a>
       </div>
     </div>
@@ -517,9 +517,9 @@
           <div>
             <div class="label-help">
               <label for="symbolInput">标的</label>
-              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="识别规则：&#10;1. 不选市场时自动识别：^ 开头先按指数/主题尝试；6位数字先按A股；4-5位数字或 0 开头数字先按港股；其余先按美股。&#10;2. 选了市场就优先按所选市场解析。&#10;3. 找不到时会按 Yahoo Finance 代码继续尝试。&#10;&#10;输入示例：&#10;A股：000001、000015、000688、600570、000001.SZ、600570.SS&#10;港股：^HSI、^HSTECH、03033、00700、9988、3033.HK&#10;美股：^IXIC、^NDX、SCHD、XLK、QQQ、MSTR&#10;&#10;常见指数/主题：&#10;A股 上证指数 000001 / 000001.SS｜上证红利 000015｜科创50 000688&#10;港股 恒生指数 ^HSI｜恒生科技 ^HSTECH｜恒生科技ETF 03033 / 3033.HK&#10;美股 纳指 ^IXIC｜纳指100 ^NDX｜红利 SCHD｜科技 XLK / QQQ&#10;&#10;代码优先参考 Yahoo Finance。">?</button>
+              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="识别规则：&#10;1. 不选市场时自动识别：^ 开头先按指数/主题尝试；6位数字先按A股；4-5位数字或 0 开头数字先按港股；其余先按美股。&#10;2. 选了市场就优先按所选市场解析。&#10;3. 找不到时会按 Yahoo Finance 代码继续尝试。&#10;&#10;输入示例：&#10;A股：600570、600000、000001、sh600000、sz000001、600570.SH、000001.SZ&#10;港股：^HSI、^HSTECH、03033、00700、9988、3033.HK&#10;美股：^IXIC、^NDX、SCHD、XLK、QQQ、MSTR&#10;&#10;常见指数/主题：&#10;A股 上证指数 000001.SH / 000001.SS｜上证红利 000015.SH｜科创50 000688.SH&#10;港股 恒生指数 ^HSI｜恒生科技 ^HSTECH｜恒生科技ETF 03033 / 3033.HK&#10;美股 标普500 ^GSPC｜纳斯达克 ^IXIC｜道琼斯 ^DJI｜罗素2000 ^RUT｜费城半导体 ^SOX｜VIX恐慌指数 ^VIX｜纳指100 ^NDX｜红利 SCHD｜科技 XLK / QQQ&#10;&#10;说明：用户可输入 .SH，程序内部会自动兼容成 Yahoo 使用的 .SS。">?</button>
             </div>
-            <input id="symbolInput" name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700">
+            <input id="symbolInput" name="symbol" value="" placeholder="MSTR / ^IXIC / 600570 / 00700" required>
           </div>
         </div>
 
@@ -612,7 +612,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.9.17｜2026-7-11｜精简结果区';
+    const appVersionText = '2.9.20｜2026-7-12｜补充美股常见指数';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -689,7 +689,7 @@
       form.elements.provider.value = item.provider || 'deepseek';
       form.elements.menu.value = item.menu || '1';
       form.elements.market.value = item.market || '';
-      form.elements.symbol.value = item.symbol || '^IXIC';
+      form.elements.symbol.value = item.symbol || '';
       form.elements.interval.value = item.interval || '1d';
       form.elements.range.value = item.range || (item.interval === '1d' ? '1mo' : '5d');
       form.elements.maxMatchBars.value = item.maxMatchBars || '10';
