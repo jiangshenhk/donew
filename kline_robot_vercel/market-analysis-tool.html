@@ -454,6 +454,12 @@
       font-weight: 900;
     }
 
+    .markdown-body table.conclusion-highlight th,
+    .markdown-body table.conclusion-highlight td {
+      color: var(--gold);
+      font-weight: 850;
+    }
+
     .markdown-body pre {
       overflow-x: auto;
       padding: 12px;
@@ -684,7 +690,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.16｜2026-07-11 13:34｜优化行情抓取超时</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.17｜2026-07-11 13:45｜高亮市场交易小节</span></h1>
       <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </header>
 
@@ -930,6 +936,12 @@
       font-weight: 900;
     }
 
+    .markdown-body table.conclusion-highlight th,
+    .markdown-body table.conclusion-highlight td {
+      color: #ffd54f;
+      font-weight: 850;
+    }
+
     .markdown-body pre {
       overflow-x: auto;
       padding: 12px;
@@ -1137,13 +1149,17 @@
       let codeLines = [];
       let listType = "";
       let listItems = [];
+      let listHighlighted = false;
+      let highlightSection = false;
       let highlightNextParagraph = false;
 
       const closeList = () => {
         if (!listType) return;
-        out.push(`<${listType}>${listItems.map(item => `<li>${item}</li>`).join("")}</${listType}>`);
+        const className = listHighlighted ? ' class="conclusion-highlight"' : "";
+        out.push(`<${listType}${className}>${listItems.map(item => `<li>${item}</li>`).join("")}</${listType}>`);
         listType = "";
         listItems = [];
+        listHighlighted = false;
       };
 
       const closeCode = () => {
@@ -1161,7 +1177,8 @@
         const body = rows.slice(2).filter(row => row.some(cell => cell));
         const headHtml = header.map(cell => `<th>${inlineMarkdown(cell)}</th>`).join("");
         const bodyHtml = body.map(row => `<tr>${row.map(cell => `<td>${inlineMarkdown(cell)}</td>`).join("")}</tr>`).join("");
-        out.push(`<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`);
+        const className = highlightSection ? ' class="conclusion-highlight"' : "";
+        out.push(`<table${className}><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`);
       };
 
       for (let i = 0; i < lines.length; i += 1) {
@@ -1219,7 +1236,8 @@
           closeList();
           const level = heading[1].length;
           const headingText = heading[2];
-          highlightNextParagraph = /市场在交易什么/.test(headingText);
+          highlightSection = /市场在交易什么/.test(headingText);
+          highlightNextParagraph = highlightSection;
           out.push(`<h${level}>${inlineMarkdown(headingText)}</h${level}>`);
           continue;
         }
@@ -1248,6 +1266,7 @@
           if (listType !== "ul") {
             closeList();
             listType = "ul";
+            listHighlighted = highlightSection;
           }
           listItems.push(inlineMarkdown(bullet[1]));
           continue;
@@ -1258,13 +1277,14 @@
           if (listType !== "ol") {
             closeList();
             listType = "ol";
+            listHighlighted = highlightSection;
           }
           listItems.push(inlineMarkdown(ordered[1]));
           continue;
         }
 
         closeList();
-        const isConclusion = highlightNextParagraph || /^(\*\*)?当前[（(]/.test(trimmed);
+        const isConclusion = highlightSection || highlightNextParagraph || /^(\*\*)?当前[（(]/.test(trimmed);
         highlightNextParagraph = false;
         out.push(`<p${isConclusion ? ' class="conclusion-highlight"' : ""}>${inlineMarkdown(trimmed)}</p>`);
       }
