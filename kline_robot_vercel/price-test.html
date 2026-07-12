@@ -6,11 +6,12 @@
 <title>行情缓存测试</title>
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Arial;background:#f5f7fb;margin:0;padding:20px;color:#111}
-.box{max-width:1000px;margin:auto;background:white;border-radius:16px;padding:20px;box-shadow:0 8px 30px #0001}
+.box{max-width:1100px;margin:auto;background:white;border-radius:16px;padding:20px;box-shadow:0 8px 30px #0001}
 h1{font-size:24px}.time{color:#666;margin-bottom:20px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
 .card{border:1px solid #ddd;border-radius:12px;padding:15px}
 .symbol{font-weight:800;font-size:18px}.price{font-size:24px;margin:8px 0}.up{color:#087f23}.down{color:#b00020}.err{color:#999}
+.small{font-size:12px;color:#666;line-height:1.5}
 button{padding:10px 18px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer}
 </style>
 </head>
@@ -22,22 +23,37 @@ button{padding:10px 18px;border:0;border-radius:8px;background:#2563eb;color:whi
 <div class="grid" id="grid"></div>
 </div>
 <script>
+function formatTime(v){
+ if(!v)return '-';
+ return new Date(v).toLocaleString();
+}
+
 async function loadPrice(){
  const grid=document.getElementById('grid');
  grid.innerHTML='加载中...';
  try{
   const res=await fetch('/api/latest-price');
   const json=await res.json();
-  document.getElementById('time').innerText='更新时间: '+(json.updated||json.fetchedAt||'未知');
+
+  document.getElementById('time').innerHTML=
+    '缓存更新时间: '+formatTime(json.cacheUpdatedAt);
+
   const data=json.data||{};
+
   grid.innerHTML=Object.entries(data).map(([symbol,item])=>{
-    const price=item.price ?? item.regularMarketPrice ?? '-';
+    const price=item.price ?? '-';
     const pct=item.changePercent;
     const cls=pct>0?'up':pct<0?'down':'';
+
     return `<div class="card">
       <div class="symbol">${symbol}</div>
       <div class="price">${price}</div>
       <div class="${cls}">${pct==null?'':pct.toFixed(2)+'%'}</div>
+      <div class="small">
+        行情时间:<br>${formatTime(item.marketTime)}<br>
+        币种: ${item.currency || '-'}<br>
+        交易所: ${item.exchange || '-'}
+      </div>
     </div>`;
   }).join('');
  }catch(e){
