@@ -15,18 +15,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check price service switch
+        id: switch
+        run: |
+          ENABLED=$(node -e "console.log(require('./stockprice/config/price-config.json').enabled)")
+          echo "enabled=$ENABLED" >> $GITHUB_OUTPUT
+          echo "Price service enabled: $ENABLED"
+
       - name: Setup Node
+        if: steps.switch.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Update market data
+        if: steps.switch.outputs.enabled == 'true'
         run: node stockprice/scripts/update-price.js
 
       - name: Commit cache
+        if: steps.switch.outputs.enabled == 'true'
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add stockprice/data/latest-price.json
           git commit -m 'Update stock price cache' || echo 'No changes'
           git push
+
+      - name: Skip message
+        if: steps.switch.outputs.enabled != 'true'
+        run: echo 'Stock price updater disabled'
