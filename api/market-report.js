@@ -72,10 +72,9 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
-const SPECIAL_SYMBOL_FETCH_DELAY_MS = 1000;
 const MARKET_CACHE_TTL_MS = 10 * 60 * 1000;
 const marketDataCache = new Map();
-const SPECIAL_SERIAL_SYMBOLS = new Set(["BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"]);
+const SPECIAL_SYMBOLS = new Set(["BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"]);
 
 function corsHeaders() {
   return {
@@ -278,7 +277,7 @@ async function fetchFredSeries(symbol) {
   const series = FRED_SERIES[symbol];
   if (!series) return null;
   const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(series)}&cosd=${encodeURIComponent(isoDaysAgo(220))}`;
-  const res = await timedFetch(url, { headers: browserHeaders("https://fred.stlouisfed.org/") }, 10000);
+  const res = await timedFetch(url, { headers: browserHeaders("https://fred.stlouisfed.org/") }, 3500);
   if (!res.ok) throw new Error(`FRED HTTP ${res.status}`);
   const csv = await res.text();
   const rows = parseFredCsv(csv, series);
@@ -304,7 +303,7 @@ async function fetchFredSeries(symbol) {
 
 async function fetchBinanceSnapshot() {
   const url = "https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT";
-  const res = await timedFetch(url, { headers: browserHeaders("https://www.binance.com/") }, 6000);
+  const res = await timedFetch(url, { headers: browserHeaders("https://www.binance.com/") }, 3000);
   if (!res.ok) throw new Error(`Binance HTTP ${res.status}`);
   const json = await res.json();
   const last = numberOrNull(json.lastPrice);
@@ -319,7 +318,7 @@ async function fetchBinanceSnapshot() {
 
 async function fetchBinanceHistory() {
   const url = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=70";
-  const res = await timedFetch(url, { headers: browserHeaders("https://www.binance.com/") }, 6000);
+  const res = await timedFetch(url, { headers: browserHeaders("https://www.binance.com/") }, 3000);
   if (!res.ok) throw new Error(`Binance kline HTTP ${res.status}`);
   const json = await res.json();
   if (!Array.isArray(json) || json.length < 5) throw new Error("Binance no kline data");
@@ -368,7 +367,7 @@ async function fetchNasdaqInfo(symbol, assetClass) {
       ...browserHeaders("https://www.nasdaq.com/"),
       "Origin": "https://www.nasdaq.com",
     },
-  }, 4500);
+  }, 2800);
   if (!res.ok) throw new Error(`Nasdaq info HTTP ${res.status}`);
   const json = await res.json();
   const data = json.data;
@@ -385,7 +384,7 @@ async function fetchNasdaqHistory(symbol, assetClass) {
       ...browserHeaders("https://www.nasdaq.com/"),
       "Origin": "https://www.nasdaq.com",
     },
-  }, 4500);
+  }, 2800);
   if (!res.ok) throw new Error(`Nasdaq history HTTP ${res.status}`);
   const json = await res.json();
   const rows = json.data?.tradesTable?.rows || [];
@@ -460,19 +459,18 @@ async function fetchMarketSnapshot(forceRefresh = false) {
   const session = marketSessionNow();
   const quoteMap = {};
   const rows = [];
-  const normalSymbols = MARKET_SYMBOLS.filter(symbol => !SPECIAL_SERIAL_SYMBOLS.has(symbol));
-  const specialSymbols = MARKET_SYMBOLS.filter(symbol => SPECIAL_SERIAL_SYMBOLS.has(symbol));
+  const normalSymbols = MARKET_SYMBOLS.filter(symbol => !SPECIAL_SYMBOLS.has(symbol));
+  const specialSymbols = MARKET_SYMBOLS.filter(symbol => SPECIAL_SYMBOLS.has(symbol));
 
   const normalRows = await Promise.all(
     normalSymbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh))
   );
   rows.push(...normalRows);
 
-  for (let i = 0; i < specialSymbols.length; i += 1) {
-    if (i > 0) await sleep(SPECIAL_SYMBOL_FETCH_DELAY_MS);
-    const symbol = specialSymbols[i];
-    rows.push(await fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh));
-  }
+  const specialRows = await Promise.all(
+    specialSymbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh))
+  );
+  rows.push(...specialRows);
   return Object.fromEntries(rows.map(row => [row.symbol, row]));
 }
 
@@ -514,7 +512,7 @@ async function fetchEastmoneyKline(symbol) {
   const secid = EASTMONEY_SECID[symbol];
   if (!secid) return null;
   const url = `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${encodeURIComponent(secid)}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20260101&end=20261231`;
-  const res = await timedFetch(url, { headers: browserHeaders("https://quote.eastmoney.com/") }, 6000);
+  const res = await timedFetch(url, { headers: browserHeaders("https://quote.eastmoney.com/") }, 3000);
   if (!res.ok) throw new Error(`Eastmoney HTTP ${res.status}`);
   const json = await res.json();
   const klines = json.data?.klines || [];
@@ -1378,7 +1376,7 @@ async function callOpenAI(payload) {
       model: process.env.OPENAI_MODEL || "gpt-5",
       input: [{ role: "system", content: marketPrompt() }, { role: "user", content: JSON.stringify(payload) }],
     }),
-  }, 15000);
+  }, 6000);
   if (!res.ok) return { used: false, provider: "GPT", text: `## AI 市场风向解读\n\nGPT 调用失败：${res.status}。本次使用规则版报告。` };
   const data = await res.json();
   const text = data.output_text || (data.output || []).flatMap(item => item.content || []).map(c => c.text || "").join("");
@@ -1395,7 +1393,7 @@ async function callDeepSeek(payload) {
       messages: [{ role: "system", content: marketPrompt() }, { role: "user", content: JSON.stringify(payload) }],
       temperature: 0.2,
     }),
-  }, 15000);
+  }, 6000);
   if (!res.ok) return { used: false, provider: "DeepSeek", text: `## AI 市场风向解读\n\nDeepSeek 调用失败：${res.status}。本次使用规则版报告。` };
   const data = await res.json();
   return { used: true, provider: "DeepSeek", text: data.choices?.[0]?.message?.content || "## AI 市场风向解读\n\nDeepSeek 返回为空，本次使用规则版报告。" };
