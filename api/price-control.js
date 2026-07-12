@@ -1,6 +1,5 @@
 // Stock price service control API
-// Note: control state is stored in stockprice/config/price-config.json
-// This endpoint provides the control contract for the frontend.
+// Control contract for frontend.
 
 export default async function handler(req, res) {
   const action = req.query?.action || 'status';
@@ -12,12 +11,19 @@ export default async function handler(req, res) {
     });
   }
 
-  // Placeholder until persistent storage is connected.
-  // The next step will connect this to the config store.
+  // Runtime control placeholder.
+  // Persistent GitHub config update will be connected through server token.
+  // Keep API contract stable for price-test.html.
+
+  const enabled = action === 'start' ? true : action === 'stop' ? false : null;
+
   return res.status(200).json({
     status: 'ok',
     action,
-    message: `price service ${action}`,
-    note: 'control persistence will be connected to stockprice config'
+    enabled,
+    message: action === 'status'
+      ? 'price service status query'
+      : `price service ${action} requested`,
+    config: 'stockprice/config/price-config.json'
   });
 }
