@@ -614,7 +614,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.9.42｜2026-7-12｜全球日线修正';
+    const appVersionText = '3.0.0.2｜2026-7-12｜摘要与ABC修正';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -860,7 +860,6 @@
       updateRunning();
       runTimer = setInterval(updateRunning, 1000);
 
-      syncRangeForInterval();
       const data = new FormData(form);
 
       const payload = {

@@ -478,6 +478,22 @@ function avgVolume(bars, start, end) {
   return subset.reduce((sum, b) => sum + b.volume, 0) / subset.length;
 }
 
+function volumeStateFromRatio(ratio) {
+  if (!Number.isFinite(ratio) || ratio <= 0) return "量能不足";
+  if (ratio >= 1.2) return "明显放量";
+  if (ratio >= 1.05) return "温和放量";
+  if (ratio <= 0.8) return "明显缩量";
+  if (ratio <= 0.95) return "温和缩量";
+  return "量能平稳";
+}
+
+function statusFromPriceVsAverage(price, avg, tolerance = 0.0035) {
+  if (!Number.isFinite(price) || !Number.isFinite(avg)) return "中性观察";
+  if (price >= avg * (1 + tolerance)) return "偏多修复";
+  if (price <= avg * (1 - tolerance)) return "偏空风险";
+  return "中性观察";
+}
+
 function clampScore(value) {
   return Math.max(45, Math.min(96, Math.round(value)));
 }
@@ -2025,6 +2041,7 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
   const normalizedClosePosition = Math.max(0, Math.min(1.2, closePosition));
   const nearConfirmZone = closePosition >= 0.72;
   const nearCRecoveryZone = closePosition >= 0.56;
+  const confirmGapRatio = structureSpan > 0 ? Math.max(0, (pressure1 - last.close) / structureSpan) : 1;
   const risingIntoConfirm = recentTrend > 0 && risingCloses >= 2 && recentHigherHighs >= 2;
   const breakoutAttempt = risingIntoConfirm && normalizedClosePosition >= 0.88;
   let stage = "ABC待确认";
@@ -2075,6 +2092,13 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.64 + Math.min(0.06, Math.max(0, normalizedClosePosition - 0.56) * 0.35);
     bias = "中性";
     note = "当前位置更像从 C 点附近刚开始抬头，先看止跌是否成立，再看能否逐步走向确认位。";
+  } else if (aboveE20 && recentTrend >= 0 && confirmGapRatio <= 0.14) {
+    stage = "C 段前确认";
+    positionLabel = "当前更像 C 段前确认 / 靠近确认位";
+    phaseKey = "C";
+    progress = 0.74 + Math.min(0.10, Math.max(0, 0.14 - confirmGapRatio) * 0.5);
+    bias = "偏多";
+    note = "价格已经靠近确认位，即使还没正式突破，也更像 C 段前确认，而不只是 B→C 过渡。";
   } else if (momentum >= 1 && aboveE20 && last.close < pressure1) {
     stage = "B→C 过渡";
     positionLabel = "当前更像 B 末段，正在向 C 过渡";
@@ -2386,8 +2410,10 @@ function abcStructureSectionHtml({ abc, twoB, bars }) {
 
 function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
   const trendTopRow = Array.isArray(angles.trend?.rows) ? angles.trend.rows[0] : null;
-  const structureBias = twoB?.bias || angles.abc?.bias || "中性";
-  const structureStage = twoB?.stage || angles.abc?.stage || "结构待确认";
+  const useTwoBAsPrimary = Boolean(twoB?.valid);
+  const structureBias = useTwoBAsPrimary ? (twoB?.bias || angles.abc?.bias || "中性") : (angles.abc?.bias || twoB?.bias || "中性");
+  const structureStage = useTwoBAsPrimary ? (twoB?.stage || angles.abc?.stage || "结构待确认") : (angles.abc?.stage || twoB?.stage || "结构待确认");
+  const structureNote = useTwoBAsPrimary ? (twoB?.note || angles.abc?.summary || "") : (angles.abc?.note || angles.abc?.summary || twoB?.note || "");
   const summaryItems = [
     angles.similarity.score
       ? `K线形态匹配：${angles.similarity.title}，${angles.similarity.score}% ，${angles.similarity.bias}`
@@ -2401,7 +2427,7 @@ function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
   const mergedThesisParts = [
     safeHtml(summaryItems.join('；')),
     safeHtml(angles.abc.positionLabel || angles.abc.summary),
-    safeHtml(twoB ? twoB.note : angles.abc.summary),
+    safeHtml(structureNote),
     aiFlat.thesis,
   ].filter(Boolean);
   const sourceSummaryHtml = `<div class="ai-source-summary" style="margin:0 0 12px;padding:12px 16px;border:1px solid rgba(130,160,255,.18);border-radius:12px;background:rgba(18,26,51,.55)"><ol style="margin:0;padding-left:18px;display:grid;gap:6px">${summaryItems.map((item) => `<li>${safeHtml(item)}</li>`).join("")}</ol></div>`;
@@ -2426,6 +2452,30 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
   const intervalText = intervalLabel(interval);
   const maxMatchBars = options.maxMatchBars || 10;
   const title = `${displaySymbol}｜${intervalText} 1-${safeHtml(maxMatchBars)}根K线形态匹配`;
+  const structureSpan = Math.max(Math.abs(pressure1 - support), Math.max(Math.abs(last.close), 1) * 0.01);
+  const recentVol = avgVolume(bars, Math.max(0, bars.length - 5), bars.length - 1);
+  const prevVol = avgVolume(bars, Math.max(0, bars.length - 15), Math.max(0, bars.length - 6));
+  const volRatio = prevVol > 0 ? recentVol / prevVol : NaN;
+  const volumeState = volumeStateFromRatio(volRatio);
+  const volumeStatus = /放量/.test(volumeState)
+    ? (mom10 >= 0 ? "偏多修复" : "偏空风险")
+    : /缩量/.test(volumeState)
+      ? "中性观察"
+      : statusFromPriceVsAverage(last.close, e20);
+  const positionStatus = last.close < support
+    ? "偏空风险"
+    : last.close >= pressure1
+      ? "偏多修复"
+      : Math.abs(last.close - pressure1) <= Math.max(structureSpan || 0, Math.abs(last.close) * 0.01) * 0.12
+        ? "偏多修复"
+        : "中性观察";
+  const maStatus = Number.isFinite(e20) && Number.isFinite(e60)
+    ? (last.close >= e20 && last.close >= e60
+        ? "偏多修复"
+        : last.close < e20 && last.close < e60
+          ? "偏空风险"
+          : "中性观察")
+    : statusFromPriceVsAverage(last.close, e20);
   const top5Rows = cards
     .map((c) => `<tr><td>${safeHtml(c.name)}</td><td>${safeHtml(c.matchBars)}根</td><td class="price">${c.score}%</td><td>${directionMarkup(c.bias)}</td><td>${safeHtml(c.judgement)}</td></tr>`)
     .join("");
@@ -2438,12 +2488,12 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
     .join("");
   const matrix = [
     ["形态", cards[0]?.bias === "偏多" ? "偏多修复" : cards[0]?.bias === "偏空" ? "偏空风险" : "中性观察", cards[0] ? `最高匹配为「${cards[0].name}」，匹配度 ${cards[0].score}%。` : `暂无超过${MIN_PATTERN_SCORE}%的经典形态匹配，不强行归类。`],
-    ["位置", "中性观察", `价格接近近期低点 ${formatPrice(support)}，但还没有向上确认。`],
-    ["均线", "偏空风险", `最新价 ${formatPrice(last.close)}，E20 ${formatPrice(e20)}，E60 ${formatPrice(e60)}，仍在短线压力下。`],
+    ["位置", positionStatus, last.close < support ? `最新价已跌破近期支撑 ${formatPrice(support)}，原结构需要降级处理。` : last.close >= pressure1 ? `最新价已接近或站上确认位 ${formatPrice(pressure1)}，重点看能否延续。` : `最新价 ${formatPrice(last.close)} 位于支撑 ${formatPrice(support)} 与确认位 ${formatPrice(pressure1)} 之间，仍需等待确认。`],
+    ["均线", maStatus, !Number.isFinite(e20) || !Number.isFinite(e60) ? "均线数据不足。" : last.close >= e20 && last.close >= e60 ? `最新价 ${formatPrice(last.close)} 站上 E20 ${formatPrice(e20)} 与 E60 ${formatPrice(e60)}，均线结构偏强。` : last.close < e20 && last.close < e60 ? `最新价 ${formatPrice(last.close)} 位于 E20 ${formatPrice(e20)} 与 E60 ${formatPrice(e60)} 下方，均线结构偏弱。` : `最新价 ${formatPrice(last.close)} 位于 E20 ${formatPrice(e20)} 与 E60 ${formatPrice(e60)} 附近，均线方向仍在拉锯。`],
     ["RSI", (rsi14 || 50) < 45 ? "偏空风险" : "中性观察", rsi14 == null ? "RSI数据不足。" : `RSI14=${rsi14.toFixed(1)}，只作为强弱辅助，不单独决定方向。`],
     ["随机指数", "中性观察", "随机指数只做保留，不作为主判断。"],
     ["动力", (mom10 || 0) < 0 ? "偏空风险" : "偏多修复", mom10 == null ? "动力数据不足。" : `10根动量=${mom10.toFixed(2)}%，看反弹是否能持续。`],
-    ["成交量", "偏空风险", "最近下跌段成交量较高，说明抛压仍需观察。"],
+    ["成交量", volumeStatus, !Number.isFinite(volRatio) ? "成交量基准不足。" : `近5根均量 ${Math.round(recentVol).toLocaleString()} / 前10根均量 ${Math.round(prevVol).toLocaleString()}，当前属于${volumeState}。`],
   ]
     .map((r) => `<tr><td>${r[0]}</td><td>${signalMarkup(r[1])}</td><td>${r[2]}</td></tr>`)
     .join("");
