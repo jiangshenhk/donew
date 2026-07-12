@@ -456,7 +456,6 @@ function isPositiveNumber(value) {
   return n !== null && n > 0;
 }
 
-async function fetchMarketSnapshot() {
 async function fetchMarketSnapshot(forceRefresh = false) {
   const session = marketSessionNow();
   const quoteMap = {};
