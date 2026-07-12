@@ -524,14 +524,33 @@ function formatSourceLabel(source) {
 function formatSourceNote(error) {
   const text = String(error || "").trim();
   if (!text) return "-";
-  if (/AbortError|aborted|timeout/i.test(text)) return "行情源请求超时，未取到可靠数据；请手动复核";
-  if (/\|/.test(text) && /429/.test(text)) return "主/回退行情源均失败，且存在限流；请手动复核";
-  if (/\|/.test(text) && /FRED/i.test(text)) return "主/回退行情源均未成功返回；请手动复核";
-  if (/429/.test(text)) return "行情源限流，未取到可靠数据；请手动复核";
-  if (/FRED/i.test(text)) return "FRED回退源未取到；请手动复核";
-  if (/HTTP\s+\d+/i.test(text)) return "行情源返回异常，未取到可靠数据；请手动复核";
-  if (/missing|No close data|No data/i.test(text)) return "行情源数据不完整；请手动复核";
-  return "未取到可靠数据；请手动复核";
+  if (/\|/.test(text)) {
+    const parts = text
+      .split("|")
+      .map(part => part.trim())
+      .filter(Boolean)
+      .map(part => {
+        const lower = part.toLowerCase();
+        let label = "行情源";
+        if (lower.includes("binance")) label = "Binance";
+        else if (lower.includes("yahoo")) label = "Yahoo";
+        else if (lower.includes("fred")) label = "FRED";
+        else if (lower.includes("eastmoney")) label = "东方财富";
+        if (/AbortError|aborted|timeout/i.test(part)) return `${label} 超时`;
+        if (/429/.test(part)) return `${label} 限流`;
+        if (/HTTP\s+\d+/i.test(part)) return `${label} 返回异常`;
+        if (/missing|No close data|No data|invalid/i.test(part)) return `${label} 数据不完整`;
+        if (/FRED/i.test(part)) return `${label} 未成功返回`;
+        return `${label} 未取到`;
+      });
+    return parts.join("；");
+  }
+  if (/AbortError|aborted|timeout/i.test(text)) return "行情源请求超时，未取到可靠数据";
+  if (/429/.test(text)) return "行情源限流，未取到可靠数据";
+  if (/FRED/i.test(text)) return "FRED回退源未取到";
+  if (/HTTP\s+\d+/i.test(text)) return "行情源返回异常，未取到可靠数据";
+  if (/missing|No close data|No data/i.test(text)) return "行情源数据不完整";
+  return "未取到可靠数据";
 }
 
 function buildDataWarningBlock(snapshot) {
@@ -566,7 +585,7 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
   return `
 <details>
   <summary>本文所使用的价格数据来源 + 时间</summary>
-  <p>新闻补充源：${extraSourceLabel || "search.jin10.com / Reuters RSS 等公开新闻源"}。</p>
+  <p>新闻补充源：${extraSourceLabel || "暂未启用" }。</p>
   <table>
     <thead>
       <tr><th>指标</th><th>实际来源</th><th>抓取时间</th><th>状态</th><th>备注</th></tr>
@@ -1323,7 +1342,7 @@ export default async function handler(req, res) {
     const provider = String(req.query.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
     const meta = kindMeta(kind);
     const snapshot = await fetchMarketSnapshot();
-    const jin10 = kind === "weekly" ? { source: "", items: [] } : await fetchJin10News();
+    const jin10 = { source: "", items: [] };
     const classification = classify(snapshot);
     const targets = targetRows(snapshot, classification);
     const ai = await callAI({ meta, snapshot, classification, targets, jin10 }, provider).catch(error => ({
