@@ -72,8 +72,8 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
-const MARKET_FETCH_BATCH_SIZE = 8;
-const MARKET_FETCH_BATCH_DELAY_MS = 0;
+const MARKET_FETCH_BATCH_SIZE = 1;
+const MARKET_FETCH_BATCH_DELAY_MS = 1000;
 
 function corsHeaders() {
   return {
@@ -406,7 +406,7 @@ function isPositiveNumber(value) {
 
 async function fetchMarketSnapshot() {
   const session = marketSessionNow();
-  const quoteMap = await fetchQuoteSnapshot().catch(() => ({}));
+  const quoteMap = {};
   const rows = [];
   for (let i = 0; i < MARKET_SYMBOLS.length; i += MARKET_FETCH_BATCH_SIZE) {
     if (i > 0 && MARKET_FETCH_BATCH_DELAY_MS > 0) await sleep(MARKET_FETCH_BATCH_DELAY_MS);
