@@ -1,23 +1,11 @@
 <!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>行情缓存控制台</title>
-<style>
-body{font-family:Arial;background:#f5f7fb;padding:20px}.box{background:#fff;padding:20px;border-radius:12px}button{padding:10px;margin:5px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #ddd}.up{color:green}.down{color:red}
-</style>
-</head>
-<body><div class="box">
-<h1>行情缓存控制台</h1>
-<div id="status">加载中...</div>
-<button onclick="loadPrice()">读取缓存</button>
-<button onclick="control('start')">启动自动更新</button>
-<button onclick="control('stop')">停止自动更新</button>
-<table><thead><tr><th>代码</th><th>价格</th><th>涨跌</th><th>时间</th></tr></thead><tbody id="table"></tbody></table>
-</div>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>行情缓存控制台</title><style>body{font-family:Arial;background:#f5f7fb;padding:20px}.box{background:#fff;padding:20px;border-radius:12px}.group{margin-top:20px}button{padding:10px;margin:5px}.item{display:flex;gap:20px;padding:8px;border-bottom:1px solid #ddd}.up{color:green}.down{color:red}</style></head>
+<body><div class="box"><h1>行情缓存控制台</h1><div id="status">加载中...</div><button onclick="loadPrice()">读取缓存</button><button onclick="refreshPrice()">立即刷新</button><button onclick="control('start')">启动自动更新</button><button onclick="control('stop')">停止自动更新</button><div id="data"></div></div>
 <script>
 const URL='https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json';
-async function loadPrice(){const r=await fetch(URL+'?t='+Date.now());const j=await r.json();document.getElementById('status').innerHTML='缓存更新时间: '+new Date(j.updatedAt).toLocaleString()+'<br>数量:'+j.data.length;document.getElementById('table').innerHTML=j.data.map(x=>`<tr><td>${x.symbol}</td><td>${x.price??'-'}</td><td class="${Number(x.changePercent)>0?'up':'down'}">${x.changePercent??'-'}%</td><td>${x.marketTime??'-'}</td></tr>`).join('')}
+function ft(v){return v?new Date(v).toLocaleString():'-'}
+async function loadPrice(){const r=await fetch(URL+'?t='+Date.now());const j=await r.json();document.getElementById('status').innerHTML='🟢 Running<br>缓存更新时间: '+ft(j.updatedAt)+'<br>成功数量: '+j.data.length;let g={};j.data.forEach(x=>(g[x.category||'Other']??=[]).push(x));let h='';Object.keys(g).forEach(c=>{h+='<div class="group"><h2>'+c+'</h2>';g[c].forEach(x=>{h+=`<div class="item"><b>${x.symbol}</b><span>${x.price??'-'}</span><span class="${Number(x.changePercent)>=0?'up':'down'}">${x.changePercent??'-'}%</span><span>${ft(x.marketTime)}</span></div>`});h+='</div>'});document.getElementById('data').innerHTML=h}
+async function refreshPrice(){document.getElementById('status').innerText='请求刷新中...';await fetch('/api/price-refresh');setTimeout(loadPrice,3000)}
 async function control(a){let r=await fetch('/api/price-control?action='+a);document.getElementById('status').innerText=await r.text()}
 loadPrice();
 </script></body></html>
