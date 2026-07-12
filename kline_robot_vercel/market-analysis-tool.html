@@ -732,6 +732,7 @@
           <option value="deepseek" selected>DeepSeek</option>
           <option value="openai">GPT</option>
         </select>
+        <label class="checkbox-inline"><input id="forceRefreshToggle" type="checkbox"> 强制刷新（测试模式）</label>
 
         <p class="section-title">生成最新报告</p>
         <div class="generate-stack">
@@ -1378,7 +1379,8 @@
 
       try {
         const provider = $("#providerSelect").value || "deepseek";
-        const response = await fetch(`${apiBase}/api/market-report?kind=${encodeURIComponent(kind)}&provider=${encodeURIComponent(provider)}`, {
+        const forceRefresh = $("#forceRefreshToggle")?.checked ? "1" : "0";
+        const response = await fetch(`${apiBase}/api/market-report?kind=${encodeURIComponent(kind)}&provider=${encodeURIComponent(provider)}&forceRefresh=${forceRefresh}`, {
           headers: { "accept": "application/json" }
         });
         const payload = await response.json();

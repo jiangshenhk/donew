@@ -74,6 +74,8 @@ const FRED_SERIES = {
 };
 const MARKET_FETCH_BATCH_SIZE = 4;
 const MARKET_FETCH_BATCH_DELAY_MS = 250;
+const MARKET_CACHE_TTL_MS = 10 * 60 * 1000;
+const marketDataCache = new Map();
 
 function corsHeaders() {
   return {
@@ -96,6 +98,42 @@ async function timedFetch(url, options = {}, timeoutMs = 8000) {
 function sendJson(res, status, data) {
   for (const [key, value] of Object.entries(corsHeaders())) res.setHeader(key, value);
   res.status(status).json(data);
+}
+
+function cacheKeyFor(symbol) {
+  return String(symbol || "").toUpperCase();
+}
+
+function cloneRow(row) {
+  return row ? JSON.parse(JSON.stringify(row)) : row;
+}
+
+function getCachedMarketRow(symbol, forceRefresh = false) {
+  if (forceRefresh) return null;
+  const entry = marketDataCache.get(cacheKeyFor(symbol));
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > MARKET_CACHE_TTL_MS) {
+    marketDataCache.delete(cacheKeyFor(symbol));
+    return null;
+  }
+  const cachedRow = cloneRow(entry.row);
+  cachedRow.fetchMode = "cache";
+  cachedRow.cacheServedAt = new Date().toISOString();
+  return cachedRow;
+}
+
+function storeMarketRow(row) {
+  if (!row?.symbol || !hasUsableSnapshot(row)) return row;
+  const normalized = {
+    ...cloneRow(row),
+    fetchMode: "live",
+    cacheStoredAt: row.retrievedAt || new Date().toISOString(),
+  };
+  marketDataCache.set(cacheKeyFor(row.symbol), {
+    cachedAt: Date.now(),
+    row: normalized,
+  });
+  return normalized;
 }
 
 function pad(value) {
@@ -258,6 +296,7 @@ async function fetchFredSeries(symbol) {
     vs50Pct: sma50 ? (last / sma50 - 1) * 100 : null,
     marketState: "FRED",
     retrievedAt: new Date().toISOString(),
+    marketDataAt: rows.at(-1)?.date || "",
     error: "",
     source: "fred",
   };
@@ -271,7 +310,11 @@ async function fetchBinanceSnapshot() {
   const last = numberOrNull(json.lastPrice);
   const changePct = numberOrNull(json.priceChangePercent);
   if (!isPositiveNumber(last) || changePct === null) throw new Error("Binance invalid 24hr snapshot");
-  return { last, changePct };
+  return {
+    last,
+    changePct,
+    marketDataAt: numberOrNull(json.closeTime) ? new Date(Number(json.closeTime)).toISOString() : "",
+  };
 }
 
 async function fetchBinanceHistory() {
@@ -282,15 +325,18 @@ async function fetchBinanceHistory() {
   if (!Array.isArray(json) || json.length < 5) throw new Error("Binance no kline data");
   const closes = json.map(row => numberOrNull(row?.[4])).filter(value => value !== null);
   if (closes.length < 5) throw new Error("Binance invalid closes");
-  return closes;
+  return {
+    closes,
+    marketDataAt: Number.isFinite(Number(json.at(-1)?.[6])) ? new Date(Number(json.at(-1)?.[6])).toISOString() : "",
+  };
 }
 
 async function fetchBitcoinSnapshot() {
   let binanceError = null;
   try {
     const [snapshot, closes] = await Promise.all([fetchBinanceSnapshot(), fetchBinanceHistory()]);
-    const sma20 = avg(closes.slice(-20));
-    const sma50 = avg(closes.slice(-50));
+    const sma20 = avg(closes.closes.slice(-20));
+    const sma50 = avg(closes.closes.slice(-50));
     return {
       symbol: "BTC-USD",
       last: snapshot.last,
@@ -299,6 +345,7 @@ async function fetchBitcoinSnapshot() {
       vs50Pct: sma50 ? (snapshot.last / sma50 - 1) * 100 : null,
       marketState: "BINANCE",
       retrievedAt: new Date().toISOString(),
+      marketDataAt: snapshot.marketDataAt || closes.marketDataAt || "",
       error: "",
       source: "binance",
     };
@@ -347,7 +394,10 @@ async function fetchNasdaqHistory(symbol, assetClass) {
     .map(row => parseMarketNumber(row.close))
     .filter(value => value !== null);
   if (closes.length < 5) throw new Error(`Nasdaq history invalid closes for ${symbol}`);
-  return closes.reverse();
+  return {
+    closes: closes.reverse(),
+    marketDataAt: rows[0]?.date || "",
+  };
 }
 
 async function fetchNasdaqSnapshot(symbol) {
@@ -357,12 +407,12 @@ async function fetchNasdaqSnapshot(symbol) {
     fetchNasdaqInfo(symbol, assetClass),
     fetchNasdaqHistory(symbol, assetClass),
   ]);
-  const last = parseMarketNumber(info.primaryData?.lastSalePrice) ?? closes.at(-1);
+  const last = parseMarketNumber(info.primaryData?.lastSalePrice) ?? closes.closes.at(-1);
   const changePct = parseMarketNumber(info.primaryData?.percentageChange);
-  const prev = closes.at(-2) || closes.at(-1);
+  const prev = closes.closes.at(-2) || closes.closes.at(-1);
   const derivedChangePct = prev ? (last / prev - 1) * 100 : null;
-  const sma20 = avg(closes.slice(-20));
-  const sma50 = avg(closes.slice(-50));
+  const sma20 = avg(closes.closes.slice(-20));
+  const sma50 = avg(closes.closes.slice(-50));
   return {
     symbol,
     last,
@@ -371,6 +421,7 @@ async function fetchNasdaqSnapshot(symbol) {
     vs50Pct: sma50 ? (last / sma50 - 1) * 100 : null,
     marketState: info.marketStatus || "NASDAQ",
     retrievedAt: new Date().toISOString(),
+    marketDataAt: info.primaryData?.lastTradeTimestamp || closes.marketDataAt || "",
     error: "",
     source: "nasdaq",
   };
@@ -406,13 +457,14 @@ function isPositiveNumber(value) {
 }
 
 async function fetchMarketSnapshot() {
+async function fetchMarketSnapshot(forceRefresh = false) {
   const session = marketSessionNow();
   const quoteMap = {};
   const rows = [];
   for (let i = 0; i < MARKET_SYMBOLS.length; i += MARKET_FETCH_BATCH_SIZE) {
     if (i > 0) await sleep(MARKET_FETCH_BATCH_DELAY_MS);
     const symbols = MARKET_SYMBOLS.slice(i, i + MARKET_FETCH_BATCH_SIZE);
-    const batchRows = await Promise.all(symbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session)));
+    const batchRows = await Promise.all(symbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh)));
     rows.push(...batchRows);
   }
   return Object.fromEntries(rows.map(row => [row.symbol, row]));
@@ -477,6 +529,7 @@ async function fetchEastmoneyKline(symbol) {
     vs50Pct: sma50 ? (last / sma50 - 1) * 100 : null,
     marketState: "EASTMONEY",
     retrievedAt: new Date().toISOString(),
+    marketDataAt: String(json.data?.klines?.at(-1) || "").split(",")[0] || "",
     error: "",
     source: "eastmoney",
   };
@@ -568,7 +621,7 @@ function dataSourceRows(snapshot) {
   return focusSymbols.map(symbol => {
     const item = row(snapshot, symbol);
     const status = hasUsableSnapshot(item) ? "正常" : "缺失";
-    return `| ${symbolLabel(symbol)} | ${formatSourceLabel(item.source)} | ${status} | ${formatSourceNote(item.error)} |`;
+    return `| ${symbolLabel(symbol)} | ${formatSourceLabel(item.source)} | ${item.fetchMode === "cache" ? "缓存" : "实时"} | ${formatRetrievedAt(item.cacheStoredAt || item.retrievedAt)} | ${formatRetrievedAt(item.marketDataAt)} | ${status} | ${formatSourceNote(item.error)} |`;
   }).join("\n");
 }
 
@@ -584,7 +637,7 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
   const rowsHtml = focusSymbols.map(symbol => {
     const item = row(snapshot, symbol);
     const status = hasUsableSnapshot(item) ? "正常" : "缺失";
-    return `<tr><td>${symbolLabel(symbol)}</td><td>${formatSourceLabel(item.source)}</td><td>${formatRetrievedAt(item.retrievedAt)}</td><td>${status}</td><td>${formatSourceNote(item.error)}</td></tr>`;
+    return `<tr><td>${symbolLabel(symbol)}</td><td>${formatSourceLabel(item.source)}</td><td>${item.fetchMode === "cache" ? "缓存" : "实时"}</td><td>${formatRetrievedAt(item.cacheStoredAt || item.retrievedAt)}</td><td>${formatRetrievedAt(item.marketDataAt)}</td><td>${status}</td><td>${formatSourceNote(item.error)}</td></tr>`;
   }).join("");
   return `
 <details>
@@ -592,7 +645,7 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
   <p>新闻补充源：${extraSourceLabel || "暂未启用" }。</p>
   <table>
     <thead>
-      <tr><th>指标</th><th>实际来源</th><th>抓取时间</th><th>状态</th><th>备注</th></tr>
+      <tr><th>指标</th><th>实际来源</th><th>方式</th><th>数据获取时间</th><th>行情时间</th><th>状态</th><th>备注</th></tr>
     </thead>
     <tbody>
       ${rowsHtml}
@@ -601,7 +654,9 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
 </details>`.trim();
 }
 
-async function fetchSymbol(symbol, quote, session) {
+async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
+  const cached = getCachedMarketRow(symbol, forceRefresh);
+  if (cached) return cached;
   const errors = [];
   let stableError = null;
   const stableFirstRow = await fetchStableFallback(symbol).catch(error => {
@@ -610,7 +665,7 @@ async function fetchSymbol(symbol, quote, session) {
   });
   if (stableError?.message) errors.push(`stable:${stableError.message}`);
   if (stableFirstRow && !isBadSnapshot(stableFirstRow.last, stableFirstRow.changePct, stableFirstRow.vs20Pct, stableFirstRow.vs50Pct)) {
-    return stableFirstRow;
+    return storeMarketRow(stableFirstRow);
   }
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
   try {
@@ -647,31 +702,32 @@ async function fetchSymbol(symbol, quote, session) {
       vs50Pct: sma50 ? (price / sma50 - 1) * 100 : 0,
       marketState: quote?.marketState || result?.meta?.marketState || "",
       retrievedAt: new Date().toISOString(),
+      marketDataAt: Number.isFinite(Number(result?.meta?.regularMarketTime)) ? new Date(Number(result.meta.regularMarketTime) * 1000).toISOString() : "",
       error: "",
       source: "yahoo",
     };
     if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
-      return yahooRow;
+      return storeMarketRow(yahooRow);
     }
     const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
     if (eastmoneyRow && !isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
-      return eastmoneyRow;
+      return storeMarketRow(eastmoneyRow);
     }
     const finalFallback = await fetchFinalFallback(symbol, errors).catch(error => {
       errors.push(error.message);
       return null;
     });
-    if (finalFallback) return finalFallback;
+    if (finalFallback) return storeMarketRow(finalFallback);
     return yahooRow;
   } catch (error) {
     errors.push(`yahoo:${error.message}`);
     const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
-    if (eastmoneyRow) return eastmoneyRow;
+    if (eastmoneyRow) return storeMarketRow(eastmoneyRow);
     const finalFallback = await fetchFinalFallback(symbol, errors).catch(fallbackError => {
       errors.push(fallbackError.message);
       return null;
     });
-    if (finalFallback) return finalFallback;
+    if (finalFallback) return storeMarketRow(finalFallback);
     return {
       symbol,
       last: null,
@@ -1350,8 +1406,9 @@ export default async function handler(req, res) {
   try {
     const kind = normalizeReportKind(req.query.kind);
     const provider = String(req.query.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
+    const forceRefresh = ["1", "true", "yes"].includes(String(req.query.forceRefresh || "").toLowerCase());
     const meta = kindMeta(kind);
-    const snapshot = await fetchMarketSnapshot();
+    const snapshot = await fetchMarketSnapshot(forceRefresh);
     const jin10 = { source: "", items: [] };
     const classification = classify(snapshot);
     const targets = targetRows(snapshot, classification);
