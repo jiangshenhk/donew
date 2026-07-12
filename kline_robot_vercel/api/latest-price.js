@@ -46,7 +46,7 @@ async function fetchQuote(symbol) {
     changePercent: price !== null && previous ? ((price - previous) / previous) * 100 : null,
     currency: meta.currency || null,
     exchange: meta.exchangeName || null,
-    time: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : null
+    marketTime: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : null
   };
 }
 
@@ -64,7 +64,7 @@ async function buildCache() {
   }
 
   memoryCache = {
-    updatedAt: new Date().toISOString(),
+    cacheUpdatedAt: new Date().toISOString(),
     data
   };
 
