@@ -72,8 +72,8 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
-const MARKET_FETCH_BATCH_SIZE = 8;
-const MARKET_FETCH_BATCH_DELAY_MS = 0;
+const MARKET_FETCH_BATCH_SIZE = 4;
+const MARKET_FETCH_BATCH_DELAY_MS = 250;
 
 function corsHeaders() {
   return {
@@ -409,7 +409,7 @@ async function fetchMarketSnapshot() {
   const quoteMap = await fetchQuoteSnapshot().catch(() => ({}));
   const rows = [];
   for (let i = 0; i < MARKET_SYMBOLS.length; i += MARKET_FETCH_BATCH_SIZE) {
-    if (i > 0 && MARKET_FETCH_BATCH_DELAY_MS > 0) await sleep(MARKET_FETCH_BATCH_DELAY_MS);
+    if (i > 0) await sleep(MARKET_FETCH_BATCH_DELAY_MS);
     const symbols = MARKET_SYMBOLS.slice(i, i + MARKET_FETCH_BATCH_SIZE);
     const batchRows = await Promise.all(symbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session)));
     rows.push(...batchRows);
@@ -598,9 +598,19 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
 }
 
 async function fetchSymbol(symbol, quote, session) {
+  const errors = [];
+  let stableError = null;
+  const stableFirstRow = await fetchStableFallback(symbol).catch(error => {
+    stableError = error;
+    return null;
+  });
+  if (stableError?.message) errors.push(`stable:${stableError.message}`);
+  if (stableFirstRow && !isBadSnapshot(stableFirstRow.last, stableFirstRow.changePct, stableFirstRow.vs20Pct, stableFirstRow.vs50Pct)) {
+    return stableFirstRow;
+  }
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
   try {
-    const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 6000);
+    const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 3500);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const result = json.chart?.result?.[0];
@@ -629,18 +639,35 @@ async function fetchSymbol(symbol, quote, session) {
       symbol,
       last: price,
       changePct,
-      vs20Pct: sma20 && isPositiveNumber(price) ? (price / sma20 - 1) * 100 : null,
-      vs50Pct: sma50 && isPositiveNumber(price) ? (price / sma50 - 1) * 100 : null,
+      vs20Pct: sma20 ? (price / sma20 - 1) * 100 : 0,
+      vs50Pct: sma50 ? (price / sma50 - 1) * 100 : 0,
       marketState: quote?.marketState || result?.meta?.marketState || "",
       retrievedAt: new Date().toISOString(),
       error: "",
       source: "yahoo",
     };
-    if (isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
-      throw new Error("Yahoo 数据不完整");
+    if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
+      return yahooRow;
     }
+    const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
+    if (eastmoneyRow && !isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
+      return eastmoneyRow;
+    }
+    const finalFallback = await fetchFinalFallback(symbol, errors).catch(error => {
+      errors.push(error.message);
+      return null;
+    });
+    if (finalFallback) return finalFallback;
     return yahooRow;
   } catch (error) {
+    errors.push(`yahoo:${error.message}`);
+    const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
+    if (eastmoneyRow) return eastmoneyRow;
+    const finalFallback = await fetchFinalFallback(symbol, errors).catch(fallbackError => {
+      errors.push(fallbackError.message);
+      return null;
+    });
+    if (finalFallback) return finalFallback;
     return {
       symbol,
       last: null,
@@ -648,8 +675,8 @@ async function fetchSymbol(symbol, quote, session) {
       vs20Pct: null,
       vs50Pct: null,
       retrievedAt: new Date().toISOString(),
-      error: `yahoo:${error.message}`,
-      source: "yahoo",
+      error: errors.join(" | ") || error.message,
+      source: symbol === "BTC-USD" ? "binance/fred" : FRED_SERIES[symbol] ? "yahoo/fred" : "",
     };
   }
 }
