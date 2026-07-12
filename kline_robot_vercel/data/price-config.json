@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "intervalMinutes": 5,
+  "lastUpdated": null,
+  "description": "Control switch for scheduled market price updater"
+}
