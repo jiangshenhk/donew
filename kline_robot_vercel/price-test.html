@@ -18,6 +18,8 @@ table{width:100%;border-collapse:collapse;font-size:14px}th{background:#f1f5f9;t
 <div class="status" id="status">加载状态...</div>
 <button onclick="loadPrice()">读取缓存</button>
 <button onclick="refreshPrice()">立即刷新</button>
+<button onclick="control('start')">启动自动更新</button>
+<button onclick="control('stop')">停止自动更新</button>
 <table>
 <thead><tr><th>代码</th><th>价格</th><th>涨跌幅</th><th>行情时间</th></tr></thead>
 <tbody id="table"></tbody>
@@ -35,6 +37,11 @@ async function refreshPrice(){
  document.getElementById('status').innerText='请求刷新中...';
  await fetch('/api/price-refresh');
  setTimeout(loadPrice,2000);
+}
+async function control(action){
+ const res=await fetch('/api/price-control?action='+action);
+ const json=await res.json();
+ document.getElementById('status').innerText=json.message;
 }
 loadPrice();
 </script>
