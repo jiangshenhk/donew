@@ -1,10 +1,7 @@
-const MARKET_SYMBOLS = [
-  "QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD",
-  "^VIX", "^TNX", "DX-Y.NYB", "QLD", "MSTR", "INTC"
-];
+const MARKET_SYMBOLS = ["QQQ"];
 
-const REQUIRED_TARGETS = ["QLD", "MSTR", "INTC"];
-const CRITICAL_SYMBOLS = ["QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"];
+const REQUIRED_TARGETS = [];
+const CRITICAL_SYMBOLS = ["QQQ"];
 const SYMBOL_LABELS = {
   QQQ: "QQQ",
   SPY: "SPY",
