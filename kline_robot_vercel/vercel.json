@@ -2,10 +2,10 @@
   "regions": ["iad1"],
   "functions": {
     "api/report.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "api/market-report.js": {
-      "maxDuration": 60
+      "maxDuration": 120
     }
   }
 }
