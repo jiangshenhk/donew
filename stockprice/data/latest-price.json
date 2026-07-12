@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-12T22:13:31.082Z",
-  "checkedAt": "2026-07-12T22:13:31.082Z",
+  "updatedAt": "2026-07-12T23:09:26.192Z",
+  "checkedAt": "2026-07-12T23:09:26.192Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -147,10 +147,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 63705.99,
+      "price": 63756.82,
       "previousClose": 62257.574,
-      "changePercent": "2.33",
-      "marketTime": "2026-07-12T22:04:56.000Z",
+      "changePercent": "2.41",
+      "marketTime": "2026-07-12T23:09:12.000Z",
       "currency": "USD",
       "exchange": "CCC"
     },
@@ -167,10 +167,10 @@
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "price": 101.13,
+      "price": 101.141,
       "previousClose": 101.14,
-      "changePercent": "-0.01",
-      "marketTime": "2026-07-12T22:03:22.000Z",
+      "changePercent": "0.00",
+      "marketTime": "2026-07-12T22:59:15.000Z",
       "currency": "USD",
       "exchange": "NYB"
     },
@@ -187,30 +187,30 @@
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "price": 162.003,
-      "previousClose": 161.452,
-      "changePercent": "0.34",
-      "marketTime": "2026-07-12T22:13:24.000Z",
+      "price": 162.034,
+      "previousClose": 162.088,
+      "changePercent": "-0.03",
+      "marketTime": "2026-07-12T23:09:16.000Z",
       "currency": "JPY",
       "exchange": "CCY"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 71.41,
+      "price": 73.72,
       "previousClose": 70.44,
-      "changePercent": "1.38",
-      "marketTime": "2026-07-12T22:03:24.000Z",
+      "changePercent": "4.66",
+      "marketTime": "2026-07-12T22:59:17.000Z",
       "currency": "USD",
       "exchange": "NYM"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4113.7,
+      "price": 4084.6,
       "previousClose": 4145.3,
-      "changePercent": "-0.76",
-      "marketTime": "2026-07-12T22:03:22.000Z",
+      "changePercent": "-1.46",
+      "marketTime": "2026-07-12T22:59:17.000Z",
       "currency": "USD",
       "exchange": "CMX"
     },
