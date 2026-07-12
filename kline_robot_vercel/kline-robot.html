@@ -512,13 +512,14 @@
               <option value="us">美股</option>
               <option value="hk">港股</option>
               <option value="cn">A股</option>
+              <option value="global">全球指数/宏观</option>
               <option value="crypto">虚拟货币</option>
             </select>
           </div>
           <div>
             <div class="label-help">
               <label for="symbolInput">标的</label>
-              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="输入参考：&#10;A股：只支持数字，如 600570&#10;A股指数：上证指数 000001.SH，上证红利 000015.SH，科创50 000688.SH&#10;港股：只支持数字，如 00700&#10;港股指数：恒生指数 ^HSI，恒生科技 ^HSTECH，恒生科技ETF 03033&#10;美股：如 AAPL，QQQ&#10;美股指数：标普500 ^GSPC，纳斯达克 ^IXIC，道琼斯 ^DJI，罗素2000 ^RUT，费城半导体 ^SOX，VIX恐慌指数 ^VIX，纳指100 ^NDX，红利 SCHD，科技 XLK">?</button>
+              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="输入参考：&#10;A股：只支持数字，如 600570&#10;A股指数：上证指数 000001.SH，上证红利 000015.SH，科创50 000688.SH&#10;港股：只支持数字，如 00700&#10;港股指数：恒生指数 ^HSI，恒生科技 ^HSTECH，恒生科技ETF 03033&#10;美股：如 AAPL，QQQ&#10;美股指数：标普500 ^GSPC，纳斯达克 ^IXIC，道琼斯 ^DJI，罗素2000 ^RUT，费城半导体 ^SOX，VIX恐慌指数 ^VIX，纳指100 ^NDX，红利 SCHD，科技 XLK&#10;全球指数/宏观：美元指数 DX-Y.NYB，黄金 GC=F，原油 CL=F，欧元美元 EURUSD=X">?</button>
             </div>
             <input id="symbolInput" name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700" required>
           </div>
@@ -613,7 +614,7 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '2.9.35｜2026-7-12｜2B判定收严';
+    const appVersionText = '2.9.40｜2026-7-12｜宏观代码说明';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
@@ -670,7 +671,7 @@
     }
 
     function marketText(value) {
-      return ({ us: '美股', hk: '港股', cn: 'A股', crypto: '虚拟货币' })[value] || '自动';
+      return ({ us: '美股', hk: '港股', cn: 'A股', global: '全球指数/宏观', crypto: '虚拟货币' })[value] || '自动';
     }
 
     function renderHistory() {

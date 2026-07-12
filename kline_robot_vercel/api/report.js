@@ -76,6 +76,12 @@ const SYMBOL_NAME_MAP = {
   "^NDX": "纳斯达克100指数",
   "^HSI": "恒生指数",
   "^HSTECH": "恒生科技指数",
+  "^RUT": "罗素2000指数",
+  "^SOX": "费城半导体指数",
+  "^VIX": "VIX恐慌指数",
+  "DX-Y.NYB": "美元指数",
+  "GC=F": "黄金期货",
+  "CL=F": "原油期货",
   "BTC-USD": "比特币",
 };
 
@@ -111,6 +117,10 @@ function normalizeSymbol(rawSymbol, market) {
     const suffix = matched[2] || (code.startsWith("6") || code.startsWith("9") ? "SS" : "SZ");
     return { yahoo: `${code}.${suffix}`, display: `${code}.${suffix}` };
   }
+  if (selectedMarket === "global") {
+    if (!compact) throw new Error("找不到代码：全球指数/宏观请输入 Yahoo Finance 代码，例如 DX-Y.NYB、GC=F、CL=F。");
+    return { yahoo: compact, display: compact };
+  }
   return { yahoo: compact, display: compact };
 }
 
@@ -119,6 +129,12 @@ function marketOrderFor(rawSymbol, selectedMarket) {
   if (requested) return [requested];
   const compact = String(rawSymbol || "").trim().toUpperCase().replace(/\s+/g, "");
   if (compact === "^HSI" || compact === "^HSTECH") return ["hk", "us", "cn", "crypto"];
+  if (
+    /\.NYB$/.test(compact)
+    || /=F$/.test(compact)
+    || /=X$/.test(compact)
+    || /\.(CBT|CMX|NYM|CME|ICE)$/.test(compact)
+  ) return ["global", "us", "hk", "cn", "crypto"];
   if (compact.startsWith("^")) return ["us", "hk", "cn", "crypto"];
   if (/^(SH|SZ)?\d{6}(\.(SS|SZ|SH))?$/.test(compact)) return ["cn", "us", "hk", "crypto"];
   if (/^0?\d{4}$/.test(compact) || /^0\d{4}$/.test(compact)) return ["hk", "us", "cn", "crypto"];
@@ -137,6 +153,7 @@ function marketTimeLabel(market, timezone) {
   if (/Hong_Kong/i.test(String(timezone || "")) || market === "hk") return "香港市场时间";
   if (/Shanghai/i.test(String(timezone || "")) || market === "cn") return "中国市场时间";
   if (market === "crypto") return "UTC时间";
+  if (market === "global") return "全球市场时间";
   return timezone ? `${timezone} 时间` : "市场时间";
 }
 
@@ -206,11 +223,15 @@ function eastmoneyTimezone(market) {
   const value = String(market || "").toLowerCase();
   if (value === "cn") return "Asia/Shanghai";
   if (value === "hk") return "Asia/Hong_Kong";
+  if (value === "global") return "America/New_York";
   return "America/New_York";
 }
 
 async function fetchEastmoneyDailyBars(symbol, range, interval, market) {
   if (String(interval || "").toLowerCase() !== "1d") throw new Error("东财备用行情源只支持日线。");
+  if (String(market || "").toLowerCase() === "global") {
+    throw new Error(`东财备用行情源暂不支持：${symbol}`);
+  }
   const secid = await eastmoneyLookupSecid(symbol, market);
   if (!secid) throw new Error(`东财备用行情源暂不支持：${symbol}`);
   const end = new Date();
@@ -1844,6 +1865,7 @@ function marketSampleSymbols(market, currentYahoo) {
     us: ["^IXIC", "QQQ", "SPY", "AAPL", "NVDA", "TSLA", "MSTR"],
     hk: ["^HSI", "0700.HK", "9988.HK", "3690.HK", "0388.HK", "1299.HK"],
     cn: ["000001.SS", "399001.SZ", "600570.SS", "600519.SS", "000858.SZ", "300750.SZ"],
+    global: ["DX-Y.NYB", "GC=F", "CL=F", "^VIX", "^SOX"],
     crypto: ["BTC-USD", "ETH-USD", "SOL-USD"],
   }[String(market || "us").toLowerCase()] || ["^IXIC", "QQQ", "SPY"];
   return [current, ...samples.map((item) => String(item).toUpperCase())]
@@ -2001,8 +2023,11 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
   const closePosition = Number.isFinite(structureSpan) && structureSpan > 0
     ? (last.close - support) / structureSpan
     : 0.5;
+  const normalizedClosePosition = Math.max(0, Math.min(1.2, closePosition));
   const nearConfirmZone = closePosition >= 0.72;
+  const nearCRecoveryZone = closePosition >= 0.56;
   const risingIntoConfirm = recentTrend > 0 && risingCloses >= 2 && recentHigherHighs >= 2;
+  const breakoutAttempt = risingIntoConfirm && normalizedClosePosition >= 0.88;
   let stage = "ABC待确认";
   let positionLabel = "当前位于 ABC 观察区";
   let phaseKey = "unknown";
@@ -2020,28 +2045,42 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     stage = "C 段延续";
     positionLabel = "当前更像 C 段后半段 / 延续加速";
     phaseKey = "C";
-    progress = 0.92;
+    progress = 0.97;
     bias = "偏多";
     note = "动量较强且价格站上中期均线，更像 C 段再次上冲后的延续。";
   } else if (momentum >= 1 && aboveE20 && last.close >= pressure1) {
-    stage = "C 段启动";
-    positionLabel = "当前更像 C 段起点 / 突破确认";
+    stage = "C 段突破确认";
+    positionLabel = "当前更像 C 段突破确认 / 已站上确认位";
     phaseKey = "C";
-    progress = 0.76;
+    progress = 0.90 + Math.min(0.04, Math.max(0, normalizedClosePosition - 1) * 0.16);
     bias = "偏多";
-    note = "回踩后重新站回确认位，若量能继续放大，更像 C 段开始。";
+    note = "回踩后已经重新站上确认位，当前位置不再只是试探，更接近 C 段确认后的继续上攻。";
+  } else if (aboveE20 && risingIntoConfirm && breakoutAttempt) {
+    stage = "C 段上攻 / 冲击前高";
+    positionLabel = "当前更像 C 段上攻，正在冲击原 B 高";
+    phaseKey = "C";
+    progress = 0.82 + Math.min(0.07, Math.max(0, normalizedClosePosition - 0.88) * 0.45);
+    bias = "偏多";
+    note = "当前位置已经脱离 C 点低位，属于从 C 点向上修复并冲击原 B 高的阶段，重点看能否把冲高变成有效突破。";
   } else if (aboveE20 && risingIntoConfirm && nearConfirmZone) {
-    stage = "C 段前确认";
-    positionLabel = "当前更像 C 段前确认 / 靠近确认位";
+    stage = "C 段回升 / 靠近确认";
+    positionLabel = "当前更像 C 段回升，正在靠近确认位";
     phaseKey = "C";
-    progress = 0.72;
+    progress = 0.72 + Math.min(0.08, Math.max(0, normalizedClosePosition - 0.72) * 0.4);
     bias = "偏多";
-    note = "最近几根K线持续抬高、价格已靠近确认位，即使尚未正式突破，也更像 C 段前确认，而不是仍处于 B→C 回踩。";
+    note = "最近几根K线持续抬高、价格已靠近确认位，说明已经离开 C 点低位，正在从 C 段回升向确认区推进。";
+  } else if (aboveE20 && recentTrend > 0 && nearCRecoveryZone) {
+    stage = "C 段止跌 / 初步回升";
+    positionLabel = "当前更像 C 段止跌后回升初期";
+    phaseKey = "C";
+    progress = 0.64 + Math.min(0.06, Math.max(0, normalizedClosePosition - 0.56) * 0.35);
+    bias = "中性";
+    note = "当前位置更像从 C 点附近刚开始抬头，先看止跌是否成立，再看能否逐步走向确认位。";
   } else if (momentum >= 1 && aboveE20 && last.close < pressure1) {
     stage = "B→C 过渡";
     positionLabel = "当前更像 B 末段，正在向 C 过渡";
     phaseKey = "BC";
-    progress = 0.62;
+    progress = 0.58 + Math.min(0.12, Math.max(0, normalizedClosePosition - 0.45) * 0.35);
     bias = "偏多";
     note = "回踩后动量开始修复，但还没有完全越过确认位，属于 B 向 C 的过渡。";
   } else if (momentum <= -3 && !aboveE20) {
@@ -2080,12 +2119,12 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     bias = "中性";
     note = "结构还守得住，但还没到强确认；更像 B 段止跌后等待 C 段触发。";
   } else if (aboveE20 && recentTrend > 0) {
-    stage = "C 段前确认";
-    positionLabel = "当前更像 C 段前确认 / 试图突破";
+    stage = "C 段试探";
+    positionLabel = "当前更像 C 段试探 / 尝试离开低位";
     phaseKey = "C";
-    progress = 0.7;
+    progress = 0.68;
     bias = "偏多";
-    note = "价格和趋势都开始向上，但仍需确认上方压力是否有效突破。";
+    note = "价格和趋势都开始向上，但更像刚从 C 段低位抬头，仍需确认回升是否有连续性。";
   }
   const volume = prevVol > 0 ? (volRatio >= 1.12 ? "放量" : volRatio <= 0.88 ? "缩量" : "平量") : "量能不足";
   if (phaseKey === "unknown") {
@@ -2149,13 +2188,31 @@ function abcPositionSvg(abc) {
     ? rawTopLabel.split("/").pop().trim()
     : rawTopLabel.replace(/^当前更像\s*/, "").trim();
   const topLabel = safeHtml(simplifiedTopLabel || "当前位置待确认");
-  const currentText = phase === "fail"
-    ? ["当前位置：", "ABC 结构失效，先按破位/转弱处理。"]
-    : active === "A"
-      ? ["当前位置：", "A→B 上升段，重点看能否继续抬高。"]
-      : active === "B"
-        ? ["当前位置：", "B→C 回踩中，先看止跌，再看是否转强。"]
-        : ["当前位置：", "接近 C 确认区，重点看是否突破并延续。"];
+  const stageTextMap = {
+    "结构失败": ["当前位置：", "ABC 结构失效，先按破位/转弱处理。"],
+    "A 段后回撤": ["当前位置：", "A→B 上升段失速，先看是否继续回撤。"],
+    "A 段失败 / 转弱": ["当前位置：", "A 段失败后转弱，先防继续下探。"],
+    "B 段健康回踩": ["当前位置：", "B→C 回踩中，先看止跌，再看是否转强。"],
+    "B 段偏弱整理": ["当前位置：", "B 段偏弱整理，等待方向进一步明确。"],
+    "B 段止跌 / 等待 C": ["当前位置：", "B 段止跌后横住，等 C 段触发。"],
+    "B→C 过渡": ["当前位置：", "B 末段向 C 过渡，修复刚刚开始。"],
+    "C 段试探": ["当前位置：", "刚从 C 点附近抬头，先看回升是否连续。"],
+    "C 段止跌 / 初步回升": ["当前位置：", "C 点附近止跌回升，先看能否继续抬高。"],
+    "C 段回升 / 靠近确认": ["当前位置：", "已离开 C 点低位，正在靠近确认区。"],
+    "C 段上攻 / 冲击前高": ["当前位置：", "已从 C 点回升，正在冲击原 B 高。"],
+    "C 段突破确认": ["当前位置：", "已站上确认位，重点看突破能否延续。"],
+    "C 段延续": ["当前位置：", "已越过确认区，处于 C 段延续上攻。"],
+  };
+  const currentText = stageTextMap[abc.stage]
+    || (phase === "fail"
+      ? ["当前位置：", "ABC 结构失效，先按破位/转弱处理。"]
+      : active === "A"
+        ? ["当前位置：", "A→B 上升段，重点看能否继续抬高。"]
+        : active === "B"
+          ? ["当前位置：", "B→C 回踩中，先看止跌，再看是否转强。"]
+          : progress >= 0.82
+            ? ["当前位置：", "已从 C 点回升，正在冲击原 B 高 / 确认位。"]
+            : ["当前位置：", "接近 C 确认区，重点看是否突破并延续。"]);
   const noteBoxBase = { w: active === "A" ? 208 : 206, h: active === "A" ? 56 : 60, stroke: currentColor, fill: "rgba(255,209,102,.10)" };
   let noteX = markerX + 16;
   let noteY = markerY - noteBoxBase.h / 2;
@@ -2290,7 +2347,7 @@ function summarizeTwoB({ bars, last, support, pressure1, e20, mom10, rsi14 }) {
 
 function twoBPositionSvg(twoB) {
   if (!twoB?.valid) {
-    return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 380 206" role="img" aria-label="2B结构未成立"><rect x="8" y="8" width="364" height="190" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="18" y="16" width="344" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="32" fill="#d7e3ff" font-size="12" font-weight="800">2B 结构未成立</text><rect x="34" y="54" width="310" height="112" rx="14" fill="rgba(255,255,255,.03)" stroke="rgba(255,209,102,.28)" stroke-dasharray="6 6"/><text x="52" y="92" fill="#ffd166" font-size="14" font-weight="800">当前先不强画 2B 位置图</text><text x="52" y="118" fill="#dbe5ff" font-size="12">最近几根K线没有形成标准的</text><text x="52" y="138" fill="#dbe5ff" font-size="12">“假突破/假跌破后快速回收”结构。</text><text x="52" y="158" fill="#9fb0d8" font-size="11">更适合先结合 ABC 位置与历史趋势继续观察。</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">2B未成立</span>${directionMarkup("中性")}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(twoB.note)}</span></div></div>`;
+    return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 380 206" role="img" aria-label="2B结构未成立"><rect x="8" y="8" width="364" height="190" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="18" y="16" width="344" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="31" fill="#d7e3ff" font-size="11" font-weight="800">2B 结构未成立</text><rect x="40" y="58" width="300" height="100" rx="14" fill="rgba(255,255,255,.03)" stroke="rgba(255,209,102,.28)" stroke-dasharray="6 6"/><text x="56" y="90" fill="#ffd166" font-size="12" font-weight="800">当前先不强画 2B 位置图</text><text x="56" y="113" fill="#dbe5ff" font-size="10.5">最近几根K线没有形成标准的</text><text x="56" y="131" fill="#dbe5ff" font-size="10.5">“假突破/假跌破后快速回收”结构。</text><text x="56" y="149" fill="#9fb0d8" font-size="9.5">更适合先结合 ABC 位置与历史趋势继续观察。</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">2B未成立</span>${directionMarkup("中性")}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(twoB.note)}</span></div></div>`;
   }
   const state = /顶部/.test(twoB.stage) ? "top" : /底部/.test(twoB.stage) ? "bottom" : "neutral";
   const currentColor = "#ffd166";
@@ -2325,9 +2382,7 @@ function twoBPositionSvg(twoB) {
 }
 
 function abcStructureSectionHtml({ abc, twoB, bars }) {
-  const recentBars = Array.isArray(bars) ? bars.slice(-8) : [];
-  const miniBars = recentBars.length >= 3 ? recentBars : (bars || []).slice(-3);
-  return `<section class="section structure-section"><h2>ABC 和 2B 结构，AI判断位置</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">ABC 动量结构</span> 和 <span class="trend-title-accent">2B 反转结构</span> 放在一起，判断当前更像启动、回踩、延续，还是假跌破 / 假突破后的回收。</p><div class="structure-grid"><article class="structure-card"><h3>ABC 动量结构</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.positionLabel || "当前位置待确认")}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>${twoBPositionSvg(twoB)}${miniBars.length >= 3 ? `<div class="structure-mini">${drawMiniCandles({ bars: miniBars, highlightStart: Math.max(0, miniBars.length - 4), highlightEnd: miniBars.length - 1, label: "当前末尾K线位置" })}</div>` : ""}</article></div></section>`;
+  return `<section class="section structure-section"><h2>ABC 和 2B 结构，AI判断位置</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">ABC 动量结构</span> 和 <span class="trend-title-accent">2B 反转结构</span> 放在一起，判断当前更像启动、回踩、延续，还是假跌破 / 假突破后的回收。</p><div class="structure-grid"><article class="structure-card"><h3>ABC 动量结构</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.positionLabel || "当前位置待确认")}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>${twoBPositionSvg(twoB)}</article></div></section>`;
 }
 
 function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
