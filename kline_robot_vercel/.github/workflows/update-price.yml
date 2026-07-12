@@ -8,11 +8,21 @@ on:
 jobs:
   update-price:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Update price cache
         run: |
-          echo "Price cache update placeholder"
-          echo "Future step will call market data updater"
+          node kline_robot_vercel/scripts/update-price.js
+
+      - name: Commit cache update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add kline_robot_vercel/data/latest-price.json
+          git diff --cached --quiet || git commit -m "Update market price cache"
+          git push
