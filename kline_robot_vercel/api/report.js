@@ -2144,14 +2144,18 @@ function abcPositionSvg(abc) {
   const [from, to, localT] = segmentForProgress(progress);
   const markerX = from.x + (to.x - from.x) * localT;
   const markerY = from.y + (to.y - from.y) * localT;
-  const topLabel = safeHtml(abc.positionLabel || abc.stage || "当前位置待确认");
+  const rawTopLabel = abc.positionLabel || abc.stage || "当前位置待确认";
+  const simplifiedTopLabel = rawTopLabel.includes("/")
+    ? rawTopLabel.split("/").pop().trim()
+    : rawTopLabel.replace(/^当前更像\s*/, "").trim();
+  const topLabel = safeHtml(simplifiedTopLabel || "当前位置待确认");
   const currentText = phase === "fail"
-    ? ["如果当前在这里：", "ABC 结构失效，先按破位/转弱处理。"]
+    ? ["当前在这里：", "ABC 结构失效，先按破位/转弱处理。"]
     : active === "A"
-      ? ["如果当前在这里：", "A→B 上升段，重点看能否继续抬高。"]
+      ? ["当前在这里：", "A→B 上升段，重点看能否继续抬高。"]
       : active === "B"
-        ? ["如果当前在这里：", "B→C 回踩中，先看止跌，再看是否转强。"]
-        : ["如果当前在这里：", "接近 C 确认区，重点看是否突破并延续。"];
+        ? ["当前在这里：", "B→C 回踩中，先看止跌，再看是否转强。"]
+        : ["当前在这里：", "接近 C 确认区，重点看是否突破并延续。"];
   const noteBoxBase = { w: active === "A" ? 208 : 206, h: active === "A" ? 56 : 60, stroke: currentColor, fill: "rgba(255,209,102,.10)" };
   let noteX = markerX + 16;
   let noteY = markerY - noteBoxBase.h / 2;
