@@ -20,14 +20,11 @@ async function sleep(ms) {
 async function fetchPrice(item, retry = 2) {
   const symbol = typeof item === 'string' ? item : item.symbol;
   const category = typeof item === 'string' ? 'Unknown' : item.category;
-
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
 
   try {
     const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 donew-stockprice'
-      }
+      headers: { 'User-Agent': 'Mozilla/5.0 donew-stockprice' }
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -60,11 +57,7 @@ async function fetchPrice(item, retry = 2) {
     }
 
     console.log(`[FAIL] ${symbol} ${e.message}`);
-    return {
-      symbol,
-      category,
-      error: e.message
-    };
+    return { symbol, category, error: e.message };
   }
 }
 
@@ -77,14 +70,21 @@ async function main() {
     await sleep(1000);
   }
 
+  const successCount = data.filter(x => !x.error).length;
+  const failCount = data.length - successCount;
+  const now = new Date().toISOString();
+
   fs.mkdirSync(path.dirname(outputFile), { recursive: true });
 
   fs.writeFileSync(outputFile, JSON.stringify({
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
+    checkedAt: now,
+    successCount,
+    failCount,
     data
   }, null, 2));
 
-  console.log(`Saved ${data.length} symbols`);
+  console.log(`Saved ${data.length} symbols success=${successCount} fail=${failCount}`);
 }
 
 main();
