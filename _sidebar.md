@@ -106,5 +106,11 @@
   - [历史市场趋势](/docs/市场/历史.md)
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
 
+- **[🧭 X高人跟踪](/docs/X高人跟踪/00_X高人跟踪总控.md)**
+  - [高人库与交叉验证总控](/docs/X高人跟踪/00_X高人跟踪总控.md)
+  - [人物档案模板](/docs/X高人跟踪/01_人物档案模板.md)
+  - [TraderChenge跟踪档案](/docs/X高人跟踪/人物/TraderChenge.md)
+  - [观点交叉验证模板](/docs/X高人跟踪/交叉验证/README.md)
+
 - **[✉️ 联系](/docs/other/contact.md)**
   - [联系我](/docs/other/contact.md)
