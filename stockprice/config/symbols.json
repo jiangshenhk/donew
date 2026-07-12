@@ -1,0 +1,13 @@
+{
+  "description": "统一行情中心标的列表",
+  "symbols": [
+    "QQQ", "SPY", "IWM", "QLD", "TQQQ",
+    "SMH", "SOXX", "MAGS",
+    "EEM", "FXI", "KWEB",
+    "^VIX", "VIXY",
+    "IBIT", "BTC-USD", "MSTR",
+    "DX-Y.NYB", "^TNX", "JPY=X",
+    "CL=F", "GC=F",
+    "INTC", "HOOD"
+  ]
+}
