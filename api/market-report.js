@@ -240,7 +240,7 @@ async function fetchFredSeries(symbol) {
   const series = FRED_SERIES[symbol];
   if (!series) return null;
   const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(series)}&cosd=${encodeURIComponent(isoDaysAgo(220))}`;
-  const res = await timedFetch(url, { headers: browserHeaders("https://fred.stlouisfed.org/") }, 4500);
+  const res = await timedFetch(url, { headers: browserHeaders("https://fred.stlouisfed.org/") }, 10000);
   if (!res.ok) throw new Error(`FRED HTTP ${res.status}`);
   const csv = await res.text();
   const rows = parseFredCsv(csv, series);
@@ -524,8 +524,11 @@ function formatSourceLabel(source) {
 function formatSourceNote(error) {
   const text = String(error || "").trim();
   if (!text) return "-";
-  if (/FRED/i.test(text)) return "FRED回退源未取到；请手动复核";
+  if (/AbortError|aborted|timeout/i.test(text)) return "行情源请求超时，未取到可靠数据；请手动复核";
+  if (/\|/.test(text) && /429/.test(text)) return "主/回退行情源均失败，且存在限流；请手动复核";
+  if (/\|/.test(text) && /FRED/i.test(text)) return "主/回退行情源均未成功返回；请手动复核";
   if (/429/.test(text)) return "行情源限流，未取到可靠数据；请手动复核";
+  if (/FRED/i.test(text)) return "FRED回退源未取到；请手动复核";
   if (/HTTP\s+\d+/i.test(text)) return "行情源返回异常，未取到可靠数据；请手动复核";
   if (/missing|No close data|No data/i.test(text)) return "行情源数据不完整；请手动复核";
   return "未取到可靠数据；请手动复核";
