@@ -72,8 +72,7 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
-const MARKET_FETCH_BATCH_SIZE = 4;
-const MARKET_FETCH_BATCH_DELAY_MS = 250;
+const MARKET_FETCH_BATCH_DELAY_MS = 1000;
 const MARKET_CACHE_TTL_MS = 10 * 60 * 1000;
 const marketDataCache = new Map();
 
@@ -460,11 +459,10 @@ async function fetchMarketSnapshot(forceRefresh = false) {
   const session = marketSessionNow();
   const quoteMap = {};
   const rows = [];
-  for (let i = 0; i < MARKET_SYMBOLS.length; i += MARKET_FETCH_BATCH_SIZE) {
+  for (let i = 0; i < MARKET_SYMBOLS.length; i += 1) {
     if (i > 0) await sleep(MARKET_FETCH_BATCH_DELAY_MS);
-    const symbols = MARKET_SYMBOLS.slice(i, i + MARKET_FETCH_BATCH_SIZE);
-    const batchRows = await Promise.all(symbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh)));
-    rows.push(...batchRows);
+    const symbol = MARKET_SYMBOLS[i];
+    rows.push(await fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh));
   }
   return Object.fromEntries(rows.map(row => [row.symbol, row]));
 }
@@ -657,76 +655,28 @@ async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
   const cached = getCachedMarketRow(symbol, forceRefresh);
   if (cached) return cached;
   const errors = [];
-  let stableError = null;
-  const stableFirstRow = await fetchStableFallback(symbol).catch(error => {
-    stableError = error;
-    return null;
-  });
-  if (stableError?.message) errors.push(`stable:${stableError.message}`);
-  if (stableFirstRow && !isBadSnapshot(stableFirstRow.last, stableFirstRow.changePct, stableFirstRow.vs20Pct, stableFirstRow.vs50Pct)) {
-    return storeMarketRow(stableFirstRow);
-  }
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d`;
-  try {
-    const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 3500);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const result = json.chart?.result?.[0];
-    const closes = (result?.indicators?.quote?.[0]?.close || []).filter(value => value !== null && value !== undefined).map(Number);
-    if (!result || closes.length < 5) throw new Error("No close data");
-    const lastChart = numberOrNull(result.meta?.regularMarketPrice) || closes.at(-1);
-    const prev = closes.length > 1 ? closes.at(-2) : closes.at(-1);
-    const quotePrice = numberOrNull(latestPriceFromQuote(quote, session.phase));
-    const derivedPrice = isPositiveNumber(quotePrice) ? quotePrice : numberOrNull(lastChart);
-    const derivedChangePct = isPositiveNumber(derivedPrice) && isPositiveNumber(prev)
-      ? (derivedPrice / prev - 1) * 100
-      : null;
-    const quoteChangePct = numberOrNull(latestChangePctFromQuote(quote, session.phase));
-    const hasMeaningfulDerivedChange = numberOrNull(derivedChangePct) !== null && Math.abs(derivedChangePct) >= 0.05;
-    const hasMeaningfulQuoteChange = quoteChangePct !== null && Math.abs(quoteChangePct) >= 0.05;
-    const shouldUseQuoteChange =
-      session.phase !== "closed" &&
-      isPositiveNumber(quotePrice) &&
-      quoteChangePct !== null &&
-      (hasMeaningfulQuoteChange || !hasMeaningfulDerivedChange);
-    const price = derivedPrice;
-    const changePct = shouldUseQuoteChange ? quoteChangePct : derivedChangePct;
-    const sma20 = avg(closes.slice(-20));
-    const sma50 = avg(closes.slice(-50));
-    const yahooRow = {
-      symbol,
-      last: price,
-      changePct,
-      vs20Pct: sma20 ? (price / sma20 - 1) * 100 : 0,
-      vs50Pct: sma50 ? (price / sma50 - 1) * 100 : 0,
-      marketState: quote?.marketState || result?.meta?.marketState || "",
-      retrievedAt: new Date().toISOString(),
-      marketDataAt: Number.isFinite(Number(result?.meta?.regularMarketTime)) ? new Date(Number(result.meta.regularMarketTime) * 1000).toISOString() : "",
-      error: "",
-      source: "yahoo",
-    };
-    if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
-      return storeMarketRow(yahooRow);
+
+  if (NASDAQ_ASSET_CLASS[symbol]) {
+    try {
+      const stableRow = await fetchNasdaqSnapshot(symbol);
+      if (!isBadSnapshot(stableRow.last, stableRow.changePct, stableRow.vs20Pct, stableRow.vs50Pct)) {
+        return storeMarketRow(stableRow);
+      }
+      errors.push("nasdaq:invalid snapshot");
+    } catch (error) {
+      errors.push(`nasdaq:${error.message}`);
     }
-    const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
-    if (eastmoneyRow && !isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
-      return storeMarketRow(eastmoneyRow);
+
+    try {
+      const eastmoneyRow = await fetchEastmoneyKline(symbol);
+      if (!isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
+        return storeMarketRow(eastmoneyRow);
+      }
+      errors.push("eastmoney:invalid snapshot");
+    } catch (error) {
+      errors.push(`eastmoney:${error.message}`);
     }
-    const finalFallback = await fetchFinalFallback(symbol, errors).catch(error => {
-      errors.push(error.message);
-      return null;
-    });
-    if (finalFallback) return storeMarketRow(finalFallback);
-    return yahooRow;
-  } catch (error) {
-    errors.push(`yahoo:${error.message}`);
-    const eastmoneyRow = await fetchEastmoneyKline(symbol).catch(() => null);
-    if (eastmoneyRow) return storeMarketRow(eastmoneyRow);
-    const finalFallback = await fetchFinalFallback(symbol, errors).catch(fallbackError => {
-      errors.push(fallbackError.message);
-      return null;
-    });
-    if (finalFallback) return storeMarketRow(finalFallback);
+
     return {
       symbol,
       last: null,
@@ -734,16 +684,65 @@ async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
       vs20Pct: null,
       vs50Pct: null,
       retrievedAt: new Date().toISOString(),
-      error: errors.join(" | ") || error.message,
-      source: symbol === "BTC-USD"
-        ? "binance/fred/yahoo"
-        : NASDAQ_ASSET_CLASS[symbol]
-          ? "nasdaq/yahoo"
-          : FRED_SERIES[symbol]
-            ? "fred/yahoo"
-            : "yahoo",
+      error: errors.join(" | "),
+      source: "nasdaq",
     };
   }
+
+  if (symbol === "BTC-USD") {
+    try {
+      const btcRow = await fetchBitcoinSnapshot();
+      if (!isBadSnapshot(btcRow.last, btcRow.changePct, btcRow.vs20Pct, btcRow.vs50Pct)) {
+        return storeMarketRow(btcRow);
+      }
+      errors.push("binance:invalid snapshot");
+    } catch (error) {
+      errors.push(`binance:${error.message}`);
+    }
+    return {
+      symbol,
+      last: null,
+      changePct: null,
+      vs20Pct: null,
+      vs50Pct: null,
+      retrievedAt: new Date().toISOString(),
+      error: errors.join(" | "),
+      source: "binance/fred",
+    };
+  }
+
+  if (FRED_SERIES[symbol]) {
+    try {
+      const fredRow = await fetchFredSeries(symbol);
+      if (!isBadSnapshot(fredRow.last, fredRow.changePct, fredRow.vs20Pct, fredRow.vs50Pct)) {
+        return storeMarketRow(fredRow);
+      }
+      errors.push("fred:invalid snapshot");
+    } catch (error) {
+      errors.push(`fred:${error.message}`);
+    }
+    return {
+      symbol,
+      last: null,
+      changePct: null,
+      vs20Pct: null,
+      vs50Pct: null,
+      retrievedAt: new Date().toISOString(),
+      error: errors.join(" | "),
+      source: "fred",
+    };
+  }
+
+  return {
+    symbol,
+    last: null,
+    changePct: null,
+    vs20Pct: null,
+    vs50Pct: null,
+    retrievedAt: new Date().toISOString(),
+    error: "unsupported symbol",
+    source: "",
+  };
 }
 
 function extractJin10Items(html, limit = 8) {
