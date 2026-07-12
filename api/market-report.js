@@ -71,12 +71,10 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
-const SPECIAL_SYMBOL_FETCH_DELAY_MS = 1000;
-const MARKET_SYMBOL_FETCH_DELAY_MS = 1000;
+const MARKET_SYMBOL_FETCH_DELAY_MIN_MS = 200;
+const MARKET_SYMBOL_FETCH_DELAY_MAX_MS = 1000;
 const MARKET_CACHE_TTL_MS = 10 * 60 * 1000;
 const marketDataCache = new Map();
-const SPECIAL_SYMBOLS = new Set(["BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"]);
-const YAHOO_CHART_SPECIAL_SYMBOLS = new Set(["BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"]);
 
 function corsHeaders() {
   return {
@@ -506,11 +504,7 @@ async function fetchMarketSnapshot(forceRefresh = false) {
   for (let i = 0; i < MARKET_SYMBOLS.length; i += 1) {
     const symbol = MARKET_SYMBOLS[i];
     if (i > 0) {
-      const prevSymbol = MARKET_SYMBOLS[i - 1];
-      const delayMs = SPECIAL_SYMBOLS.has(symbol) || SPECIAL_SYMBOLS.has(prevSymbol)
-        ? SPECIAL_SYMBOL_FETCH_DELAY_MS
-        : MARKET_SYMBOL_FETCH_DELAY_MS;
-      await sleep(delayMs);
+      await sleep(randomFetchDelayMs());
     }
     rows.push(await fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh));
   }
@@ -519,6 +513,13 @@ async function fetchMarketSnapshot(forceRefresh = false) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function randomFetchDelayMs() {
+  return Math.round(
+    MARKET_SYMBOL_FETCH_DELAY_MIN_MS +
+    Math.random() * (MARKET_SYMBOL_FETCH_DELAY_MAX_MS - MARKET_SYMBOL_FETCH_DELAY_MIN_MS)
+  );
 }
 
 function row(snapshot, symbol) {
@@ -705,84 +706,15 @@ async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
   const cached = getCachedMarketRow(symbol, forceRefresh);
   if (cached) return cached;
   const errors = [];
-
-  if (NASDAQ_ASSET_CLASS[symbol]) {
-    try {
-      const stableRow = await fetchNasdaqSnapshot(symbol);
-      if (!isBadSnapshot(stableRow.last, stableRow.changePct, stableRow.vs20Pct, stableRow.vs50Pct)) {
-        return storeMarketRow(stableRow);
-      }
-      errors.push("nasdaq:invalid snapshot");
-    } catch (error) {
-      errors.push(`nasdaq:${error.message}`);
+  try {
+    const yahooRow = await fetchYahooChartSnapshot(symbol);
+    if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
+      return storeMarketRow(yahooRow);
     }
-
-    try {
-      const eastmoneyRow = await fetchEastmoneyKline(symbol);
-      if (!isBadSnapshot(eastmoneyRow.last, eastmoneyRow.changePct, eastmoneyRow.vs20Pct, eastmoneyRow.vs50Pct)) {
-        return storeMarketRow(eastmoneyRow);
-      }
-      errors.push("eastmoney:invalid snapshot");
-    } catch (error) {
-      errors.push(`eastmoney:${error.message}`);
-    }
-
-    return {
-      symbol,
-      last: null,
-      changePct: null,
-      vs20Pct: null,
-      vs50Pct: null,
-      retrievedAt: new Date().toISOString(),
-      error: errors.join(" | "),
-      source: "nasdaq",
-    };
+    errors.push("yahoo:invalid snapshot");
+  } catch (error) {
+    errors.push(`yahoo:${error.message}`);
   }
-
-  if (YAHOO_CHART_SPECIAL_SYMBOLS.has(symbol)) {
-    try {
-      const yahooRow = await fetchYahooChartSnapshot(symbol);
-      if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
-        return storeMarketRow(yahooRow);
-      }
-      errors.push("yahoo:invalid snapshot");
-    } catch (error) {
-      errors.push(`yahoo:${error.message}`);
-    }
-    return {
-      symbol,
-      last: null,
-      changePct: null,
-      vs20Pct: null,
-      vs50Pct: null,
-      retrievedAt: new Date().toISOString(),
-      error: errors.join(" | "),
-      source: "yahoo",
-    };
-  }
-
-  if (FRED_SERIES[symbol]) {
-    try {
-      const fredRow = await fetchFredSeries(symbol);
-      if (!isBadSnapshot(fredRow.last, fredRow.changePct, fredRow.vs20Pct, fredRow.vs50Pct)) {
-        return storeMarketRow(fredRow);
-      }
-      errors.push("fred:invalid snapshot");
-    } catch (error) {
-      errors.push(`fred:${error.message}`);
-    }
-    return {
-      symbol,
-      last: null,
-      changePct: null,
-      vs20Pct: null,
-      vs50Pct: null,
-      retrievedAt: new Date().toISOString(),
-      error: errors.join(" | "),
-      source: "fred",
-    };
-  }
-
   return {
     symbol,
     last: null,
@@ -790,8 +722,8 @@ async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
     vs20Pct: null,
     vs50Pct: null,
     retrievedAt: new Date().toISOString(),
-    error: "unsupported symbol",
-    source: "",
+    error: errors.join(" | "),
+    source: "yahoo",
   };
 }
 

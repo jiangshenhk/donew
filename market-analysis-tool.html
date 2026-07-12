@@ -718,7 +718,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.35｜2026-07-12 21:07｜12个标的串行抓取并放宽前台等待</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.36｜2026-07-12 21:25｜12个标的统一走Yahoo并随机间隔</span></h1>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
         <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
@@ -1356,16 +1356,12 @@
     function startGenerationTimer(kind) {
       stopGenerationTimer();
       generationStartedAt = Date.now();
-      const label = reportTypeLabel(kind);
       const tick = () => {
         const seconds = Math.max(0, Math.floor((Date.now() - generationStartedAt) / 1000));
-        const stepIndex = Math.min(seconds, generationSteps.length - 1);
-        const step = generationSteps[stepIndex];
-        const ordinal = Math.min(stepIndex + 1, generationSteps.length);
-        setStatus(`正在获取数据生成${label}：${step}（${ordinal}/${generationSteps.length}）... ${seconds}s`);
+        setStatus(`正在生成报告... ${seconds}s`);
         const preview = $("#preview");
         if (preview?.querySelector(".empty-state")) {
-          preview.innerHTML = `<div class="empty-state">正在获取：${escapeHtml(step)}<br><span>已运行 ${seconds}s，请等待生成完成。</span></div>`;
+          preview.innerHTML = `<div class="empty-state">正在生成报告...<br><span>已运行 ${seconds}s，请等待生成完成。</span></div>`;
         }
       };
       tick();
