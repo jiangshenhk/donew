@@ -72,9 +72,11 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
+const SPECIAL_SYMBOL_FETCH_DELAY_MS = 1000;
 const MARKET_CACHE_TTL_MS = 10 * 60 * 1000;
 const marketDataCache = new Map();
 const SPECIAL_SYMBOLS = new Set(["BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"]);
+const YAHOO_CHART_SPECIAL_SYMBOLS = new Set(["BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"]);
 
 function corsHeaders() {
   return {
@@ -509,10 +511,11 @@ async function fetchMarketSnapshot(forceRefresh = false) {
   );
   rows.push(...normalRows);
 
-  const specialRows = await Promise.all(
-    specialSymbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh))
-  );
-  rows.push(...specialRows);
+  for (let i = 0; i < specialSymbols.length; i += 1) {
+    if (i > 0) await sleep(SPECIAL_SYMBOL_FETCH_DELAY_MS);
+    const symbol = specialSymbols[i];
+    rows.push(await fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh));
+  }
   return Object.fromEntries(rows.map(row => [row.symbol, row]));
 }
 
@@ -738,29 +741,7 @@ async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
     };
   }
 
-  if (symbol === "BTC-USD") {
-    try {
-      const yahooRow = await fetchYahooChartSnapshot(symbol);
-      if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
-        return storeMarketRow(yahooRow);
-      }
-      errors.push("yahoo:invalid snapshot");
-    } catch (error) {
-      errors.push(`yahoo:${error.message}`);
-    }
-    return {
-      symbol,
-      last: null,
-      changePct: null,
-      vs20Pct: null,
-      vs50Pct: null,
-      retrievedAt: new Date().toISOString(),
-      error: errors.join(" | "),
-      source: "yahoo",
-    };
-  }
-
-  if (symbol === "^VIX" || symbol === "^TNX") {
+  if (YAHOO_CHART_SPECIAL_SYMBOLS.has(symbol)) {
     try {
       const yahooRow = await fetchYahooChartSnapshot(symbol);
       if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
