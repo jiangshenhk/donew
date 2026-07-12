@@ -4,7 +4,7 @@
 <script>
 const URL='https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json';
 function ft(v){return v?new Date(v).toLocaleString():'-'}
-async function loadPrice(){const r=await fetch(URL+'?t='+Date.now());const j=await r.json();document.getElementById('status').innerHTML='🟢 Running<br>缓存更新时间: '+ft(j.updatedAt)+'<br>成功数量: '+j.data.length;let g={};j.data.forEach(x=>(g[x.category||'Other']??=[]).push(x));let h='';Object.keys(g).forEach(c=>{h+='<div class="group"><h2>'+c+'</h2>';g[c].forEach(x=>{h+=`<div class="item"><b>${x.symbol}</b><span>${x.price??'-'}</span><span class="${Number(x.changePercent)>=0?'up':'down'}">${x.changePercent??'-'}%</span><span>${ft(x.marketTime)}</span></div>`});h+='</div>'});document.getElementById('data').innerHTML=h}
+async function loadPrice(){const r=await fetch(URL+'?t='+Date.now());const j=await r.json();document.getElementById('status').innerHTML='🟢 Running<br>后台检查: '+ft(j.checkedAt)+'<br>行情更新: '+ft(j.updatedAt)+'<br>成功: '+(j.successCount??j.data.length)+' / 失败: '+(j.failCount??0);let g={};j.data.forEach(x=>(g[x.category||'Other']??=[]).push(x));let h='';Object.keys(g).forEach(c=>{h+='<div class="group"><h2>'+c+'</h2>';g[c].forEach(x=>{h+=`<div class="item"><b>${x.symbol}</b><span>${x.price??'-'}</span><span class="${Number(x.changePercent)>=0?'up':'down'}">${x.changePercent??'-'}%</span><span>${ft(x.marketTime)}</span></div>`});h+='</div>'});document.getElementById('data').innerHTML=h}
 async function refreshPrice(){document.getElementById('status').innerText='请求刷新中...';await fetch('/api/price-refresh');setTimeout(loadPrice,3000)}
 async function control(a){let r=await fetch('/api/price-control?action='+a);document.getElementById('status').innerText=await r.text()}
 loadPrice();
