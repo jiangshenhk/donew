@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <title>Stock Price Center</title>
 <style>
-body{font-family:Arial;margin:30px;background:#f6f6f6}.box{background:#fff;padding:15px;margin-bottom:15px;border-radius:8px}button{padding:8px 14px;margin-right:8px}
+body{font-family:Arial;margin:30px;background:#f6f6f6}.box{background:#fff;padding:15px;margin-bottom:15px;border-radius:8px}button{padding:8px 14px;margin-right:8px}.item{display:flex;gap:20px;padding:6px 0;border-bottom:1px solid #eee}
 </style>
 </head>
 <body>
@@ -12,20 +12,38 @@ body{font-family:Arial;margin:30px;background:#f6f6f6}.box{background:#fff;paddi
 <div class="box" id="status">加载中...</div>
 <button onclick="control('start')">启动自动更新</button>
 <button onclick="control('stop')">停止自动更新</button>
-<button onclick="refresh()">立即刷新</button>
+<button onclick="loadPrice()">刷新行情</button>
 <div class="box" id="data"></div>
+
 <script>
+const PRICE_URL='https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json';
+
 async function control(action){
  const r=await fetch('/api/price-control?action='+action);
  const j=await r.json();
  document.getElementById('status').innerHTML=JSON.stringify(j);
 }
-async function refresh(){
- const r=await fetch('/api/latest-price');
+
+async function loadPrice(){
+ const r=await fetch(PRICE_URL+'?t='+Date.now());
  const j=await r.json();
- document.getElementById('data').innerHTML='缓存时间: '+(j.updatedAt||'-')+'<br>数量: '+(j.data||[]).length;
+ let html=`缓存更新时间: ${new Date(j.updatedAt).toLocaleString()}<br>`;
+ html+=`数据数量: ${j.data.length}<br><br>`;
+ let group={};
+ j.data.forEach(x=>{
+   let c=x.category||'Other';
+   if(!group[c]) group[c]=[];
+   group[c].push(x);
+ });
+ Object.keys(group).forEach(c=>{
+   html+=`<h3>${c}</h3>`;
+   group[c].forEach(x=>{
+     html+=`<div class="item"><b>${x.symbol}</b><span>${x.price??'-'}</span><span>${x.changePercent??'-'}%</span><span>${x.marketTime??''}</span></div>`;
+   });
+ });
+ document.getElementById('data').innerHTML=html;
 }
-refresh();
+loadPrice();
 </script>
 </body>
 </html>
