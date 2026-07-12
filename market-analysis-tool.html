@@ -673,7 +673,8 @@
     .pct-flat { color: var(--muted); font-weight: 850; }
     .text-warn { color: var(--gold); font-weight: 800; }
     .text-key { color: var(--gold); font-weight: 850; }
-    .signal-bull, .signal-bear, .signal-flat {
+    .signal-bull, .signal-bear, .signal-flat,
+    .traffic-green, .traffic-yellow, .traffic-red {
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -686,6 +687,9 @@
     .signal-bull { background: rgba(74, 222, 128, .14); color: var(--green); }
     .signal-bear { background: rgba(251, 113, 133, .14); color: var(--red); }
     .signal-flat { background: rgba(255, 213, 79, .14); color: var(--gold); }
+    .traffic-green { background: rgba(74, 222, 128, .14); color: var(--green); }
+    .traffic-yellow { background: rgba(255, 213, 79, .14); color: var(--gold); }
+    .traffic-red { background: rgba(251, 113, 133, .14); color: var(--red); }
 
     @media (max-width: 980px) {
       .layout {
@@ -718,7 +722,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.40｜2026-07-13 00:18｜接入stockprice快照版</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.42｜2026-07-13 03:05｜去掉强制刷新和GPT选项</span></h1>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
         <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
@@ -727,13 +731,6 @@
 
     <div class="layout">
       <section class="panel control">
-        <label for="providerSelect">AI 提供商</label>
-        <select id="providerSelect">
-          <option value="deepseek" selected>DeepSeek</option>
-          <option value="openai">GPT</option>
-        </select>
-        <label class="checkbox-inline"><input id="forceRefreshToggle" type="checkbox"> 强制刷新（测试模式）</label>
-
         <p class="section-title">生成最新报告</p>
         <div class="generate-stack">
           <button class="generate-card primary" type="button" data-kind="daily">
@@ -846,7 +843,11 @@
         .replace(/(一句话结论|风险评分|整体策略|一句话交易建议)/g, '<span class="text-key">$1</span>')
         .replace(/🟢\s*顺风/g, '<span class="signal-bull">▲ 顺风</span>')
         .replace(/🔴\s*逆风/g, '<span class="signal-bear">▼ 逆风</span>')
-        .replace(/🟡\s*横风/g, '<span class="signal-flat">◆ 横风</span>');
+        .replace(/🟡\s*横风/g, '<span class="signal-flat">◆ 横风</span>')
+        .replace(/顺风明确/g, '<span class="traffic-green">● 顺风明确</span>')
+        .replace(/绿灯信号/g, '<span class="traffic-green">● 绿灯信号</span>')
+        .replace(/横风观察|黄灯观察|黄灯信号|中性观察/g, match => `<span class="traffic-yellow">● ${match}</span>`)
+        .replace(/红灯信号|严重警告/g, match => `<span class="traffic-red">● ${match}</span>`);
     }
 
     function buildReportPage(report) {
@@ -1039,7 +1040,8 @@
     .pct-flat { color: #8ea0be; font-weight: 850; }
     .text-warn { color: #ffd54f; font-weight: 800; }
     .text-key { color: #ffd54f; font-weight: 850; }
-    .signal-bull, .signal-bear, .signal-flat {
+    .signal-bull, .signal-bear, .signal-flat,
+    .traffic-green, .traffic-yellow, .traffic-red {
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -1052,6 +1054,9 @@
     .signal-bull { background: rgba(74, 222, 128, .14); color: #4ade80; }
     .signal-bear { background: rgba(251, 113, 133, .14); color: #fb7185; }
     .signal-flat { background: rgba(255, 213, 79, .14); color: #ffd54f; }
+    .traffic-green { background: rgba(74, 222, 128, .14); color: #4ade80; }
+    .traffic-yellow { background: rgba(255, 213, 79, .14); color: #ffd54f; }
+    .traffic-red { background: rgba(251, 113, 133, .14); color: #fb7185; }
     @media (max-width: 900px) {
       .meta { grid-template-columns: 1fr 1fr; }
     }
@@ -1377,11 +1382,9 @@
       let requestTimer = null;
 
       try {
-        const provider = $("#providerSelect").value || "deepseek";
-        const forceRefresh = $("#forceRefreshToggle")?.checked ? "1" : "0";
         const controller = new AbortController();
         requestTimer = setTimeout(() => controller.abort(), REPORT_FETCH_TIMEOUT_MS);
-        const response = await fetch(`${apiBase}/api/market-report?kind=${encodeURIComponent(kind)}&provider=${encodeURIComponent(provider)}&forceRefresh=${forceRefresh}`, {
+        const response = await fetch(`${apiBase}/api/market-report?kind=${encodeURIComponent(kind)}&provider=deepseek`, {
           headers: { "accept": "application/json" },
           signal: controller.signal
         });
