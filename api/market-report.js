@@ -360,6 +360,48 @@ async function fetchBitcoinSnapshot() {
   }
 }
 
+async function fetchYahooChartSnapshot(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d&events=history&includePrePost=false`;
+  const res = await timedFetch(url, { headers: browserHeaders("https://finance.yahoo.com/") }, 3500);
+  if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
+  const payload = await res.json();
+  const result = payload?.chart?.result?.[0];
+  if (!result) {
+    const detail = payload?.chart?.error?.description || payload?.chart?.error?.code || "";
+    throw new Error(detail || "Yahoo no chart result");
+  }
+  const meta = result.meta || {};
+  const quote = result.indicators?.quote?.[0] || {};
+  const timestamps = result.timestamp || [];
+  const closes = [];
+  for (let i = 0; i < timestamps.length; i += 1) {
+    const close = quote.close?.[i];
+    if (close === null || close === undefined || Number.isNaN(Number(close))) continue;
+    closes.push(Number(close));
+  }
+  if (closes.length < 5) throw new Error("Yahoo insufficient closes");
+  const last = numberOrNull(meta.regularMarketPrice) ?? closes.at(-1);
+  const prev = closes.at(-2) || closes.at(-1);
+  const sma20 = avg(closes.slice(-20));
+  const sma50 = avg(closes.slice(-50));
+  return {
+    symbol,
+    last,
+    changePct: prev ? (last / prev - 1) * 100 : null,
+    vs20Pct: sma20 ? (last / sma20 - 1) * 100 : null,
+    vs50Pct: sma50 ? (last / sma50 - 1) * 100 : null,
+    marketState: meta.marketState || "YAHOO",
+    retrievedAt: new Date().toISOString(),
+    marketDataAt: Number.isFinite(Number(meta.regularMarketTime))
+      ? new Date(Number(meta.regularMarketTime) * 1000).toISOString()
+      : Number.isFinite(Number(timestamps.at(-1)))
+        ? new Date(Number(timestamps.at(-1)) * 1000).toISOString()
+        : "",
+    error: "",
+    source: "yahoo",
+  };
+}
+
 async function fetchNasdaqInfo(symbol, assetClass) {
   const url = `https://api.nasdaq.com/api/quote/${encodeURIComponent(symbol)}/info?assetclass=${encodeURIComponent(assetClass)}`;
   const res = await timedFetch(url, {
@@ -698,13 +740,13 @@ async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
 
   if (symbol === "BTC-USD") {
     try {
-      const btcRow = await fetchBitcoinSnapshot();
-      if (!isBadSnapshot(btcRow.last, btcRow.changePct, btcRow.vs20Pct, btcRow.vs50Pct)) {
-        return storeMarketRow(btcRow);
+      const yahooRow = await fetchYahooChartSnapshot(symbol);
+      if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
+        return storeMarketRow(yahooRow);
       }
-      errors.push("binance:invalid snapshot");
+      errors.push("yahoo:invalid snapshot");
     } catch (error) {
-      errors.push(`binance:${error.message}`);
+      errors.push(`yahoo:${error.message}`);
     }
     return {
       symbol,
@@ -714,7 +756,29 @@ async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
       vs50Pct: null,
       retrievedAt: new Date().toISOString(),
       error: errors.join(" | "),
-      source: "binance/fred",
+      source: "yahoo",
+    };
+  }
+
+  if (symbol === "^VIX" || symbol === "^TNX") {
+    try {
+      const yahooRow = await fetchYahooChartSnapshot(symbol);
+      if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
+        return storeMarketRow(yahooRow);
+      }
+      errors.push("yahoo:invalid snapshot");
+    } catch (error) {
+      errors.push(`yahoo:${error.message}`);
+    }
+    return {
+      symbol,
+      last: null,
+      changePct: null,
+      vs20Pct: null,
+      vs50Pct: null,
+      retrievedAt: new Date().toISOString(),
+      error: errors.join(" | "),
+      source: "yahoo",
     };
   }
 
