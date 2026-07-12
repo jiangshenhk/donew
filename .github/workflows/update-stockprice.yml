@@ -18,7 +18,7 @@ jobs:
       - name: Check price service switch
         id: switch
         run: |
-          ENABLED=$(node -e "console.log(require('./stockprice/config/price-config.json').enabled)")
+          ENABLED=$(node --input-type=module -e "import fs from 'fs'; console.log(JSON.parse(fs.readFileSync('./stockprice/config/price-config.json','utf8')).enabled)")
           echo "enabled=$ENABLED" >> $GITHUB_OUTPUT
           echo "Price service enabled: $ENABLED"
 
