@@ -185,6 +185,8 @@ function eastmoneyStaticSecid(symbol, market) {
     "^GSPC": "100.SPX",
     "^DJI": "100.DJI",
     "^NDX": "100.NDX",
+    "DX-Y.NYB": "100.UDI",
+    "EURUSD=X": "119.EURUSD",
   };
   if (indexMap[upper]) return indexMap[upper];
   const cn = upper.match(/^(\d{6})\.(SS|SZ)$/) || upper.match(/^(\d{6})$/);
@@ -229,9 +231,6 @@ function eastmoneyTimezone(market) {
 
 async function fetchEastmoneyDailyBars(symbol, range, interval, market) {
   if (String(interval || "").toLowerCase() !== "1d") throw new Error("东财备用行情源只支持日线。");
-  if (String(market || "").toLowerCase() === "global") {
-    throw new Error(`东财备用行情源暂不支持：${symbol}`);
-  }
   const secid = await eastmoneyLookupSecid(symbol, market);
   if (!secid) throw new Error(`东财备用行情源暂不支持：${symbol}`);
   const end = new Date();

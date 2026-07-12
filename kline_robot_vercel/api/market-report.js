@@ -1,10 +1,9 @@
 const MARKET_SYMBOLS = [
-  "QQQ", "SPY", "IWM", "QLD", "TQQQ", "SMH", "SOXX", "MAGS",
-  "EEM", "FXI", "KWEB", "^VIX", "VIXY", "IBIT", "BTC-USD", "MSTR",
-  "DX-Y.NYB", "^TNX", "JPY=X", "CL=F", "GC=F", "INTC", "HOOD"
+  "QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD",
+  "^VIX", "^TNX", "DX-Y.NYB", "QLD", "MSTR", "INTC"
 ];
 
-const REQUIRED_TARGETS = ["QLD", "EEM", "MSTR", "INTC", "HOOD"];
+const REQUIRED_TARGETS = ["QLD", "MSTR", "INTC"];
 const CRITICAL_SYMBOLS = ["QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"];
 const SYMBOL_LABELS = {
   QQQ: "QQQ",
@@ -73,6 +72,7 @@ const FRED_SERIES = {
   "DX-Y.NYB": "DTWEXBGS",
 };
 const SPECIAL_SYMBOL_FETCH_DELAY_MS = 1000;
+const MARKET_SYMBOL_FETCH_DELAY_MS = 1000;
 const MARKET_CACHE_TTL_MS = 10 * 60 * 1000;
 const marketDataCache = new Map();
 const SPECIAL_SYMBOLS = new Set(["BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"]);
@@ -503,17 +503,15 @@ async function fetchMarketSnapshot(forceRefresh = false) {
   const session = marketSessionNow();
   const quoteMap = {};
   const rows = [];
-  const normalSymbols = MARKET_SYMBOLS.filter(symbol => !SPECIAL_SYMBOLS.has(symbol));
-  const specialSymbols = MARKET_SYMBOLS.filter(symbol => SPECIAL_SYMBOLS.has(symbol));
-
-  const normalRows = await Promise.all(
-    normalSymbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh))
-  );
-  rows.push(...normalRows);
-
-  for (let i = 0; i < specialSymbols.length; i += 1) {
-    if (i > 0) await sleep(SPECIAL_SYMBOL_FETCH_DELAY_MS);
-    const symbol = specialSymbols[i];
+  for (let i = 0; i < MARKET_SYMBOLS.length; i += 1) {
+    const symbol = MARKET_SYMBOLS[i];
+    if (i > 0) {
+      const prevSymbol = MARKET_SYMBOLS[i - 1];
+      const delayMs = SPECIAL_SYMBOLS.has(symbol) || SPECIAL_SYMBOLS.has(prevSymbol)
+        ? SPECIAL_SYMBOL_FETCH_DELAY_MS
+        : MARKET_SYMBOL_FETCH_DELAY_MS;
+      await sleep(delayMs);
+    }
     rows.push(await fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh));
   }
   return Object.fromEntries(rows.map(row => [row.symbol, row]));
