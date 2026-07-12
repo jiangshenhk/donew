@@ -718,7 +718,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.39｜2026-07-12 22:06｜单代码QQQ验证版</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.40｜2026-07-13 00:18｜接入stockprice快照版</span></h1>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
         <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
@@ -1359,31 +1359,21 @@
       generationStartedAt = Date.now();
       const tick = () => {
         const seconds = Math.max(0, Math.floor((Date.now() - generationStartedAt) / 1000));
-        const progress = generationPulseText(seconds);
-        setStatus(`正在生成报告... ${seconds}s｜${progress}`);
+        setStatus(`正在生成报告... ${seconds}s`);
         const preview = $("#preview");
         if (preview?.querySelector(".empty-state")) {
-          preview.innerHTML = `<div class="empty-state">正在生成报告...<br><span>已运行 ${seconds}s｜${escapeHtml(progress)}</span></div>`;
+          preview.innerHTML = `<div class="empty-state">正在生成报告...<br><span>已运行 ${seconds}s</span></div>`;
         }
       };
       tick();
       generationTimer = setInterval(tick, 1000);
     }
 
-    function generationPulseText(seconds) {
-      const phaseStep = REPORT_SYMBOL_COUNT * 2;
-      if (seconds >= phaseStep) return "整理报告中";
-      const symbolIndex = Math.min(REPORT_SYMBOL_COUNT, Math.floor(seconds / 2) + 1);
-      return seconds % 2 === 0
-        ? `发送 ${symbolIndex}/${REPORT_SYMBOL_COUNT}`
-        : `取到 ${symbolIndex}/${REPORT_SYMBOL_COUNT}`;
-    }
-
     async function generateReport(kind) {
       currentKind = kind;
       startGenerationTimer(kind);
       switchView("preview");
-      $("#preview").innerHTML = '<div class="empty-state">正在获取数据生成报告...</div>';
+      $("#preview").innerHTML = '<div class="empty-state">正在生成报告...</div>';
       let requestTimer = null;
 
       try {

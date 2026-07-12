@@ -1,7 +1,14 @@
-const MARKET_SYMBOLS = ["QQQ"];
+const MARKET_SYMBOLS = [
+  "QQQ", "SPY", "IWM", "QLD", "TQQQ", "SMH", "SOXX", "MAGS",
+  "EEM", "FXI", "KWEB", "^VIX", "VIXY", "IBIT", "BTC-USD", "MSTR",
+  "DX-Y.NYB", "^TNX", "JPY=X", "CL=F", "GC=F", "INTC", "HOOD",
+];
 
-const REQUIRED_TARGETS = [];
-const CRITICAL_SYMBOLS = ["QQQ"];
+const REQUIRED_TARGETS = ["QLD", "EEM", "MSTR", "INTC", "HOOD"];
+const CRITICAL_SYMBOLS = [
+  "QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD", "^VIX",
+  "^TNX", "DX-Y.NYB", "MSTR", "INTC", "HOOD",
+];
 const SYMBOL_LABELS = {
   QQQ: "QQQ",
   SPY: "SPY",
@@ -68,10 +75,13 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
+const STOCKPRICE_SNAPSHOT_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
+const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
 const MARKET_SYMBOL_FETCH_DELAY_MIN_MS = 200;
 const MARKET_SYMBOL_FETCH_DELAY_MAX_MS = 1000;
 const MARKET_CACHE_TTL_MS = 10 * 60 * 1000;
 const marketDataCache = new Map();
+let stockpriceSnapshotCache = null;
 
 function corsHeaders() {
   return {
@@ -102,6 +112,56 @@ function cacheKeyFor(symbol) {
 
 function cloneRow(row) {
   return row ? JSON.parse(JSON.stringify(row)) : row;
+}
+
+function normalizeStockpriceRow(item, snapshotMeta, fetchMode) {
+  const last = numberOrNull(item?.price);
+  const previousClose = numberOrNull(item?.previousClose);
+  const changePct = numberOrNull(item?.changePercent);
+  return {
+    symbol: item?.symbol,
+    last,
+    changePct: changePct ?? (last !== null && previousClose ? (last / previousClose - 1) * 100 : null),
+    vs20Pct: null,
+    vs50Pct: null,
+    marketState: item?.exchange || "STOCKPRICE",
+    retrievedAt: snapshotMeta?.checkedAt || snapshotMeta?.updatedAt || new Date().toISOString(),
+    marketDataAt: item?.marketTime || "",
+    error: "",
+    source: "stockprice",
+    fetchMode,
+    cacheStoredAt: snapshotMeta?.checkedAt || snapshotMeta?.updatedAt || new Date().toISOString(),
+    stockpriceUpdatedAt: snapshotMeta?.updatedAt || "",
+    stockpriceCheckedAt: snapshotMeta?.checkedAt || "",
+    previousClose,
+    currency: item?.currency || "",
+    exchange: item?.exchange || "",
+  };
+}
+
+async function loadStockpriceSnapshot(forceRefresh = false) {
+  if (!forceRefresh && stockpriceSnapshotCache && Date.now() - stockpriceSnapshotCache.cachedAt < STOCKPRICE_SNAPSHOT_CACHE_TTL_MS) {
+    return {
+      ...cloneRow(stockpriceSnapshotCache.payload),
+      fetchMode: "cache",
+      cacheServedAt: new Date().toISOString(),
+    };
+  }
+  const res = await timedFetch(STOCKPRICE_SNAPSHOT_URL, {
+    headers: browserHeaders("https://raw.githubusercontent.com/"),
+  }, 8000);
+  if (!res.ok) throw new Error(`stockprice HTTP ${res.status}`);
+  const payload = await res.json();
+  if (!payload || !Array.isArray(payload.data)) throw new Error("stockprice snapshot invalid");
+  stockpriceSnapshotCache = {
+    cachedAt: Date.now(),
+    payload: cloneRow(payload),
+  };
+  return {
+    ...cloneRow(payload),
+    fetchMode: "live",
+    cacheServedAt: new Date().toISOString(),
+  };
 }
 
 function getCachedMarketRow(symbol, forceRefresh = false) {
@@ -495,17 +555,40 @@ function isPositiveNumber(value) {
 }
 
 async function fetchMarketSnapshot(forceRefresh = false) {
-  const session = marketSessionNow();
-  const quoteMap = {};
-  const rows = [];
-  for (let i = 0; i < MARKET_SYMBOLS.length; i += 1) {
-    const symbol = MARKET_SYMBOLS[i];
-    if (i > 0) {
-      await sleep(randomFetchDelayMs());
-    }
-    rows.push(await fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh));
+  const snapshot = await loadStockpriceSnapshot(forceRefresh);
+  const rowMap = Object.fromEntries(
+    (snapshot.data || [])
+      .filter(item => item?.symbol)
+      .map(item => [item.symbol, normalizeStockpriceRow(item, snapshot, snapshot.fetchMode)])
+  );
+  const rows = {};
+  for (const symbol of MARKET_SYMBOLS) {
+    rows[symbol] = rowMap[symbol] || {
+      symbol,
+      last: null,
+      changePct: null,
+      vs20Pct: null,
+      vs50Pct: null,
+      retrievedAt: snapshot.cacheServedAt || snapshot.checkedAt || snapshot.updatedAt || new Date().toISOString(),
+      marketDataAt: "",
+      error: "stockprice missing",
+      source: "stockprice",
+      fetchMode: snapshot.fetchMode || "live",
+      cacheStoredAt: snapshot.cacheServedAt || snapshot.checkedAt || snapshot.updatedAt || new Date().toISOString(),
+      stockpriceUpdatedAt: snapshot.updatedAt || "",
+      stockpriceCheckedAt: snapshot.checkedAt || "",
+    };
   }
-  return Object.fromEntries(rows.map(row => [row.symbol, row]));
+  rows.__meta = {
+    source: "stockprice",
+    updatedAt: snapshot.updatedAt || "",
+    checkedAt: snapshot.checkedAt || "",
+    fetchMode: snapshot.fetchMode || "live",
+    cacheServedAt: snapshot.cacheServedAt || "",
+    successCount: snapshot.successCount ?? rows.__meta?.successCount ?? 0,
+    failCount: snapshot.failCount ?? rows.__meta?.failCount ?? 0,
+  };
+  return rows;
 }
 
 function sleep(ms) {
@@ -610,6 +693,7 @@ function snapshotWarnings(snapshot) {
 
 function formatSourceLabel(source) {
   if (!source) return "未取到";
+  if (source === "stockprice") return "StockPrice Center";
   if (source === "yahoo") return "Yahoo Finance";
   if (source === "eastmoney") return "东方财富";
   if (source === "nasdaq") return "Nasdaq";
@@ -626,6 +710,7 @@ function formatSourceLabel(source) {
 function formatSourceNote(error) {
   const text = String(error || "").trim();
   if (!text) return "-";
+  if (/stockprice missing/i.test(text)) return "统一行情中心未取到";
   if (/\|/.test(text)) {
     const parts = text
       .split("|")
@@ -678,6 +763,7 @@ function formatRetrievedAt(value) {
 }
 
 function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
+  const meta = snapshot.__meta || {};
   const focusSymbols = ["QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD", "^VIX", "^TNX", "DX-Y.NYB", "MSTR", "INTC", "HOOD"];
   const rowsHtml = focusSymbols.map(symbol => {
     const item = row(snapshot, symbol);
@@ -687,7 +773,8 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
   return `
 <details>
   <summary>本文所使用的价格数据来源 + 时间</summary>
-  <p>新闻补充源：${extraSourceLabel || "暂未启用" }。</p>
+  <p>行情中心文件更新时间：${formatRetrievedAt(meta.updatedAt)}；本次读取时间：${formatRetrievedAt(meta.checkedAt || meta.cacheServedAt)}；读取模式：${meta.fetchMode === "cache" ? "缓存" : "实时读取"}；成功 ${meta.successCount ?? "?"} / 失败 ${meta.failCount ?? "?"}。</p>
+  <p>新闻补充源：${extraSourceLabel || "暂未启用"}。</p>
   <table>
     <thead>
       <tr><th>指标</th><th>实际来源</th><th>方式</th><th>数据获取时间</th><th>行情时间</th><th>状态</th><th>备注</th></tr>
@@ -702,26 +789,25 @@ function dataSourceDetailsBlock(snapshot, extraSourceLabel = "") {
 async function fetchSymbol(symbol, quote, session, forceRefresh = false) {
   const cached = getCachedMarketRow(symbol, forceRefresh);
   if (cached) return cached;
-  const errors = [];
-  try {
-    const yahooRow = await fetchYahooChartSnapshot(symbol);
-    if (!isBadSnapshot(yahooRow.last, yahooRow.changePct, yahooRow.vs20Pct, yahooRow.vs50Pct)) {
-      return storeMarketRow(yahooRow);
-    }
-    errors.push("yahoo:invalid snapshot");
-  } catch (error) {
-    errors.push(`yahoo:${error.message}`);
+  const snapshot = await loadStockpriceSnapshot(forceRefresh);
+  const item = (snapshot.data || []).find(entry => cacheKeyFor(entry?.symbol) === cacheKeyFor(symbol));
+  if (!item) {
+    return {
+      symbol,
+      last: null,
+      changePct: null,
+      vs20Pct: null,
+      vs50Pct: null,
+      retrievedAt: snapshot.cacheServedAt || snapshot.checkedAt || snapshot.updatedAt || new Date().toISOString(),
+      error: "stockprice missing",
+      source: "stockprice",
+      fetchMode: snapshot.fetchMode || "live",
+      cacheStoredAt: snapshot.cacheServedAt || snapshot.checkedAt || snapshot.updatedAt || new Date().toISOString(),
+      stockpriceUpdatedAt: snapshot.updatedAt || "",
+      stockpriceCheckedAt: snapshot.checkedAt || "",
+    };
   }
-  return {
-    symbol,
-    last: null,
-    changePct: null,
-    vs20Pct: null,
-    vs50Pct: null,
-    retrievedAt: new Date().toISOString(),
-    error: errors.join(" | "),
-    source: "yahoo",
-  };
+  return storeMarketRow(normalizeStockpriceRow(item, snapshot, snapshot.fetchMode));
 }
 
 function extractJin10Items(html, limit = 8) {
@@ -792,7 +878,7 @@ function classify(snapshot) {
   let risk = 5.5;
   if ((vix.changePct || 0) > 5) risk += 1.2;
   if ((tnx.changePct || 0) > 1 || (dxy.changePct || 0) > 0.3) risk += 0.8;
-  if ((qqq.vs20Pct || 0) < 0 || (spy.vs20Pct || 0) < 0) risk += 0.8;
+  if ((qqq.changePct || 0) < 0 || (spy.changePct || 0) < 0) risk += 0.8;
   if ((smh.changePct || 0) < -1 || (soxx.changePct || 0) < -1) risk += 0.6;
   if ((btc.changePct || 0) < -2) risk += 0.8;
   if ((iwm.changePct || 0) > (spy.changePct || 0)) risk -= 0.3;
@@ -949,10 +1035,10 @@ function flowRows(snapshot, classification, kind) {
   const tnx = row(snapshot, "^TNX");
   const actionVerb = kind === "weekly" ? "本周" : "近24小时";
   return [
-    `| 🟢 **半导体明显强于大盘** | ${formatPctValue(smh.vs20Pct)}、SOXX ${formatPctValue(soxx.vs20Pct)} | SMH / SOXX | AI/半导体仍是资金承接最清晰的方向。 |`,
-    `| 🟡 **纳指修复但不够强** | QQQ ${formatPctValue(qqq.vs20Pct)}，QLD ${formatPctValue(qld.vs20Pct)} | QQQ / QLD | ${actionVerb}只能把候选池打开，不能按强趋势追价。 |`,
-    `| 🟢 **小盘相对有扩散** | IWM ${formatPctValue(iwm.vs20Pct)} | IWM vs QQQ/SPY | 风险偏好有扩散，但未必足以支撑全面进攻。 |`,
-    `| 🔴 **BTC 与 MSTR 继续打脸 risk-on** | BTC ${formatPctValue(btc.vs20Pct)}、MSTR ${formatPctValue(mstr.vs20Pct)} | BTC-USD / MSTR | 加密链不能作为卖 Put 的安全标的。 |`,
+    `| 🟢 **半导体明显强于大盘** | SMH ${formatPctValue(smh.changePct)}、SOXX ${formatPctValue(soxx.changePct)} | SMH / SOXX | AI/半导体仍是资金承接最清晰的方向。 |`,
+    `| 🟡 **纳指修复但不够强** | QQQ ${formatPctValue(qqq.changePct)}，QLD ${formatPctValue(qld.changePct)} | QQQ / QLD | ${actionVerb}只能把候选池打开，不能按强趋势追价。 |`,
+    `| 🟢 **小盘相对有扩散** | IWM ${formatPctValue(iwm.changePct)} | IWM vs QQQ/SPY | 风险偏好有扩散，但未必足以支撑全面进攻。 |`,
+    `| 🔴 **BTC 与 MSTR 继续打脸 risk-on** | BTC ${formatPctValue(btc.changePct)}、MSTR ${formatPctValue(mstr.changePct)} | BTC-USD / MSTR | 加密链不能作为卖 Put 的安全标的。 |`,
     `| 🟡 **美元与波动率仍需盯紧** | DXY ${formatPctValue(dxy.changePct)}，VIX ${formatPctValue(vix.changePct)}，10Y ${formatPctValue(tnx.changePct)} | DXY / VIX / 10Y | 流动性环境没有完全放松，卖 Put 必须降低 Delta。 |`,
   ].join("\n");
 }
@@ -1020,11 +1106,12 @@ function aiAppendix(aiText) {
 }
 
 function buildDailyMarkdownLite(meta, snapshot, classification, targets, retrievedAtLabel, aiText, jin10Items = [], jin10Source = "") {
+  const snapshotMeta = snapshot.__meta || {};
   const phaseLabel = meta.marketPhaseLabel || "美股最新阶段";
   const titleMeta = [retrievedAtLabel ? `数据补取至${retrievedAtLabel}` : "", phaseLabel].filter(Boolean).join("；");
   const headline = headlineFor(meta.kind, classification);
   const finalCommand = finalCommandFor(meta.kind, classification);
-  const dataPreamble = `> **数据口径：** 以美股前一交易日收盘后到现在为止的最近24小时信息为主；如果美股盘中，优先使用最新盘中行情；如果未开盘，则使用盘前或盘后数据。金十财经快讯同步纳入。`;
+  const dataPreamble = `> **数据口径：** 直接读取 stockprice/data/latest-price.json 统一行情快照；若本次快照是缓存，则优先沿用缓存读取时间，但仍保留每个标的自身的行情时间。金十财经快讯同步纳入。`;
   const dataWarning = buildDataWarningBlock(snapshot);
   const newsSection = jin10Items.length
     ? `## 8）最近24小时重大新闻\n\n${jin10Items.slice(0, 6).map(item => `- ${item}`).join("\n")}\n`
@@ -1149,8 +1236,9 @@ ${newsSection}
 
 ## 数据来源
 
-- 美股 ETF / 个股：Nasdaq 公共接口
-- 波动率 / 利率：FRED 官方公开数据
+- 美股 ETF / 个股 / 宏观资产：StockPrice Center（stockprice/data/latest-price.json）
+- 价格快照文件更新时间：${formatRetrievedAt(snapshotMeta.updatedAt)}
+- 本次读取时间：${formatRetrievedAt(snapshotMeta.checkedAt || snapshotMeta.cacheServedAt)}
 - 金十财经：${jin10Source || "search.jin10.com"} 最近 24 小时快讯
 - 菜单6最小数据集：${meta.basis}
 - AI 提示词：DeepSeek / GPT 可选
@@ -1311,8 +1399,9 @@ ${aiBlock}
 ## 数据来源
 
 - 周报所用的公开跨资产快照
-- 美股 ETF / 个股：Nasdaq 公共接口
-- 波动率 / 利率：FRED 官方公开数据
+- 美股 ETF / 个股 / 宏观资产：StockPrice Center（stockprice/data/latest-price.json）
+- 价格快照文件更新时间：${formatRetrievedAt((snapshot.__meta || {}).updatedAt)}
+- 本次读取时间：${formatRetrievedAt((snapshot.__meta || {}).checkedAt || (snapshot.__meta || {}).cacheServedAt)}
 - AI 提示词：DeepSeek / GPT 可选
 
 ${dataSourceDetailsBlock(snapshot, "周报未单独补取金十快讯")}
