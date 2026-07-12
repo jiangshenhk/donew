@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Stock Price Center Test</title>
+<style>
+body{font-family:Arial,sans-serif;margin:30px;background:#f7f7f7}
+table{width:100%;border-collapse:collapse;background:white}
+th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left}
+button{padding:8px 15px;margin-bottom:15px}
+</style>
+</head>
+<body>
+<h1>行情中心测试</h1>
+<button onclick="loadPrice()">刷新缓存</button>
+<div id="info"></div>
+<table>
+<thead><tr><th>代码</th><th>价格</th><th>涨跌幅</th><th>行情时间</th></tr></thead>
+<tbody id="list"></tbody>
+</table>
+<script>
+async function loadPrice(){
+ const r=await fetch('/api/latest-price');
+ const j=await r.json();
+ document.getElementById('info').innerHTML='缓存更新时间: '+(j.updatedAt||'-');
+ const rows=(j.data||[]).map(x=>`<tr><td>${x.symbol}</td><td>${x.price??''}</td><td>${x.changePercent??''}</td><td>${x.marketTime??''}</td></tr>`).join('');
+ document.getElementById('list').innerHTML=rows;
+}
+loadPrice();
+</script>
+</body>
+</html>
