@@ -1,49 +1,23 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>行情缓存控制台</title>
 <style>
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Arial;background:#f5f7fb;margin:0;padding:20px;color:#111}
-.box{max-width:1200px;margin:auto;background:white;border-radius:16px;padding:20px;box-shadow:0 8px 30px #0001}
-button{padding:10px 18px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer;margin-right:8px}
-.status{padding:12px;background:#f1f5f9;border-radius:10px;margin:15px 0}
-table{width:100%;border-collapse:collapse;font-size:14px}th{background:#f1f5f9;text-align:left;padding:10px}td{padding:10px;border-bottom:1px solid #eee}.symbol{font-weight:800}.up{color:green}.down{color:red}
+body{font-family:Arial;background:#f5f7fb;padding:20px}.box{background:#fff;padding:20px;border-radius:12px}button{padding:10px;margin:5px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #ddd}.up{color:green}.down{color:red}
 </style>
 </head>
-<body>
-<div class="box">
+<body><div class="box">
 <h1>行情缓存控制台</h1>
-<div class="status" id="status">加载状态...</div>
+<div id="status">加载中...</div>
 <button onclick="loadPrice()">读取缓存</button>
-<button onclick="refreshPrice()">立即刷新</button>
 <button onclick="control('start')">启动自动更新</button>
 <button onclick="control('stop')">停止自动更新</button>
-<table>
-<thead><tr><th>代码</th><th>价格</th><th>涨跌幅</th><th>行情时间</th></tr></thead>
-<tbody id="table"></tbody>
-</table>
+<table><thead><tr><th>代码</th><th>价格</th><th>涨跌</th><th>时间</th></tr></thead><tbody id="table"></tbody></table>
 </div>
 <script>
-function formatTime(v){return v?new Date(v).toLocaleString():'-';}
-async function loadPrice(){
- const res=await fetch('/api/latest-price');
- const json=await res.json();
- document.getElementById('status').innerText='缓存更新时间: '+formatTime(json.cacheUpdatedAt);
- document.getElementById('table').innerHTML=Object.entries(json.data||{}).map(([s,i])=>`<tr><td class="symbol">${s}</td><td>${i.price??'-'}</td><td class="${i.changePercent>0?'up':'down'}">${i.changePercent==null?'-':i.changePercent.toFixed(2)+'%'}</td><td>${formatTime(i.marketTime)}</td></tr>`).join('');
-}
-async function refreshPrice(){
- document.getElementById('status').innerText='请求刷新中...';
- await fetch('/api/price-refresh');
- setTimeout(loadPrice,2000);
-}
-async function control(action){
- const res=await fetch('/api/price-control?action='+action);
- const json=await res.json();
- document.getElementById('status').innerText=json.message;
-}
+const URL='https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json';
+async function loadPrice(){const r=await fetch(URL+'?t='+Date.now());const j=await r.json();document.getElementById('status').innerHTML='缓存更新时间: '+new Date(j.updatedAt).toLocaleString()+'<br>数量:'+j.data.length;document.getElementById('table').innerHTML=j.data.map(x=>`<tr><td>${x.symbol}</td><td>${x.price??'-'}</td><td class="${Number(x.changePercent)>0?'up':'down'}">${x.changePercent??'-'}%</td><td>${x.marketTime??'-'}</td></tr>`).join('')}
+async function control(a){let r=await fetch('/api/price-control?action='+a);document.getElementById('status').innerText=await r.text()}
 loadPrice();
-</script>
-</body>
-</html>
+</script></body></html>
