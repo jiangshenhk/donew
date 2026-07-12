@@ -1,13 +1,97 @@
 {
   "description": "统一行情中心标的列表",
   "symbols": [
-    "QQQ", "SPY", "IWM", "QLD", "TQQQ",
-    "SMH", "SOXX", "MAGS",
-    "EEM", "FXI", "KWEB",
-    "^VIX", "VIXY",
-    "IBIT", "BTC-USD", "MSTR",
-    "DX-Y.NYB", "^TNX", "JPY=X",
-    "CL=F", "GC=F",
-    "INTC", "HOOD"
+    {
+      "symbol": "QQQ",
+      "category": "US ETF"
+    },
+    {
+      "symbol": "SPY",
+      "category": "US ETF"
+    },
+    {
+      "symbol": "IWM",
+      "category": "US ETF"
+    },
+    {
+      "symbol": "QLD",
+      "category": "US ETF"
+    },
+    {
+      "symbol": "TQQQ",
+      "category": "US ETF"
+    },
+    {
+      "symbol": "SMH",
+      "category": "Technology ETF"
+    },
+    {
+      "symbol": "SOXX",
+      "category": "Technology ETF"
+    },
+    {
+      "symbol": "MAGS",
+      "category": "Technology ETF"
+    },
+    {
+      "symbol": "EEM",
+      "category": "China/Emerging"
+    },
+    {
+      "symbol": "FXI",
+      "category": "China/Emerging"
+    },
+    {
+      "symbol": "KWEB",
+      "category": "China/Emerging"
+    },
+    {
+      "symbol": "^VIX",
+      "category": "Volatility"
+    },
+    {
+      "symbol": "VIXY",
+      "category": "Volatility"
+    },
+    {
+      "symbol": "IBIT",
+      "category": "Bitcoin"
+    },
+    {
+      "symbol": "BTC-USD",
+      "category": "Bitcoin"
+    },
+    {
+      "symbol": "MSTR",
+      "category": "Bitcoin"
+    },
+    {
+      "symbol": "DX-Y.NYB",
+      "category": "Macro"
+    },
+    {
+      "symbol": "^TNX",
+      "category": "Macro"
+    },
+    {
+      "symbol": "JPY=X",
+      "category": "Macro"
+    },
+    {
+      "symbol": "CL=F",
+      "category": "Macro"
+    },
+    {
+      "symbol": "GC=F",
+      "category": "Macro"
+    },
+    {
+      "symbol": "INTC",
+      "category": "Stock"
+    },
+    {
+      "symbol": "HOOD",
+      "category": "Stock"
+    }
   ]
 }
