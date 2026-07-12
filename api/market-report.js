@@ -72,9 +72,10 @@ const FRED_SERIES = {
   "^TNX": "DGS10",
   "DX-Y.NYB": "DTWEXBGS",
 };
-const MARKET_FETCH_BATCH_DELAY_MS = 1000;
+const SPECIAL_SYMBOL_FETCH_DELAY_MS = 1000;
 const MARKET_CACHE_TTL_MS = 10 * 60 * 1000;
 const marketDataCache = new Map();
+const SPECIAL_SERIAL_SYMBOLS = new Set(["BTC-USD", "^VIX", "^TNX", "DX-Y.NYB"]);
 
 function corsHeaders() {
   return {
@@ -459,9 +460,17 @@ async function fetchMarketSnapshot(forceRefresh = false) {
   const session = marketSessionNow();
   const quoteMap = {};
   const rows = [];
-  for (let i = 0; i < MARKET_SYMBOLS.length; i += 1) {
-    if (i > 0) await sleep(MARKET_FETCH_BATCH_DELAY_MS);
-    const symbol = MARKET_SYMBOLS[i];
+  const normalSymbols = MARKET_SYMBOLS.filter(symbol => !SPECIAL_SERIAL_SYMBOLS.has(symbol));
+  const specialSymbols = MARKET_SYMBOLS.filter(symbol => SPECIAL_SERIAL_SYMBOLS.has(symbol));
+
+  const normalRows = await Promise.all(
+    normalSymbols.map(symbol => fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh))
+  );
+  rows.push(...normalRows);
+
+  for (let i = 0; i < specialSymbols.length; i += 1) {
+    if (i > 0) await sleep(SPECIAL_SYMBOL_FETCH_DELAY_MS);
+    const symbol = specialSymbols[i];
     rows.push(await fetchSymbol(symbol, quoteMap[symbol], session, forceRefresh));
   }
   return Object.fromEntries(rows.map(row => [row.symbol, row]));
