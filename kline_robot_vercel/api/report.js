@@ -2229,36 +2229,55 @@ function buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2,
 
 function summarizeTwoB({ bars, last, support, pressure1, e20, mom10, rsi14 }) {
   const n = bars.length;
-  const prev = bars.slice(Math.max(0, n - 8), Math.max(0, n - 3));
+  const prev = bars.slice(Math.max(0, n - 9), Math.max(0, n - 4));
   const recent = bars.slice(Math.max(0, n - 4));
-  const brokePrevLow = prev.length >= 2 && recent.some((bar) => bar.low < Math.min(...prev.map((x) => x.low))) && recent.some((bar) => bar.close > Math.min(...prev.map((x) => x.low)));
-  const recovered = recent.some((bar) => bar.close > support);
-  const touchedPressure = recent.some((bar) => bar.high >= pressure1);
-  let stage = "2B待确认";
+  const prevLow = prev.length ? Math.min(...prev.map((x) => x.low)) : null;
+  const prevHigh = prev.length ? Math.max(...prev.map((x) => x.high)) : null;
+  const recentLow = recent.reduce((best, bar, index) => (best == null || bar.low < best.bar.low ? { bar, index } : best), null);
+  const recentHigh = recent.reduce((best, bar, index) => (best == null || bar.high > best.bar.high ? { bar, index } : best), null);
+  const fakeBreakLow = prevLow != null && recentLow && recentLow.bar.low < prevLow * 0.998;
+  const fakeBreakHigh = prevHigh != null && recentHigh && recentHigh.bar.high > prevHigh * 1.002;
+  const reclaimedLow = prevLow != null && last.close > prevLow && last.close > (recentLow?.bar.close ?? -Infinity);
+  const rejectedHigh = prevHigh != null && last.close < prevHigh && last.close < (recentHigh?.bar.close ?? Infinity);
+  const lowBreakThenRecover = Boolean(
+    fakeBreakLow &&
+      recentLow &&
+      recentLow.index < recent.length - 1 &&
+      reclaimedLow &&
+      last.low > recentLow.bar.low &&
+      (last.close >= last.open || last.close >= support)
+  );
+  const highBreakThenFail = Boolean(
+    fakeBreakHigh &&
+      recentHigh &&
+      recentHigh.index < recent.length - 1 &&
+      rejectedHigh &&
+      last.high < recentHigh.bar.high &&
+      (last.close <= last.open || last.close < pressure1)
+  );
+  let stage = "2B未成立";
   let bias = "中性";
-  let note = "当前更像等待确认的 2B 观察区，关键看是否先跌破再快速收回，或冲高后重新失守。";
-  if (brokePrevLow && recovered) {
+  let note = "最近末尾K线没有形成标准的前低/前高假突破后快速收回结构，暂不按 2B 强行归类。";
+  let valid = false;
+  if (lowBreakThenRecover) {
     stage = "底部2B确认";
     bias = "偏多";
     note = "先跌破前低、随后重新收回，符合底部2B 的核心特征，后续更关注是否继续站稳。";
-  } else if (touchedPressure && last.close < pressure1) {
+    valid = true;
+  } else if (highBreakThenFail) {
     stage = "顶部2B观察";
     bias = "偏空";
     note = "上方尝试突破后又回到确认位下方，更像顶部2B 的反复确认过程，需防止再次转弱。";
-  } else if (last.close >= e20 && (mom10 || 0) > 0 && (rsi14 || 50) >= 50) {
-    stage = "2B偏强修复";
-    bias = "偏多";
-    note = "价格守住中短均线，动量回正，若再放量则更像 2B 后的修复延续。";
-  } else if (last.close < e20 && (mom10 || 0) < 0) {
-    stage = "2B偏弱延续";
-    bias = "偏空";
-    note = "价格仍压在均线下，动量偏弱，更像 2B 失败后的延续整理。";
+    valid = true;
   }
   return {
     stage,
     bias,
     note,
-    summary: `当前位置更像 ${stage}，整体${bias}。${note} 重点看 ${formatPrice(support)} 的支撑与 ${formatPrice(pressure1)} 的确认。`,
+    valid,
+    summary: valid
+      ? `当前位置更像 ${stage}，整体${bias}。${note} 重点看 ${formatPrice(support)} 的支撑与 ${formatPrice(pressure1)} 的确认。`
+      : `当前末尾结构不符合标准 2B 形态，整体先按${bias}观察。${note}`,
     detail: `动量 ${Number.isFinite(mom10) ? `${mom10.toFixed(2)}%` : "数据不足"}，RSI ${Number.isFinite(rsi14) ? rsi14.toFixed(1) : "数据不足"}，E20 ${formatPrice(e20)}。`,
     keyLevels: {
       support,
@@ -2270,6 +2289,9 @@ function summarizeTwoB({ bars, last, support, pressure1, e20, mom10, rsi14 }) {
 }
 
 function twoBPositionSvg(twoB) {
+  if (!twoB?.valid) {
+    return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 380 206" role="img" aria-label="2B结构未成立"><rect x="8" y="8" width="364" height="190" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="18" y="16" width="344" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="32" fill="#d7e3ff" font-size="12" font-weight="800">2B 结构未成立</text><rect x="34" y="54" width="310" height="112" rx="14" fill="rgba(255,255,255,.03)" stroke="rgba(255,209,102,.28)" stroke-dasharray="6 6"/><text x="52" y="92" fill="#ffd166" font-size="14" font-weight="800">当前先不强画 2B 位置图</text><text x="52" y="118" fill="#dbe5ff" font-size="12">最近几根K线没有形成标准的</text><text x="52" y="138" fill="#dbe5ff" font-size="12">“假突破/假跌破后快速回收”结构。</text><text x="52" y="158" fill="#9fb0d8" font-size="11">更适合先结合 ABC 位置与历史趋势继续观察。</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">2B未成立</span>${directionMarkup("中性")}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(twoB.note)}</span></div></div>`;
+  }
   const state = /顶部/.test(twoB.stage) ? "top" : /底部/.test(twoB.stage) ? "bottom" : "neutral";
   const currentColor = "#ffd166";
   const leftColor = state === "top" ? "#ff7a88" : state === "bottom" ? "#ff6a6a" : "#ff7a88";
