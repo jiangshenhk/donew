@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Stock Price Center</title>
+<style>
+body{font-family:Arial;margin:30px;background:#f6f6f6}.box{background:#fff;padding:15px;margin-bottom:15px;border-radius:8px}button{padding:8px 14px;margin-right:8px}
+</style>
+</head>
+<body>
+<h1>行情中心控制台</h1>
+<div class="box" id="status">加载中...</div>
+<button onclick="control('start')">启动自动更新</button>
+<button onclick="control('stop')">停止自动更新</button>
+<button onclick="refresh()">立即刷新</button>
+<div class="box" id="data"></div>
+<script>
+async function control(action){
+ const r=await fetch('/api/price-control?action='+action);
+ const j=await r.json();
+ document.getElementById('status').innerHTML=JSON.stringify(j);
+}
+async function refresh(){
+ const r=await fetch('/api/latest-price');
+ const j=await r.json();
+ document.getElementById('data').innerHTML='缓存时间: '+(j.updatedAt||'-')+'<br>数量: '+(j.data||[]).length;
+}
+refresh();
+</script>
+</body>
+</html>
