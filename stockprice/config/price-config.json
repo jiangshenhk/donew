@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "intervalMinutes": 5,
+  "description": "行情中心自动刷新控制"
+}
