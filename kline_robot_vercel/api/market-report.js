@@ -379,6 +379,7 @@ async function fetchNasdaqSnapshot(symbol) {
 async function fetchStableFallback(symbol) {
   if (symbol === "BTC-USD") return fetchBitcoinSnapshot();
   if (NASDAQ_ASSET_CLASS[symbol]) return fetchNasdaqSnapshot(symbol);
+  if (FRED_SERIES[symbol]) return fetchFredSeries(symbol);
   return null;
 }
 
@@ -406,7 +407,7 @@ function isPositiveNumber(value) {
 
 async function fetchMarketSnapshot() {
   const session = marketSessionNow();
-  const quoteMap = await fetchQuoteSnapshot().catch(() => ({}));
+  const quoteMap = {};
   const rows = [];
   for (let i = 0; i < MARKET_SYMBOLS.length; i += MARKET_FETCH_BATCH_SIZE) {
     if (i > 0) await sleep(MARKET_FETCH_BATCH_DELAY_MS);
@@ -516,8 +517,11 @@ function formatSourceLabel(source) {
   if (source === "nasdaq") return "Nasdaq";
   if (source === "fred") return "FRED";
   if (source === "binance") return "Binance";
+  if (source === "nasdaq/yahoo") return "Nasdaq / Yahoo";
+  if (source === "fred/yahoo") return "FRED / Yahoo";
   if (source === "yahoo/fred") return "Yahoo / FRED";
   if (source === "binance/fred") return "Binance / FRED";
+  if (source === "binance/fred/yahoo") return "Binance / FRED / Yahoo";
   return source;
 }
 
@@ -676,7 +680,13 @@ async function fetchSymbol(symbol, quote, session) {
       vs50Pct: null,
       retrievedAt: new Date().toISOString(),
       error: errors.join(" | ") || error.message,
-      source: symbol === "BTC-USD" ? "binance/fred" : FRED_SERIES[symbol] ? "yahoo/fred" : "",
+      source: symbol === "BTC-USD"
+        ? "binance/fred/yahoo"
+        : NASDAQ_ASSET_CLASS[symbol]
+          ? "nasdaq/yahoo"
+          : FRED_SERIES[symbol]
+            ? "fred/yahoo"
+            : "yahoo",
     };
   }
 }
