@@ -5,15 +5,17 @@
 <title>Stock Price Center Test</title>
 <style>
 body{font-family:Arial,sans-serif;margin:30px;background:#f7f7f7}
+.box{background:white;padding:15px;margin-bottom:15px;border-radius:8px}
 table{width:100%;border-collapse:collapse;background:white}
 th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left}
-button{padding:8px 15px;margin-bottom:15px}
+button{padding:8px 15px;margin-right:10px}
 </style>
 </head>
 <body>
 <h1>行情中心测试</h1>
+<div class="box" id="status">加载状态...</div>
 <button onclick="loadPrice()">刷新缓存</button>
-<div id="info"></div>
+<button onclick="loadStatus()">刷新状态</button>
 <table>
 <thead><tr><th>代码</th><th>价格</th><th>涨跌幅</th><th>行情时间</th></tr></thead>
 <tbody id="list"></tbody>
@@ -22,11 +24,16 @@ button{padding:8px 15px;margin-bottom:15px}
 async function loadPrice(){
  const r=await fetch('/api/latest-price');
  const j=await r.json();
- document.getElementById('info').innerHTML='缓存更新时间: '+(j.updatedAt||'-');
- const rows=(j.data||[]).map(x=>`<tr><td>${x.symbol}</td><td>${x.price??''}</td><td>${x.changePercent??''}</td><td>${x.marketTime??''}</td></tr>`).join('');
- document.getElementById('list').innerHTML=rows;
+ document.getElementById('status').innerHTML='缓存更新时间: '+(j.updatedAt||'-');
+ document.getElementById('list').innerHTML=(j.data||[]).map(x=>`<tr><td>${x.symbol}</td><td>${x.price??''}</td><td>${x.changePercent??''}</td><td>${x.marketTime??''}</td></tr>`).join('');
+}
+async function loadStatus(){
+ const r=await fetch('/api/price-status');
+ const j=await r.json();
+ document.getElementById('status').innerHTML=`状态: ${j.status}<br>缓存更新时间: ${j.updatedAt||'-'}<br>标的数量: ${j.symbols||0}`;
 }
 loadPrice();
+loadStatus();
 </script>
 </body>
 </html>
