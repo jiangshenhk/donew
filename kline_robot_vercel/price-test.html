@@ -6,59 +6,55 @@
 <title>行情缓存测试</title>
 <style>
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",Arial;background:#f5f7fb;margin:0;padding:20px;color:#111}
-.box{max-width:1100px;margin:auto;background:white;border-radius:16px;padding:20px;box-shadow:0 8px 30px #0001}
-h1{font-size:24px}.time{color:#666;margin-bottom:20px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
-.card{border:1px solid #ddd;border-radius:12px;padding:15px}
-.symbol{font-weight:800;font-size:18px}.price{font-size:24px;margin:8px 0}.up{color:#087f23}.down{color:#b00020}.err{color:#999}
-.small{font-size:12px;color:#666;line-height:1.5}
+.box{max-width:1200px;margin:auto;background:white;border-radius:16px;padding:20px;box-shadow:0 8px 30px #0001}
+.header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
+h1{font-size:24px}
+.time{color:#666;margin-bottom:20px}
 button{padding:10px 18px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{background:#f1f5f9;text-align:left;padding:10px}
+td{padding:10px;border-bottom:1px solid #eee}
+.symbol{font-weight:800}.price{font-weight:700}
+.up{color:#087f23}.down{color:#b00020}.err{color:#999}
+@media(max-width:700px){body{padding:10px}.box{padding:12px}table{font-size:12px}th,td{padding:7px}}
 </style>
 </head>
 <body>
 <div class="box">
+<div class="header">
 <h1>行情缓存测试</h1>
 <button onclick="loadPrice()">刷新缓存行情</button>
+</div>
 <div class="time" id="time">等待加载</div>
-<div class="grid" id="grid"></div>
+<table>
+<thead>
+<tr><th>代码</th><th>价格</th><th>涨跌幅</th><th>币种</th><th>交易所</th><th>行情时间</th></tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
 </div>
 <script>
-function formatTime(v){
- if(!v)return '-';
- return new Date(v).toLocaleString();
-}
-
+function formatTime(v){return v?new Date(v).toLocaleString():'-';}
 async function loadPrice(){
- const grid=document.getElementById('grid');
- grid.innerHTML='加载中...';
+ const table=document.getElementById('table');
+ table.innerHTML='<tr><td colspan="6">加载中...</td></tr>';
  try{
   const res=await fetch('/api/latest-price');
   const json=await res.json();
-
-  document.getElementById('time').innerHTML=
-    '缓存更新时间: '+formatTime(json.cacheUpdatedAt);
-
-  const data=json.data||{};
-
-  grid.innerHTML=Object.entries(data).map(([symbol,item])=>{
-    const price=item.price ?? '-';
-    const pct=item.changePercent;
-    const cls=pct>0?'up':pct<0?'down':'';
-
-    return `<div class="card">
-      <div class="symbol">${symbol}</div>
-      <div class="price">${price}</div>
-      <div class="${cls}">${pct==null?'':pct.toFixed(2)+'%'}</div>
-      <div class="small">
-        行情时间:<br>${formatTime(item.marketTime)}<br>
-        币种: ${item.currency || '-'}<br>
-        交易所: ${item.exchange || '-'}
-      </div>
-    </div>`;
+  document.getElementById('time').innerText='缓存更新时间: '+formatTime(json.cacheUpdatedAt);
+  table.innerHTML=Object.entries(json.data||{}).map(([symbol,item])=>{
+   const pct=item.changePercent;
+   const cls=pct>0?'up':pct<0?'down':'';
+   return `<tr>
+   <td class="symbol">${symbol}</td>
+   <td class="price">${item.price??'-'}</td>
+   <td class="${cls}">${pct==null?'-':pct.toFixed(2)+'%'}</td>
+   <td>${item.currency||'-'}</td>
+   <td>${item.exchange||'-'}</td>
+   <td>${formatTime(item.marketTime)}</td>
+   </tr>`;
   }).join('');
- }catch(e){
-  grid.innerHTML='<div class="err">读取失败: '+e.message+'</div>';
- }
+ }catch(e){table.innerHTML='<tr><td colspan="6" class="err">读取失败: '+e.message+'</td></tr>';}
 }
 loadPrice();
 </script>
