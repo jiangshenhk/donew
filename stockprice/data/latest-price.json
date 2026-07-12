@@ -1,5 +1,8 @@
 {
-  "updatedAt": "2026-07-12T17:53:59.545Z",
+  "updatedAt": "2026-07-12T18:14:37.473Z",
+  "checkedAt": "2026-07-12T18:14:37.473Z",
+  "successCount": 23,
+  "failCount": 0,
   "data": [
     {
       "symbol": "QQQ",
@@ -144,10 +147,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64075.98,
+      "price": 64001.42,
       "previousClose": 62257.574,
-      "changePercent": "2.92",
-      "marketTime": "2026-07-12T17:51:56.000Z",
+      "changePercent": "2.80",
+      "marketTime": "2026-07-12T18:14:22.000Z",
       "currency": "USD",
       "exchange": "CCC"
     },
