@@ -13,7 +13,10 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchPrice(symbol) {
+async function fetchPrice(item) {
+  const symbol = typeof item === 'string' ? item : item.symbol;
+  const category = typeof item === 'string' ? 'Unknown' : item.category;
+
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -24,8 +27,12 @@ async function fetchPrice(symbol) {
 
   return {
     symbol,
+    category,
     price: meta.regularMarketPrice ?? null,
     previousClose: meta.chartPreviousClose ?? null,
+    changePercent: meta.chartPreviousClose && meta.regularMarketPrice
+      ? ((meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100).toFixed(2)
+      : null,
     marketTime: meta.regularMarketTime
       ? new Date(meta.regularMarketTime * 1000).toISOString()
       : null,
@@ -38,10 +45,11 @@ async function main() {
   const config = JSON.parse(fs.readFileSync(symbolsFile, 'utf8'));
   const data = [];
 
-  for (const symbol of config.symbols) {
+  for (const item of config.symbols) {
     try {
-      data.push(await fetchPrice(symbol));
+      data.push(await fetchPrice(item));
     } catch (e) {
+      const symbol = typeof item === 'string' ? item : item.symbol;
       data.push({ symbol, error: e.message });
     }
     await sleep(1000);
