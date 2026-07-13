@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-13T00:08:17.721Z",
-  "checkedAt": "2026-07-13T00:08:17.721Z",
+  "updatedAt": "2026-07-13T03:54:03.042Z",
+  "checkedAt": "2026-07-13T03:54:03.042Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -147,10 +147,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 63778.34,
+      "price": 62756.99,
       "previousClose": 63193.15,
-      "changePercent": "0.93",
-      "marketTime": "2026-07-12T23:40:02.000Z",
+      "changePercent": "-0.69",
+      "marketTime": "2026-07-13T03:53:49.000Z",
       "currency": "USD",
       "exchange": "CCC"
     },
@@ -167,10 +167,10 @@
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "price": 101.076,
+      "price": 101.137,
       "previousClose": 101.14,
-      "changePercent": "-0.06",
-      "marketTime": "2026-07-12T23:58:05.000Z",
+      "changePercent": "-0.00",
+      "marketTime": "2026-07-13T03:43:54.000Z",
       "currency": "USD",
       "exchange": "NYB"
     },
@@ -187,30 +187,30 @@
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "price": 161.938,
+      "price": 162.089,
       "previousClose": 162.088,
-      "changePercent": "-0.09",
-      "marketTime": "2026-07-13T00:08:11.000Z",
+      "changePercent": "0.00",
+      "marketTime": "2026-07-13T03:53:55.000Z",
       "currency": "JPY",
       "exchange": "CCY"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 73.82,
+      "price": 74.34,
       "previousClose": 70.44,
-      "changePercent": "4.80",
-      "marketTime": "2026-07-12T23:58:09.000Z",
+      "changePercent": "5.54",
+      "marketTime": "2026-07-13T03:43:50.000Z",
       "currency": "USD",
       "exchange": "NYM"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4091.8,
+      "price": 4066.1,
       "previousClose": 4145.3,
-      "changePercent": "-1.29",
-      "marketTime": "2026-07-12T23:58:12.000Z",
+      "changePercent": "-1.91",
+      "marketTime": "2026-07-13T03:43:56.000Z",
       "currency": "USD",
       "exchange": "CMX"
     },
