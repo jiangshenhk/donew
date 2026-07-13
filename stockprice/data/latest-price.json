@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-13T20:07:24.649Z",
-  "checkedAt": "2026-07-13T20:07:24.649Z",
+  "updatedAt": "2026-07-13T21:10:49.012Z",
+  "checkedAt": "2026-07-13T21:10:49.012Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -17,9 +17,9 @@
     {
       "symbol": "SPY",
       "category": "US ETF",
-      "price": 749.08,
+      "price": 749.17,
       "previousClose": 751.28,
-      "changePercent": "-0.29",
+      "changePercent": "-0.28",
       "marketTime": "2026-07-13T20:00:00.000Z",
       "currency": "USD",
       "exchange": "PCX"
@@ -27,9 +27,9 @@
     {
       "symbol": "IWM",
       "category": "US ETF",
-      "price": 293.44,
+      "price": 293.48,
       "previousClose": 298.9,
-      "changePercent": "-1.83",
+      "changePercent": "-1.81",
       "marketTime": "2026-07-13T20:00:00.000Z",
       "currency": "USD",
       "exchange": "PCX"
@@ -37,10 +37,10 @@
     {
       "symbol": "QLD",
       "category": "US ETF",
-      "price": 90.14,
+      "price": 90.13,
       "previousClose": 93.14,
-      "changePercent": "-3.22",
-      "marketTime": "2026-07-13T19:59:59.000Z",
+      "changePercent": "-3.23",
+      "marketTime": "2026-07-13T20:00:00.000Z",
       "currency": "USD",
       "exchange": "PCX"
     },
@@ -77,60 +77,60 @@
     {
       "symbol": "MAGS",
       "category": "Technology ETF",
-      "price": 67.01,
+      "price": 66.99,
       "previousClose": 66.28,
-      "changePercent": "1.10",
-      "marketTime": "2026-07-13T19:59:58.000Z",
+      "changePercent": "1.07",
+      "marketTime": "2026-07-13T20:00:00.000Z",
       "currency": "USD",
       "exchange": "BTS"
     },
     {
       "symbol": "EEM",
       "category": "China/Emerging",
-      "price": 64.49,
+      "price": 64.5,
       "previousClose": 67.57,
-      "changePercent": "-4.56",
-      "marketTime": "2026-07-13T19:59:59.000Z",
+      "changePercent": "-4.54",
+      "marketTime": "2026-07-13T20:00:00.000Z",
       "currency": "USD",
       "exchange": "PCX"
     },
     {
       "symbol": "FXI",
       "category": "China/Emerging",
-      "price": 33.43,
+      "price": 33.44,
       "previousClose": 32.49,
-      "changePercent": "2.89",
-      "marketTime": "2026-07-13T19:59:55.000Z",
+      "changePercent": "2.92",
+      "marketTime": "2026-07-13T20:00:00.000Z",
       "currency": "USD",
       "exchange": "PCX"
     },
     {
       "symbol": "KWEB",
       "category": "China/Emerging",
-      "price": 26.22,
+      "price": 26.23,
       "previousClose": 25.59,
-      "changePercent": "2.46",
-      "marketTime": "2026-07-13T19:59:59.000Z",
+      "changePercent": "2.50",
+      "marketTime": "2026-07-13T20:00:00.000Z",
       "currency": "USD",
       "exchange": "PCX"
     },
     {
       "symbol": "^VIX",
       "category": "Volatility",
-      "price": 17.12,
+      "price": 17.16,
       "previousClose": 16.13,
-      "changePercent": "6.14",
-      "marketTime": "2026-07-13T19:52:01.000Z",
+      "changePercent": "6.39",
+      "marketTime": "2026-07-13T20:15:01.000Z",
       "currency": "USD",
       "exchange": "CXI"
     },
     {
       "symbol": "VIXY",
       "category": "Volatility",
-      "price": 20.98,
+      "price": 21.02,
       "previousClose": 20.65,
-      "changePercent": "1.60",
-      "marketTime": "2026-07-13T19:59:59.000Z",
+      "changePercent": "1.79",
+      "marketTime": "2026-07-13T20:00:00.000Z",
       "currency": "USD",
       "exchange": "BTS"
     },
@@ -147,10 +147,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 62183.58,
+      "price": 62058.84,
       "previousClose": 63193.15,
-      "changePercent": "-1.60",
-      "marketTime": "2026-07-13T20:07:09.000Z",
+      "changePercent": "-1.79",
+      "marketTime": "2026-07-13T21:09:40.000Z",
       "currency": "USD",
       "exchange": "CCC"
     },
@@ -167,10 +167,10 @@
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "price": 101.282,
+      "price": 101.295,
       "previousClose": 101.05,
-      "changePercent": "0.23",
-      "marketTime": "2026-07-13T19:57:15.000Z",
+      "changePercent": "0.24",
+      "marketTime": "2026-07-13T21:00:32.000Z",
       "currency": "USD",
       "exchange": "NYB"
     },
@@ -187,30 +187,30 @@
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "price": 162.43,
+      "price": 162.393,
       "previousClose": 162.088,
-      "changePercent": "0.21",
-      "marketTime": "2026-07-13T20:07:17.000Z",
+      "changePercent": "0.19",
+      "marketTime": "2026-07-13T21:10:23.000Z",
       "currency": "JPY",
       "exchange": "CCY"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 77.66,
+      "price": 78,
       "previousClose": 73.52,
-      "changePercent": "5.63",
-      "marketTime": "2026-07-13T19:57:11.000Z",
+      "changePercent": "6.09",
+      "marketTime": "2026-07-13T20:59:55.000Z",
       "currency": "USD",
       "exchange": "NYM"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4009,
+      "price": 4008.7,
       "previousClose": 4070.9,
-      "changePercent": "-1.52",
-      "marketTime": "2026-07-13T19:57:15.000Z",
+      "changePercent": "-1.53",
+      "marketTime": "2026-07-13T20:59:58.000Z",
       "currency": "USD",
       "exchange": "CMX"
     },
