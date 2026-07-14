@@ -18,7 +18,7 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 .empty{text-align:center;color:var(--muted);padding:55px 10px}.error{background:#fff2f2;color:var(--red);padding:13px;border-radius:10px;margin-bottom:12px;white-space:pre-wrap}
 .ai-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.ai-toolbar select{border:1px solid var(--line);background:#fff;color:var(--text)}
 .report{min-height:560px;line-height:1.7;font-size:15px;background:#0b1220;color:#e8eef7;padding:26px;border-radius:0 0 14px 14px}.report h1{font-size:27px;color:#f4c95d;letter-spacing:.2px}.report h2{font-size:20px;margin-top:30px;color:#F4C95D;border-bottom:1px solid rgba(244,201,93,.22);padding-bottom:8px}.report h3{font-size:17px;color:#5A82E6}.report h2.risk-heading,.report h2.action-heading{color:#F4C95D;border-bottom-color:rgba(244,201,93,.22)}.report strong{color:#5EE0A0;font-weight:700}.report strong.subhead{color:#5A82E6}.report ul{padding-left:22px}.report li::marker{color:#5A82E6}.report .table-wrap{overflow-x:auto;margin:18px 0}.report table{width:100%;border-collapse:collapse;font-size:14px}.report th,.report td{border:1px solid #2b405d;padding:10px 12px;text-align:left;vertical-align:top}.report th{background:#13243a;color:#fff;font-weight:700}.report td{background:#0d1727;color:#e8eef7}.report td.asset-cell,.report td.asset-cell strong{color:#5A82E6;font-weight:700}.report td.direction-cell{font-weight:700;white-space:nowrap}.report td.direction-cell strong{color:inherit}.report td.direction-up{color:#ff6b7d}.report td.direction-down{color:#5EE0A0}.report td.direction-flat{color:#fff}.report td.direction-up::before{content:"↑ ";}.report td.direction-down::before{content:"↓ ";}.report td.direction-flat::before{content:"→ ";}.report tr:nth-child(even) td{background:#101c2e}.report blockquote{margin:14px 0;padding:9px 14px;border-left:3px solid var(--blue);background:#0d1c30;color:#b9c8da}
-.report-meta{font-size:12px;color:#91a0b5;padding:14px 26px;border-bottom:1px solid #26364f;margin:0;background:#0b1220;border-radius:14px 14px 0 0}.progress{color:var(--blue);font-size:13px}
+.report-meta{font-size:12px;color:#91a0b5;padding:14px 26px 7px;margin:0;background:#0b1220;border-radius:14px 14px 0 0}.report-link{padding:0 26px 12px;background:#0b1220;border-bottom:1px solid #26364f}.report-link a{color:#5A82E6;font-size:12px;text-decoration:none}.report-link a:hover{text-decoration:underline}.progress{color:var(--blue);font-size:13px}
 @media(max-width:850px){.head{display:block}.actions{justify-content:flex-start;margin-top:16px}.summary{grid-template-columns:1fr 1fr}.grid{display:block}}
 </style>
 </head>
@@ -33,14 +33,16 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 <div id="error"></div>
 <section class="grid">
 <div class="card">
-<div class="ai-toolbar"><select id="provider"><option value="deepseek">DeepSeek</option><option value="openai">GPT</option></select><button class="primary" id="generate">生成最近24小时整理</button><div class="actions" id="reportActions" style="display:none;justify-content:flex-start"><button id="openReport">新页面打开</button><button id="saveHtml">保存 HTML</button><button id="saveImage">保存图片</button></div><span class="progress" id="progress"></span></div>
+<div class="ai-toolbar"><select id="provider"><option value="deepseek">DeepSeek</option><option value="openai">GPT</option></select><button class="primary" id="generate">生成最近24小时整理</button><div class="actions" id="reportActions" style="display:none;justify-content:flex-start"><button id="openReport">新页面打开</button><button id="saveHtml">保存 HTML</button><button id="saveImage">保存图片</button><button id="shareImage">分享图片</button></div><span class="progress" id="progress"></span></div>
 <div class="report-meta" id="reportMeta">尚未生成。AI 将基于后台完整24小时缓存生成，不受左侧分类筛选影响。</div>
+<div class="report-link"><a href="https://donew-beta.vercel.app/jin10-news.html" target="_blank" rel="noopener">https://donew-beta.vercel.app/jin10-news.html</a></div>
 <article class="report" id="report"><div class="empty">点击“生成最近24小时整理”开始分析。</div></article>
 
 </div></section>
 </main>
 <script>
 const API_URL='https://api.github.com/repos/jiangshenhk/donew/contents/jin10news/data/latest-24h.json?ref=main';
+const REPORT_URL='https://donew-beta.vercel.app/jin10-news.html';
 const $=id=>document.getElementById(id);
 const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 let newsData=null,currentCategory='全部',currentReport=null,timer=null;
@@ -152,7 +154,7 @@ function reportDocument(){
  const body=renderMarkdown(currentReport.markdown);
  return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(currentReport.title)+'</title><style>'+
  '*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#132542 0,#08111f 38%,#060c16 100%);color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;padding:30px}main{max-width:980px;margin:auto;background:#101b2d;border:1px solid rgba(120,160,210,.16);border-radius:18px;padding:30px;box-shadow:0 12px 34px rgba(0,0,0,.28)}.meta{color:#91a0b5;font-size:13px;padding-bottom:15px;border-bottom:1px solid #26364f;margin-bottom:20px}.report{line-height:1.75;font-size:16px}.report h1{font-size:29px;color:#f4c95d}.report h2{font-size:21px;margin-top:30px;color:#F4C95D;border-bottom:1px solid rgba(244,201,93,.22);padding-bottom:8px}.report h2.risk-heading,.report h2.action-heading{color:#F4C95D;border-bottom-color:rgba(244,201,93,.22)}.report h3{font-size:17px;color:#5A82E6}.report strong{color:#5EE0A0;font-weight:700}.report strong.subhead{color:#5A82E6}.report ul{padding-left:24px}.report li::marker{color:#5A82E6}.report .table-wrap{overflow-x:auto;margin:18px 0}.report table{width:100%;border-collapse:collapse;font-size:14px}.report th,.report td{border:1px solid #2b405d;padding:10px 12px;text-align:left;vertical-align:top}.report th{background:#13243a;color:#fff}.report td{background:#0d1727;color:#e8eef7}.report td.asset-cell,.report td.asset-cell strong{color:#5A82E6;font-weight:700}.report td.direction-cell{font-weight:700;white-space:nowrap}.report td.direction-cell strong{color:inherit}.report td.direction-up{color:#ff6b7d}.report td.direction-down{color:#5EE0A0}.report td.direction-flat{color:#fff}.report td.direction-up::before{content:"↑ ";}.report td.direction-down::before{content:"↓ ";}.report td.direction-flat::before{content:"→ ";}.report blockquote{margin:14px 0;padding:10px 15px;border-left:3px solid #55a7ff;background:#0d1c30;color:#b9c8da}@media(max-width:700px){body{padding:10px}main{padding:20px}}'+
- '</style></head><body><main><div class="meta">模型：'+esc(currentReport.provider)+'｜原始新闻：'+esc(currentReport.totalItems)+'条｜分析新闻：'+esc(currentReport.analyzedItems)+'条｜生成：'+esc(fmt.format(new Date(currentReport.generatedAt)))+'</div><article class="report">'+body+'</article></main></body></html>';
+ '</style></head><body><main><div class="meta">模型：'+esc(currentReport.provider)+'｜原始新闻：'+esc(currentReport.totalItems)+'条｜分析新闻：'+esc(currentReport.analyzedItems)+'条｜生成：'+esc(fmt.format(new Date(currentReport.generatedAt)))+'<br><a href="'+REPORT_URL+'" style="display:inline-block;margin-top:8px;color:#5A82E6;text-decoration:none">'+REPORT_URL+'</a></div><article class="report">'+body+'</article></main></body></html>';
 }
 function ensureReport(){if(currentReport)return true;showError('请先生成报告。');return false}
 function openReportPage(){
@@ -168,19 +170,38 @@ function copyComputedStyles(source,target){
  const computed=window.getComputedStyle(source),style=[];for(let i=0;i<computed.length;i++){const name=computed[i];style.push(name+':'+computed.getPropertyValue(name)+';')}
  target.setAttribute('style',style.join(''));Array.from(source.children).forEach(function(child,index){if(target.children[index])copyComputedStyles(child,target.children[index])});
 }
-function saveReportImage(){
- if(!ensureReport())return;const source=$('report'),wrapper=document.createElement('div');
- wrapper.style.cssText='width:1040px;background:#08111f;padding:30px;color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif;';
- const panel=document.createElement('div');panel.style.cssText='background:#101b2d;border:1px solid #26364f;border-radius:18px;padding:32px;';
- const meta=document.createElement('div');meta.style.cssText='color:#91a0b5;font-size:13px;padding-bottom:15px;border-bottom:1px solid #26364f;margin-bottom:20px;';
- meta.textContent='模型：'+currentReport.provider+'｜原始新闻：'+currentReport.totalItems+'条｜分析新闻：'+currentReport.analyzedItems+'条｜生成：'+fmt.format(new Date(currentReport.generatedAt));
- const clone=source.cloneNode(true);copyComputedStyles(source,clone);panel.appendChild(meta);panel.appendChild(clone);wrapper.appendChild(panel);document.body.appendChild(wrapper);
- wrapper.style.position='fixed';wrapper.style.left='-20000px';wrapper.style.top='0';
- const width=1040,height=Math.ceil(wrapper.scrollHeight);wrapper.style.position='static';wrapper.style.left='auto';wrapper.style.top='auto';
- const serialized=new XMLSerializer().serializeToString(wrapper);wrapper.remove();const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">'+serialized+'</div></foreignObject></svg>';
- const img=new Image();img.onload=function(){const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0);canvas.toBlob(function(blob){if(!blob)return showError('图片生成失败。');const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=exportFileName('png');a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000)},'image/png')};img.onerror=function(){showError('浏览器未能生成图片，请改用保存 HTML。')};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+function createReportImageBlob(){
+ if(!ensureReport())return Promise.reject(new Error('请先生成报告。'));
+ return new Promise(function(resolve,reject){
+  const source=$('report'),wrapper=document.createElement('div');
+  wrapper.style.cssText='width:1040px;background:#08111f;padding:30px;color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif;';
+  const panel=document.createElement('div');panel.style.cssText='background:#101b2d;border:1px solid #26364f;border-radius:18px;padding:32px;';
+  const meta=document.createElement('div');meta.style.cssText='color:#91a0b5;font-size:13px;padding-bottom:15px;border-bottom:1px solid #26364f;margin-bottom:20px;';
+  meta.innerHTML='模型：'+esc(currentReport.provider)+'｜原始新闻：'+esc(currentReport.totalItems)+'条｜分析新闻：'+esc(currentReport.analyzedItems)+'条｜生成：'+esc(fmt.format(new Date(currentReport.generatedAt)))+'<br><span style="display:inline-block;margin-top:8px;color:#5A82E6">'+REPORT_URL+'</span>';
+  const clone=source.cloneNode(true);copyComputedStyles(source,clone);panel.appendChild(meta);panel.appendChild(clone);wrapper.appendChild(panel);document.body.appendChild(wrapper);
+  wrapper.style.position='fixed';wrapper.style.left='-20000px';wrapper.style.top='0';
+  const width=1040,height=Math.ceil(wrapper.scrollHeight);wrapper.style.position='static';wrapper.style.left='auto';wrapper.style.top='auto';
+  const serialized=new XMLSerializer().serializeToString(wrapper);wrapper.remove();const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">'+serialized+'</div></foreignObject></svg>';
+  const img=new Image();img.onload=function(){const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0);canvas.toBlob(function(blob){if(blob)resolve(blob);else reject(new Error('图片生成失败。'))},'image/png')};img.onerror=function(){reject(new Error('浏览器未能生成图片，请改用保存 HTML。'))};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+ });
 }
-$('generate').onclick=generate;$('openReport').onclick=openReportPage;$('saveHtml').onclick=saveReportHtml;$('saveImage').onclick=saveReportImage;
+function downloadImageBlob(blob){
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=exportFileName('png');a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+}
+async function saveReportImage(){
+ try{downloadImageBlob(await createReportImageBlob())}catch(e){showError(e.message)}
+}
+async function shareReportImage(){
+ try{
+  const blob=await createReportImageBlob(),file=new File([blob],exportFileName('png'),{type:'image/png'});
+  if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+   await navigator.share({title:'AI 24小时市场要闻整理',text:'最新24小时市场要闻整理\n'+REPORT_URL,files:[file]});
+  }else{
+   downloadImageBlob(blob);$('progress').textContent='当前浏览器不支持图片直分享，已保存图片';setTimeout(function(){$('progress').textContent=''},2500);
+  }
+ }catch(e){if(e&&e.name!=='AbortError')showError(e.message)}
+}
+$('generate').onclick=generate;$('openReport').onclick=openReportPage;$('saveHtml').onclick=saveReportHtml;$('saveImage').onclick=saveReportImage;$('shareImage').onclick=shareReportImage;
 try{const saved=JSON.parse(localStorage.getItem('donew-jin10-latest-report')||'null');if(saved&&saved.markdown){currentReport=saved;currentReport.markdown=normalizeDisplayMarkdown(currentReport.markdown);$('report').innerHTML=renderMarkdown(currentReport.markdown);$('reportActions').style.display='flex';$('reportMeta').textContent='浏览器上次报告｜模型：'+saved.provider+'｜生成：'+fmt.format(new Date(saved.generatedAt))}}catch(e){}
 loadNews().then(function(){generate()});
 </script></body></html>
