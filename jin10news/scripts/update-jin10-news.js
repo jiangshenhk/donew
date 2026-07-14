@@ -9,6 +9,7 @@ const configFile = path.join(ROOT, 'config', 'news-config.json');
 const jsonFile = path.join(ROOT, 'data', 'latest-24h.json');
 const mdFile = path.join(ROOT, 'data', 'latest-24h.md');
 const SEARCH_API = 'https://search-open-api.jin10.com/offset/search';
+const HOMEPAGE_URL = 'https://www.jin10.com/index.html';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const clean = value => String(value ?? '')
@@ -103,6 +104,85 @@ async function fetchPage(config, page) {
   return findArray(payload).map(normalize).filter(Boolean);
 }
 
+
+function decodeHtml(value) {
+  return String(value || '')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_match, code) => String.fromCodePoint(Number(code)))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function homepageTime(value, now = new Date()) {
+  if (!/^\d{2}:\d{2}:\d{2}$/.test(value)) return null;
+  const [hour, minute, second] = value.split(':').map(Number);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(now).reduce((out, part) => {
+    if (part.type !== 'literal') out[part.type] = Number(part.value);
+    return out;
+  }, {});
+  let date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, hour - 8, minute, second));
+  if (date.getTime() > now.getTime() + 5 * 60 * 1000) {
+    date = new Date(date.getTime() - 24 * 60 * 60 * 1000);
+  }
+  return date;
+}
+
+async function fetchHomepageItems(config) {
+  const response = await fetch(HOMEPAGE_URL, {
+    headers: {
+      'accept': 'text/html,application/xhtml+xml',
+      'accept-language': 'zh-CN,zh;q=0.9,en;q=0.7',
+      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/133 Safari/537.36 donew-jin10news/1.1'
+    },
+    signal: AbortSignal.timeout(25000)
+  });
+  if (!response.ok) throw new Error('Jin10 homepage HTTP ' + response.status);
+  const html = await response.text();
+  const start = html.indexOf('id="JinFlashList"');
+  if (start < 0) throw new Error('Jin10 homepage flash section not found');
+  const endCandidates = [
+    html.indexOf('登录后查看更多快讯', start),
+    html.indexOf('金十旗下', start),
+    html.indexOf('</body>', start)
+  ].filter(index => index > start);
+  const section = html.slice(start, endCandidates.length ? Math.min(...endCandidates) : html.length);
+  const matches = [...section.matchAll(/<div[^>]+id="flash(\d+)"[^>]*class="jin-flash-item-container[^"]*"[^>]*>/g)];
+  const items = [];
+  for (let index = 0; index < matches.length; index += 1) {
+    const block = section.slice(matches[index].index, matches[index + 1]?.index ?? section.length);
+    const texts = [...block.matchAll(/class="flash-text">([\s\S]*?)<\/div>/g)]
+      .map(match => decodeHtml(match[1])).filter(Boolean);
+    const content = [...new Set(texts)].join(' ');
+    if (!content || (config.keyword && !content.includes(config.keyword))) continue;
+    const rawTime = block.match(/class="item-time">([^<]+)</)?.[1]?.trim() || '';
+    const time = homepageTime(rawTime);
+    if (!time) continue;
+    const link = block.match(/href="(https:\/\/flash\.jin10\.com\/detail\/\d+)"/)?.[1];
+    items.push({
+      id: String(matches[index][1]),
+      time: time.toISOString(),
+      content,
+      ...(link ? { url: link } : {})
+    });
+  }
+  if (!items.length) {
+    throw new Error('Jin10 homepage returned no matching "' + config.keyword + '" items');
+  }
+  console.log('homepage fallback parsed=' + items.length);
+  return items;
+}
+
 function loadOldItems() {
   try {
     const parsed = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
@@ -164,7 +244,12 @@ async function main() {
       if (oldest < cutoff.getTime()) break;
     } catch (error) {
       console.warn('page=' + page + ' failed: ' + error.message);
-      if (page === 1) throw error;
+      if (page === 1) {
+        console.warn('Search API unavailable; switching to Jin10 homepage fallback');
+        const fallbackItems = await fetchHomepageItems(config);
+        fetched.push(...fallbackItems);
+        successfulPages += 1;
+      }
       break;
     }
     await sleep(config.requestDelayMs);
