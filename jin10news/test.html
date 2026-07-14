@@ -25,7 +25,7 @@
 <body>
 <main>
   <section class="head">
-    <div><h1>金十24小时新闻测试</h1><div class="sub">检查 GitHub Actions 抓取结果和缓存新鲜度</div></div>
+    <div><h1>金十24小时新闻测试</h1><div class="sub">检查抓取结果、缓存新鲜度及实际新闻来源</div></div>
     <div class="actions">
       <button class="primary" id="refresh">立即刷新</button>
       <button id="auto">自动刷新：关</button>
@@ -67,7 +67,7 @@
       $('count').textContent=count;$('updated').textContent=updated?fmt.format(updated):'尚未生成';$('age').textContent=ageText(updated);
       $('status').className='value status '+(minutes<=30&&count>0?'ok':minutes<=90&&updated?'':'bad');
       $('status').innerHTML='<span class="dot"></span><span>'+(minutes<=30&&count>0?'正常':updated?(minutes>90?'缓存过期':count?'等待下次更新':'暂无新闻'):'尚未运行')+'</span>';
-      $('message').textContent='页面检查：'+fmt.format(new Date());
+      $('message').textContent='实际来源：'+(data.sourceLabel||data.source||'未知')+'｜页面检查：'+fmt.format(new Date());
       if(!count){$('news').innerHTML='<li class="empty">缓存可读取，但目前没有新闻。请打开 Actions 查看最近一次运行日志。</li>';return}
       $('news').innerHTML=data.items.map(item=>{
         const body=esc(item.content), text=item.url?'<a href="'+esc(item.url)+'" target="_blank" rel="noopener">'+body+'</a>':body;
