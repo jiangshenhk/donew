@@ -207,7 +207,7 @@ function renderMarkdown(result, timezone) {
     '# 金十市场要闻｜最近24小时',
     '',
     '> 自动更新：' + new Date(result.checkedAt).toLocaleString('zh-CN', { timeZone: timezone }) +
-      '｜新闻 ' + result.count + ' 条｜关键词：' + result.keyword,
+      '｜新闻 ' + result.count + ' 条｜来源：' + result.sourceLabel,
     ''
   ];
   if (!result.items.length) {
@@ -234,6 +234,7 @@ async function main() {
   const cutoff = new Date(now.getTime() - config.hours * 60 * 60 * 1000);
   const fetched = [];
   let successfulPages = 0;
+  let sourceMode = 'search';
 
   for (let page = 1; page <= config.maxPages; page += 1) {
     try {
@@ -248,6 +249,7 @@ async function main() {
       console.warn('page=' + page + ' failed: ' + error.message);
       if (page === 1) {
         console.warn('Search API unavailable; switching to Jin10 homepage fallback');
+        sourceMode = 'homepage-fallback';
         const fallbackItems = await fetchHomepageItems(config);
         fetched.push(...fallbackItems);
         successfulPages += 1;
@@ -270,8 +272,11 @@ async function main() {
   const items = [...unique.values()].sort((a, b) => new Date(b.time) - new Date(a.time));
   const result = {
     source: 'Jin10',
-    sourceUrl: 'https://search.jin10.com/',
-    keyword: config.keyword,
+    sourceMode,
+    sourceLabel: sourceMode === 'search' ? '金十数据整理' : '金十首页全部市场快讯',
+    sourceUrl: sourceMode === 'search' ? 'https://search.jin10.com/' : HOMEPAGE_URL,
+    requestedKeyword: config.keyword,
+    keyword: sourceMode === 'search' ? config.keyword : null,
     windowHours: config.hours,
     updatedAt: now.toISOString(),
     checkedAt: now.toISOString(),
@@ -282,7 +287,7 @@ async function main() {
   fs.mkdirSync(path.dirname(jsonFile), { recursive: true });
   fs.writeFileSync(jsonFile, JSON.stringify(result, null, 2) + '\n');
   fs.writeFileSync(mdFile, renderMarkdown(result, config.timezone));
-  console.log('Saved ' + items.length + ' news items');
+  console.log('Saved ' + items.length + ' news items sourceMode=' + sourceMode);
 }
 
 main().catch(error => {
