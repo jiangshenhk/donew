@@ -49,6 +49,7 @@ button.primary{background:var(--blue);color:#fff}button:disabled{opacity:.5;curs
 </main>
 <script>
 const PRICE_URL='https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json';
+const CONTENTS_API='https://api.github.com/repos/jiangshenhk/donew/contents/stockprice/data/latest-price.json?ref=main';
 const $=id=>document.getElementById(id);
 const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 $('raw').href=PRICE_URL;
@@ -56,16 +57,29 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function ft(v){const d=v?new Date(v):null;return d&&!isNaN(d)?fmt.format(d):'—'}
 function ageInfo(v){const d=v?new Date(v):null;if(!d||isNaN(d))return {text:'尚未更新',minutes:Infinity};const m=Math.max(0,Math.floor((Date.now()-d)/60000));return {minutes:m,text:m<1?'不到1分钟':m<60?m+'分钟':Math.floor(m/60)+'小时 '+m%60+'分钟'}}
 function price(v){if(v===null||v===undefined)return '—';return Number(v).toLocaleString(undefined,{maximumFractionDigits:4})}
+async function fetchLatestData(){
+ try{
+  const r=await fetch(CONTENTS_API+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
+  if(!r.ok)throw new Error('GitHub API HTTP '+r.status);
+  const meta=await r.json();
+  if(!meta.content)throw new Error('GitHub API 未返回文件内容');
+  const bytes=Uint8Array.from(atob(meta.content.replace(/\n/g,'')),c=>c.charCodeAt(0));
+  return {json:JSON.parse(new TextDecoder().decode(bytes)),source:'GitHub main · '+String(meta.sha||'').slice(0,7)};
+ }catch(apiError){
+  const r=await fetch(PRICE_URL+'?t='+Date.now(),{cache:'reload'});
+  if(!r.ok)throw new Error('读取行情缓存失败：'+apiError.message+'；Raw HTTP '+r.status);
+  return {json:await r.json(),source:'Raw 备用源'};
+ }
+}
 async function loadPrice(){
  $('refresh').disabled=true;$('message').textContent='读取中…';$('error').innerHTML='';
  try{
-  const r=await fetch(PRICE_URL+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('读取行情缓存失败：HTTP '+r.status);
-  const j=await r.json(),items=Array.isArray(j.data)?j.data:[],success=j.successCount??items.filter(x=>!x.error).length,fail=j.failCount??items.filter(x=>x.error).length,a=ageInfo(j.checkedAt||j.updatedAt);
+  const loaded=await fetchLatestData(),j=loaded.json,items=Array.isArray(j.data)?j.data:[],success=j.successCount??items.filter(x=>!x.error).length,fail=j.failCount??items.filter(x=>x.error).length,a=ageInfo(j.checkedAt||j.updatedAt);
   $('result').textContent=success+' / '+fail;$('updated').textContent=ft(j.updatedAt);$('checked').textContent=ft(j.checkedAt);$('age').textContent=a.text;
   const healthy=a.minutes<=15&&success>0, stale=a.minutes>30;
   $('status').className='value status '+(healthy?'ok':stale?'bad':'');
   $('status').innerHTML='<span class="dot"></span><span>'+(healthy?(fail?'部分异常':'正常'):stale?'缓存过期':'等待更新')+'</span>';
-  $('message').textContent='共 '+items.length+' 个标的｜页面检查：'+fmt.format(new Date());
+  $('message').textContent='来源：'+loaded.source+'｜共 '+items.length+' 个标的｜页面检查：'+fmt.format(new Date());
   if(!items.length){$('data').innerHTML='<div class="empty">缓存中暂时没有行情数据。</div>';return}
   const groups={};items.forEach(x=>(groups[x.category||'Other']??=[]).push(x));
   $('data').innerHTML=Object.entries(groups).map(([name,list])=>'<section class="group"><h3>'+esc(name)+'</h3><div class="table"><div class="row header"><span>代码</span><span>价格</span><span>涨跌幅</span><span>市场时间</span><span>状态 / 市场</span></div>'+list.map(x=>{
