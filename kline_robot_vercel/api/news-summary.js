@@ -67,12 +67,12 @@ function systemPrompt() {
     "重点解释对纳指/QLD、BTC/MSTR、黄金、美元、美债收益率和卖Put风险偏好的影响。",
     "输出Markdown，结论置顶，使用以下结构：",
     "# 最近24小时市场要闻整理",
-    "## 一、结论摘要（3-6条）",
-    "## 二、市场正在交易什么",
-    "## 三、分类要闻（只写有实质内容的分类）",
-    "## 四、跨资产影响",
-    "## 五、卖Put风险提示",
-    "## 六、未来24小时观察清单",
+    "标题后直接输出3-6条编号结论，不要出现“结论摘要”章节标题。",
+    "## 一、市场正在交易什么",
+    "## 二、分类要闻",
+    "## 三、跨资产影响",
+    "## 四、卖Put风险提示",
+    "## 五、未来24小时观察清单",
     "最后注明：本内容为新闻整理，不构成投资建议。"
   ].join("\n");
 }
@@ -111,6 +111,26 @@ async function callOpenAI(newsPayload) {
   return data.output_text || (data.output || []).flatMap(x => x.content || []).map(x => x.text || "").join("");
 }
 
+function normalizeReportMarkdown(markdown) {
+  return String(markdown || "")
+    .replace(/^##\s*(?:一、)?结论摘要[^\n]*\n?/gmu, "")
+    .replace(/^##\s*[一二三四五六七八九十]*、?\s*市场正在交易什么[^\n]*$/gmu, "## 一、市场正在交易什么")
+    .replace(/^##\s*[一二三四五六七八九十]*、?\s*分类要闻[^\n]*$/gmu, "## 二、分类要闻")
+    .replace(/^##\s*[一二三四五六七八九十]*、?\s*跨资产影响[^\n]*$/gmu, "## 三、跨资产影响")
+    .replace(/^##\s*[一二三四五六七八九十]*、?\s*卖Put风险提示[^\n]*$/gmu, "## 四、卖Put风险提示")
+    .replace(/^##\s*[一二三四五六七八九十]*、?\s*未来24小时观察清单[^\n]*$/gmu, "## 五、未来24小时观察清单")
+    .trim();
+}
+
+function fileTimestamp(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return map.year + "-" + map.month + "-" + map.day + "_" + map.hour + map.minute + map.second;
+}
+
 export default async function handler(req, res) {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).end();
@@ -128,14 +148,15 @@ export default async function handler(req, res) {
       categoryStats: news.categoryStats || {},
       items: compactItems(selected)
     };
-    const markdown = provider === "openai" ? await callOpenAI(payload) : await callDeepSeek(payload);
+    const rawMarkdown = provider === "openai" ? await callOpenAI(payload) : await callDeepSeek(payload);
+    const markdown = normalizeReportMarkdown(rawMarkdown);
     if (!markdown.trim()) throw new Error("AI返回内容为空");
     return res.status(200).json({
       ok: true,
       report: {
         id: "jin10-24h-" + Date.now(),
         title: "最近24小时市场要闻整理",
-        fileName: new Date().toISOString().slice(0, 10) + "-最近24小时市场要闻整理.md",
+        fileName: fileTimestamp() + "-最近24小时市场要闻整理.md",
         provider: provider === "openai" ? "GPT" : "DeepSeek",
         generatedAt: new Date().toISOString(),
         sourceUpdatedAt: news.updatedAt,
