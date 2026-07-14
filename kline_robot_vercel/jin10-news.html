@@ -22,8 +22,7 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 </style>
 </head>
 <body><main>
-<section class="head"><div><h1>24小时市场要闻整理</h1><div class="sub">金十首页快讯自动去重、分类，并由 DeepSeek / GPT 提炼市场主线</div></div>
-<div class="actions"><button id="reload">刷新新闻</button><button id="openReport">新页面打开</button><button id="saveHtml">保存 HTML</button><button id="saveImage">保存图片</button><button id="copy">复制报告</button><button id="download">下载 Markdown</button></div></section>
+<section class="head"><div><h1>24小时市场要闻整理</h1></div></section>
 <section class="summary">
 <div class="card"><div class="label">数据状态</div><div class="value status" id="status"><span class="dot"></span><span>读取中</span></div></div>
 <div class="card"><div class="label">24小时新闻</div><div class="value" id="count">—</div></div>
@@ -32,10 +31,11 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 </section>
 <div id="error"></div>
 <section class="grid">
-<div class="card"><div class="panel-title"><h2>AI 市场整理</h2><span class="progress" id="progress"></span></div>
-<div class="ai-toolbar"><select id="provider"><option value="deepseek">DeepSeek</option><option value="openai">GPT</option></select><button class="primary" id="generate">生成最近24小时整理</button></div>
+<div class="card">
+<div class="ai-toolbar"><select id="provider"><option value="deepseek">DeepSeek</option><option value="openai">GPT</option></select><button class="primary" id="generate">生成最近24小时整理</button><span class="progress" id="progress"></span></div>
 <div class="report-meta" id="reportMeta">尚未生成。AI 将基于后台完整24小时缓存生成，不受左侧分类筛选影响。</div>
 <article class="report" id="report"><div class="empty">点击“生成最近24小时整理”开始分析。</div></article>
+<div class="actions" id="reportActions" style="display:none;margin-top:14px;justify-content:flex-start"><button id="openReport">新页面打开</button><button id="saveHtml">保存 HTML</button><button id="saveImage">保存图片</button></div>
 </div></section>
 </main>
 <script>
@@ -58,7 +58,7 @@ function renderMarkdown(md){
  if(inList)out.push('</ul>');return out.join('');
 }
 async function loadNews(){
- showError('');$('reload').disabled=true;
+ showError('');
  try{
   const r=await fetch(API_URL+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
   if(!r.ok)throw new Error('GitHub HTTP '+r.status);
@@ -69,7 +69,7 @@ async function loadNews(){
   $('status').className='value status '+(items.length?'ok':'bad');$('status').innerHTML='<span class="dot"></span><span>'+(items.length?'正常':'无数据')+'</span>';
   // 原始快讯仅供后台分类和AI分析，界面不逐条展示。
  }catch(e){$('status').className='value status bad';$('status').innerHTML='<span class="dot"></span><span>读取失败</span>';showError(e.message)}
- finally{$('reload').disabled=false}
+ finally{}
 }
 function renderChips(){
  const stats=newsData.categoryStats||{},names=['全部'].concat(Object.keys(stats).sort(function(a,b){return stats[b]-stats[a]}));
@@ -87,7 +87,7 @@ async function generate(){
  try{
   const r=await fetch('/api/news-summary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('provider').value})});
   const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.message||'生成失败');
-  currentReport=data.report;$('report').innerHTML=renderMarkdown(currentReport.markdown);
+  currentReport=data.report;$('report').innerHTML=renderMarkdown(currentReport.markdown);$('reportActions').style.display='flex';
   $('reportMeta').textContent='模型：'+currentReport.provider+'｜原始新闻：'+currentReport.totalItems+'条｜送入分析：'+currentReport.analyzedItems+'条｜生成：'+fmt.format(new Date(currentReport.generatedAt));
   localStorage.setItem('donew-jin10-latest-report',JSON.stringify(currentReport));
  }catch(e){$('report').innerHTML='<div class="empty">生成失败。</div>';showError(e.message)}
@@ -129,7 +129,7 @@ function saveReportImage(){
  const serialized=new XMLSerializer().serializeToString(wrapper);wrapper.remove();const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">'+serialized+'</div></foreignObject></svg>';
  const img=new Image();img.onload=function(){const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0);canvas.toBlob(function(blob){if(!blob)return showError('图片生成失败。');const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=currentReport.fileName.replace(/\.md$/i,'.png');a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000)},'image/png')};img.onerror=function(){showError('浏览器未能生成图片，请改用保存 HTML。')};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
 }
-$('reload').onclick=loadNews;$('generate').onclick=generate;$('openReport').onclick=openReportPage;$('saveHtml').onclick=saveReportHtml;$('saveImage').onclick=saveReportImage;$('copy').onclick=copyReport;$('download').onclick=downloadReport;
-try{const saved=JSON.parse(localStorage.getItem('donew-jin10-latest-report')||'null');if(saved&&saved.markdown){currentReport=saved;$('report').innerHTML=renderMarkdown(saved.markdown);$('reportMeta').textContent='浏览器上次报告｜模型：'+saved.provider+'｜生成：'+fmt.format(new Date(saved.generatedAt))}}catch(e){}
+$('generate').onclick=generate;$('openReport').onclick=openReportPage;$('saveHtml').onclick=saveReportHtml;$('saveImage').onclick=saveReportImage;
+try{const saved=JSON.parse(localStorage.getItem('donew-jin10-latest-report')||'null');if(saved&&saved.markdown){currentReport=saved;$('report').innerHTML=renderMarkdown(saved.markdown);$('reportActions').style.display='flex';$('reportMeta').textContent='浏览器上次报告｜模型：'+saved.provider+'｜生成：'+fmt.format(new Date(saved.generatedAt))}}catch(e){}
 loadNews();
 </script></body></html>
