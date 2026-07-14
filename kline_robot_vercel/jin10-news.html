@@ -66,7 +66,7 @@ function renderMarkdown(md){
  const lines=String(md||'').split(/\r?\n/),out=[];let inList=false;
  const inline=function(s){return esc(s).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')};
  const inlineWithSubhead=function(s){
-  const match=String(s||'').match(/^(\s*(?:\d+[.、]\s*)?)\*\*(.+?[:：])\*\*(.*)$/);
+  const match=String(s||'').match(/^(\s*(?:\d+[.、]\s*)?)\*\*(.+?)\*\*(.*)$/);
   if(!match)return inline(s);
   return esc(match[1])+'<strong class="subhead">'+esc(match[2])+'</strong>'+inline(match[3]);
  };
