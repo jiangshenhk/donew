@@ -223,14 +223,14 @@ function renderMarkdown(result, timezone) {
     hour: '2-digit', minute: '2-digit', hour12: false
   });
   const lines = [
-    '# 金十市场要闻｜最近24小时',
+    '# 金十市场要闻｜最近' + result.windowHours + '小时',
     '',
     '> 自动更新：' + new Date(result.checkedAt).toLocaleString('zh-CN', { timeZone: timezone }) +
       '｜新闻 ' + result.count + ' 条｜来源：' + result.sourceLabel,
     ''
   ];
   if (!result.items.length) {
-    lines.push('最近24小时没有匹配新闻。', '');
+    lines.push('最近' + result.windowHours + '小时没有匹配新闻。', '');
     return lines.join('\n');
   }
   for (const item of result.items) {
