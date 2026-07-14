@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "intervalMinutes": 15,
+  "intervalMinutes": 5,
   "hours": 24,
   "keyword": "金十数据整理",
   "maxPages": 12,
