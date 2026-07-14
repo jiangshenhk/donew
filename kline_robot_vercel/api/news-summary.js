@@ -69,12 +69,11 @@ function systemPrompt() {
     "输出Markdown，结论置顶，使用以下结构：",
     "# 最近24小时市场要闻整理",
     "标题后直接输出3-6条编号结论，不要出现“结论摘要”章节标题。",
+    "编号结论后立即输出跨资产Markdown表格，不要为表格添加任何章节标题。表格格式：| 资产 | 影响方向 | 核心逻辑 |。影响方向只允许填写“偏多”“偏空”或“中性”。",
     "## 一、市场正在交易什么",
     "## 二、分类要闻",
-    "## 三、跨资产影响",
-    "跨资产影响必须使用Markdown表格：| 资产 | 影响方向 | 核心逻辑 |。影响方向只允许填写“偏多”“偏空”或“中性”，不要使用其他描述。",
-    "## 四、卖Put风险提示",
-    "## 五、未来24小时观察清单",
+    "## 三、卖Put风险提示",
+    "## 四、未来24小时观察清单",
     "最后注明：本内容为新闻整理，不构成投资建议。"
   ].join("\n");
 }
@@ -114,14 +113,22 @@ async function callOpenAI(newsPayload) {
 }
 
 function normalizeReportMarkdown(markdown) {
-  return String(markdown || "")
+  let text = String(markdown || "")
     .replace(/^##\s*(?:一、)?结论摘要[^\n]*\n?/gmu, "")
     .replace(/^##\s*[一二三四五六七八九十]*、?\s*市场正在交易什么[^\n]*$/gmu, "## 一、市场正在交易什么")
     .replace(/^##\s*[一二三四五六七八九十]*、?\s*分类要闻[^\n]*$/gmu, "## 二、分类要闻")
-    .replace(/^##\s*[一二三四五六七八九十]*、?\s*跨资产影响[^\n]*$/gmu, "## 三、跨资产影响")
-    .replace(/^##\s*[一二三四五六七八九十]*、?\s*卖Put风险提示[^\n]*$/gmu, "## 四、卖Put风险提示")
-    .replace(/^##\s*[一二三四五六七八九十]*、?\s*未来24小时观察清单[^\n]*$/gmu, "## 五、未来24小时观察清单")
-    .trim();
+    .replace(/^##\s*[一二三四五六七八九十]*、?\s*跨资产影响[^\n]*$/gmu, "## 跨资产影响")
+    .replace(/^##\s*[一二三四五六七八九十]*、?\s*卖Put风险提示[^\n]*$/gmu, "## 三、卖Put风险提示")
+    .replace(/^##\s*[一二三四五六七八九十]*、?\s*未来24小时观察清单[^\n]*$/gmu, "## 四、未来24小时观察清单");
+
+  const crossMatch = text.match(/(?:^|\n)##\s*跨资产影响\s*\n([\s\S]*?)(?=\n##\s|$)/u);
+  if (crossMatch) {
+    const tableBlock = crossMatch[1].trim();
+    text = text.replace(crossMatch[0], "");
+    const firstSection = /^## 一、市场正在交易什么\s*$/mu;
+    text = text.replace(firstSection, tableBlock + "\n\n## 一、市场正在交易什么");
+  }
+  return text.trim();
 }
 
 function fileTimestamp(date = new Date()) {
