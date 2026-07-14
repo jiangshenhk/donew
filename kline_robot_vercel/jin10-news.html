@@ -126,8 +126,8 @@ function saveReportImage(){
  meta.textContent='模型：'+currentReport.provider+'｜原始新闻：'+currentReport.totalItems+'条｜分析新闻：'+currentReport.analyzedItems+'条｜生成：'+fmt.format(new Date(currentReport.generatedAt));
  const clone=source.cloneNode(true);copyComputedStyles(source,clone);panel.appendChild(meta);panel.appendChild(clone);wrapper.appendChild(panel);document.body.appendChild(wrapper);
  wrapper.style.position='fixed';wrapper.style.left='-20000px';wrapper.style.top='0';
- const width=1040,height=Math.ceil(wrapper.scrollHeight),serialized=new XMLSerializer().serializeToString(wrapper);
- wrapper.remove();const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">'+serialized+'</div></foreignObject></svg>';
+ const width=1040,height=Math.ceil(wrapper.scrollHeight);wrapper.style.position='static';wrapper.style.left='auto';wrapper.style.top='auto';
+ const serialized=new XMLSerializer().serializeToString(wrapper);wrapper.remove();const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">'+serialized+'</div></foreignObject></svg>';
  const img=new Image();img.onload=function(){const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0);canvas.toBlob(function(blob){if(!blob)return showError('图片生成失败。');const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=currentReport.fileName.replace(/\.md$/i,'.png');a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000)},'image/png')};img.onerror=function(){showError('浏览器未能生成图片，请改用保存 HTML。')};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
 }
 $('reload').onclick=loadNews;$('generate').onclick=generate;$('openReport').onclick=openReportPage;$('saveHtml').onclick=saveReportHtml;$('saveImage').onclick=saveReportImage;$('copy').onclick=copyReport;$('download').onclick=downloadReport;
