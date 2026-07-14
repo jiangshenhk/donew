@@ -2,11 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>24小时市场要闻整理</title>
+<title>AI 24小时市场要闻整理</title>
+<script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
 <style>
 :root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:#d2d2d7;--blue:#0071e3;--green:#248a3d;--red:#d70015;--amber:#b25000}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
-main{max-width:1120px;margin:auto;padding:32px 18px 70px}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.head-title{display:flex;align-items:baseline;gap:24px;flex-wrap:wrap}.head h1{font-size:30px;margin:0}.head-kicker{font-size:17px;font-weight:500;color:#ff2d2d;white-space:nowrap}.sub{font-size:14px;color:var(--muted)}
+main{max-width:1120px;margin:auto;padding:32px 18px 70px}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.head-title{display:flex;align-items:baseline;gap:24px;flex-wrap:wrap}.head h1{font-size:30px;margin:0}.visit-count{color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap}.visit-count strong{color:var(--text);font-weight:900}.sub{font-size:14px;color:var(--muted)}
 .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}button,select{font:inherit;border:0;border-radius:9px;padding:10px 14px;background:#e8e8ed;color:var(--text)}
 button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:disabled{opacity:.55;cursor:not-allowed}
 .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.card{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:15px;padding:18px;box-shadow:0 4px 20px rgba(0,0,0,.04)}
@@ -22,7 +23,7 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 </style>
 </head>
 <body><main>
-<section class="head"><div class="head-title"><h1>24小时市场要闻整理</h1><span class="head-kicker">AI 24小时市场要闻整理</span></div></section>
+<section class="head"><div class="head-title"><h1>AI 24小时市场要闻整理</h1></div><span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span></section>
 <section class="summary">
 <div class="card"><div class="label">数据状态</div><div class="value status" id="status"><span class="dot"></span><span>读取中</span></div></div>
 <div class="card"><div class="label">24小时新闻</div><div class="value" id="count">—</div></div>
@@ -181,5 +182,5 @@ function saveReportImage(){
 }
 $('generate').onclick=generate;$('openReport').onclick=openReportPage;$('saveHtml').onclick=saveReportHtml;$('saveImage').onclick=saveReportImage;
 try{const saved=JSON.parse(localStorage.getItem('donew-jin10-latest-report')||'null');if(saved&&saved.markdown){currentReport=saved;currentReport.markdown=normalizeDisplayMarkdown(currentReport.markdown);$('report').innerHTML=renderMarkdown(currentReport.markdown);$('reportActions').style.display='flex';$('reportMeta').textContent='浏览器上次报告｜模型：'+saved.provider+'｜生成：'+fmt.format(new Date(saved.generatedAt))}}catch(e){}
-loadNews();
+loadNews().then(function(){generate()});
 </script></body></html>
