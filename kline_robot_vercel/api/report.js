@@ -2023,12 +2023,99 @@ function futureTrendPaths({ cards, last, support, pressure1, pressure2, e20, e60
 }
 
 function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, e60, mom10, rsi14 }) {
+  function findLocalPivots(inputBars) {
+    const pivots = [];
+    for (let index = 1; index < inputBars.length - 1; index += 1) {
+      const prev = inputBars[index - 1];
+      const bar = inputBars[index];
+      const next = inputBars[index + 1];
+      const isHigh = (bar.high >= prev.high && bar.high >= next.high) && (bar.high > prev.high || bar.high > next.high);
+      const isLow = (bar.low <= prev.low && bar.low <= next.low) && (bar.low < prev.low || bar.low < next.low);
+      if (isHigh) pivots.push({ type: "high", index, bar, price: bar.high });
+      if (isLow) pivots.push({ type: "low", index, bar, price: bar.low });
+    }
+    return pivots.sort((a, b) => a.index - b.index);
+  }
+
+  function buildBullAbcCandidate(inputBars) {
+    const seq = inputBars.slice(-12);
+    if (seq.length < 6) return null;
+    const aIndex = seq.reduce((best, bar, index) => (best == null || bar.low < seq[best].low ? index : best), null);
+    if (aIndex == null || aIndex >= seq.length - 3) return null;
+    const bIndex = seq.reduce((best, bar, index) => (
+      index > aIndex && index < seq.length - 1 && (best == null || bar.high > seq[best].high) ? index : best
+    ), null);
+    if (bIndex == null || bIndex <= aIndex || bIndex >= seq.length - 2) return null;
+    const cIndex = seq.reduce((best, bar, index) => (
+      index > bIndex && index < seq.length - 1 && (best == null || bar.low < seq[best].low) ? index : best
+    ), null);
+    if (cIndex == null || cIndex <= bIndex) return null;
+    const a = seq[aIndex];
+    const b = seq[bIndex];
+    const c = seq[cIndex];
+    if (!a || !b || !c) return null;
+    const recovery = Math.max(0.01, (b.high - a.low) / Math.max(Math.abs(a.low), 1));
+    const cAboveA = c.low > a.low * 1.002;
+    const cBelowB = c.high < b.high * 0.998;
+    const valid = recovery >= 0.02 && cAboveA && cBelowB;
+    return {
+      valid,
+      a,
+      b,
+      c,
+      aIndex,
+      bIndex,
+      cIndex,
+      recovery,
+      lastBars: seq,
+    };
+  }
+
+  function buildBearAbcCandidate(inputBars) {
+    const seq = inputBars.slice(-12);
+    if (seq.length < 6) return null;
+    const aIndex = seq.reduce((best, bar, index) => (best == null || bar.high > seq[best].high ? index : best), null);
+    if (aIndex == null || aIndex >= seq.length - 3) return null;
+    const bIndex = seq.reduce((best, bar, index) => (
+      index > aIndex && index < seq.length - 1 && (best == null || bar.low < seq[best].low) ? index : best
+    ), null);
+    if (bIndex == null || bIndex <= aIndex || bIndex >= seq.length - 2) return null;
+    const cIndex = seq.reduce((best, bar, index) => (
+      index > bIndex && index < seq.length - 1 && (best == null || bar.high > seq[best].high) ? index : best
+    ), null);
+    if (cIndex == null || cIndex <= bIndex) return null;
+    const a = seq[aIndex];
+    const b = seq[bIndex];
+    const c = seq[cIndex];
+    if (!a || !b || !c) return null;
+    const decline = Math.max(0.01, (a.high - b.low) / Math.max(Math.abs(a.high), 1));
+    const cBelowA = c.high < a.high * 0.998;
+    const cAboveB = c.low > b.low * 1.002;
+    const valid = decline >= 0.02 && cBelowA && cAboveB;
+    return {
+      valid,
+      a,
+      b,
+      c,
+      aIndex,
+      bIndex,
+      cIndex,
+      decline,
+      lastBars: seq,
+    };
+  }
+
   const aboveE20 = Number.isFinite(e20) && last.close >= e20;
   const aboveE60 = Number.isFinite(e60) && last.close >= e60;
+  const belowE20 = Number.isFinite(e20) && last.close < e20;
+  const belowE60 = Number.isFinite(e60) && last.close < e60;
   const recentTrend = closeTrend(bars, Math.max(0, bars.length - 8), bars.length - 1);
   const recentBars = bars.slice(-4);
   const risingCloses = recentBars.slice(1).filter((bar, index) => bar.close >= recentBars[index].close).length;
   const recentHigherHighs = recentBars.slice(1).filter((bar, index) => bar.high >= recentBars[index].high).length;
+  const recentLowerCloses = recentBars.slice(1).filter((bar, index) => bar.close <= recentBars[index].close).length;
+  const recentLowerHighs = recentBars.slice(1).filter((bar, index) => bar.high <= recentBars[index].high).length;
+  const recentLowerLows = recentBars.slice(1).filter((bar, index) => bar.low <= recentBars[index].low).length;
   const recentVol = avgVolume(bars, Math.max(0, bars.length - 5), bars.length - 1);
   const prevVol = avgVolume(bars, Math.max(0, bars.length - 15), Math.max(0, bars.length - 6));
   const volRatio = prevVol > 0 ? recentVol / prevVol : 1;
@@ -2041,22 +2128,251 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
   const normalizedClosePosition = Math.max(0, Math.min(1.2, closePosition));
   const nearConfirmZone = closePosition >= 0.72;
   const nearCRecoveryZone = closePosition >= 0.56;
+  const nearSupportZone = closePosition <= 0.18;
+  const belowMidZone = closePosition <= 0.38;
   const confirmGapRatio = structureSpan > 0 ? Math.max(0, (pressure1 - last.close) / structureSpan) : 1;
   const risingIntoConfirm = recentTrend > 0 && risingCloses >= 2 && recentHigherHighs >= 2;
   const breakoutAttempt = risingIntoConfirm && normalizedClosePosition >= 0.88;
-  let stage = "ABC待确认";
-  let positionLabel = "当前位于 ABC 观察区";
+  const fallingIntoBreak = recentTrend < 0 && recentLowerCloses >= 2 && recentLowerHighs >= 2 && recentLowerLows >= 2;
+  const weakBounceUnderE20 = belowE20 && recentTrend > 0 && normalizedClosePosition <= 0.58;
+  const bullAbc = buildBullAbcCandidate(bars);
+  const bearAbc = buildBearAbcCandidate(bars);
+  const pivots = findLocalPivots(bars.slice(-14));
+  const bearBreakThreshold = bearAbc?.b ? bearAbc.b.low * 1.01 : support;
+  const bearFailureThreshold = bearAbc?.a ? bearAbc.a.high : pressure2;
+  const bearReboundCeiling = bearAbc?.c ? bearAbc.c.high : pressure1;
+  const bullConfirmThreshold = bullAbc?.b ? bullAbc.b.high : pressure1;
+  const bullCThreshold = bullAbc?.c ? bullAbc.c.low : support;
+  let stage = "ABC不适合判断";
+  let positionLabel = "当前结构暂不适合 ABC 归类";
   let phaseKey = "unknown";
   let progress = 0.5;
   let bias = "中性";
-  let note = "当前更像整理区，A / B / C 的分界需要下一段价格和量能确认。";
-  if (last.close < support && !aboveE20 && momentum < 0) {
+  let note = "当前价格节奏不够清晰，A / B / C 的分界还不稳定，先不要强行套入 ABC 结构。";
+  let trendMode = "unknown";
+  let suitable = false;
+  let primaryJudgement = "不适合判断";
+  let currentStage = "结构待确认";
+  let nextConfirm = "继续观察关键位和下一段价格/量能确认。";
+  let rule123 = null;
+
+  function detectBull123() {
+    for (let index = pivots.length - 3; index >= 0; index -= 1) {
+      const a = pivots[index];
+      const b = pivots[index + 1];
+      const c = pivots[index + 2];
+      if (!a || !b || !c) continue;
+      if (a.type !== "low" || b.type !== "high" || c.type !== "low") continue;
+      if (c.index <= b.index || b.index <= a.index) continue;
+      if (c.price <= a.price * 1.002) continue;
+      if (c.index < pivots[pivots.length - 1]?.index - 2) continue;
+      const confirmed = last.close > b.price * 1.002;
+      const stageName = confirmed ? "下跌123第三步确认" : "下跌123第二步观察";
+      return {
+        valid: true,
+        mode: "bull123",
+        step: confirmed ? 3 : 2,
+        bias: confirmed ? "偏多" : "中性",
+        stage: stageName,
+        note: confirmed
+          ? `前低 ${formatPrice(a.price)} 之后已出现回踩不创新低，且当前重新突破前高 ${formatPrice(b.price)}，更像下跌123转强确认。`
+          : `前低 ${formatPrice(a.price)} 后出现反弹，并在回踩时守住更高低点 ${formatPrice(c.price)}，更像下跌123的第二步观察。`,
+        nextConfirm: confirmed
+          ? `重点看能否继续站稳 ${formatPrice(b.price)} 上方并延续放量。`
+          : `下一步重点看是否有效突破前高 ${formatPrice(b.price)}。`,
+      };
+    }
+    if (recentTrend > 0 && aboveE20 && recentHigherHighs >= 2) {
+      return {
+        valid: true,
+        mode: "bull123",
+        step: 1,
+        bias: "中性",
+        stage: "下跌123第一步观察",
+        note: "下降节奏首次被打断，价格开始尝试站回中期均线，但还没有形成完整的高低点确认。",
+        nextConfirm: `下一步看回踩是否不再创新低，并尝试突破 ${formatPrice(pressure1)}。`,
+      };
+    }
+    return null;
+  }
+
+  function detectBear123() {
+    for (let index = pivots.length - 3; index >= 0; index -= 1) {
+      const a = pivots[index];
+      const b = pivots[index + 1];
+      const c = pivots[index + 2];
+      if (!a || !b || !c) continue;
+      if (a.type !== "high" || b.type !== "low" || c.type !== "high") continue;
+      if (c.index <= b.index || b.index <= a.index) continue;
+      if (c.price >= a.price * 0.998) continue;
+      if (c.index < pivots[pivots.length - 1]?.index - 2) continue;
+      const confirmed = last.close < b.price * 0.998;
+      const stageName = confirmed ? "上涨123第三步确认" : "上涨123第二步观察";
+      return {
+        valid: true,
+        mode: "bear123",
+        step: confirmed ? 3 : 2,
+        bias: "偏空",
+        stage: stageName,
+        note: confirmed
+          ? `前高 ${formatPrice(a.price)} 之后已出现反弹不创新高，且当前跌回前低 ${formatPrice(b.price)} 下方，更像上涨123转弱确认。`
+          : `前高 ${formatPrice(a.price)} 之后的反弹没有收复新高，当前更像上涨123第二步，正在等待前低 ${formatPrice(b.price)} 是否失守。`,
+        nextConfirm: confirmed
+          ? `重点看是否继续压在 ${formatPrice(b.price)} 下方并形成新的下跌段。`
+          : `下一步重点看是否跌破前低 ${formatPrice(b.price)}。`,
+      };
+    }
+    if (recentTrend < 0 && belowE20 && recentLowerCloses >= 2) {
+      return {
+        valid: true,
+        mode: "bear123",
+        step: 1,
+        bias: "中性",
+        stage: "上涨123第一步观察",
+        note: "上升节奏首次被打断，价格回到中期均线下方，但还没有形成完整的不创新高与跌破前低确认。",
+        nextConfirm: `下一步看反弹是否不能收复前高，并观察 ${formatPrice(support)} 是否被跌破。`,
+      };
+    }
+    return null;
+  }
+
+  rule123 = detectBear123() || detectBull123();
+
+  if (bearAbc?.valid && last.close < bearAbc.b.low && recentTrend < 0) {
+    stage = "高位ABC跌破 B";
+    positionLabel = "当前更像高位下跌 ABC 完成，正在跌破 B 点";
+    phaseKey = "C_DOWN";
+    progress = 0.95;
+    bias = "偏空";
+    note = `A 高点 ${formatPrice(bearAbc.a.high)}、B 低点 ${formatPrice(bearAbc.b.low)}、C 反抽高点 ${formatPrice(bearAbc.c.high)} 已形成；当前正在向下跌破 B 点，更像高位 ABC 转弱确认。`;
+    trendMode = "bear";
+    suitable = true;
+  } else if (bearAbc?.valid && last.close <= bearBreakThreshold && recentTrend < 0) {
+    stage = "高位ABC临近跌破 B";
+    positionLabel = "当前更像高位下跌 ABC 的 C 段末端，正逼近 B 点";
+    phaseKey = "C_DOWN";
+    progress = 0.88;
+    bias = "偏空";
+    note = `A / B / C 三段已经较完整，当前价已逼近 B 点 ${formatPrice(bearAbc.b.low)}，下一步重点看是否有效跌破。`;
+    trendMode = "bear";
+    suitable = true;
+  } else if (bearAbc?.valid && last.close < bearReboundCeiling && belowE20 && recentTrend <= 0) {
+    stage = "高位ABC的 C 段下压";
+    positionLabel = "当前更像高位下跌 ABC 的 C 段下压";
+    phaseKey = "C_DOWN";
+    progress = 0.78;
+    bias = "偏空";
+    note = `价格在 C 段反抽后重新走弱，仍未回到 A 高点上方，更像高位 ABC 的 C 段向下延伸。`;
+    trendMode = "bear";
+    suitable = true;
+  } else if (bearAbc?.valid && last.close < bearAbc.a.high && recentTrend > 0) {
+    stage = "高位ABC的 B→C 反抽";
+    positionLabel = "当前更像高位下跌 ABC 的 B 到 C 反抽";
+    phaseKey = "B_REBOUND";
+    progress = 0.52;
+    bias = "偏空";
+    note = `前面已经走出 A 高点到 B 低点的下跌，当前反抽更像 B 到 C，而不是新的上升主段。`;
+    trendMode = "bear";
+    suitable = true;
+  } else if (bearAbc?.valid && belowE20 && recentTrend < 0 && bearAbc.aIndex <= 3) {
+    stage = "高位ABC的 A 段下跌";
+    positionLabel = "当前更像高位下跌 ABC 的 A 段启动";
+    phaseKey = "A_DOWN";
+    progress = 0.24;
+    bias = "偏空";
+    note = `上方高点后开始转弱，但 B / C 尚未完全走出，更像高位 ABC 的第一段下跌。`;
+    trendMode = "bear";
+    suitable = true;
+  } else if (belowE20 && belowE60 && momentum <= -2.5 && last.close < support) {
+    stage = "C 段跌破延续";
+    positionLabel = "当前更像下跌 ABC 的 C 段破位延续";
+    phaseKey = "C_DOWN";
+    progress = 0.95;
+    bias = "偏空";
+    note = "前低已被跌穿，反抽没有站回关键位，更像下跌 ABC 的 C 段破位延续。";
+    trendMode = "bear";
+    suitable = true;
+  } else if (belowE20 && fallingIntoBreak && nearSupportZone) {
+    stage = "C 段临近破前低";
+    positionLabel = "当前更像下跌 ABC 的 C 段下压，正逼近前低";
+    phaseKey = "C_DOWN";
+    progress = 0.88;
+    bias = "偏空";
+    note = "最近几根K线连续走弱，已经逼近前低，下一步重点看是否向下破位。";
+    trendMode = "bear";
+    suitable = true;
+  } else if (belowE20 && momentum < 0 && belowMidZone) {
+    stage = "C 段再下压";
+    positionLabel = "当前更像下跌 ABC 的 C 段再下压";
+    phaseKey = "C_DOWN";
+    progress = 0.76;
+    bias = "偏空";
+    note = "反抽后重新转弱，价格回到结构下半区，更像进入 C 段再下压。";
+    trendMode = "bear";
+    suitable = true;
+  } else if (weakBounceUnderE20) {
+    stage = "B 段反抽";
+    positionLabel = "当前更像下跌 ABC 的 B 段反抽";
+    phaseKey = "B_REBOUND";
+    progress = 0.50;
+    bias = "偏空";
+    note = "价格有反弹，但仍压在 E20 下方，更像下跌结构中的 B 段反抽，而非新一轮上升。";
+    trendMode = "bear";
+    suitable = true;
+  } else if (belowE20 && recentTrend < 0 && normalizedClosePosition <= 0.62) {
+    stage = "A 段下跌启动";
+    positionLabel = "当前更像下跌 ABC 的 A 段下跌";
+    phaseKey = "A_DOWN";
+    progress = 0.24;
+    bias = "偏空";
+    note = "价格脱离上方压力并持续走弱，更像下跌结构的 A 段正在展开。";
+    trendMode = "bear";
+    suitable = true;
+  } else if (last.close < support && !aboveE20 && momentum < 0) {
     stage = "结构失败";
     positionLabel = "ABC 结构失效，优先按破位处理";
     phaseKey = "fail";
     progress = 1;
     bias = "偏空";
     note = "关键支撑被破坏后，原先的 ABC 解释优先降级，先看是否形成新的底部结构。";
+    trendMode = "bear";
+    suitable = true;
+  } else if (bullAbc?.valid && last.close > bullAbc.b.high && recentTrend > 0) {
+    stage = "低位ABC突破 B";
+    positionLabel = "当前更像低位修复 ABC 完成，正在突破 B 点";
+    phaseKey = "C";
+    progress = 0.94;
+    bias = "偏多";
+    note = `A 低点 ${formatPrice(bullAbc.a.low)}、B 高点 ${formatPrice(bullAbc.b.high)}、C 回踩低点 ${formatPrice(bullAbc.c.low)} 已形成；当前更像低位 ABC 的突破确认。`;
+    trendMode = "bull";
+    suitable = true;
+  } else if (bullAbc?.valid && last.close >= bullConfirmThreshold * 0.985 && recentTrend > 0) {
+    stage = "低位ABC临近突破 B";
+    positionLabel = "当前更像低位修复 ABC 的 C 段末端，正靠近 B 点";
+    phaseKey = "C";
+    progress = 0.84;
+    bias = "偏多";
+    note = `当前位置已经从 C 点低位回升到 B 点附近，重点看是否能有效突破 ${formatPrice(bullAbc.b.high)}。`;
+    trendMode = "bull";
+    suitable = true;
+  } else if (bullAbc?.valid && last.close > bullCThreshold && aboveE20 && recentTrend > 0) {
+    stage = "低位ABC的 C 段回升";
+    positionLabel = "当前更像低位修复 ABC 的 C 段回升";
+    phaseKey = "C";
+    progress = 0.72;
+    bias = "偏多";
+    note = `B 后回踩没有跌破 A，当前重新回升，更像从 C 点区域向确认位推进。`;
+    trendMode = "bull";
+    suitable = true;
+  } else if (bullAbc?.valid && last.close > bullAbc.a.low && recentTrend <= 0) {
+    stage = "低位ABC的 B→C 回踩";
+    positionLabel = "当前更像低位修复 ABC 的 B 到 C 回踩";
+    phaseKey = "BC";
+    progress = 0.56;
+    bias = "中性";
+    note = `当前更像 B 后回踩途中，关键看 C 点是否高于 A 点并缩量企稳。`;
+    trendMode = "bull";
+    suitable = true;
   } else if (momentum >= 3 && aboveE20 && aboveE60 && last.close >= pressure2) {
     stage = "C 段延续";
     positionLabel = "当前更像 C 段后半段 / 延续加速";
@@ -2064,6 +2380,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.97;
     bias = "偏多";
     note = "动量较强且价格站上中期均线，更像 C 段再次上冲后的延续。";
+    trendMode = "bull";
+    suitable = true;
   } else if (momentum >= 1 && aboveE20 && last.close >= pressure1) {
     stage = "C 段突破确认";
     positionLabel = "当前更像 C 段突破确认 / 已站上确认位";
@@ -2071,6 +2389,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.90 + Math.min(0.04, Math.max(0, normalizedClosePosition - 1) * 0.16);
     bias = "偏多";
     note = "回踩后已经重新站上确认位，当前位置不再只是试探，更接近 C 段确认后的继续上攻。";
+    trendMode = "bull";
+    suitable = true;
   } else if (aboveE20 && risingIntoConfirm && breakoutAttempt) {
     stage = "C 段上攻 / 冲击前高";
     positionLabel = "当前更像 C 段上攻，正在冲击原 B 高";
@@ -2078,6 +2398,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.82 + Math.min(0.07, Math.max(0, normalizedClosePosition - 0.88) * 0.45);
     bias = "偏多";
     note = "当前位置已经脱离 C 点低位，属于从 C 点向上修复并冲击原 B 高的阶段，重点看能否把冲高变成有效突破。";
+    trendMode = "bull";
+    suitable = true;
   } else if (aboveE20 && risingIntoConfirm && nearConfirmZone) {
     stage = "C 段回升 / 靠近确认";
     positionLabel = "当前更像 C 段回升，正在靠近确认位";
@@ -2085,6 +2407,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.72 + Math.min(0.08, Math.max(0, normalizedClosePosition - 0.72) * 0.4);
     bias = "偏多";
     note = "最近几根K线持续抬高、价格已靠近确认位，说明已经离开 C 点低位，正在从 C 段回升向确认区推进。";
+    trendMode = "bull";
+    suitable = true;
   } else if (aboveE20 && recentTrend > 0 && nearCRecoveryZone) {
     stage = "C 段止跌 / 初步回升";
     positionLabel = "当前更像 C 段止跌后回升初期";
@@ -2092,6 +2416,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.64 + Math.min(0.06, Math.max(0, normalizedClosePosition - 0.56) * 0.35);
     bias = "中性";
     note = "当前位置更像从 C 点附近刚开始抬头，先看止跌是否成立，再看能否逐步走向确认位。";
+    trendMode = "bull";
+    suitable = true;
   } else if (aboveE20 && recentTrend >= 0 && confirmGapRatio <= 0.14) {
     stage = "C 段前确认";
     positionLabel = "当前更像 C 段前确认 / 靠近确认位";
@@ -2099,6 +2425,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.74 + Math.min(0.10, Math.max(0, 0.14 - confirmGapRatio) * 0.5);
     bias = "偏多";
     note = "价格已经靠近确认位，即使还没正式突破，也更像 C 段前确认，而不只是 B→C 过渡。";
+    trendMode = "bull";
+    suitable = true;
   } else if (momentum >= 1 && aboveE20 && last.close < pressure1) {
     stage = "B→C 过渡";
     positionLabel = "当前更像 B 末段，正在向 C 过渡";
@@ -2106,6 +2434,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.58 + Math.min(0.12, Math.max(0, normalizedClosePosition - 0.45) * 0.35);
     bias = "偏多";
     note = "回踩后动量开始修复，但还没有完全越过确认位，属于 B 向 C 的过渡。";
+    trendMode = "bull";
+    suitable = true;
   } else if (momentum <= -3 && !aboveE20) {
     stage = "A 段后回撤";
     positionLabel = "当前更像 A 段后回撤 / 失速";
@@ -2113,6 +2443,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.26;
     bias = "偏空";
     note = "上冲后动量转弱，若失去 E20，容易演化为 A 段后的回撤或失效。";
+    trendMode = "bull";
+    suitable = true;
   } else if (momentum < 0 && aboveE20 && last.close >= support) {
     stage = "B 段健康回踩";
     positionLabel = "当前更像 B 段回踩中后段";
@@ -2120,6 +2452,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.48;
     bias = "中性";
     note = "价格仍守住中期均线，但动量在消化，常见于 B 段回调或横盘整理。";
+    trendMode = "bull";
+    suitable = true;
   } else if (!aboveE20 && recentTrend < 0 && last.close >= support) {
     stage = "B 段偏弱整理";
     positionLabel = "当前更像 B 段偏弱整理 / 等待方向确认";
@@ -2127,6 +2461,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.44;
     bias = "中性";
     note = "价格仍在支撑之上，但已经压在中期均线下，更像 B 段整理偏弱。";
+    trendMode = "bull";
+    suitable = true;
   } else if (!aboveE20 && recentTrend < 0) {
     stage = "A 段失败 / 转弱";
     positionLabel = "当前更像 A 段失败后的转弱区";
@@ -2134,6 +2470,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.18;
     bias = "偏空";
     note = "价格偏离中期均线且最近趋势转弱，更像 A 段后失守，需要防止继续回落。";
+    trendMode = "bull";
+    suitable = true;
   } else if (aboveE20 && recentTrend > 0 && last.close < pressure1) {
     stage = "B 段止跌 / 等待 C";
     positionLabel = "当前更像 B 段止跌，等待 C 段触发";
@@ -2141,6 +2479,8 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.56;
     bias = "中性";
     note = "结构还守得住，但还没到强确认；更像 B 段止跌后等待 C 段触发。";
+    trendMode = "bull";
+    suitable = true;
   } else if (aboveE20 && recentTrend > 0) {
     stage = "C 段试探";
     positionLabel = "当前更像 C 段试探 / 尝试离开低位";
@@ -2148,11 +2488,26 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress = 0.68;
     bias = "偏多";
     note = "价格和趋势都开始向上，但更像刚从 C 段低位抬头，仍需确认回升是否有连续性。";
+    trendMode = "bull";
+    suitable = true;
   }
   const volume = prevVol > 0 ? (volRatio >= 1.12 ? "放量" : volRatio <= 0.88 ? "缩量" : "平量") : "量能不足";
-  if (phaseKey === "unknown") {
+  if (phaseKey === "unknown" && suitable) {
     phaseKey = stage.startsWith("C") ? "C" : stage.startsWith("B→C") ? "BC" : stage.startsWith("B") ? "B" : stage.startsWith("A") ? "A" : "unknown";
     progress = phaseKey === "A" ? 0.22 : phaseKey === "B" ? 0.48 : phaseKey === "BC" ? 0.64 : phaseKey === "C" ? 0.82 : 0.5;
+  }
+  if (rule123?.valid) {
+    primaryJudgement = "123法则";
+    currentStage = rule123.stage;
+    nextConfirm = rule123.nextConfirm;
+  } else if (suitable) {
+    primaryJudgement = "ABC结构";
+    currentStage = stage;
+    if (trendMode === "bear") {
+      nextConfirm = `重点看是否跌破 ${formatPrice(support)} 或重新压回 ${formatPrice(pressure1)} 下方。`;
+    } else {
+      nextConfirm = `重点看是否收复 / 站稳 ${formatPrice(pressure1)}，并延续向 ${formatPrice(pressure2)} 推进。`;
+    }
   }
   return {
     stage,
@@ -2161,7 +2516,15 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     progress,
     bias,
     note,
-    summary: `当前位置更像 ${stage}（${positionLabel}），整体${bias}。${note} 动量 ${Number.isFinite(mom10) ? `${mom10.toFixed(2)}%` : "数据不足"}，RSI ${Number.isFinite(rsi14) ? rsi14.toFixed(1) : "数据不足"}，量能${volume}，A/B/C 分界仍以关键位确认。`,
+    suitable,
+    trendMode,
+    primaryJudgement,
+    currentStage,
+    nextConfirm,
+    rule123,
+    summary: suitable
+      ? `${primaryJudgement === "123法则" ? `${primaryJudgement}优先，当前阶段为 ${currentStage}` : `当前位置更像 ${stage}（${positionLabel}）`}，整体${rule123?.valid ? rule123.bias : bias}。${rule123?.valid ? rule123.note : note} 动量 ${Number.isFinite(mom10) ? `${mom10.toFixed(2)}%` : "数据不足"}，RSI ${Number.isFinite(rsi14) ? rsi14.toFixed(1) : "数据不足"}，量能${volume}。下一步：${nextConfirm}`
+      : `当前结构暂不适合用 123 / 2B / ABC 归类，整体先按${bias}观察。${note} 动量 ${Number.isFinite(mom10) ? `${mom10.toFixed(2)}%` : "数据不足"}，RSI ${Number.isFinite(rsi14) ? rsi14.toFixed(1) : "数据不足"}，量能${volume}。`,
     volume,
     momentum: Number.isFinite(mom10) ? mom10.toFixed(2) : null,
     rsi: Number.isFinite(rsi14) ? rsi14.toFixed(1) : null,
@@ -2172,12 +2535,61 @@ function summarizeAbcMomentum({ bars, last, support, pressure1, pressure2, e20, 
     ],
     strength: aboveE20 ? "站上 E20" : "压在 E20 下",
     volumeDetail: prevVol > 0 ? `近5根均量 ${Math.round(recentVol).toLocaleString()} / 前10根均量 ${Math.round(prevVol).toLocaleString()}` : "成交量基准不足",
+    abcPoints: trendMode === "bear" && bearAbc?.valid
+      ? {
+          A: formatPrice(bearAbc.a.high),
+          B: formatPrice(bearAbc.b.low),
+          C: formatPrice(bearAbc.c.high),
+        }
+      : trendMode === "bull" && bullAbc?.valid
+        ? {
+            A: formatPrice(bullAbc.a.low),
+            B: formatPrice(bullAbc.b.high),
+            C: formatPrice(bullAbc.c.low),
+          }
+        : null,
+    pivots,
   };
 }
 
 function abcPositionSvg(abc) {
+  if (abc?.primaryJudgement === "123法则" && abc?.rule123?.valid) {
+    const isBear123 = abc.rule123.mode === "bear123";
+    const step = abc.rule123.step || 1;
+    const currentColor = "#ffd166";
+    const titleColor = isBear123 ? "#ff7a88" : "#40d98a";
+    const pathD = isBear123
+      ? "M38 126 C72 74, 94 54, 118 58 S172 94, 204 116 S258 122, 292 98 S338 54, 366 62"
+      : "M38 62 C72 116, 98 136, 118 132 S170 92, 204 78 S262 66, 294 92 S338 128, 366 122";
+    const guideColor = isBear123 ? "#ff6a6a" : "#5f96ff";
+    const guideY = isBear123 ? 58 : 132;
+    const point1 = isBear123 ? { x: 118, y: 58, fill: "#ff7a88", label: "前高" } : { x: 118, y: 132, fill: "#ff6a6a", label: "前低" };
+    const point2 = isBear123 ? { x: 214, y: 116, fill: "#40d98a", label: "前低" } : { x: 214, y: 78, fill: "#40d98a", label: "前高" };
+    const point3 = isBear123 ? { x: 294, y: 92, fill: "#4c8dff", label: "反弹高点" } : { x: 294, y: 92, fill: "#4c8dff", label: "回踩低点" };
+    const currentPoint = step === 1
+      ? { x: isBear123 ? 174 : 174, y: isBear123 ? 88 : 104 }
+      : step === 2
+        ? { x: point3.x, y: point3.y }
+        : { x: isBear123 ? 348 : 348, y: isBear123 ? 108 : 82 };
+    const topLabel = safeHtml(abc.currentStage || abc.stage || "123法则观察");
+    const textLine1 = step === 1
+      ? (isBear123 ? "上涨节奏首次被破坏" : "下跌节奏首次被破坏")
+      : step === 2
+        ? (isBear123 ? "反弹不再创新高" : "回踩没有再创新低")
+        : (isBear123 ? "再次跌破前低，123 转弱确认" : "再次突破前高，123 转强确认");
+    const textLine2 = safeHtml(abc.nextConfirm || "继续观察关键位确认。");
+    const noteBox = step === 3
+      ? { x: 204, y: isBear123 ? 24 : 126, w: 150, h: 42 }
+      : { x: 184, y: isBear123 ? 22 : 124, w: 162, h: 42 };
+    return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 420 196" role="img" aria-label="123法则位置示意图"><defs><marker id="oneTwoThreeArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="${currentColor}"/></marker></defs><rect x="8" y="8" width="404" height="180" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="16" y="16" width="388" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="32" fill="${titleColor}" font-size="12" font-weight="800">${topLabel}</text><line x1="28" y1="164" x2="388" y2="164" stroke="rgba(255,255,255,.18)" stroke-width="2"/><line x1="28" y1="${guideY}" x2="${step === 3 ? 360 : 300}" y2="${guideY}" stroke="${guideColor}" stroke-width="1.4" stroke-dasharray="6 6" opacity=".92"/><path d="${pathD}" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="3"/><circle cx="${point1.x}" cy="${point1.y}" r="8" fill="${point1.fill}"/><circle cx="${point2.x}" cy="${point2.y}" r="8" fill="${point2.fill}"/><circle cx="${point3.x}" cy="${point3.y}" r="8" fill="${point3.fill}"/><path d="M${currentPoint.x - 22} ${currentPoint.y} C${currentPoint.x - 10} ${currentPoint.y}, ${currentPoint.x - 6} ${currentPoint.y}, ${currentPoint.x + 16} ${currentPoint.y}" fill="none" stroke="${currentColor}" stroke-width="3" stroke-dasharray="8 5" marker-end="url(#oneTwoThreeArrow)"/><circle cx="${currentPoint.x}" cy="${currentPoint.y}" r="7" fill="${currentColor}" stroke="#fff3d1" stroke-width="2"/><text x="${point1.x - 16}" y="182" fill="${point1.fill}" font-size="12" font-weight="900">1</text><text x="${point2.x - 16}" y="182" fill="${point2.fill}" font-size="12" font-weight="900">2</text><text x="${point3.x - 16}" y="182" fill="${point3.fill}" font-size="12" font-weight="900">3</text><rect x="${noteBox.x}" y="${noteBox.y}" width="${noteBox.w}" height="${noteBox.h}" rx="11" fill="rgba(34,27,9,.92)" stroke="${currentColor}" stroke-width="1.4"/><text x="${noteBox.x + 10}" y="${noteBox.y + 16}" fill="${currentColor}" font-size="11" font-weight="800">当前位置：</text><text x="${noteBox.x + 10}" y="${noteBox.y + 30}" fill="#fff4d6" font-size="11" font-weight="700">${safeHtml(textLine1)}</text><text x="${noteBox.x + 10}" y="${noteBox.y + 44}" fill="#dbe5ff" font-size="10">${textLine2}</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(abc.primaryJudgement)}</span>${directionMarkup(abc.rule123.bias || abc.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(abc.currentStage || abc.stage)}</span></div></div>`;
+  }
+  if (!abc?.suitable) {
+    return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 520 170" role="img" aria-label="ABC结构暂不适合判断"><rect x="8" y="8" width="504" height="154" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="16" y="16" width="488" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="32" fill="#d7e3ff" font-size="12" font-weight="800">ABC 结构暂不适合判断</text><rect x="34" y="54" width="452" height="82" rx="14" fill="rgba(255,255,255,.025)" stroke="rgba(255,209,102,.24)" stroke-dasharray="6 6"/><text x="52" y="82" fill="#ffd166" font-size="12" font-weight="800">当前先不要强行定位 A / B / C</text><text x="52" y="104" fill="#dbe5ff" font-size="11">最近价格与动量节奏不够清晰，既不像完整的上涨 ABC，</text><text x="52" y="122" fill="#dbe5ff" font-size="11">也不像明确的下跌 ABC，先等关键位或下一段走势确认。</text></svg></div>`;
+  }
   const phase = abc.phaseKey || "unknown";
-  const active = phase === "BC" ? "B" : phase === "fail" ? "B" : phase;
+  const trendMode = abc.trendMode || "bull";
+  const isBear = trendMode === "bear";
+  const active = phase === "BC" ? "B" : phase === "fail" ? "B" : phase === "A_DOWN" ? "A" : phase === "B_REBOUND" ? "B" : phase === "C_DOWN" ? "C" : phase;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const palette = {
     A: "#ff7a88",
@@ -2188,16 +2600,30 @@ function abcPositionSvg(abc) {
   };
   const currentColor = "#ffd166";
   const semanticColor = palette[phase] || palette[active] || palette.unknown;
-  const titleColor = phase === "fail" ? "#ff7a88" : active === "A" ? "#ff7a88" : "#40d98a";
+  const titleColor = phase === "fail" || isBear ? "#ff7a88" : active === "A" ? "#ff7a88" : "#40d98a";
   const progress = Number.isFinite(abc.progress) ? Math.max(0, Math.min(1, abc.progress)) : 0.5;
-  const curve = [
-    { x: 34, y: 118 },
-    { x: 104, y: 154 },
-    { x: 214, y: 54 },
-    { x: 336, y: 150 },
-    { x: 474, y: 34 },
-  ];
+  const curve = isBear
+    ? [
+        { x: 34, y: 58 },
+        { x: 104, y: 154 },
+        { x: 214, y: 84 },
+        { x: 336, y: 162 },
+        { x: 474, y: 126 },
+      ]
+    : [
+        { x: 34, y: 118 },
+        { x: 104, y: 154 },
+        { x: 214, y: 54 },
+        { x: 336, y: 150 },
+        { x: 474, y: 34 },
+      ];
   const segmentForProgress = (value) => {
+    if (isBear) {
+      if (value <= 0.30) return [curve[0], curve[1], value / 0.30];
+      if (value <= 0.58) return [curve[1], curve[2], (value - 0.30) / 0.28];
+      if (value <= 0.88) return [curve[2], curve[3], (value - 0.58) / 0.30];
+      return [curve[3], curve[4], (value - 0.88) / 0.12];
+    }
     if (value <= 0.18) return [curve[0], curve[1], value / 0.18];
     if (value <= 0.48) return [curve[1], curve[2], (value - 0.18) / 0.30];
     if (value <= 0.76) return [curve[2], curve[3], (value - 0.48) / 0.28];
@@ -2213,6 +2639,11 @@ function abcPositionSvg(abc) {
   const topLabel = safeHtml(simplifiedTopLabel || "当前位置待确认");
   const stageTextMap = {
     "结构失败": ["当前位置：", "ABC 结构失效，先按破位/转弱处理。"],
+    "A 段下跌启动": ["当前位置：", "下跌 A 段正在展开，先看反抽是否无力。"],
+    "B 段反抽": ["当前位置：", "下跌后的 B 段反抽，重点看是否受阻。"],
+    "C 段再下压": ["当前位置：", "反抽后进入 C 段下压，关注前低是否失守。"],
+    "C 段临近破前低": ["当前位置：", "已逼近前低，下一步重点看是否向下破位。"],
+    "C 段跌破延续": ["当前位置：", "前低已失守，更像 C 段破位延续。"],
     "A 段后回撤": ["当前位置：", "A→B 上升段失速，先看是否继续回撤。"],
     "A 段失败 / 转弱": ["当前位置：", "A 段失败后转弱，先防继续下探。"],
     "B 段健康回踩": ["当前位置：", "B→C 回踩中，先看止跌，再看是否转强。"],
@@ -2229,6 +2660,12 @@ function abcPositionSvg(abc) {
   const currentText = stageTextMap[abc.stage]
     || (phase === "fail"
       ? ["当前位置：", "ABC 结构失效，先按破位/转弱处理。"]
+      : isBear
+        ? active === "A"
+          ? ["当前位置：", "下跌 A 段正在展开，先看反抽是否出现。"]
+          : active === "B"
+            ? ["当前位置：", "下跌后的 B 段反抽中，重点看是否重新受阻。"]
+            : ["当前位置：", "当前更像下跌 C 段，重点看前低是否会被跌穿。"]
       : active === "A"
         ? ["当前位置：", "A→B 上升段，重点看能否继续抬高。"]
         : active === "B"
@@ -2245,6 +2682,9 @@ function abcPositionSvg(abc) {
   } else if (active === "B" || phase === "fail") {
     noteX = markerX + 24;
     noteY = markerY + 22;
+  } else if (isBear) {
+    noteX = markerX - noteBoxBase.w - 18;
+    noteY = markerY - noteBoxBase.h - 6;
   } else {
     noteX = markerX + 20;
     noteY = markerY - noteBoxBase.h + 10;
@@ -2257,7 +2697,13 @@ function abcPositionSvg(abc) {
   const pointFillA = "#ff5d73";
   const pointFillB = "#40d98a";
   const pointFillC = "#4c8dff";
-  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 520 232" role="img" aria-label="ABC和2B结构位置示意图"><defs><filter id="abcGlow2" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="abcArrowHead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="${currentColor}"/></marker></defs><rect x="8" y="8" width="504" height="216" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="16" y="16" width="488" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="32" fill="${titleColor}" font-size="12" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800">${topLabel}</text><line x1="28" y1="176" x2="492" y2="176" stroke="rgba(255,255,255,.18)" stroke-width="2"/><line x1="28" y1="176" x2="28" y2="44" stroke="rgba(255,255,255,.18)" stroke-width="2"/><path d="M34 118 C66 168, 84 170, 104 154 S184 74, 214 54 S306 132, 336 150 S432 76, 474 34" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="3"/><line x1="28" y1="154" x2="336" y2="154" stroke="#ff6a6a" stroke-width="1.4" stroke-dasharray="6 6" opacity=".9"/><line x1="28" y1="54" x2="214" y2="54" stroke="#5f96ff" stroke-width="1.4" stroke-dasharray="6 6" opacity=".9"/><circle cx="104" cy="154" r="8" fill="${pointFillA}"/><circle cx="214" cy="54" r="8" fill="${pointFillB}"/><circle cx="336" cy="150" r="8" fill="${pointFillC}"/><text x="98" y="188" fill="#ff7a88" font-size="14" font-weight="900">A 段</text><text x="204" y="188" fill="#40d98a" font-size="14" font-weight="900">B 段</text><text x="326" y="188" fill="#4c8dff" font-size="14" font-weight="900">C 段</text><path d="M${markerX - 26} ${markerY} C${markerX - 12} ${markerY}, ${markerX - 8} ${markerY}, ${markerX + 18} ${markerY}" fill="none" stroke="${currentColor}" stroke-width="4" stroke-dasharray="8 6" filter="url(#abcGlow2)" marker-end="url(#abcArrowHead)"/><circle cx="${markerX}" cy="${markerY}" r="7" fill="${currentColor}" stroke="#fff3d1" stroke-width="2"/><rect x="${noteBox.x}" y="${noteBox.y}" width="${noteBox.w}" height="${noteBox.h}" rx="12" fill="${noteBox.fill}" stroke="${noteBox.stroke}" stroke-width="1.6"/><text x="${noteBox.x + 12}" y="${noteBox.y + 21}" fill="${noteBox.stroke}" font-size="11" font-weight="800">${safeHtml(currentText[0])}</text><text x="${noteBox.x + 12}" y="${noteBox.y + 40}" fill="#fff4d6" font-size="11" font-weight="700">${safeHtml(currentText[1])}</text><text x="448" y="28" fill="rgba(255,255,255,.45)" font-size="11">价格</text><text x="466" y="208" fill="rgba(255,255,255,.45)" font-size="11">时间</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(abc.stage)}</span>${directionMarkup(abc.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(abc.positionLabel || "当前位置待确认")}</span></div></div>`;
+  const pathD = isBear
+    ? "M34 58 C66 108, 84 164, 104 154 S184 88, 214 84 S306 176, 336 162 S432 124, 474 126"
+    : "M34 118 C66 168, 84 170, 104 154 S184 74, 214 54 S306 132, 336 150 S432 76, 474 34";
+  const lowGuideY = isBear ? 154 : 154;
+  const highGuideY = isBear ? 84 : 54;
+  const highGuideX2 = isBear ? 214 : 214;
+  return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 520 232" role="img" aria-label="ABC和2B结构位置示意图"><defs><filter id="abcGlow2" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><marker id="abcArrowHead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="${currentColor}"/></marker></defs><rect x="8" y="8" width="504" height="216" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="16" y="16" width="488" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="32" fill="${titleColor}" font-size="12" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Arial,sans-serif" font-weight="800">${topLabel}</text><line x1="28" y1="176" x2="492" y2="176" stroke="rgba(255,255,255,.18)" stroke-width="2"/><line x1="28" y1="176" x2="28" y2="44" stroke="rgba(255,255,255,.18)" stroke-width="2"/><path d="${pathD}" fill="none" stroke="rgba(255,255,255,.88)" stroke-width="3"/><line x1="28" y1="${lowGuideY}" x2="336" y2="${lowGuideY}" stroke="#ff6a6a" stroke-width="1.4" stroke-dasharray="6 6" opacity=".9"/><line x1="28" y1="${highGuideY}" x2="${highGuideX2}" y2="${highGuideY}" stroke="#5f96ff" stroke-width="1.4" stroke-dasharray="6 6" opacity=".9"/><circle cx="104" cy="${isBear ? 154 : 154}" r="8" fill="${pointFillA}"/><circle cx="214" cy="${isBear ? 84 : 54}" r="8" fill="${pointFillB}"/><circle cx="336" cy="${isBear ? 162 : 150}" r="8" fill="${pointFillC}"/><text x="98" y="188" fill="#ff7a88" font-size="14" font-weight="900">A 段</text><text x="204" y="188" fill="#40d98a" font-size="14" font-weight="900">B 段</text><text x="326" y="188" fill="#4c8dff" font-size="14" font-weight="900">C 段</text><path d="M${markerX - 26} ${markerY} C${markerX - 12} ${markerY}, ${markerX - 8} ${markerY}, ${markerX + 18} ${markerY}" fill="none" stroke="${currentColor}" stroke-width="4" stroke-dasharray="8 6" filter="url(#abcGlow2)" marker-end="url(#abcArrowHead)"/><circle cx="${markerX}" cy="${markerY}" r="7" fill="${currentColor}" stroke="#fff3d1" stroke-width="2"/><rect x="${noteBox.x}" y="${noteBox.y}" width="${noteBox.w}" height="${noteBox.h}" rx="12" fill="${noteBox.fill}" stroke="${noteBox.stroke}" stroke-width="1.6"/><text x="${noteBox.x + 12}" y="${noteBox.y + 21}" fill="${noteBox.stroke}" font-size="11" font-weight="800">${safeHtml(currentText[0])}</text><text x="${noteBox.x + 12}" y="${noteBox.y + 40}" fill="#fff4d6" font-size="11" font-weight="700">${safeHtml(currentText[1])}</text><text x="448" y="28" fill="rgba(255,255,255,.45)" font-size="11">价格</text><text x="466" y="208" fill="rgba(255,255,255,.45)" font-size="11">时间</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">${safeHtml(abc.stage)}</span>${directionMarkup(abc.bias)}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(abc.positionLabel || "当前位置待确认")}</span></div></div>`;
 }
 
 function buildAnalysisAngles({ bars, cards, last, support, pressure1, pressure2, e20, e60, mom10, rsi14, historicalTrendStats }) {
@@ -2370,7 +2816,7 @@ function summarizeTwoB({ bars, last, support, pressure1, e20, mom10, rsi14 }) {
 
 function twoBPositionSvg(twoB) {
   if (!twoB?.valid) {
-    return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 380 206" role="img" aria-label="2B结构未成立"><rect x="8" y="8" width="364" height="190" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="18" y="16" width="344" height="24" rx="12" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="31" fill="#d7e3ff" font-size="11" font-weight="800">2B 结构未成立</text><rect x="40" y="58" width="300" height="100" rx="14" fill="rgba(255,255,255,.03)" stroke="rgba(255,209,102,.28)" stroke-dasharray="6 6"/><text x="56" y="90" fill="#ffd166" font-size="12" font-weight="800">当前先不强画 2B 位置图</text><text x="56" y="113" fill="#dbe5ff" font-size="10.5">最近几根K线没有形成标准的</text><text x="56" y="131" fill="#dbe5ff" font-size="10.5">“假突破/假跌破后快速回收”结构。</text><text x="56" y="149" fill="#9fb0d8" font-size="9.5">更适合先结合 ABC 位置与历史趋势继续观察。</text></svg><div class="abc-stage-note"><span class="abc-stage-chip">2B未成立</span>${directionMarkup("中性")}<span class="abc-stage-chip abc-stage-chip-soft">${safeHtml(twoB.note)}</span></div></div>`;
+    return `<div class="abc-stage"><svg class="abc-stage-svg" viewBox="0 0 380 138" role="img" aria-label="2B结构未成立"><rect x="8" y="8" width="364" height="122" rx="14" fill="#0b1227" stroke="rgba(255,255,255,.06)"/><rect x="18" y="16" width="344" height="22" rx="11" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.08)"/><text x="28" y="30" fill="#d7e3ff" font-size="10.5" font-weight="800">2B 结构未成立</text><rect x="34" y="46" width="312" height="68" rx="12" fill="rgba(255,255,255,.025)" stroke="rgba(255,209,102,.24)" stroke-dasharray="6 6"/><text x="48" y="68" fill="#ffd166" font-size="10.5" font-weight="800">当前先不强画 2B 位置图</text><text x="48" y="88" fill="#dbe5ff" font-size="9.2">最近几根K线未形成标准的假突破 / 假跌破后快速回收结构。</text><text x="48" y="104" fill="#9fb0d8" font-size="8.8">先结合 ABC 位置与历史趋势继续观察会更稳妥。</text></svg></div>`;
   }
   const state = /顶部/.test(twoB.stage) ? "top" : /底部/.test(twoB.stage) ? "bottom" : "neutral";
   const currentColor = "#ffd166";
@@ -2405,14 +2851,18 @@ function twoBPositionSvg(twoB) {
 }
 
 function abcStructureSectionHtml({ abc, twoB, bars }) {
-  return `<section class="section structure-section"><h2>ABC 和 2B 结构，AI判断位置</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">ABC 动量结构</span> 和 <span class="trend-title-accent">2B 反转结构</span> 放在一起，判断当前更像启动、回踩、延续，还是假跌破 / 假突破后的回收。</p><div class="structure-grid"><article class="structure-card"><h3>ABC 动量结构</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.positionLabel || "当前位置待确认")}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>${twoBPositionSvg(twoB)}</article></div></section>`;
+  const twoBMeta = twoB?.valid
+    ? `<div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">${safeHtml(twoB.detail)}</span></div>`
+    : `<div class="structure-meta"><span class="structure-chip">${safeHtml(twoB.stage)}</span><span class="structure-chip structure-chip-soft">不满足 2B 关键特征，暂不强画</span></div>`;
+  return `<section class="section structure-section"><h2>ABC 和 2B 结构，AI判断位置</h2><p>这一节不再只看“像不像”，而是把 <span class="trend-title-accent">2B 反转结构</span>、<span class="trend-title-accent">123 法则</span> 和 <span class="trend-title-accent">ABC 动量结构</span> 放在一起，按文档顺序判断当前更像假突破 / 假跌破、123 转势确认、上涨 ABC，还是下跌 ABC。</p><div class="structure-grid"><article class="structure-card"><h3>ABC / 123 主判断</h3><p class="structure-lead">${safeHtml(abc.summary)}</p><div class="structure-meta"><span class="structure-chip">${safeHtml(abc.primaryJudgement || "ABC结构")}</span><span class="structure-chip">${safeHtml(abc.currentStage || abc.stage)}</span><span class="structure-chip structure-chip-gold">${safeHtml(abc.positionLabel || "当前位置待确认")}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.nextConfirm || "等待关键位确认")}</span></div><div class="structure-meta"><span class="structure-chip structure-chip-soft">${safeHtml(abc.volumeDetail)}</span><span class="structure-chip structure-chip-soft">${safeHtml(abc.strength)}</span></div>${abcPositionSvg(abc)}</article><article class="structure-card"><h3>2B 结构判断</h3><p class="structure-lead">${safeHtml(twoB.summary)}</p>${twoBMeta}${twoBPositionSvg(twoB)}</article></div></section>`;
 }
 
 function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
   const trendTopRow = Array.isArray(angles.trend?.rows) ? angles.trend.rows[0] : null;
   const useTwoBAsPrimary = Boolean(twoB?.valid);
   const structureBias = useTwoBAsPrimary ? (twoB?.bias || angles.abc?.bias || "中性") : (angles.abc?.bias || twoB?.bias || "中性");
-  const structureStage = useTwoBAsPrimary ? (twoB?.stage || angles.abc?.stage || "结构待确认") : (angles.abc?.stage || twoB?.stage || "结构待确认");
+  const structureStage = useTwoBAsPrimary ? (twoB?.stage || angles.abc?.currentStage || angles.abc?.stage || "结构待确认") : (angles.abc?.currentStage || angles.abc?.stage || twoB?.stage || "结构待确认");
+  const structureJudge = useTwoBAsPrimary ? "2B法则" : (angles.abc?.primaryJudgement || "ABC结构");
   const structureNote = useTwoBAsPrimary ? (twoB?.note || angles.abc?.summary || "") : (angles.abc?.note || angles.abc?.summary || twoB?.note || "");
   const summaryItems = [
     angles.similarity.score
@@ -2421,7 +2871,7 @@ function aiInterpretationSectionHtml({ angles, gptHtml, twoB }) {
     angles.trend.available && trendTopRow
       ? `历史趋势拟合：${trendTopRow[0]}，概率 ${trendTopRow[1]}`
       : "历史趋势拟合：样本不足，暂不单独定方向",
-    `ABC / 2B 结构：${structureBias}，${structureStage}`,
+    `${structureJudge}：${structureBias}，${structureStage}`,
   ];
   const aiFlat = flattenAiSection(gptHtml || "");
   const mergedThesisParts = [
