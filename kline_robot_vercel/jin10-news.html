@@ -113,7 +113,10 @@ async function loadNews(){
   newsData=JSON.parse(new TextDecoder().decode(bytes));
   const items=Array.isArray(newsData.items)?newsData.items:[],stats=newsData.categoryStats||{};
   $('count').textContent=items.length;$('categoryCount').textContent=Object.keys(stats).length;$('updated').textContent=newsData.updatedAt?fmt.format(new Date(newsData.updatedAt)):'—';
-  $('status').className='value status '+(items.length?'ok':'bad');$('status').innerHTML='<span class="dot"></span><span>'+(items.length?'正常':'无数据')+'</span>';
+  const updatedMs=Date.parse(newsData.updatedAt||''),ageMinutes=Number.isFinite(updatedMs)?Math.floor((Date.now()-updatedMs)/60000):Infinity;
+  const healthy=items.length&&ageMinutes<=15,stale=ageMinutes>15;
+  $('status').className='value status '+(healthy?'ok':stale?'bad':'');
+  $('status').innerHTML='<span class="dot"></span><span>'+(healthy?'正常':items.length?'缓存过期':'无数据')+'</span>';
   // 原始快讯仅供后台分类和AI分析，界面不逐条展示。
  }catch(e){$('status').className='value status bad';$('status').innerHTML='<span class="dot"></span><span>读取失败</span>';showError(e.message)}
  finally{}
