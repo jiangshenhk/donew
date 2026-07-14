@@ -185,6 +185,25 @@ async function fetchHomepageItems(config) {
   return items;
 }
 
+
+const CATEGORY_RULES = [
+  ['宏观', /GDP|经济|衰退|增长|财政|贸易|关税|美元|汇率|就业|非农|消费|制造业|PMI|房地产|债务|赤字/u],
+  ['利率', /美联储|央行|利率|降息|加息|收益率|国债|通胀|CPI|PCE|鲍威尔|沃什|货币政策/u],
+  ['地缘', /伊朗|以色列|俄乌|乌克兰|俄罗斯|战争|导弹|袭击|空袭|制裁|霍尔木兹|北约|停火|军事/u],
+  ['科技', /AI|人工智能|芯片|半导体|英伟达|科技|大模型|数据中心|机器人|算力|软件|苹果|微软|谷歌|OpenAI/u],
+  ['黄金', /黄金|金价|白银|银价|铂金|钯金|贵金属/u],
+  ['原油', /原油|油价|石油|欧佩克|OPEC|天然气|LNG|炼油|能源供应/u],
+  ['美股', /美股|标普|纳指|道指|股票|财报|公司|市值|期货指数/u],
+  ['加密', /比特币|BTC|以太坊|ETH|加密货币|稳定币|区块链/u],
+  ['中国', /中国|人民币|A股|港股|香港|央行|商务部|国务院|沪指|深成指/u]
+];
+
+function classifyNews(content) {
+  const text = String(content || '');
+  const categories = CATEGORY_RULES.filter(([, pattern]) => pattern.test(text)).map(([name]) => name);
+  return categories.length ? [...new Set(categories)] : ['其他'];
+}
+
 function loadOldItems() {
   try {
     const parsed = JSON.parse(fs.readFileSync(jsonFile, 'utf8'));
@@ -267,9 +286,15 @@ async function main() {
   const unique = new Map();
   for (const item of combined) {
     const time = new Date(item.time);
-    if (time >= cutoff && time <= new Date(now.getTime() + 5 * 60 * 1000)) unique.set(item.id, item);
+    if (time >= cutoff && time <= new Date(now.getTime() + 5 * 60 * 1000)) {
+      unique.set(item.id, { ...item, categories: classifyNews(item.content) });
+    }
   }
   const items = [...unique.values()].sort((a, b) => new Date(b.time) - new Date(a.time));
+  const categoryStats = {};
+  for (const item of items) {
+    for (const category of item.categories || ['其他']) categoryStats[category] = (categoryStats[category] || 0) + 1;
+  }
   const result = {
     source: 'Jin10',
     sourceMode,
@@ -281,6 +306,7 @@ async function main() {
     updatedAt: now.toISOString(),
     checkedAt: now.toISOString(),
     count: items.length,
+    categoryStats,
     items
   };
 
