@@ -164,7 +164,9 @@ async function fetchHomepageItems(config) {
     const texts = [...block.matchAll(/class="flash-text">([\s\S]*?)<\/div>/g)]
       .map(match => decodeHtml(match[1])).filter(Boolean);
     const content = [...new Set(texts)].join(' ');
-    if (!content || (config.keyword && !content.includes(config.keyword))) continue;
+    // 搜索接口不可用时，首页快讯作为降级源。首页通常没有“金十数据整理”固定标题，
+    // 因此保留全部有效市场快讯，由24小时窗口和去重逻辑负责汇总。
+    if (!content) continue;
     const rawTime = block.match(/class="item-time">([^<]+)</)?.[1]?.trim() || '';
     const time = homepageTime(rawTime);
     if (!time) continue;
@@ -177,9 +179,9 @@ async function fetchHomepageItems(config) {
     });
   }
   if (!items.length) {
-    throw new Error('Jin10 homepage returned no matching "' + config.keyword + '" items');
+    throw new Error('Jin10 homepage returned no parseable flash items');
   }
-  console.log('homepage fallback parsed=' + items.length);
+  console.log('homepage fallback parsed=' + items.length + ' (all visible flashes)');
   return items;
 }
 
