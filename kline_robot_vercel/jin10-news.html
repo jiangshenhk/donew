@@ -4,26 +4,26 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>24小时市场要闻整理</title>
 <style>
-:root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:#d2d2d7;--blue:#0071e3;--green:#248a3d;--red:#d70015;--amber:#b25000}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
+:root{--bg:#08111f;--card:#101b2d;--text:#e8eef7;--muted:#91a0b5;--line:#26364f;--blue:#55a7ff;--green:#4ade80;--red:#fb7185;--amber:#ffd54f}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#132542 0,#08111f 38%,#060c16 100%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
 main{max-width:1120px;margin:auto;padding:32px 18px 70px}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.head h1{font-size:30px;margin:0 0 7px}.sub{font-size:14px;color:var(--muted)}
-.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}button,select{font:inherit;border:0;border-radius:9px;padding:10px 14px;background:#e8e8ed;color:var(--text)}
-button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:disabled{opacity:.55;cursor:not-allowed}
-.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.card{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:15px;padding:18px;box-shadow:0 4px 20px rgba(0,0,0,.04)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}button,select{font:inherit;border:0;border-radius:9px;padding:10px 14px;background:#1b2940;color:var(--text)}
+button{cursor:pointer}button.primary{background:#1677d2;color:#fff}button:disabled{opacity:.55;cursor:not-allowed}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.card{background:var(--card);border:1px solid rgba(120,160,210,.16);border-radius:15px;padding:18px;box-shadow:0 12px 34px rgba(0,0,0,.24)}
 .label{font-size:12px;color:var(--muted);margin-bottom:8px}.value{font-size:20px;font-weight:650}.value.small{font-size:14px;line-height:1.45}.status{display:flex;align-items:center;gap:7px}.dot{width:9px;height:9px;border-radius:50%;background:var(--amber)}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}
 .grid{display:grid;grid-template-columns:390px 1fr;gap:16px}.panel-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.panel-title h2{font-size:19px;margin:0}.hint{font-size:12px;color:var(--muted)}
-.chips{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}.chip{padding:7px 10px;border-radius:999px;font-size:12px;background:#f0f0f2;border:1px solid transparent;cursor:pointer}.chip.active{background:#e5f1ff;border-color:#9bc9f7;color:#0057a8}
-.feed{max-height:720px;overflow:auto}.item{padding:13px 2px;border-bottom:1px solid var(--line)}.item:last-child{border:0}.item-time{font-size:11px;color:var(--muted);margin-bottom:6px}.item-body{font-size:14px;line-height:1.55}.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.tag{font-size:10px;padding:3px 6px;border-radius:5px;background:#f0f0f2;color:var(--muted)}
-.empty{text-align:center;color:var(--muted);padding:55px 10px}.error{background:#fff2f2;color:var(--red);padding:13px;border-radius:10px;margin-bottom:12px;white-space:pre-wrap}
-.ai-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.ai-toolbar select{border:1px solid var(--line);background:#fff}
-.report{min-height:560px;line-height:1.7;font-size:15px}.report h1{font-size:25px}.report h2{font-size:19px;margin-top:26px}.report h3{font-size:16px}.report ul{padding-left:22px}.report blockquote{margin:14px 0;padding:9px 14px;border-left:3px solid var(--blue);background:#f5f8fc;color:#4a4a4f}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}.chip{padding:7px 10px;border-radius:999px;font-size:12px;background:#17243a;border:1px solid transparent;cursor:pointer}.chip.active{background:#123a62;border-color:#367fc1;color:#9ed0ff}
+.feed{max-height:720px;overflow:auto}.item{padding:13px 2px;border-bottom:1px solid var(--line)}.item:last-child{border:0}.item-time{font-size:11px;color:var(--muted);margin-bottom:6px}.item-body{font-size:14px;line-height:1.55}.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.tag{font-size:10px;padding:3px 6px;border-radius:5px;background:#17243a;color:#a8b8cc}
+.empty{text-align:center;color:var(--muted);padding:55px 10px}.error{background:rgba(251,113,133,.11);color:#ff9aae;padding:13px;border-radius:10px;margin-bottom:12px;white-space:pre-wrap}
+.ai-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.ai-toolbar select{border:1px solid var(--line);background:#0d1727;color:var(--text)}
+.report{min-height:560px;line-height:1.7;font-size:15px}.report h1{font-size:25px}.report h2{font-size:19px;margin-top:26px}.report h3{font-size:16px}.report ul{padding-left:22px}.report blockquote{margin:14px 0;padding:9px 14px;border-left:3px solid var(--blue);background:#0d1c30;color:#b9c8da}
 .report-meta{font-size:12px;color:var(--muted);padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:15px}.progress{color:var(--blue);font-size:13px}
 @media(max-width:850px){.head{display:block}.actions{justify-content:flex-start;margin-top:16px}.summary{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.feed{max-height:520px}}
 </style>
 </head>
 <body><main>
 <section class="head"><div><h1>24小时市场要闻整理</h1><div class="sub">金十首页快讯自动去重、分类，并由 DeepSeek / GPT 提炼市场主线</div></div>
-<div class="actions"><button id="reload">刷新新闻</button><button id="copy">复制报告</button><button id="download">下载 Markdown</button></div></section>
+<div class="actions"><button id="reload">刷新新闻</button><button id="openReport">新页面打开</button><button id="saveHtml">保存 HTML</button><button id="saveImage">保存图片</button><button id="copy">复制报告</button><button id="download">下载 Markdown</button></div></section>
 <section class="summary">
 <div class="card"><div class="label">数据状态</div><div class="value status" id="status"><span class="dot"></span><span>读取中</span></div></div>
 <div class="card"><div class="label">24小时新闻</div><div class="value" id="count">—</div></div>
@@ -96,7 +96,41 @@ async function generate(){
 }
 function copyReport(){if(!currentReport)return showError('请先生成报告。');navigator.clipboard.writeText(currentReport.markdown).then(function(){$('progress').textContent='已复制';setTimeout(function(){$('progress').textContent=''},1800)}).catch(function(){showError('浏览器不允许自动复制。')})}
 function downloadReport(){if(!currentReport)return showError('请先生成报告。');const blob=new Blob([currentReport.markdown],{type:'text/markdown;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=currentReport.fileName;a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000)}
-$('reload').onclick=loadNews;$('generate').onclick=generate;$('copy').onclick=copyReport;$('download').onclick=downloadReport;
+
+function reportDocument(){
+ if(!currentReport)return '';
+ const body=renderMarkdown(currentReport.markdown);
+ return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(currentReport.title)+'</title><style>'+
+ '*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#132542 0,#08111f 38%,#060c16 100%);color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;padding:30px}main{max-width:980px;margin:auto;background:#101b2d;border:1px solid rgba(120,160,210,.16);border-radius:18px;padding:30px;box-shadow:0 12px 34px rgba(0,0,0,.28)}.meta{color:#91a0b5;font-size:13px;padding-bottom:15px;border-bottom:1px solid #26364f;margin-bottom:20px}.report{line-height:1.75;font-size:16px}.report h1{font-size:29px}.report h2{font-size:21px;margin-top:30px;color:#f2f7ff}.report h3{font-size:17px}.report ul{padding-left:24px}.report blockquote{margin:14px 0;padding:10px 15px;border-left:3px solid #55a7ff;background:#0d1c30;color:#b9c8da}@media(max-width:700px){body{padding:10px}main{padding:20px}}'+
+ '</style></head><body><main><div class="meta">模型：'+esc(currentReport.provider)+'｜原始新闻：'+esc(currentReport.totalItems)+'条｜分析新闻：'+esc(currentReport.analyzedItems)+'条｜生成：'+esc(fmt.format(new Date(currentReport.generatedAt)))+'</div><article class="report">'+body+'</article></main></body></html>';
+}
+function ensureReport(){if(currentReport)return true;showError('请先生成报告。');return false}
+function openReportPage(){
+ if(!ensureReport())return;const win=window.open('','_blank');
+ if(!win){showError('浏览器阻止了新窗口，请允许弹窗后重试。');return}
+ win.document.open();win.document.write(reportDocument());win.document.close();
+}
+function saveReportHtml(){
+ if(!ensureReport())return;const blob=new Blob([reportDocument()],{type:'text/html;charset=utf-8'}),a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);a.download=currentReport.fileName.replace(/\.md$/i,'.html');a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+}
+function copyComputedStyles(source,target){
+ const computed=window.getComputedStyle(source),style=[];for(let i=0;i<computed.length;i++){const name=computed[i];style.push(name+':'+computed.getPropertyValue(name)+';')}
+ target.setAttribute('style',style.join(''));Array.from(source.children).forEach(function(child,index){if(target.children[index])copyComputedStyles(child,target.children[index])});
+}
+function saveReportImage(){
+ if(!ensureReport())return;const source=$('report'),wrapper=document.createElement('div');
+ wrapper.style.cssText='width:1040px;background:#08111f;padding:30px;color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif;';
+ const panel=document.createElement('div');panel.style.cssText='background:#101b2d;border:1px solid #26364f;border-radius:18px;padding:32px;';
+ const meta=document.createElement('div');meta.style.cssText='color:#91a0b5;font-size:13px;padding-bottom:15px;border-bottom:1px solid #26364f;margin-bottom:20px;';
+ meta.textContent='模型：'+currentReport.provider+'｜原始新闻：'+currentReport.totalItems+'条｜分析新闻：'+currentReport.analyzedItems+'条｜生成：'+fmt.format(new Date(currentReport.generatedAt));
+ const clone=source.cloneNode(true);copyComputedStyles(source,clone);panel.appendChild(meta);panel.appendChild(clone);wrapper.appendChild(panel);document.body.appendChild(wrapper);
+ wrapper.style.position='fixed';wrapper.style.left='-20000px';wrapper.style.top='0';
+ const width=1040,height=Math.ceil(wrapper.scrollHeight),serialized=new XMLSerializer().serializeToString(wrapper);
+ wrapper.remove();const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">'+serialized+'</div></foreignObject></svg>';
+ const img=new Image();img.onload=function(){const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0);canvas.toBlob(function(blob){if(!blob)return showError('图片生成失败。');const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=currentReport.fileName.replace(/\.md$/i,'.png');a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000)},'image/png')};img.onerror=function(){showError('浏览器未能生成图片，请改用保存 HTML。')};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+}
+$('reload').onclick=loadNews;$('generate').onclick=generate;$('openReport').onclick=openReportPage;$('saveHtml').onclick=saveReportHtml;$('saveImage').onclick=saveReportImage;$('copy').onclick=copyReport;$('download').onclick=downloadReport;
 try{const saved=JSON.parse(localStorage.getItem('donew-jin10-latest-report')||'null');if(saved&&saved.markdown){currentReport=saved;$('report').innerHTML=renderMarkdown(saved.markdown);$('reportMeta').textContent='浏览器上次报告｜模型：'+saved.provider+'｜生成：'+fmt.format(new Date(saved.generatedAt))}}catch(e){}
 loadNews();
 </script></body></html>
