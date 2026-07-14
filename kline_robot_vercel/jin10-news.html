@@ -167,22 +167,26 @@ function saveReportHtml(){
  a.href=URL.createObjectURL(blob);a.download=exportFileName('html');a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
 }
 function copyComputedStyles(source,target){
- const computed=window.getComputedStyle(source),style=[];for(let i=0;i<computed.length;i++){const name=computed[i];style.push(name+':'+computed.getPropertyValue(name)+';')}
+ const computed=window.getComputedStyle(source),style=[],skip=new Set(['width','min-width','max-width','height','min-height','max-height']);
+ for(let i=0;i<computed.length;i++){const name=computed[i];if(!skip.has(name))style.push(name+':'+computed.getPropertyValue(name)+';')}
  target.setAttribute('style',style.join(''));Array.from(source.children).forEach(function(child,index){if(target.children[index])copyComputedStyles(child,target.children[index])});
 }
 function createReportImageBlob(){
  if(!ensureReport())return Promise.reject(new Error('请先生成报告。'));
  return new Promise(function(resolve,reject){
   const source=$('report'),wrapper=document.createElement('div');
-  wrapper.style.cssText='width:1040px;background:#08111f;padding:30px;color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif;';
+  const mobile=window.matchMedia('(max-width:850px)').matches,renderWidth=mobile?420:1040;
+  wrapper.style.cssText='width:'+renderWidth+'px;background:#08111f;padding:'+(mobile?'10px':'30px')+';color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif;';
   const panel=document.createElement('div');panel.style.cssText='background:#101b2d;border:1px solid #26364f;border-radius:18px;padding:32px;';
   const meta=document.createElement('div');meta.style.cssText='color:#91a0b5;font-size:13px;padding-bottom:15px;border-bottom:1px solid #26364f;margin-bottom:20px;';
   meta.innerHTML='模型：'+esc(currentReport.provider)+'｜原始新闻：'+esc(currentReport.totalItems)+'条｜分析新闻：'+esc(currentReport.analyzedItems)+'条｜生成：'+esc(fmt.format(new Date(currentReport.generatedAt)))+'<br><span style="display:inline-block;margin-top:8px;color:#5A82E6">'+REPORT_URL+'</span>';
-  const clone=source.cloneNode(true);copyComputedStyles(source,clone);panel.appendChild(meta);panel.appendChild(clone);wrapper.appendChild(panel);document.body.appendChild(wrapper);
+  const clone=source.cloneNode(true);copyComputedStyles(source,clone);clone.style.width='100%';clone.style.minWidth='0';clone.style.maxWidth='none';
+  if(mobile){panel.style.padding='14px';clone.querySelectorAll('.table-wrap').forEach(function(el){el.style.width='100%';el.style.overflow='visible'});clone.querySelectorAll('table').forEach(function(el){el.style.width='100%';el.style.minWidth='0';el.style.tableLayout='fixed';el.style.fontSize='11px'});clone.querySelectorAll('th,td').forEach(function(el){el.style.padding='5px 4px';el.style.wordBreak='break-word'});clone.querySelectorAll('th:nth-child(1),td:nth-child(1)').forEach(function(el){el.style.width='23%'});clone.querySelectorAll('th:nth-child(2),td:nth-child(2)').forEach(function(el){el.style.width='23%'});clone.querySelectorAll('th:nth-child(3),td:nth-child(3)').forEach(function(el){el.style.width='54%'})}
+  panel.appendChild(meta);panel.appendChild(clone);wrapper.appendChild(panel);document.body.appendChild(wrapper);
   wrapper.style.position='fixed';wrapper.style.left='-20000px';wrapper.style.top='0';
-  const width=1040,height=Math.ceil(wrapper.scrollHeight);wrapper.style.position='static';wrapper.style.left='auto';wrapper.style.top='auto';
+  const width=renderWidth,height=Math.ceil(wrapper.scrollHeight);wrapper.style.position='static';wrapper.style.left='auto';wrapper.style.top='auto';
   const serialized=new XMLSerializer().serializeToString(wrapper);wrapper.remove();const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">'+serialized+'</div></foreignObject></svg>';
-  const img=new Image();img.onload=function(){const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0);canvas.toBlob(function(blob){if(blob)resolve(blob);else reject(new Error('图片生成失败。'))},'image/png')};img.onerror=function(){reject(new Error('浏览器未能生成图片，请改用保存 HTML。'))};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  const img=new Image();img.onload=function(){const scale=mobile?Math.max(1,Math.min(2,15000/height)):1,canvas=document.createElement('canvas');canvas.width=Math.round(width*scale);canvas.height=Math.round(height*scale);const ctx=canvas.getContext('2d');ctx.fillStyle='#08111f';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);canvas.toBlob(function(blob){if(blob)resolve(blob);else reject(new Error('图片生成失败。'))},'image/png')};img.onerror=function(){reject(new Error('浏览器未能生成图片，请改用保存 HTML。'))};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
  });
 }
 function downloadImageBlob(blob){
