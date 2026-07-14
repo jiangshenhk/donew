@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>24小时市场要闻整理</title>
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73;--line:#d2d2d7;--blue:#0071e3;--green:#248a3d;--red:#d70015;--amber:#b25000}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
+main{max-width:1120px;margin:auto;padding:32px 18px 70px}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.head h1{font-size:30px;margin:0 0 7px}.sub{font-size:14px;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}button,select{font:inherit;border:0;border-radius:9px;padding:10px 14px;background:#e8e8ed;color:var(--text)}
+button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:disabled{opacity:.55;cursor:not-allowed}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.card{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:15px;padding:18px;box-shadow:0 4px 20px rgba(0,0,0,.04)}
+.label{font-size:12px;color:var(--muted);margin-bottom:8px}.value{font-size:20px;font-weight:650}.value.small{font-size:14px;line-height:1.45}.status{display:flex;align-items:center;gap:7px}.dot{width:9px;height:9px;border-radius:50%;background:var(--amber)}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}
+.grid{display:grid;grid-template-columns:390px 1fr;gap:16px}.panel-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.panel-title h2{font-size:19px;margin:0}.hint{font-size:12px;color:var(--muted)}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}.chip{padding:7px 10px;border-radius:999px;font-size:12px;background:#f0f0f2;border:1px solid transparent;cursor:pointer}.chip.active{background:#e5f1ff;border-color:#9bc9f7;color:#0057a8}
+.feed{max-height:720px;overflow:auto}.item{padding:13px 2px;border-bottom:1px solid var(--line)}.item:last-child{border:0}.item-time{font-size:11px;color:var(--muted);margin-bottom:6px}.item-body{font-size:14px;line-height:1.55}.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.tag{font-size:10px;padding:3px 6px;border-radius:5px;background:#f0f0f2;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:55px 10px}.error{background:#fff2f2;color:var(--red);padding:13px;border-radius:10px;margin-bottom:12px;white-space:pre-wrap}
+.ai-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.ai-toolbar select{border:1px solid var(--line);background:#fff}
+.report{min-height:560px;line-height:1.7;font-size:15px}.report h1{font-size:25px}.report h2{font-size:19px;margin-top:26px}.report h3{font-size:16px}.report ul{padding-left:22px}.report blockquote{margin:14px 0;padding:9px 14px;border-left:3px solid var(--blue);background:#f5f8fc;color:#4a4a4f}
+.report-meta{font-size:12px;color:var(--muted);padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:15px}.progress{color:var(--blue);font-size:13px}
+@media(max-width:850px){.head{display:block}.actions{justify-content:flex-start;margin-top:16px}.summary{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.feed{max-height:520px}}
+</style>
+</head>
+<body><main>
+<section class="head"><div><h1>24小时市场要闻整理</h1><div class="sub">金十首页快讯自动去重、分类，并由 DeepSeek / GPT 提炼市场主线</div></div>
+<div class="actions"><button id="reload">刷新新闻</button><button id="copy">复制报告</button><button id="download">下载 Markdown</button></div></section>
+<section class="summary">
+<div class="card"><div class="label">数据状态</div><div class="value status" id="status"><span class="dot"></span><span>读取中</span></div></div>
+<div class="card"><div class="label">24小时新闻</div><div class="value" id="count">—</div></div>
+<div class="card"><div class="label">分类数量</div><div class="value" id="categoryCount">—</div></div>
+<div class="card"><div class="label">数据更新时间</div><div class="value small" id="updated">—</div></div>
+</section>
+<div id="error"></div>
+<section class="grid">
+<div class="card"><div class="panel-title"><h2>新闻快讯</h2><span class="hint" id="filterHint"></span></div><div class="chips" id="chips"></div><div class="feed" id="feed"><div class="empty">正在读取…</div></div></div>
+<div class="card"><div class="panel-title"><h2>AI 市场整理</h2><span class="progress" id="progress"></span></div>
+<div class="ai-toolbar"><select id="provider"><option value="deepseek">DeepSeek</option><option value="openai">GPT</option></select><button class="primary" id="generate">生成最近24小时整理</button></div>
+<div class="report-meta" id="reportMeta">尚未生成。AI 将基于后台完整24小时缓存生成，不受左侧分类筛选影响。</div>
+<article class="report" id="report"><div class="empty">点击“生成最近24小时整理”开始分析。</div></article>
+</div></section>
+</main>
+<script>
+const API_URL='https://api.github.com/repos/jiangshenhk/donew/contents/jin10news/data/latest-24h.json?ref=main';
+const $=id=>document.getElementById(id);
+const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+let newsData=null,currentCategory='全部',currentReport=null,timer=null;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function showError(s){$('error').innerHTML=s?'<div class="error">'+esc(s)+'</div>':''}
+function renderMarkdown(md){
+ let out=[],inList=false;
+ String(md||'').split(/\r?\n/).forEach(function(line){
+  if(/^### /.test(line)){if(inList){out.push('</ul>');inList=false}out.push('<h3>'+esc(line.slice(4))+'</h3>')}
+  else if(/^## /.test(line)){if(inList){out.push('</ul>');inList=false}out.push('<h2>'+esc(line.slice(3))+'</h2>')}
+  else if(/^# /.test(line)){if(inList){out.push('</ul>');inList=false}out.push('<h1>'+esc(line.slice(2))+'</h1>')}
+  else if(/^[-*] /.test(line)){if(!inList){out.push('<ul>');inList=true}out.push('<li>'+esc(line.slice(2)).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</li>')}
+  else if(/^> /.test(line)){if(inList){out.push('</ul>');inList=false}out.push('<blockquote>'+esc(line.slice(2))+'</blockquote>')}
+  else if(line.trim()){if(inList){out.push('</ul>');inList=false}out.push('<p>'+esc(line).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')+'</p>')}
+ });
+ if(inList)out.push('</ul>');return out.join('');
+}
+async function loadNews(){
+ showError('');$('reload').disabled=true;
+ try{
+  const r=await fetch(API_URL+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
+  if(!r.ok)throw new Error('GitHub HTTP '+r.status);
+  const meta=await r.json(),bytes=Uint8Array.from(atob(String(meta.content||'').replace(/\n/g,'')),function(c){return c.charCodeAt(0)});
+  newsData=JSON.parse(new TextDecoder().decode(bytes));
+  const items=Array.isArray(newsData.items)?newsData.items:[],stats=newsData.categoryStats||{};
+  $('count').textContent=items.length;$('categoryCount').textContent=Object.keys(stats).length;$('updated').textContent=newsData.updatedAt?fmt.format(new Date(newsData.updatedAt)):'—';
+  $('status').className='value status '+(items.length?'ok':'bad');$('status').innerHTML='<span class="dot"></span><span>'+(items.length?'正常':'无数据')+'</span>';
+  renderChips();renderFeed();
+ }catch(e){$('status').className='value status bad';$('status').innerHTML='<span class="dot"></span><span>读取失败</span>';showError(e.message)}
+ finally{$('reload').disabled=false}
+}
+function renderChips(){
+ const stats=newsData.categoryStats||{},names=['全部'].concat(Object.keys(stats).sort(function(a,b){return stats[b]-stats[a]}));
+ $('chips').innerHTML=names.map(function(name){const n=name==='全部'?(newsData.items||[]).length:(stats[name]||0);return '<button class="chip '+(name===currentCategory?'active':'')+'" data-category="'+esc(name)+'">'+esc(name)+' '+n+'</button>'}).join('');
+ Array.from(document.querySelectorAll('[data-category]')).forEach(function(btn){btn.onclick=function(){currentCategory=btn.dataset.category;renderChips();renderFeed()}});
+}
+function renderFeed(){
+ let items=(newsData&&newsData.items)||[];if(currentCategory!=='全部')items=items.filter(function(x){return (x.categories||[]).includes(currentCategory)});
+ $('filterHint').textContent=currentCategory+' · '+items.length+'条';
+ $('feed').innerHTML=items.length?items.map(function(x){return '<div class="item"><div class="item-time">'+fmt.format(new Date(x.time))+'</div><div class="item-body">'+esc(x.content)+'</div><div class="tags">'+(x.categories||['待分类']).map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join('')+'</div></div>'}).join(''):'<div class="empty">这个分类暂时没有新闻。</div>';
+}
+async function generate(){
+ showError('');$('generate').disabled=true;let sec=0;$('progress').textContent='正在生成 0s';timer=setInterval(function(){sec++;$('progress').textContent='正在生成 '+sec+'s'},1000);
+ $('report').innerHTML='<div class="empty">正在读取24小时新闻并分析市场主线…</div>';
+ try{
+  const r=await fetch('/api/news-summary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('provider').value})});
+  const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.message||'生成失败');
+  currentReport=data.report;$('report').innerHTML=renderMarkdown(currentReport.markdown);
+  $('reportMeta').textContent='模型：'+currentReport.provider+'｜原始新闻：'+currentReport.totalItems+'条｜送入分析：'+currentReport.analyzedItems+'条｜生成：'+fmt.format(new Date(currentReport.generatedAt));
+  localStorage.setItem('donew-jin10-latest-report',JSON.stringify(currentReport));
+ }catch(e){$('report').innerHTML='<div class="empty">生成失败。</div>';showError(e.message)}
+ finally{clearInterval(timer);timer=null;$('progress').textContent='';$('generate').disabled=false}
+}
+function copyReport(){if(!currentReport)return showError('请先生成报告。');navigator.clipboard.writeText(currentReport.markdown).then(function(){$('progress').textContent='已复制';setTimeout(function(){$('progress').textContent=''},1800)}).catch(function(){showError('浏览器不允许自动复制。')})}
+function downloadReport(){if(!currentReport)return showError('请先生成报告。');const blob=new Blob([currentReport.markdown],{type:'text/markdown;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=currentReport.fileName;a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000)}
+$('reload').onclick=loadNews;$('generate').onclick=generate;$('copy').onclick=copyReport;$('download').onclick=downloadReport;
+try{const saved=JSON.parse(localStorage.getItem('donew-jin10-latest-report')||'null');if(saved&&saved.markdown){currentReport=saved;$('report').innerHTML=renderMarkdown(saved.markdown);$('reportMeta').textContent='浏览器上次报告｜模型：'+saved.provider+'｜生成：'+fmt.format(new Date(saved.generatedAt))}}catch(e){}
+loadNews();
+</script></body></html>
