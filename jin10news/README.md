@@ -9,7 +9,7 @@
 
 ## 自动更新
 
-GitHub Actions 工作流 `.github/workflows/update-jin10-news.yml` 每 15 分钟运行一次，也支持手工触发。
+GitHub Actions 工作流 `.github/workflows/update-jin10-news.yml` 每 5 分钟运行一次，也支持手工触发。
 
 程序会分页抓取，按新闻 ID（缺失时按时间和正文）去重，只保留最近 24 小时内容。接口失败或没有解析出有效新闻时会退出并保留旧缓存，不会用空数据覆盖上一版。
 
