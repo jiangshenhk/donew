@@ -1,0 +1,59 @@
+name: Update Jin10 24h News
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-jin10-news
+  cancel-in-progress: false
+
+jobs:
+  update-news:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Check news service switch
+        id: switch
+        shell: bash
+        run: |
+          ENABLED=$(node --input-type=module -e "import fs from 'fs'; console.log(JSON.parse(fs.readFileSync('./jin10news/config/news-config.json','utf8')).enabled)")
+          echo "enabled=$ENABLED" >> "$GITHUB_OUTPUT"
+          echo "Jin10 news service enabled: $ENABLED"
+
+      - name: Setup Node
+        if: steps.switch.outputs.enabled == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update Jin10 news
+        if: steps.switch.outputs.enabled == 'true'
+        run: node jin10news/scripts/update-jin10-news.js
+
+      - name: Commit news cache
+        if: steps.switch.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add jin10news/data/latest-24h.json jin10news/data/latest-24h.md
+          if git diff --cached --quiet; then
+            echo 'No news changes'
+            exit 0
+          fi
+          git commit -m 'Update Jin10 24h news'
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Skip message
+        if: steps.switch.outputs.enabled != 'true'
+        run: echo 'Jin10 news updater disabled'

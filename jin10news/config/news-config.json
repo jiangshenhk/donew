@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "intervalMinutes": 15,
+  "hours": 24,
+  "keyword": "金十数据整理",
+  "maxPages": 12,
+  "pageSize": 20,
+  "requestDelayMs": 1200,
+  "timezone": "Asia/Shanghai"
+}
