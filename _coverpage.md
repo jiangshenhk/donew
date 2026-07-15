@@ -218,11 +218,12 @@
 </div>
 
 <div class="main-grid">
-  <a href="#/docs/other/calm-wealth-mindset.md" class="main-card mindset">
-    <strong>❤️ 心安复利</strong>
-    <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span>
+  
+  <a href="https://donew-beta.vercel.app/jin10-news.html" target="_blank" class="main-card weapon-two">
+    <strong>⚔️ AI看新闻</strong>
+    <span>判断单票结构：趋势、动量、相似形态、关键位。</span>
   </a>
-
+  
   <a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
     <strong>⚔️ AI看市场</strong>
     <span>先看大环境：利率、黄金、BTC、纳指、风险偏好。</span>
@@ -232,6 +233,12 @@
     <strong>🧭 AI看K线</strong>
     <span>判断单票结构：趋势、动量、相似形态、关键位。</span>
   </a>
+
+  <a href="#/docs/other/calm-wealth-mindset.md" class="main-card mindset">
+    <strong>❤️ 心安复利</strong>
+    <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span>
+  </a>
+  
 </div>
 
 <div class="quick-row">
