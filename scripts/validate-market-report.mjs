@@ -16,12 +16,21 @@ const requiredSections = [
   '最后的话'
 ];
 
-const requiredAssets = [
-  'QQQ', 'QLD', 'MSTR', 'BTC', 'INTC', 'VIX', 'EEM', '10Y'
-];
+const requiredAssetAliases = {
+  QQQ: ['QQQ'],
+  QLD: ['QLD'],
+  MSTR: ['MSTR'],
+  BTC: ['BTC', '比特币'],
+  INTC: ['INTC', '英特尔'],
+  VIX: ['VIX', '恐慌指数'],
+  EEM: ['EEM', '新兴市场', '新兴市场ETF'],
+  '10Y': ['10Y', '10年期美债', '美国10年期国债', '美债收益率']
+};
 
 const missingSections = requiredSections.filter(x => !text.includes(x));
-const missingAssets = requiredAssets.filter(x => !text.includes(x));
+const missingAssets = Object.entries(requiredAssetAliases)
+  .filter(([_, aliases]) => !aliases.some(alias => text.includes(alias)))
+  .map(([name]) => name);
 
 if (text.length < 2000) {
   throw new Error(`Report too short: ${text.length}`);
