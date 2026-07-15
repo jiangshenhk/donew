@@ -2,9 +2,7 @@ name: Generate Market Morning and Evening Reports
 
 on:
   schedule:
-    # GitHub cron uses UTC. 00:10 UTC = 08:10 Hong Kong.
     - cron: '10 0 * * 1-5'
-    # 12:10 UTC = 20:10 Hong Kong.
     - cron: '10 12 * * 1-5'
   workflow_dispatch:
     inputs:
@@ -16,74 +14,39 @@ on:
         options:
           - morning
           - evening
-      force_run:
-        description: Allow weekend manual run
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
 
-concurrency:
-  group: generate-market-daily-report
-  cancel-in-progress: false
-
 jobs:
   generate-report:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
-      - name: Checkout latest main
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
-          ref: main
           fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
-
-      - name: Resolve report type
+      - name: Select report type
         id: report
-        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TYPE="${{ inputs.report_type }}"
+            echo "type=${{ inputs.report_type }}" >> $GITHUB_OUTPUT
           elif [ "${{ github.event.schedule }}" = "10 0 * * 1-5" ]; then
-            TYPE="morning"
+            echo "type=morning" >> $GITHUB_OUTPUT
           else
-            TYPE="evening"
+            echo "type=evening" >> $GITHUB_OUTPUT
           fi
-          echo "type=$TYPE" >> "$GITHUB_OUTPUT"
-          echo "Generating report type: $TYPE"
-
       - name: Generate report
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-chat' }}
-          FORCE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.force_run || 'false' }}
         run: node scripts/generate-market-daily-report.mjs "${{ steps.report.outputs.type }}"
-
       - name: Commit report files
-        shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add docs/市场/
-          if git diff --cached --quiet; then
-            echo 'No report changes'
-            exit 0
-          fi
-          TYPE="${{ steps.report.outputs.type }}"
-          git commit -m "Generate market ${TYPE} report"
-          for attempt in 1 2 3; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              exit 0
-            fi
-            echo "Push attempt $attempt failed; retrying..."
-            sleep $((attempt * 5))
-          done
-          echo 'Failed to push report after retries'
-          exit 1
+          git diff --cached --quiet && exit 0
+          git commit -m "Generate market ${{ steps.report.outputs.type }} report"
+          git pull --rebase origin main
+          git push origin HEAD:main
