@@ -17,14 +17,14 @@ const requiredSections = [
 ];
 
 const requiredAssetAliases = {
-  QQQ: ['QQQ'],
-  QLD: ['QLD'],
-  MSTR: ['MSTR'],
-  BTC: ['BTC', '比特币'],
+  QQQ: ['QQQ', '纳指ETF', '纳斯达克ETF'],
+  QLD: ['QLD', '2倍纳指ETF'],
+  MSTR: ['MSTR', 'Strategy', 'MicroStrategy'],
+  BTC: ['BTC', '比特币', '加密货币'],
   INTC: ['INTC', '英特尔'],
-  VIX: ['VIX', '恐慌指数'],
-  EEM: ['EEM', '新兴市场', '新兴市场ETF'],
-  '10Y': ['10Y', '10年期美债', '美国10年期国债', '美债收益率']
+  VIX: ['VIX', '恐慌指数', '波动率指数'],
+  EEM: ['EEM', '新兴市场', '新兴市场ETF', '新兴市场股票'],
+  '10Y': ['10Y', '10年期美债', '美国10年期国债', '美债收益率', '美国国债收益率']
 };
 
 const missingSections = requiredSections.filter(x => !text.includes(x));
