@@ -1,0 +1,7 @@
+{
+  "status": "success",
+  "reportType": "morning",
+  "generatedAt": "2026-07-15T13:22:15.706Z",
+  "newsCount": 250,
+  "aiEndpoint": "https://donew-beta.vercel.app/api/news-summary"
+}
