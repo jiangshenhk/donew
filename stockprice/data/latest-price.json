@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-15T20:38:49.351Z",
-  "checkedAt": "2026-07-15T20:38:49.351Z",
+  "updatedAt": "2026-07-15T21:34:28.148Z",
+  "checkedAt": "2026-07-15T21:34:28.148Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -147,10 +147,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64956.55,
+      "price": 64815.63,
       "previousClose": 63802.027,
-      "changePercent": "1.81",
-      "marketTime": "2026-07-15T20:38:36.000Z",
+      "changePercent": "1.59",
+      "marketTime": "2026-07-15T21:34:08.000Z",
       "currency": "USD",
       "exchange": "CCC"
     },
@@ -167,10 +167,10 @@
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "price": 100.521,
+      "price": 100.504,
       "previousClose": 100.97,
-      "changePercent": "-0.44",
-      "marketTime": "2026-07-15T20:28:40.000Z",
+      "changePercent": "-0.46",
+      "marketTime": "2026-07-15T21:24:14.000Z",
       "currency": "USD",
       "exchange": "NYB"
     },
@@ -187,30 +187,30 @@
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "price": 162.222,
+      "price": 162.128,
       "previousClose": 162.539,
-      "changePercent": "-0.20",
-      "marketTime": "2026-07-15T20:38:41.000Z",
+      "changePercent": "-0.25",
+      "marketTime": "2026-07-15T21:34:18.000Z",
       "currency": "JPY",
       "exchange": "CCY"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 80.32,
+      "price": 80.24,
       "previousClose": 71.41,
-      "changePercent": "12.48",
-      "marketTime": "2026-07-15T20:28:43.000Z",
+      "changePercent": "12.37",
+      "marketTime": "2026-07-15T20:59:58.000Z",
       "currency": "USD",
       "exchange": "NYM"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4067.6,
+      "price": 4066.9,
       "previousClose": 4104.1,
-      "changePercent": "-0.89",
-      "marketTime": "2026-07-15T20:28:40.000Z",
+      "changePercent": "-0.91",
+      "marketTime": "2026-07-15T20:59:55.000Z",
       "currency": "USD",
       "exchange": "CMX"
     },
