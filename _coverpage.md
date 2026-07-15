@@ -235,17 +235,17 @@
   </a>
 
   <a href="#/docs/other/calm-wealth-mindset.md" class="main-card mindset">
-    <strong>❤️ 心安复利</strong>
+    <strong>❤️ 复利投资</strong>
     <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span>
   </a>
   
 </div>
 
 <div class="quick-row">
-  <a href="#/docs/复利/ETF定投方法.md" class="quick-link">ETF 定投</a>
-  <a href="#/docs/SellPut/how-to-sell-put.md" class="quick-link">Sell Put</a>
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投收益PK</a>
-  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">灵隐寺拜财神</a>
+  <a href="#/docs/复利/定投ETF.md" class="quick-link">小白类ETF定投法</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投收益大PK</a>
+  <a href="#/docs/SellPut/how-to-sell-put.md" class="quick-link">专家级另类投资法</a>
+  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">必需去灵隐寺拜财神</a>
 </div>
 
 <div class="site-counter">
