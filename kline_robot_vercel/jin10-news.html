@@ -196,12 +196,20 @@ function createReportImageBlob(){
  return new Promise(function(resolve,reject){
   const source=$('report'),wrapper=document.createElement('div');
   const mobile=window.matchMedia('(max-width:850px)').matches,renderWidth=mobile?420:1040;
-  wrapper.style.cssText='width:'+renderWidth+'px;background:#08111f;padding:'+(mobile?'10px':'30px')+';color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif;';
-  const panel=document.createElement('div');panel.style.cssText='background:#101b2d;border:1px solid #26364f;border-radius:18px;padding:32px;';
+  wrapper.style.cssText='box-sizing:border-box;width:'+renderWidth+'px;max-width:'+renderWidth+'px;overflow:hidden;background:#08111f;padding:'+(mobile?'10px':'30px')+';color:#e8eef7;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,sans-serif;';
+  const panel=document.createElement('div');panel.style.cssText='box-sizing:border-box;width:100%;max-width:100%;overflow:hidden;background:#101b2d;border:1px solid #26364f;border-radius:18px;padding:32px;';
   const meta=document.createElement('div');meta.style.cssText='color:#91a0b5;font-size:13px;padding-bottom:15px;border-bottom:1px solid #26364f;margin-bottom:20px;';
   meta.innerHTML='模型：'+esc(currentReport.provider)+'｜原始新闻：'+esc(currentReport.totalItems)+'条｜分析新闻：'+esc(currentReport.analyzedItems)+'条｜生成：'+esc(fmt.format(new Date(currentReport.generatedAt)))+'<br><span style="display:inline-block;margin-top:8px;color:#5A82E6">'+REPORT_URL+'</span>';
-  const clone=source.cloneNode(true);copyComputedStyles(source,clone);filterImageSections(clone);clone.style.width='100%';clone.style.minWidth='0';clone.style.maxWidth='none';
-  if(mobile){panel.style.padding='14px';clone.querySelectorAll('.table-wrap').forEach(function(el){el.style.width='100%';el.style.overflow='visible'});clone.querySelectorAll('table').forEach(function(el){el.style.width='100%';el.style.minWidth='0';el.style.tableLayout='fixed';el.style.fontSize='11px'});clone.querySelectorAll('th,td').forEach(function(el){el.style.padding='5px 4px';el.style.wordBreak='break-word'});clone.querySelectorAll('th:nth-child(1),td:nth-child(1)').forEach(function(el){el.style.width='23%'});clone.querySelectorAll('th:nth-child(2),td:nth-child(2)').forEach(function(el){el.style.width='23%'});clone.querySelectorAll('th:nth-child(3),td:nth-child(3)').forEach(function(el){el.style.width='54%'})}
+  const clone=source.cloneNode(true);copyComputedStyles(source,clone);filterImageSections(clone);
+  clone.style.boxSizing='border-box';clone.style.width='100%';clone.style.minWidth='0';clone.style.maxWidth='100%';clone.style.overflow='hidden';
+  clone.querySelectorAll('h1,h2,h3,p,ol,ul,li,blockquote').forEach(function(el){el.style.boxSizing='border-box';el.style.maxWidth='100%';el.style.whiteSpace='normal';el.style.overflowWrap='anywhere';el.style.wordBreak='break-word'});
+  clone.querySelectorAll('.table-wrap').forEach(function(el){el.style.boxSizing='border-box';el.style.width='100%';el.style.maxWidth='100%';el.style.overflow='hidden'});
+  clone.querySelectorAll('table').forEach(function(el){el.style.boxSizing='border-box';el.style.width='100%';el.style.maxWidth='100%';el.style.minWidth='0';el.style.tableLayout='fixed';el.style.fontSize=mobile?'11px':'13px'});
+  clone.querySelectorAll('th,td').forEach(function(el){el.style.boxSizing='border-box';el.style.padding=mobile?'5px 4px':'8px 7px';el.style.whiteSpace='normal';el.style.overflowWrap='anywhere';el.style.wordBreak='break-word'});
+  clone.querySelectorAll('th:nth-child(1),td:nth-child(1)').forEach(function(el){el.style.width=mobile?'23%':'17%'});
+  clone.querySelectorAll('th:nth-child(2),td:nth-child(2)').forEach(function(el){el.style.width=mobile?'23%':'16%'});
+  clone.querySelectorAll('th:nth-child(3),td:nth-child(3)').forEach(function(el){el.style.width=mobile?'54%':'67%'});
+  if(mobile)panel.style.padding='14px';
   panel.appendChild(meta);panel.appendChild(clone);wrapper.appendChild(panel);document.body.appendChild(wrapper);
   wrapper.style.position='fixed';wrapper.style.left='-20000px';wrapper.style.top='0';
   const width=renderWidth,height=Math.ceil(wrapper.scrollHeight);wrapper.style.position='static';wrapper.style.left='auto';wrapper.style.top='auto';
