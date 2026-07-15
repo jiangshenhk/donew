@@ -52,23 +52,25 @@
 
   .main-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-    max-width: 980px;
-    margin: 34px auto 18px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    max-width: 840px;
+    margin: 28px auto 18px;
   }
 
   .main-card {
     border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 22px;
-    padding: 24px 22px;
-    text-align: left;
+    border-radius: 18px;
+    padding: 16px 14px;
+    text-align: center;
     text-decoration: none !important;
     color: white !important;
     box-shadow: 0 16px 34px rgba(37, 99, 235, 0.18);
     transition: all 0.25s ease;
-    min-height: 148px;
-    display: block;
+    min-height: 92px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: relative;
     overflow: hidden;
   }
@@ -106,7 +108,7 @@
     display: block;
     font-size: 1.16rem;
     color: white !important;
-    margin-bottom: 12px;
+    margin: 0;
     position: relative;
     z-index: 1;
     line-height: 1.35;
@@ -197,10 +199,20 @@
     }
 
     .main-grid {
-      grid-template-columns: 1fr;
-      max-width: 92%;
-      gap: 12px;
-      margin-top: 28px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      max-width: 94%;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .main-card {
+      min-height: 72px;
+      padding: 12px 8px;
+      border-radius: 14px;
+    }
+
+    .main-card strong {
+      font-size: 1rem;
     }
   }
 </style>
