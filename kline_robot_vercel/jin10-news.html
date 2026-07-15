@@ -10,7 +10,7 @@
 main{max-width:1120px;margin:auto;padding:32px 18px 70px}.head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.head-title{display:flex;align-items:baseline;gap:24px;flex-wrap:wrap}.head h1{font-size:30px;margin:0}.visit-count{color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap}.visit-count strong{color:var(--text);font-weight:900}.sub{font-size:14px;color:var(--muted)}
 .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}button,select{font:inherit;border:0;border-radius:9px;padding:10px 14px;background:#e8e8ed;color:var(--text)}
 button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:disabled{opacity:.55;cursor:not-allowed}
-.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.card{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:15px;padding:18px;box-shadow:0 4px 20px rgba(0,0,0,.04)}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0}.card{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:15px;padding:18px;box-shadow:0 4px 20px rgba(0,0,0,.04)}
 .label{font-size:12px;color:var(--muted);margin-bottom:8px}.value{font-size:20px;font-weight:650}.value.small{font-size:14px;line-height:1.45}.status{display:flex;align-items:center;gap:7px}.dot{width:9px;height:9px;border-radius:50%;background:var(--amber)}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}
 .grid{display:block}.panel-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.panel-title h2{font-size:19px;margin:0}.hint{font-size:12px;color:var(--muted)}
 .chips{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}.chip{padding:7px 10px;border-radius:999px;font-size:12px;background:#f0f0f2;border:1px solid transparent;cursor:pointer}.chip.active{background:#e5f1ff;border-color:#9bc9f7;color:#0057a8}
@@ -25,7 +25,7 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 <body><main>
 <section class="head"><div class="head-title"><h1>AI 24小时市场要闻整理</h1></div><span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span></section>
 <section class="summary">
-<div class="card"><div class="label">数据状态</div><div class="value status" id="status"><span class="dot"></span><span>读取中</span></div></div>
+<div class="card" style="display:none"><div class="label">数据状态</div><div class="value status" id="status"><span class="dot"></span><span>读取中</span></div></div>
 <div class="card"><div class="label">24小时新闻</div><div class="value" id="count">—</div></div>
 <div class="card"><div class="label">分类数量</div><div class="value" id="categoryCount">—</div></div>
 <div class="card"><div class="label">数据更新时间</div><div class="value small" id="updated">—</div></div>
