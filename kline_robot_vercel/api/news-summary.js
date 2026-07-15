@@ -82,16 +82,16 @@ function systemPrompt() {
   ].join("\n");
 }
 
-async function callDeepSeek(newsPayload) {
+async function callDeepSeek(payload, instructions = systemPrompt()) {
   if (!process.env.DEEPSEEK_API_KEY) throw new Error("Vercel 尚未配置 DEEPSEEK_API_KEY");
   const response = await timedFetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: { Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
-      messages: [{ role: "system", content: systemPrompt() }, { role: "user", content: JSON.stringify(newsPayload) }],
+      messages: [{ role: "system", content: instructions }, { role: "user", content: JSON.stringify(payload) }],
       temperature: 0.2,
-      max_tokens: 5000
+      max_tokens: 7000
     })
   });
   const data = await response.json().catch(() => ({}));
@@ -99,16 +99,16 @@ async function callDeepSeek(newsPayload) {
   return data.choices?.[0]?.message?.content || "";
 }
 
-async function callOpenAI(newsPayload) {
+async function callOpenAI(payload, instructions = systemPrompt()) {
   if (!process.env.OPENAI_API_KEY) throw new Error("Vercel 尚未配置 OPENAI_API_KEY");
   const response = await timedFetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: "Bearer " + process.env.OPENAI_API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || "gpt-5-mini",
-      instructions: systemPrompt(),
-      input: JSON.stringify(newsPayload),
-      max_output_tokens: 5000
+      instructions,
+      input: JSON.stringify(payload),
+      max_output_tokens: 7000
     })
   });
   const data = await response.json().catch(() => ({}));
@@ -150,6 +150,35 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, message: "Method not allowed" });
   try {
     const provider = String(req.body?.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
+    const mode = String(req.body?.mode || "news-summary");
+
+    if (mode === "daily-report") {
+      const prompt = String(req.body?.prompt || "").trim();
+      if (!prompt) throw new Error("日报生成缺少 prompt");
+      const payload = {
+        reportType: req.body?.reportType || "morning",
+        rawNews: Array.isArray(req.body?.rawNews) ? req.body.rawNews : [],
+        marketSnapshot: req.body?.marketSnapshot || {},
+        generatedAt: new Date().toISOString()
+      };
+      const instructions = "你负责生成卖Put投资者使用的《市场结构日报》。必须严格遵守用户传入的固定模板与章节顺序，不得虚构价格、事件、期权数据或来源。";
+      const rawMarkdown = provider === "openai"
+        ? await callOpenAI({ prompt, ...payload }, instructions)
+        : await callDeepSeek({ prompt, ...payload }, instructions);
+      const markdown = String(rawMarkdown || "").trim();
+      if (!markdown) throw new Error("AI返回内容为空");
+      return res.status(200).json({
+        ok: true,
+        report: {
+          id: "market-daily-" + Date.now(),
+          title: payload.reportType === "evening" ? "每日市场晚报" : "每日市场早报",
+          provider: provider === "openai" ? "GPT" : "DeepSeek",
+          generatedAt: new Date().toISOString(),
+          markdown
+        }
+      });
+    }
+
     const news = await loadNews();
     const selected = selectForAI(news.items);
     const payload = {
