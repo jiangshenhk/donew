@@ -26,9 +26,11 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+
       - uses: actions/setup-node@v5
         with:
           node-version: '20'
+
       - name: Select report type
         id: report
         run: |
@@ -39,8 +41,13 @@ jobs:
           else
             echo "type=evening" >> $GITHUB_OUTPUT
           fi
+
       - name: Generate report
         run: node scripts/generate-market-daily-report.mjs "${{ steps.report.outputs.type }}"
+
+      - name: Validate report quality
+        run: node scripts/validate-market-report.mjs "docs/市场/${{ steps.report.outputs.type == 'morning' && '每日市场早报.md' || '每日市场晚报.md' }}"
+
       - name: Commit report files
         run: |
           git config user.name 'github-actions[bot]'
