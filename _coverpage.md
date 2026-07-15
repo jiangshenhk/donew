@@ -212,31 +212,32 @@
 ***
 
  <span class="sub-quote">站在时间这一边，用AI和数据，重新理解复利投资。</span> -->
-
+<!-- 
 <div class="cover-highlight">
-  <strong>核心思想：</strong>暴富是概率事件，复利是时间过程。先把财富观理清楚，再用 AI 工具判断市场环境与个股结构，最后才执行 ETF 定投或 Sell Put。
+ <strong>核心思想：</strong>暴富是概率事件，复利是时间过程。先把财富观理清楚，再用 AI 工具判断市场环境与个股结构，最后才执行 ETF 定投或 Sell Put。
 </div>
+-->
 
 <div class="main-grid">
   
   <a href="https://donew-beta.vercel.app/jin10-news.html" target="_blank" class="main-card weapon-two">
     <strong>⚔️ AI看新闻</strong>
-    <span>判断单票结构：趋势、动量、相似形态、关键位。</span>
+    <!-- <span>判断单票结构：趋势、动量、相似形态、关键位。</span> -->
   </a>
   
   <a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
     <strong>⚔️ AI看市场</strong>
-    <span>先看大环境：利率、黄金、BTC、纳指、风险偏好。</span>
+  <!--  <span>先看大环境：利率、黄金、BTC、纳指、风险偏好。</span> -->
   </a>
 
   <a href="https://donew-beta.vercel.app/kline-robot.html" target="_blank" class="main-card weapon-two">
     <strong>🧭 AI看K线</strong>
-    <span>判断单票结构：趋势、动量、相似形态、关键位。</span>
+   <!-- <span>判断单票结构：趋势、动量、相似形态、关键位。</span> -->
   </a>
 
   <a href="#/docs/other/calm-wealth-mindset.md" class="main-card mindset">
     <strong>❤️ 复利投资</strong>
-    <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span>
+    <!--  <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span> -->
   </a>
   
 </div>
