@@ -61,11 +61,28 @@ ${JSON.stringify(news)}
 ${JSON.stringify(pricePayload).slice(0,8000)}`;
 
 async function callAI(){
-  const endpoint = process.env.DAILY_REPORT_API || 'https://donew-beta.vercel.app/api/daily-report';
-  const r = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reportType,provider:'deepseek',rawNews:news,prompt,marketSnapshot:pricePayload})});
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error('Missing DEEPSEEK_API_KEY');
+
+  const r = await fetch('https://api.deepseek.com/chat/completions',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${apiKey}`
+    },
+    body:JSON.stringify({
+      model:'deepseek-chat',
+      messages:[
+        {role:'system',content:'你负责生成投资日报，严格遵守用户提供的模板。'},
+        {role:'user',content:prompt}
+      ],
+      temperature:0.2
+    })
+  });
+
   const data = await r.json();
-  if(!r.ok || !data.ok) throw new Error(data.message || 'AI report failed');
-  return data.report.markdown;
+  if(!r.ok) throw new Error(data.error?.message || 'DeepSeek failed');
+  return data.choices?.[0]?.message?.content || '';
 }
 
 const markdown = await callAI();
