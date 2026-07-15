@@ -255,10 +255,10 @@
 </div>
 
 <div class="quick-row">
-  <a href="#/docs/复利/定投ETF.md" class="quick-link">小白ETF定投</a>
-  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">定投收益PK</a>
-  <a href="#/docs/SellPut/how-to-sell-put.md" class="quick-link">专家级投资法</a>
-  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">发财必拜财神</a>
+  <a href="#/docs/复利/定投ETF.md" class="quick-link">ETF定投入门</a>
+  <a href="#/docs/ETF图谱/ETF长期收益图谱.md" class="quick-link">如果20年前买入，现在有多少钱？</a>
+  <a href="#/docs/SellPut/how-to-sell-put.md" class="quick-link">高手投资体系</a>
+  <a href="#/docs/other/lingyin-wealth.md" class="quick-link">寺庙里的财神</a>
 </div>
 
 <div class="site-counter">
