@@ -44,8 +44,7 @@ ${JSON.stringify(news)}
 ${JSON.stringify(pricePayload).slice(0,5000)}`;
 
 async function callAI(){
-  const endpoint = process.env.MARKET_REPORT_API || process.env.NEWS_SUMMARY_API;
-  if (!endpoint) throw new Error('Missing MARKET_REPORT_API');
+  const endpoint = process.env.MARKET_REPORT_API || 'https://donew-beta.vercel.app/api/market-report';
   const r = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reportType,provider:'deepseek',rawNews:news,prompt})});
   const data = await r.json();
   if(!r.ok || !data.ok) throw new Error(data.message || 'AI report failed');
