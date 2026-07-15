@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-15T05:52:03.502Z",
-  "checkedAt": "2026-07-15T05:52:03.502Z",
+  "updatedAt": "2026-07-15T07:44:06.847Z",
+  "checkedAt": "2026-07-15T07:44:06.847Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -117,10 +117,10 @@
     {
       "symbol": "^VIX",
       "category": "Volatility",
-      "price": 16.5,
-      "previousClose": 16.9,
-      "changePercent": "-2.37",
-      "marketTime": "2026-07-14T20:15:01.000Z",
+      "price": 16.34,
+      "previousClose": 15.84,
+      "changePercent": "3.16",
+      "marketTime": "2026-07-15T07:28:46.000Z",
       "currency": "USD",
       "exchange": "CXI"
     },
@@ -147,10 +147,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64715.71,
+      "price": 64558.83,
       "previousClose": 63802.027,
-      "changePercent": "1.43",
-      "marketTime": "2026-07-15T05:51:52.000Z",
+      "changePercent": "1.19",
+      "marketTime": "2026-07-15T07:43:55.000Z",
       "currency": "USD",
       "exchange": "CCC"
     },
@@ -167,10 +167,10 @@
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "price": 100.799,
+      "price": 100.896,
       "previousClose": 100.97,
-      "changePercent": "-0.17",
-      "marketTime": "2026-07-15T05:41:55.000Z",
+      "changePercent": "-0.07",
+      "marketTime": "2026-07-15T07:33:57.000Z",
       "currency": "USD",
       "exchange": "NYB"
     },
@@ -187,30 +187,30 @@
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "price": 162.179,
+      "price": 162.254,
       "previousClose": 162.539,
-      "changePercent": "-0.22",
-      "marketTime": "2026-07-15T05:51:57.000Z",
+      "changePercent": "-0.18",
+      "marketTime": "2026-07-15T07:44:00.000Z",
       "currency": "JPY",
       "exchange": "CCY"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 79.61,
+      "price": 80.43,
       "previousClose": 71.41,
-      "changePercent": "11.48",
-      "marketTime": "2026-07-15T05:41:59.000Z",
+      "changePercent": "12.63",
+      "marketTime": "2026-07-15T07:33:59.000Z",
       "currency": "USD",
       "exchange": "NYM"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4039,
+      "price": 4031.5,
       "previousClose": 4104.1,
-      "changePercent": "-1.59",
-      "marketTime": "2026-07-15T05:41:58.000Z",
+      "changePercent": "-1.77",
+      "marketTime": "2026-07-15T07:33:58.000Z",
       "currency": "USD",
       "exchange": "CMX"
     },
