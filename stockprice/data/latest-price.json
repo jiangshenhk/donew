@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-16T04:07:48.756Z",
-  "checkedAt": "2026-07-16T04:07:48.756Z",
+  "updatedAt": "2026-07-16T06:28:48.096Z",
+  "checkedAt": "2026-07-16T06:28:48.096Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -147,10 +147,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64571.29,
+      "price": 64762.84,
       "previousClose": 63758.22,
-      "changePercent": "1.28",
-      "marketTime": "2026-07-16T04:07:36.000Z",
+      "changePercent": "1.58",
+      "marketTime": "2026-07-16T06:28:33.000Z",
       "currency": "USD",
       "exchange": "CCC"
     },
@@ -167,10 +167,10 @@
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "price": 100.507,
+      "price": 100.511,
       "previousClose": 101.28,
       "changePercent": "-0.76",
-      "marketTime": "2026-07-16T03:57:38.000Z",
+      "marketTime": "2026-07-16T06:18:39.000Z",
       "currency": "USD",
       "exchange": "NYB"
     },
@@ -187,30 +187,30 @@
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "price": 162.098,
+      "price": 162.143,
       "previousClose": 162.363,
-      "changePercent": "-0.16",
-      "marketTime": "2026-07-16T04:07:42.000Z",
+      "changePercent": "-0.14",
+      "marketTime": "2026-07-16T06:28:42.000Z",
       "currency": "JPY",
       "exchange": "CCY"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 79.52,
+      "price": 79.4,
       "previousClose": 78.14,
-      "changePercent": "1.77",
-      "marketTime": "2026-07-16T03:57:21.000Z",
+      "changePercent": "1.61",
+      "marketTime": "2026-07-16T06:18:21.000Z",
       "currency": "USD",
       "exchange": "NYM"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4041.9,
+      "price": 4034.8,
       "previousClose": 3997,
-      "changePercent": "1.12",
-      "marketTime": "2026-07-16T03:57:41.000Z",
+      "changePercent": "0.95",
+      "marketTime": "2026-07-16T06:18:39.000Z",
       "currency": "USD",
       "exchange": "CMX"
     },
