@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-15T23:33:06.331Z",
-  "checkedAt": "2026-07-15T23:33:06.331Z",
+  "updatedAt": "2026-07-16T00:59:29.705Z",
+  "checkedAt": "2026-07-16T00:59:29.705Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -147,10 +147,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64804.36,
-      "previousClose": 63802.027,
-      "changePercent": "1.57",
-      "marketTime": "2026-07-15T23:32:52.000Z",
+      "price": 64539.98,
+      "previousClose": 63758.22,
+      "changePercent": "1.23",
+      "marketTime": "2026-07-16T00:59:13.000Z",
       "currency": "USD",
       "exchange": "CCC"
     },
@@ -167,10 +167,10 @@
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "price": 100.495,
+      "price": 100.494,
       "previousClose": 100.97,
       "changePercent": "-0.47",
-      "marketTime": "2026-07-15T22:04:59.000Z",
+      "marketTime": "2026-07-16T00:49:20.000Z",
       "currency": "USD",
       "exchange": "NYB"
     },
@@ -187,30 +187,30 @@
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "price": 162.082,
+      "price": 162.091,
       "previousClose": 162.363,
       "changePercent": "-0.17",
-      "marketTime": "2026-07-15T23:32:58.000Z",
+      "marketTime": "2026-07-16T00:59:22.000Z",
       "currency": "JPY",
       "exchange": "CCY"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 80.24,
+      "price": 80.11,
       "previousClose": 71.41,
-      "changePercent": "12.37",
-      "marketTime": "2026-07-15T23:22:42.000Z",
+      "changePercent": "12.18",
+      "marketTime": "2026-07-16T00:48:53.000Z",
       "currency": "USD",
       "exchange": "NYM"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4064.2,
+      "price": 4064.9,
       "previousClose": 4104.1,
-      "changePercent": "-0.97",
-      "marketTime": "2026-07-15T23:22:53.000Z",
+      "changePercent": "-0.96",
+      "marketTime": "2026-07-16T00:49:25.000Z",
       "currency": "USD",
       "exchange": "CMX"
     },
