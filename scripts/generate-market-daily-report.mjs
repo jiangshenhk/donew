@@ -1,5 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import {
+  buildMarketReportPrompt,
+  loadStrategyBaseline,
+  validateCriticalRequirements,
+} from '../lib/market-report-core.mjs';
 
 const reportType = String(process.argv[2] || '').toLowerCase();
 if (!['morning', 'evening'].includes(reportType)) {
@@ -9,21 +14,16 @@ if (!['morning', 'evening'].includes(reportType)) {
 const root = process.cwd();
 const newsFile = path.join(root, 'jin10news/data/latest-24h.json');
 const priceFile = path.join(root, 'stockprice/data/latest-price.json');
-const strategyFile = path.join(root, 'docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md');
 const outputDir = path.join(root, 'docs/市场');
 const statusDir = path.join(outputDir, 'data');
 const historyFile = path.join(outputDir, '历史.md');
 const todayFile = path.join(outputDir, '今日.md');
 const aiEndpoint = process.env.NEWS_SUMMARY_API || 'https://donew-beta.vercel.app/api/news-summary';
 
-for (const requiredFile of [newsFile, strategyFile]) {
-  if (!fs.existsSync(requiredFile)) throw new Error(`Required file missing: ${path.relative(root, requiredFile)}`);
-}
-
+if (!fs.existsSync(newsFile)) throw new Error(`Required file missing: ${path.relative(root, newsFile)}`);
+const { strategy, strategySource } = loadStrategyBaseline(root);
 const newsPayload = JSON.parse(fs.readFileSync(newsFile, 'utf8'));
 const pricePayload = fs.existsSync(priceFile) ? JSON.parse(fs.readFileSync(priceFile, 'utf8')) : {};
-const strategyPrompt = fs.readFileSync(strategyFile, 'utf8').trim();
-if (strategyPrompt.length < 1000) throw new Error(`Strategy prompt too short: ${strategyPrompt.length}`);
 
 const now = new Date();
 const cutoff = now.getTime() - 48 * 60 * 60 * 1000;
@@ -38,25 +38,7 @@ const hkDate = new Intl.DateTimeFormat('en-CA', {
 }).format(now);
 const displayDate = `${hkDate.slice(5, 7)}月${Number(hkDate.slice(8, 10))}日`;
 const label = reportType === 'morning' ? '早报' : '晚报';
-const sessionInstruction = reportType === 'morning'
-  ? '重点分析隔夜美股收盘、盘后变化和今日交易准备。'
-  : '重点分析亚洲与欧洲交易时段变化，以及今晚美股开盘前的交易准备。';
-
-const prompt = `${strategyPrompt}
-
----
-
-# 本次执行要求
-
-- 报告类型：${label}
-- ${sessionInstruction}
-- 必须明确覆盖 QLD、MSTR、INTC；即使没有交易机会，也必须写明“观察、暂停或不适合”。
-- 核心市场维度必须覆盖：大盘、10Y、VIX、BTC。
-- 不得编造期权链、Strike、Delta、IV、OI 或成交数据。
-- 输出完整 Markdown 正文，不要解释提示词，也不要输出代码围栏。
-
-新闻：${JSON.stringify(news)}
-行情：${JSON.stringify(pricePayload).slice(0, 12000)}`;
+const prompt = buildMarketReportPrompt({ strategy, reportType, news, marketSnapshot: pricePayload });
 
 async function callAI() {
   const response = await fetch(aiEndpoint, {
@@ -69,7 +51,7 @@ async function callAI() {
       rawNews: news,
       prompt,
       marketSnapshot: pricePayload,
-      strategySource: path.relative(root, strategyFile),
+      strategySource,
     }),
   });
   const data = await response.json();
@@ -111,7 +93,7 @@ function updateToday(markdown) {
 }
 
 const markdown = await callAI();
-if (!markdown || markdown.length < 1000) throw new Error(`Invalid report: ${markdown.length}`);
+validateCriticalRequirements(markdown);
 fs.mkdirSync(outputDir, { recursive: true });
 fs.mkdirSync(statusDir, { recursive: true });
 fs.writeFileSync(path.join(outputDir, reportType === 'morning' ? '每日市场早报.md' : '每日市场晚报.md'), `${markdown}\n`);
@@ -120,11 +102,6 @@ updateHistory(markdown);
 updateToday(markdown);
 fs.writeFileSync(
   path.join(statusDir, `latest-${reportType}.json`),
-  JSON.stringify({
-    status: 'success',
-    reportType,
-    generatedAt: new Date().toISOString(),
-    strategySource: path.relative(root, strategyFile),
-  }, null, 2),
+  JSON.stringify({ status: 'success', reportType, generatedAt: new Date().toISOString(), strategySource }, null, 2),
 );
-console.log(`Generated ${label} with strategy: ${path.relative(root, strategyFile)}`);
+console.log(`Generated ${label} with shared core: ${strategySource}`);
