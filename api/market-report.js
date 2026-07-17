@@ -892,6 +892,18 @@ function classify(snapshot) {
   const executionLevel = risk >= 7.5 ? "D" : risk >= 6.2 ? "B" : "A";
   const putEnvironment = risk >= 7.5 ? "不适合" : risk >= 6.2 ? "谨慎" : "适合";
   const eventRisk = risk >= 7.5 ? "高" : risk >= 6.2 ? "中" : "低";
+  const crashProbability = risk >= 7.5 ? "高（约35%+）" : risk >= 6.2 ? "中（约20%-35%）" : "低（约10%-20%）";
+  const crashLight = risk >= 7.5 ? "🔴 高" : risk >= 6.2 ? "🟡 中" : "🟢 低";
+  const blackSwanRisk = (
+    (vix.changePct || 0) > 8 ||
+    (((tnx.changePct || 0) > 1) && ((dxy.changePct || 0) > 0.3)) ||
+    (((smh.changePct || 0) < -1.5 || (soxx.changePct || 0) < -1.5) && ((btc.changePct || 0) < -3))
+  ) ? "🔴 高警戒" : risk >= 6.2 ? "🟡 需防范" : "🟢 常规防守";
+  const sellPutSafety = risk >= 7.5
+    ? "先避险，不为权利金暴露尾部风险"
+    : risk >= 6.2
+      ? "只允许极远OTM、小仓、分批，重点防跳空"
+      : "可筛选，但仍避开事件日、财报和高相关性拥挤交易";
 
   const base = {
     riskScore: risk.toFixed(1),
@@ -899,6 +911,10 @@ function classify(snapshot) {
     executionLevel,
     putEnvironment,
     eventRisk,
+    crashProbability,
+    crashLight,
+    blackSwanRisk,
+    sellPutSafety,
     marketStage: risk >= 7.5 ? "risk-off / 高beta降级" : risk >= 6.2 ? "横风震荡 / 主线筛选" : "顺风修复 / 可小仓进攻",
     trueTheme: `VIX ${pct(vix.changePct)}、10Y ${pct(tnx.changePct)}、DXY ${pct(dxy.changePct)}、半导体 ${pct(smh.changePct)}、BTC ${pct(btc.changePct)} 的组合确认`,
     truthTeller: "VIX、10Y/DXY、SMH/SOXX、BTC 与 MSTR 相对强弱",
@@ -1019,7 +1035,9 @@ function finalCommandFor(kind, classification) {
 function overviewRows(classification) {
   return `| **市场阶段** | **${classification.marketStage}** |
 | **资金流向** | **${classification.capitalFlow}** |
-| **风险评分** | **${classification.riskScore} / 10** |`;
+| **风险评分** | **${classification.riskScore} / 10** |
+| **未来3-5日大跌概率** | **${classification.crashProbability}** |
+| **黑天鹅灯号** | **${classification.blackSwanRisk}** |`;
 }
 
 function flowRows(snapshot, classification, kind) {
@@ -1045,23 +1063,28 @@ function flowRows(snapshot, classification, kind) {
 
 function strategyRows(snapshot, classification) {
   const level = classification.executionLevel;
-  const allowPut = level === "A";
-  const cautiousPut = level === "B";
+  const buyCallFlag = level === "A" ? "⚠️" : level === "B" ? "⚠️" : "❌";
+  const sellPutFlag = level === "A" ? "✅" : level === "B" ? "⚠️" : "❌";
+  const qldDownside = level === "D" ? "🔴" : level === "B" ? "🟡" : "🟢";
+  const spyDownside = level === "D" ? "🟡" : "🟢";
+  const intcDownside = level === "D" ? "🔴" : "🟡";
+  const gldDownside = level === "D" ? "🟡" : "🟢";
+  const usoDownside = level === "D" ? "🔴" : "🟡";
   const qldLogic = level === "D"
-    ? "纳指与波动率没有确认，暂停主动新增。"
-    : cautiousPut
-      ? "保留候选，但只允许远 OTM 小仓，等待确认。"
+    ? "纳指与波动率没有确认，短期大跌/跳空风险对卖Put不友好。"
+    : level === "B"
+      ? "保留候选，但只允许远 OTM 小仓，核心是防突然转弱。"
       : "可作为主观察池，但仍需复核 VIX、10Y 与盘中结构。";
   const mstrLogic = "BTC 没有给出稳定确认前，MSTR 高 IV 对应的是尾部风险。";
   const intcLogic = "半导体主线与个股高波动并存，只能更严格筛选，不把高 IV 当优势。";
   return [
-    `| **QQQ / QLD** | ${allowPut ? "⚠️" : cautiousPut ? "⚠️" : "❌"} | ${allowPut ? "⚠️" : cautiousPut ? "⚠️" : "❌"} | ${qldLogic} |`,
-    `| **SPY** | ⚠️ | ${level === "D" ? "⚠️" : "⚠️"} | 宽基更稳，但不是当前主进攻方向。 |`,
-    `| **MSTR** | ❌ | ❌ | ${mstrLogic} |`,
-    `| **INTC** | ❌ | ${level === "D" ? "⚠️" : "⚠️"} | ${intcLogic} |`,
-    `| **GLD / IAU** | ⚠️ | ❌ | 更适合作为风险温度计，不是当前卖 Put 主线。 |`,
-    `| **USO / XLE** | ⚠️ | ❌ | 油价是宏观变量，不代表能源标的适合直接卖 Put。 |`,
-    `| **BTC** | ${level === "A" ? "⚠️" : "❌"} | ❌ | 先看是否继续确认或拖累风险偏好。 |`,
+    `| **QQQ / QLD** | ${buyCallFlag} | ${qldDownside} | ${sellPutFlag} | ${qldLogic} |`,
+    `| **SPY** | ⚠️ | ${spyDownside} | ⚠️ | 宽基更稳，若要卖Put它更像防守替代，但仍不是无脑收租。 |`,
+    `| **MSTR** | ❌ | 🔴 | ❌ | ${mstrLogic} |`,
+    `| **INTC** | ❌ | ${intcDownside} | ${level === "D" ? "❌" : "⚠️"} | ${intcLogic} |`,
+    `| **GLD / IAU** | ⚠️ | ${gldDownside} | ❌ | 更适合作为风险温度计，不是当前卖 Put 主线。 |`,
+    `| **USO / XLE** | ⚠️ | ${usoDownside} | ❌ | 油价与事件风险耦合，容易被宏观/地缘突发放大波动。 |`,
+    `| **BTC** | ${level === "A" ? "⚠️" : "❌"} | 🔴 | ❌ | 先看是否继续确认或拖累风险偏好，本身就带明显尾部风险。 |`,
   ].join("\n");
 }
 
@@ -1147,15 +1170,25 @@ ${overviewRows(classification)}
 |:---|:---|:---|:---|
 ${flowRows(snapshot, classification, meta.kind)}
 
-## 4）策略矩阵
+## 4）卖 Put 视角｜大跌概率与黑天鹅检查
 
-| 资产 | 买CALL | 卖PUT | 核心逻辑 |
-|:---|:---:|:---:|:---|
+> **说明：** 这里的“大跌概率”是针对未来 **3-5 个交易日** 是否容易出现不适合卖 Put 的急跌/跳空环境的主观风险区间，用来避开黑天鹅，不是精确统计模型。
+
+| 维度 | 当前判断 | 含义 |
+|:---|:---|:---|
+| **未来3-5日大跌概率** | **${classification.crashProbability}** | 判断现在收的权利金，值不值得暴露尾部风险。 |
+| **黑天鹅灯号** | **${classification.blackSwanRisk}** | 重点防跳空、突发宏观、事件驱动和相关性踩踏。 |
+| **卖Put动作** | **${classification.sellPutSafety}** | 真正落到仓位和 Delta 的动作约束。 |
+
+## 5）策略矩阵
+
+| 资产 | 买CALL | 大跌风险 | 卖PUT | 核心逻辑 |
+|:---|:---:|:---:|:---:|:---|
 ${strategyRows(snapshot, classification)}
 
 > **整体策略**：\`${finalCommand}\`
 
-## 5）资金流向与资产联动
+## 6）资金流向与资产联动
 
 ### A. 跨资产资金流向
 
@@ -1180,19 +1213,19 @@ ${strategyRows(snapshot, classification)}
 - **今晚/本期真正说真话的是：${classification.truthTeller}**
 - **我的判断：** ${classification.trueTheme}
 
-## 6）宏观资产数据
+## 7）宏观资产数据
 
 | 资产 | 当前 | 日变化 | 解读 |
 |:---|:---|:---|:---|
 ${macroRows(snapshot)}
 
-## 7）风险资产表现
+## 8）风险资产表现
 
 | 资产 | 当前/收盘 | 日变化 | 20日变化 | 50日变化 |
 |:---|---:|---:|---:|---:|
 ${riskRows(snapshot, "daily")}
 
-## 8）驱动拆解
+## 9）驱动拆解
 
 \`\`\`text
 ${classification.marketStage}
@@ -1204,7 +1237,7 @@ ${classification.trueTheme}
 ${finalCommand}
 \`\`\`
 
-${newsSection}
+${newsSection ? newsSection.replace("## 8）最近24小时重大新闻", "## 10）最近24小时重大新闻") : ""}
 
 <details>
   <summary>卖 Put 策略附录（个人执行用）</summary>
