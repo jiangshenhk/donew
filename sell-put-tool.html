@@ -407,7 +407,7 @@
   <div class="shell">
     <div class="topbar">
       <div>
-        <h1>AI卖Put温度判断 <span class="version">v0.1.8｜2026-07-17｜自动解析截图+统一输入样式</span></h1>
+        <h1>AI卖Put温度判断 <span class="version">v0.1.10｜2026-07-17｜修复本地解析接口地址</span></h1>
       </div>
       <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </div>
@@ -451,7 +451,7 @@
             <button class="action soft" id="parseImageBtn" type="button">自动解析图片</button>
           </div>
           <div class="upload-hint">
-            默认先上传截图，系统会自动尝试解析并填入下面字段；如果识别不完整，再展开手动校对。
+            默认先上传截图。点击“生成卖Put判断”时，系统会先自动解析截图，再继续生成报告；如果识别不完整，再展开手动校对。
           </div>
           <img id="thumb" class="preview-thumb" alt="截图预览">
         </div>
@@ -511,7 +511,11 @@
     const apiBase = (() => {
       const params = new URLSearchParams(location.search);
       const override = params.get('apiBase');
-      return override || location.origin.replace(/\/$/, '');
+      const origin = String(location.origin || '').replace(/\/$/, '');
+      const fallback = 'https://donew-beta.vercel.app';
+      if (override) return override.replace(/\/$/, '');
+      if (!origin || origin === 'null' || location.protocol === 'file:') return fallback;
+      return origin;
     })();
 
     const form = document.getElementById('toolForm');
@@ -659,7 +663,7 @@
       });
     }
 
-    async function parseUploadedImage({ silent = false } = {}) {
+    async function parseUploadedImage({ silent = false, keepStatus = false } = {}) {
       if (!imageDataUrl) {
         if (!silent) setStatus('请先上传截图。', true);
         return false;
@@ -682,12 +686,15 @@
           if (form.elements[key]) form.elements[key].value = value || '';
         });
         metricsPanel.open = false;
-        setStatus(json.message || '已自动填入字段，请核对后再生成。');
+        if (!keepStatus) {
+          setStatus(json.message || '已自动填入字段，请核对后再生成。');
+        }
         return true;
       } catch (error) {
         metricsPanel.open = true;
-        if (!silent) {
-          setStatus(error.message || '截图解析失败，请手动录入。', true);
+        if (!silent && !keepStatus) {
+          const message = error?.message || '截图解析失败，请手动录入。';
+          setStatus(message.includes('Failed to fetch') ? `截图解析失败，请检查接口是否可用：${apiBase}/api/put-rating` : message, true);
         }
         return false;
       } finally {
@@ -779,6 +786,11 @@
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (imageDataUrl) {
+        setStatus('正在解析截图并准备生成...');
+        await parseUploadedImage({ silent: true, keepStatus: true });
+      }
+
       const optionMetrics = collectOptionMetrics();
       if (!hasCoreMetrics(optionMetrics)) {
         setStatus('请至少录入 IV / HV / IV Percentile / IV Rank / Expected Move 中的部分核心字段。', true);
