@@ -11,6 +11,9 @@
     },
     "api/news-summary.js": {
       "maxDuration": 120
+    },
+    "api/market-report-v2.js": {
+      "maxDuration": 120
     }
   }
 }
