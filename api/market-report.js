@@ -1,3 +1,8 @@
+// This file is the code implementation for the market-report structure.
+// Theory / prompt baseline lives in:
+// docs/市场/每日市场判断怎么看GPT提示词.md
+// Keep the report sections here aligned with that markdown file.
+
 const MARKET_SYMBOLS = [
   "QQQ", "SPY", "IWM", "QLD", "TQQQ", "SMH", "SOXX", "MAGS",
   "EEM", "FXI", "KWEB", "^VIX", "VIXY", "IBIT", "BTC-USD", "MSTR",
