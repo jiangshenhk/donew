@@ -1,4 +1,4 @@
-import legacyHandler from './market-report.js';
+import legacyHandler from './market-report_old.js';
 
 function riskFromSellPut(value) {
   const text = String(value || '');
