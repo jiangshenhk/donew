@@ -1,0 +1,56 @@
+name: Verify Market Generation Paths
+
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-market-generation-paths.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Verify manual web generation path
+        run: |
+          test -s kline_robot_vercel/api/market-report-v2.js
+          test ! -e kline_robot_vercel/api/market-report_old.js
+          node --check kline_robot_vercel/api/market-report-v2.js
+          node -e "import('./kline_robot_vercel/api/market-report-v2.js').then(m=>{if(typeof m.default!=='function') process.exit(1)})"
+          grep -q '/api/market-report-v2?kind=' kline_robot_vercel/market-analysis-tool.html
+          grep -q 'api/market-report-v2.js' kline_robot_vercel/vercel.json
+          ! grep -R "market-report_old" kline_robot_vercel --exclude-dir=node_modules
+
+      - name: Verify automatic generation path
+        run: |
+          node --check scripts/generate-market-daily-report.mjs
+          node --check scripts/test-market-daily-report.mjs
+          node --check scripts/validate-market-report.mjs
+          node --check lib/market-report-core.mjs
+          grep -q 'scripts/test-market-daily-report.mjs' .github/workflows/generate-market-daily-reports.yml
+          grep -q 'NEWS_SUMMARY_API' scripts/generate-market-daily-report.mjs
+          grep -q 'validateCriticalRequirements' scripts/generate-market-daily-report.mjs
+          grep -q '黑天鹅' lib/market-report-core.mjs
+          grep -q '大跌风险' lib/market-report-core.mjs
+
+      - name: Remove temporary verification workflow
+        run: rm .github/workflows/verify-market-generation-paths.yml
+
+      - name: Commit verification result
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/verify-market-generation-paths.yml
+          git commit -m 'test: verify manual and automatic market report paths'
+          git pull --rebase origin main
+          git push origin HEAD:main
