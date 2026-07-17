@@ -1,123 +1,307 @@
 {
-  "updatedAt": "2026-07-17T19:22:57.409Z",
-  "checkedAt": "2026-07-17T19:22:57.409Z",
-  "successCount": 0,
-  "failCount": 23,
+  "updatedAt": "2026-07-17T19:45:45.675Z",
+  "checkedAt": "2026-07-17T19:45:45.675Z",
+  "successCount": 23,
+  "failCount": 0,
   "data": [
     {
       "symbol": "QQQ",
       "category": "US ETF",
-      "error": "HTTP 401"
+      "price": 696.49,
+      "previousClose": 725.51,
+      "changePercent": "-4.00",
+      "marketTime": "2026-07-17T19:45:17.000Z",
+      "currency": "USD",
+      "exchange": "NasdaqGM",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "SPY",
       "category": "US ETF",
-      "error": "HTTP 401"
+      "price": 743.73,
+      "previousClose": 754.95,
+      "changePercent": "-1.49",
+      "marketTime": "2026-07-17T19:45:18.000Z",
+      "currency": "USD",
+      "exchange": "NYSEArca",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "IWM",
       "category": "US ETF",
-      "error": "HTTP 401"
+      "price": 293.905,
+      "previousClose": 295.99,
+      "changePercent": "-0.70",
+      "marketTime": "2026-07-17T19:45:18.000Z",
+      "currency": "USD",
+      "exchange": "NYSEArca",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "QLD",
       "category": "US ETF",
-      "error": "HTTP 401"
+      "price": 86.16,
+      "previousClose": 93.7,
+      "changePercent": "-8.05",
+      "marketTime": "2026-07-17T19:45:15.000Z",
+      "currency": "USD",
+      "exchange": "NYSEArca",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "TQQQ",
       "category": "US ETF",
-      "error": "HTTP 401"
+      "price": 67.81,
+      "previousClose": 77.03,
+      "changePercent": "-11.97",
+      "marketTime": "2026-07-17T19:45:23.000Z",
+      "currency": "USD",
+      "exchange": "NasdaqGM",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "SMH",
       "category": "Technology ETF",
-      "error": "HTTP 401"
+      "price": 557.19,
+      "previousClose": 611.03,
+      "changePercent": "-8.81",
+      "marketTime": "2026-07-17T19:45:23.000Z",
+      "currency": "USD",
+      "exchange": "NasdaqGM",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "SOXX",
       "category": "Technology ETF",
-      "error": "HTTP 401"
+      "price": 522.96,
+      "previousClose": 581.34,
+      "changePercent": "-10.04",
+      "marketTime": "2026-07-17T19:45:23.000Z",
+      "currency": "USD",
+      "exchange": "NasdaqGM",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "MAGS",
       "category": "Technology ETF",
-      "error": "HTTP 401"
+      "price": 66.88,
+      "previousClose": 67.68,
+      "changePercent": "-1.18",
+      "marketTime": "2026-07-17T19:45:25.000Z",
+      "currency": "USD",
+      "exchange": "Cboe US",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "EEM",
       "category": "China/Emerging",
-      "error": "HTTP 401"
+      "price": 63.388,
+      "previousClose": 66.9,
+      "changePercent": "-5.25",
+      "marketTime": "2026-07-17T19:45:26.000Z",
+      "currency": "USD",
+      "exchange": "NYSEArca",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "FXI",
       "category": "China/Emerging",
-      "error": "HTTP 401"
+      "price": 34.095,
+      "previousClose": 33.48,
+      "changePercent": "1.84",
+      "marketTime": "2026-07-17T19:45:29.000Z",
+      "currency": "USD",
+      "exchange": "NYSEArca",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "KWEB",
       "category": "China/Emerging",
-      "error": "HTTP 401"
+      "price": 26.82,
+      "previousClose": 26.38,
+      "changePercent": "1.67",
+      "marketTime": "2026-07-17T19:45:29.000Z",
+      "currency": "USD",
+      "exchange": "NYSEArca",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "^VIX",
       "category": "Volatility",
-      "error": "HTTP 401"
+      "price": 18.72,
+      "previousClose": 17.16,
+      "changePercent": "9.09",
+      "marketTime": "2026-07-17T19:30:16.000Z",
+      "currency": "USD",
+      "exchange": "Cboe Indices",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "VIXY",
       "category": "Volatility",
-      "error": "HTTP 401"
+      "price": 21.56,
+      "previousClose": 20.34,
+      "changePercent": "6.00",
+      "marketTime": "2026-07-17T19:45:27.000Z",
+      "currency": "USD",
+      "exchange": "Cboe US",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "IBIT",
       "category": "Bitcoin",
-      "error": "HTTP 401"
+      "price": 36.365,
+      "previousClose": 36.23,
+      "changePercent": "0.37",
+      "marketTime": "2026-07-17T19:45:33.000Z",
+      "currency": "USD",
+      "exchange": "NasdaqGM",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "error": "HTTP 401"
+      "price": 64163.14,
+      "previousClose": 62239.12,
+      "changePercent": "3.09",
+      "marketTime": "2026-07-17T19:45:30.000Z",
+      "currency": "USD",
+      "exchange": "CCC",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "MSTR",
       "category": "Bitcoin",
-      "error": "HTTP 401"
+      "price": 94.47,
+      "previousClose": 94.64,
+      "changePercent": "-0.18",
+      "marketTime": "2026-07-17T19:45:31.000Z",
+      "currency": "USD",
+      "exchange": "NasdaqGS",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "error": "HTTP 401"
+      "price": 100.769,
+      "previousClose": 101.28,
+      "changePercent": "-0.50",
+      "marketTime": "2026-07-17T19:35:36.000Z",
+      "currency": "USD",
+      "exchange": "ICE Futures",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "^TNX",
       "category": "Macro",
-      "error": "HTTP 401"
+      "price": 4.541,
+      "previousClose": 4.609,
+      "changePercent": "-1.48",
+      "marketTime": "2026-07-17T18:59:54.000Z",
+      "currency": "USD",
+      "exchange": "Cboe Indices",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "error": "HTTP 401"
+      "price": 162.456,
+      "previousClose": 161.878,
+      "changePercent": "0.36",
+      "marketTime": "2026-07-17T19:45:37.000Z",
+      "currency": "JPY",
+      "exchange": "CCY",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "error": "HTTP 401"
+      "price": 81.19,
+      "previousClose": 78.14,
+      "changePercent": "3.90",
+      "marketTime": "2026-07-17T19:35:39.000Z",
+      "currency": "USD",
+      "exchange": "NY Mercantile",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "error": "HTTP 401"
+      "price": 4010.7,
+      "previousClose": 3997,
+      "changePercent": "0.34",
+      "marketTime": "2026-07-17T19:35:13.000Z",
+      "currency": "USD",
+      "exchange": "COMEX",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "INTC",
       "category": "Stock",
-      "error": "HTTP 401"
+      "price": 95.59,
+      "previousClose": 109.84,
+      "changePercent": "-12.97",
+      "marketTime": "2026-07-17T19:45:43.000Z",
+      "currency": "USD",
+      "exchange": "NasdaqGS",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     },
     {
       "symbol": "HOOD",
       "category": "Stock",
-      "error": "HTTP 401"
+      "price": 100.775,
+      "previousClose": 111.97,
+      "changePercent": "-10.00",
+      "marketTime": "2026-07-17T19:45:42.000Z",
+      "currency": "USD",
+      "exchange": "NasdaqGS",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "yahoo-chart-fallback"
     }
   ]
 }
