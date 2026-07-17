@@ -238,6 +238,31 @@ function focusTable(snapshot, targetSymbol) {
   }).join("");
 }
 
+function formatOptionMetrics(metrics = {}) {
+  const entries = [
+    ["IV", metrics.iv, "%"],
+    ["HV", metrics.hv, "%"],
+    ["IV Percentile", metrics.ivPercentile, "%"],
+    ["IV Rank", metrics.ivRank, "%"],
+    ["Expected Move", metrics.expectedMove, ""],
+    ["Expected Move %", metrics.expectedMovePct, "%"],
+    ["Expected Range Low", metrics.expectedRangeLow, ""],
+    ["Expected Range High", metrics.expectedRangeHigh, ""],
+    ["Put/Call Vol Ratio", metrics.putCallVolRatio, ""],
+    ["Put/Call OI Ratio", metrics.putCallOiRatio, ""],
+    ["Today's Volume", metrics.todayVolume, ""],
+    ["Volume Avg 30D", metrics.volumeAvg30, ""],
+    ["Today's Open Interest", metrics.todayOpenInterest, ""],
+    ["Open Int 30D", metrics.openInterest30, ""],
+    ["IV High", metrics.ivHigh, "%"],
+    ["IV Low", metrics.ivLow, "%"],
+  ];
+  return entries
+    .filter(([, value]) => String(value ?? "").trim() !== "")
+    .map(([label, value, suffix]) => `${label}: ${String(value).trim()}${suffix}`)
+    .join("\n");
+}
+
 function extractTextFromResponse(json) {
   return json?.output_text
     || (json?.output || []).flatMap((item) => item.content || []).map((c) => c.text || "").join("")
@@ -246,6 +271,7 @@ function extractTextFromResponse(json) {
 
 function promptText(payload, snapshot, risk) {
   const target = row(snapshot, payload.symbol);
+  const optionMetricsText = formatOptionMetrics(payload.optionMetrics);
   const marketInfo = [
     `标的：${payload.symbol}`,
     `市场：${payload.market || "us"}`,
@@ -255,14 +281,15 @@ function promptText(payload, snapshot, risk) {
     `市场环境概览：${risk.summary}`,
     `卖Put环境初判：${risk.putStance}`,
     `黑天鹅灯号：${risk.blackSwan}`,
+    optionMetricsText ? `用户录入的期权温度数据：\n${optionMetricsText}` : "",
     payload.notes ? `用户补充关注点：${payload.notes}` : "",
   ].join("\n");
 
   return `你是一个专门帮用户判断“当前卖Put是否有利”的美股期权研究助手。
 
 任务：
-1. 阅读用户上传的 Barchart Options Overview 截图；
-2. 提取其中和卖Put相关的关键数据，例如 IV、HV、IV Percentile、IV Rank、Expected Move、Expected Range、Put/Call Ratio、Open Interest；
+1. 阅读用户手动录入的 Barchart Options Overview 关键字段；
+2. 重点评估 IV、HV、IV Percentile、IV Rank、Expected Move、Expected Range、Put/Call Ratio、Open Interest；
 3. 结合下面给你的市场快照，判断当前卖Put到底是：
    - 有利（是真正的恐慌溢价）
    - 谨慎（有溢价，但容易变成陷阱）
@@ -319,8 +346,7 @@ async function callOpenAI(payload, snapshot, risk) {
         {
           role: "user",
           content: [
-            { type: "input_text", text: `请读取这张 ${payload.symbol} 的 Barchart Options Overview 截图，并结合市场快照给出卖Put判断。` },
-            { type: "input_image", image_url: payload.imageDataUrl, detail: "high" },
+            { type: "input_text", text: `请根据 ${payload.symbol} 的 Barchart Options Overview 手工录入字段，并结合市场快照给出卖Put判断。\n\n${formatOptionMetrics(payload.optionMetrics)}` },
           ],
         },
       ],
@@ -353,6 +379,7 @@ async function callDeepSeek(payload, snapshot, risk) {
       message: "未配置 DEEPSEEK_API_KEY，返回规则版报告。",
     };
   }
+  const model = process.env.DEEPSEEK_VISION_MODEL || process.env.DEEPSEEK_MODEL || "deepseek-chat";
   const res = await timedFetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
@@ -360,15 +387,12 @@ async function callDeepSeek(payload, snapshot, risk) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
+      model,
       messages: [
         { role: "system", content: promptText(payload, snapshot, risk) },
         {
           role: "user",
-          content: [
-            { type: "text", text: `请读取这张 ${payload.symbol} 的 Barchart Options Overview 截图，并结合市场快照给出卖Put判断。` },
-            { type: "image_url", image_url: { url: payload.imageDataUrl } },
-          ],
+          content: `请根据 ${payload.symbol} 的 Barchart Options Overview 手工录入字段，并结合市场快照给出卖Put判断。\n\n${formatOptionMetrics(payload.optionMetrics)}`,
         },
       ],
       temperature: 0.2,
@@ -376,25 +400,52 @@ async function callDeepSeek(payload, snapshot, risk) {
   }, 25000);
 
   if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).trim();
     return {
       used: false,
       provider: "DeepSeek",
       html: "",
-      message: `DeepSeek 调用失败：${res.status}`,
+      message: detail ? `DeepSeek 调用失败：${res.status}` : `DeepSeek 调用失败：${res.status}`,
     };
   }
   const json = await res.json();
+  const html = json?.choices?.[0]?.message?.content?.trim() || "";
+  if (!html) {
+    return {
+      used: false,
+      provider: "DeepSeek",
+      html: "",
+      message: "DeepSeek 未返回有效识图结果。",
+    };
+  }
   return {
     used: true,
     provider: "DeepSeek",
-    html: json?.choices?.[0]?.message?.content?.trim() || "",
+    html,
     message: "已调用 DeepSeek 读取截图并生成卖Put判断。",
   };
 }
 
 async function callAI(payload, snapshot, risk) {
   if (String(payload.provider || "deepseek").toLowerCase() === "openai") return callOpenAI(payload, snapshot, risk);
-  return callDeepSeek(payload, snapshot, risk);
+  const deepseek = await callDeepSeek(payload, snapshot, risk);
+  if (deepseek.used) return deepseek;
+  if (process.env.OPENAI_API_KEY) {
+    const openai = await callOpenAI(payload, snapshot, risk);
+    if (openai.used) {
+      return {
+        ...openai,
+        provider: "DeepSeek -> GPT",
+        message: "DeepSeek 识图失败，已自动切换 GPT 继续生成报告。",
+      };
+    }
+  }
+  return {
+    used: false,
+    provider: "规则版",
+    html: "",
+    message: "AI 识图暂不可用，本次已切换为规则版判断。",
+  };
 }
 
 function ruleHtml(payload, snapshot, risk, aiMessage = "") {
@@ -545,13 +596,15 @@ export default async function handler(req, res) {
     const provider = String(body.provider || "deepseek").trim().toLowerCase();
     const imageDataUrl = String(body.imageDataUrl || "").trim();
     const notes = String(body.notes || "").trim();
+    const optionMetrics = (body.optionMetrics && typeof body.optionMetrics === "object") ? body.optionMetrics : {};
 
     if (!symbol) return sendJson(res, 400, { ok: false, message: "缺少标的代码。" });
-    if (!imageDataUrl.startsWith("data:image/")) return sendJson(res, 400, { ok: false, message: "请上传 Barchart 截图。" });
+    const hasMetrics = Object.values(optionMetrics).some((value) => String(value ?? "").trim() !== "");
+    if (!hasMetrics) return sendJson(res, 400, { ok: false, message: "请先录入 Barchart 关键字段。" });
 
     const snapshot = await loadSnapshot(symbol, market);
     const risk = marketRisk(snapshot, symbol);
-    const ai = await callAI({ symbol, market, provider, imageDataUrl, notes }, snapshot, risk);
+    const ai = await callAI({ symbol, market, provider, imageDataUrl, notes, optionMetrics }, snapshot, risk);
     const finalHtml = ai.used && ai.html
       ? `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${safeHtml(symbol)} 卖Put温度判断</title>
@@ -572,7 +625,7 @@ export default async function handler(req, res) {
 ${ai.html}
 <section class="section"><h2>实时行情快照</h2><p class="status">${safeHtml(risk.summary)}</p><table><thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></section>
 </div></body></html>`
-      : ruleHtml({ symbol, market }, snapshot, risk, ai.message);
+      : ruleHtml({ symbol, market }, snapshot, risk, "");
 
     return sendJson(res, 200, {
       ok: true,

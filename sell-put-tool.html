@@ -371,7 +371,7 @@
   <div class="shell">
     <div class="topbar">
       <div>
-        <h1>AI卖Put温度判断 <span class="version">v0.1.4｜2026-07-17｜补历史与结果按钮</span></h1>
+        <h1>AI卖Put温度判断 <span class="version">v0.1.6｜2026-07-17｜改为表单录入期权数据</span></h1>
       </div>
       <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </div>
@@ -412,14 +412,32 @@
         </div>
 
         <div class="label-row">
-          <p class="section-title" style="margin-bottom:0;">上传 Barchart 截图</p>
+          <p class="section-title" style="margin-bottom:0;">Barchart 数据录入</p>
           <a id="barchartLink" class="quick-link" href="https://www.barchart.com/stocks/quotes/QLD/overview" target="_blank" rel="noopener noreferrer">打开 Barchart</a>
         </div>
+        <div class="field-grid">
+          <div class="field"><label for="iv">IV (%)</label><input id="iv" name="iv" type="text" placeholder="52.97"></div>
+          <div class="field"><label for="hv">HV (%)</label><input id="hv" name="hv" type="text" placeholder="60.72"></div>
+          <div class="field"><label for="ivPercentile">IV Percentile (%)</label><input id="ivPercentile" name="ivPercentile" type="text" placeholder="94"></div>
+          <div class="field"><label for="ivRank">IV Rank (%)</label><input id="ivRank" name="ivRank" type="text" placeholder="77.17"></div>
+          <div class="field"><label for="expectedMove">Expected Move</label><input id="expectedMove" name="expectedMove" type="text" placeholder="9.33"></div>
+          <div class="field"><label for="expectedMovePct">Expected Move (%)</label><input id="expectedMovePct" name="expectedMovePct" type="text" placeholder="11.13"></div>
+          <div class="field"><label for="expectedRangeLow">Expected Range Low</label><input id="expectedRangeLow" name="expectedRangeLow" type="text" placeholder="74.53"></div>
+          <div class="field"><label for="expectedRangeHigh">Expected Range High</label><input id="expectedRangeHigh" name="expectedRangeHigh" type="text" placeholder="93.19"></div>
+          <div class="field"><label for="putCallVolRatio">Put/Call Vol Ratio</label><input id="putCallVolRatio" name="putCallVolRatio" type="text" placeholder="9.31"></div>
+          <div class="field"><label for="putCallOiRatio">Put/Call OI Ratio</label><input id="putCallOiRatio" name="putCallOiRatio" type="text" placeholder="0.39"></div>
+          <div class="field"><label for="todayVolume">Today's Volume</label><input id="todayVolume" name="todayVolume" type="text" placeholder="2640"></div>
+          <div class="field"><label for="volumeAvg30">Volume Avg (30D)</label><input id="volumeAvg30" name="volumeAvg30" type="text" placeholder="1330"></div>
+          <div class="field"><label for="todayOpenInterest">Today's Open Interest</label><input id="todayOpenInterest" name="todayOpenInterest" type="text" placeholder="53070"></div>
+          <div class="field"><label for="openInterest30">Open Int (30D)</label><input id="openInterest30" name="openInterest30" type="text" placeholder="49753"></div>
+          <div class="field"><label for="ivHigh">IV High</label><input id="ivHigh" name="ivHigh" type="text" placeholder="60.85"></div>
+          <div class="field"><label for="ivLow">IV Low</label><input id="ivLow" name="ivLow" type="text" placeholder="26.32"></div>
+        </div>
         <div class="upload-box">
-          <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp" required>
+          <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
           <div class="upload-hint">
-            建议上传 <strong>Options Overview</strong> 那一块，至少包含：
-            IV、HV、IV Percentile、IV Rank、Expected Move、Expected Range、Put/Call Ratio、Open Interest。
+            截图现在只用于你本地对照录入，<strong>不会再直接发送给 DeepSeek 识图</strong>。
+            真正分析用的是上面这些结构化字段。
           </div>
           <img id="thumb" class="preview-thumb" alt="截图预览">
         </div>
@@ -439,10 +457,10 @@
         </div>
         <div id="resultHead" class="cards" style="display:none;"></div>
         <div id="actions" class="actions" style="display:none;"></div>
-        <div id="status" class="status">请先选择标的并上传截图。</div>
+        <div id="status" class="status">请先选择标的并录入期权数据。</div>
         <div class="preview-wrap">
           <div id="preview">
-            <div class="empty-state">等待生成卖Put判断报告<span>上传 Barchart Options Overview 截图后开始</span></div>
+            <div class="empty-state">等待生成卖Put判断报告<span>录入 Barchart Options Overview 关键字段后开始</span></div>
           </div>
         </div>
       </section>
@@ -508,6 +526,9 @@
       form.elements.provider.value = item.provider || 'deepseek';
       form.elements.market.value = item.market || '';
       form.elements.symbol.value = item.symbol || 'QLD';
+      Object.entries(item.optionMetrics || {}).forEach(([key, value]) => {
+        if (form.elements[key]) form.elements[key].value = value || '';
+      });
       updateBarchartLink();
     }
 
@@ -516,6 +537,7 @@
         provider: payload.provider || 'deepseek',
         market: payload.market || '',
         symbol: payload.symbol || '',
+        optionMetrics: payload.optionMetrics || {},
         updatedAt: Date.now(),
       };
       const key = `${String(clean.market || '')}|${String(clean.symbol || '').toUpperCase()}`;
@@ -617,6 +639,23 @@
     renderHistory();
     updateBarchartLink();
 
+    function collectOptionMetrics() {
+      const fields = [
+        'iv', 'hv', 'ivPercentile', 'ivRank', 'expectedMove', 'expectedMovePct',
+        'expectedRangeLow', 'expectedRangeHigh', 'putCallVolRatio', 'putCallOiRatio',
+        'todayVolume', 'volumeAvg30', 'todayOpenInterest', 'openInterest30', 'ivHigh', 'ivLow'
+      ];
+      const metrics = {};
+      fields.forEach((field) => {
+        metrics[field] = String(form.elements[field]?.value || '').trim();
+      });
+      return metrics;
+    }
+
+    function hasCoreMetrics(metrics) {
+      return Boolean(metrics.iv || metrics.hv || metrics.ivPercentile || metrics.ivRank || metrics.expectedMove);
+    }
+
     async function downloadReportImage() {
       const frame = preview.querySelector('iframe');
       if (!frame) throw new Error('请先生成报告。');
@@ -659,8 +698,9 @@
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (!imageDataUrl) {
-        setStatus('请先上传 Barchart 截图。', true);
+      const optionMetrics = collectOptionMetrics();
+      if (!hasCoreMetrics(optionMetrics)) {
+        setStatus('请至少录入 IV / HV / IV Percentile / IV Rank / Expected Move 中的部分核心字段。', true);
         return;
       }
 
@@ -680,6 +720,7 @@
           provider: form.elements.provider.value,
           market: form.elements.market.value,
           symbol: form.elements.symbol.value.trim(),
+          optionMetrics,
           imageDataUrl,
         };
         const res = await fetch(`${apiBase}/api/put-rating`, {
