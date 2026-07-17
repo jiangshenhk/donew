@@ -1,0 +1,67 @@
+name: Merge Market Report V2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/merge-market-report-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Merge implementation into one endpoint
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          base = Path('kline_robot_vercel/api/market-report_old.js')
+          wrapper = Path('kline_robot_vercel/api/market-report-v2.js')
+          if not base.exists() or not wrapper.exists():
+              raise SystemExit('required market report files are missing')
+
+          base_text = base.read_text(encoding='utf-8')
+          wrapper_text = wrapper.read_text(encoding='utf-8')
+
+          marker = 'export default async function handler(req, res) {'
+          if marker not in base_text:
+              raise SystemExit('legacy handler export marker missing')
+          base_text = base_text.replace(marker, 'async function legacyHandler(req, res) {', 1)
+
+          import_line = "import legacyHandler from './market-report_old.js';\n\n"
+          if not wrapper_text.startswith(import_line):
+              raise SystemExit('wrapper import marker missing')
+          wrapper_body = wrapper_text[len(import_line):]
+
+          merged = base_text.rstrip() + '\n\n' + wrapper_body.lstrip()
+          wrapper.write_text(merged, encoding='utf-8')
+          base.unlink()
+
+          vercel = Path('kline_robot_vercel/vercel.json')
+          text = vercel.read_text(encoding='utf-8')
+          if 'api/market-report_old.js' in text:
+              raise SystemExit('vercel.json still references old endpoint')
+
+          workflow = Path('.github/workflows/merge-market-report-v2.yml')
+          workflow.unlink()
+          PY
+
+      - name: Commit merged endpoint
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add kline_robot_vercel/api/market-report-v2.js kline_robot_vercel/api/market-report_old.js .github/workflows/merge-market-report-v2.yml
+          git commit -m 'refactor: merge market report endpoint into one file'
+          git pull --rebase origin main
+          git push origin HEAD:main
