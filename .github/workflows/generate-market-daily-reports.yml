@@ -33,6 +33,36 @@ jobs:
 
       - name: Select report type
         id: report
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          INPUT_REPORT_TYPE: ${{ inputs.report_type }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "type
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "type=$INPUT_REPORT_TYPE" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_SCHEDULE" = "10 0 * * 1-5" ]; then
+            echo "type=morning" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=evening" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify strategy baseline
+        run: |
+          test -s "docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md"
+          grep -q "QLD" "docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md"
+          grep -q "MSTR" "docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md"
+          grep -q "INTC" "docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md"
+
+      - name: Generate and validate report
+        run: node scripts/test-market-daily-report.mjs "${{ steps.report.outputs.type }}"
+
+      - name: Commit report files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/市场/
+          git diff --cached --quiet && exit 0
+          git commit -m "Generate market ${{ steps.report.outputs.type }} report"
+          git pull --rebase origin main
+          git push origin HEAD:main
