@@ -407,7 +407,7 @@
   <div class="shell">
     <div class="topbar">
       <div>
-        <h1>AI卖Put温度判断 <span class="version">v0.1.10｜2026-07-17｜修复本地解析接口地址</span></h1>
+        <h1>AI卖Put温度判断 <span class="version">v0.1.12｜2026-07-17｜前端OCR自动提取截图字段</span></h1>
       </div>
       <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </div>
@@ -451,7 +451,7 @@
             <button class="action soft" id="parseImageBtn" type="button">自动解析图片</button>
           </div>
           <div class="upload-hint">
-            默认先上传截图。点击“生成卖Put判断”时，系统会先自动解析截图，再继续生成报告；如果识别不完整，再展开手动校对。
+            默认先上传截图。点击“生成卖Put判断”时，页面会先在本地 OCR 提取截图文字并自动填字段，再继续生成报告；如果识别不完整，再展开手动校对。
           </div>
           <img id="thumb" class="preview-thumb" alt="截图预览">
         </div>
@@ -507,6 +507,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script>
     const apiBase = (() => {
       const params = new URLSearchParams(location.search);
@@ -632,6 +633,61 @@
       statusEl.style.color = isError ? '#dc2626' : '#64748b';
     }
 
+    function normalizeOcrText(text) {
+      return String(text || '')
+        .replace(/[，、]/g, ',')
+        .replace(/[：]/g, ':')
+        .replace(/[（）]/g, (char) => (char === '（' ? '(' : ')'))
+        .replace(/[—–]/g, '-')
+        .replace(/\r/g, '\n');
+    }
+
+    function cleanupMetricValue(value) {
+      return String(value || '')
+        .replace(/[,]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function firstMatch(text, patterns) {
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) return cleanupMetricValue(match[1]);
+      }
+      return '';
+    }
+
+    function extractOptionMetricsFromText(rawText) {
+      const text = normalizeOcrText(rawText);
+      const metrics = {
+        iv: firstMatch(text, [/Implied\s+Volatility\s*:?\s*([0-9.]+)%/i, /\bIV\s*:?\s*([0-9.]+)%/i]),
+        hv: firstMatch(text, [/Historical\s+Volatility\s*:?\s*([0-9.]+)%/i, /\bHV\s*:?\s*([0-9.]+)%/i]),
+        ivPercentile: firstMatch(text, [/IV\s+Percentile\s*:?\s*([0-9.]+)%/i]),
+        ivRank: firstMatch(text, [/IV\s+Rank\s*:?\s*([0-9.]+)%/i]),
+        expectedMove: firstMatch(text, [/Expected\s+Move(?:\s*\(DTE\s*\d+\))?\s*:?\s*([0-9.]+)/i]),
+        expectedMovePct: firstMatch(text, [/Expected\s+Move(?:\s*\(DTE\s*\d+\))?[^\n%]*\(([0-9.]+)%\)/i]),
+        expectedRangeLow: firstMatch(text, [/Expected\s+Range\s*:?\s*([0-9.]+)\s*(?:to|-)/i]),
+        expectedRangeHigh: firstMatch(text, [/Expected\s+Range\s*:?\s*[0-9.]+\s*(?:to|-)\s*([0-9.]+)/i]),
+        putCallVolRatio: firstMatch(text, [/Put\/Call\s+Vol\s+Ratio\s*:?\s*([0-9.]+)/i]),
+        putCallOiRatio: firstMatch(text, [/Put\/Call\s+OI\s+Ratio\s*:?\s*([0-9.]+)/i]),
+        todayVolume: firstMatch(text, [/Today's\s+Volume\s*:?\s*([0-9,]+)/i]),
+        volumeAvg30: firstMatch(text, [/Volume\s+Avg\s*\(30-?Day\)\s*:?\s*([0-9,]+)/i]),
+        todayOpenInterest: firstMatch(text, [/Today's\s+Open\s+Interest\s*:?\s*([0-9,]+)/i]),
+        openInterest30: firstMatch(text, [/Open\s+Int\s*\(30-?Day\)\s*:?\s*([0-9,]+)/i]),
+        ivHigh: firstMatch(text, [/IV\s+High\s*:?\s*([0-9.]+)%/i]),
+        ivLow: firstMatch(text, [/IV\s+Low\s*:?\s*([0-9.]+)%/i]),
+      };
+      return metrics;
+    }
+
+    function fillOptionMetrics(metrics) {
+      Object.entries(metrics || {}).forEach(([key, value]) => {
+        if (form.elements[key] && value) {
+          form.elements[key].value = value;
+        }
+      });
+    }
+
     function dataUrlToBlob(dataUrl) {
       const [meta, base64] = dataUrl.split(',');
       const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
@@ -669,32 +725,36 @@
         return false;
       }
       parseImageBtn.disabled = true;
-      if (!silent) setStatus('正在解析截图中的期权字段...');
+      if (!silent) setStatus('正在OCR识别截图中的期权字段...');
       try {
-        const res = await fetch(`${apiBase}/api/put-rating`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mode: 'parse-image',
-            symbol: form.elements.symbol.value.trim(),
-            imageDataUrl,
-          }),
+        if (!window.Tesseract) {
+          throw new Error('OCR组件加载失败，请刷新页面后重试。');
+        }
+        const result = await window.Tesseract.recognize(imageDataUrl, 'eng', {
+          logger: ({ status, progress }) => {
+            if (!silent && !keepStatus && status) {
+              const percent = typeof progress === 'number' ? ` ${Math.round(progress * 100)}%` : '';
+              setStatus(`正在OCR识别截图中的期权字段...${percent}`);
+            }
+          },
         });
-        const json = await res.json();
-        if (!res.ok || !json.ok) throw new Error(json.message || `解析失败（HTTP ${res.status}）`);
-        Object.entries(json.optionMetrics || {}).forEach(([key, value]) => {
-          if (form.elements[key]) form.elements[key].value = value || '';
-        });
+        const metrics = extractOptionMetricsFromText(result?.data?.text || '');
+        fillOptionMetrics(metrics);
         metricsPanel.open = false;
+        const hasAny = Object.values(metrics).some((value) => String(value || '').trim());
+        if (!hasAny) {
+          metricsPanel.open = true;
+          throw new Error('OCR未识别到有效字段，请手动录入或换一张更清晰的截图。');
+        }
         if (!keepStatus) {
-          setStatus(json.message || '已自动填入字段，请核对后再生成。');
+          setStatus('已根据截图自动填入字段，请核对后再生成。');
         }
         return true;
       } catch (error) {
         metricsPanel.open = true;
         if (!silent && !keepStatus) {
           const message = error?.message || '截图解析失败，请手动录入。';
-          setStatus(message.includes('Failed to fetch') ? `截图解析失败，请检查接口是否可用：${apiBase}/api/put-rating` : message, true);
+          setStatus(message, true);
         }
         return false;
       } finally {

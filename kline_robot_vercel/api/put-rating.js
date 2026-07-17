@@ -323,13 +323,16 @@ async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
           role: "user",
           content: [
             { type: "input_text", text: `标的：${symbol || "未提供"}` },
-            { type: "input_image", image_url: imageDataUrl, detail: "high" },
+            { type: "input_image", image_url: imageDataUrl, detail: "low" },
           ],
         },
       ],
     }),
   }, 30000);
   if (!res.ok) {
+    if (res.status === 429) {
+      throw new Error("截图解析服务当前较忙，请稍后重试，或先手动录入关键字段。");
+    }
     throw new Error(`截图解析失败：${res.status}`);
   }
   const json = await res.json();
