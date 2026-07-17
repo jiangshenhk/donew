@@ -34,6 +34,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Sync latest main
+        if: steps.switch.outputs.enabled == 'true'
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+
       - name: Update market data
         if: steps.switch.outputs.enabled == 'true'
         run: node stockprice/scripts/update-price.js
@@ -49,8 +55,7 @@ jobs:
             exit 0
           fi
           git commit -m 'Update stock price cache'
-          git pull --rebase origin main
-          git push
+          git push origin HEAD:main
 
       - name: Skip message
         if: steps.switch.outputs.enabled != 'true'
