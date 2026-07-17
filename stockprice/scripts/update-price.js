@@ -11,67 +11,56 @@ const outputFile = path.join(ROOT, 'data', 'latest-price.json');
 
 async function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
-function pickQuotePhase(quote){
- const state=String(quote?.marketState||'').toUpperCase();
- if(state.includes('POST') && quote?.postMarketPrice!=null) return 'post';
- if(state.includes('PRE') && quote?.preMarketPrice!=null) return 'pre';
- return 'regular';
+function numberOrNull(value){
+ if(value===null||value===undefined||value==='') return null;
+ const n=Number(value);
+ return Number.isFinite(n)?n:null;
 }
 
-function latestPriceFromQuote(quote,phase){
- if(!quote) return null;
- if(phase==='regular' && quote.regularMarketPrice!=null) return quote.regularMarketPrice;
- if(phase==='pre' && quote.preMarketPrice!=null) return quote.preMarketPrice;
- if(phase==='post' && quote.postMarketPrice!=null) return quote.postMarketPrice;
- return quote.regularMarketPrice ?? quote.postMarketPrice ?? quote.preMarketPrice ?? null;
+function latestClose(result){
+ const closes=result?.indicators?.quote?.[0]?.close||[];
+ for(let i=closes.length-1;i>=0;i-=1){
+  const value=numberOrNull(closes[i]);
+  if(value!==null) return value;
+ }
+ return null;
 }
 
-function latestChangePercentFromQuote(quote,phase){
- if(!quote) return null;
- if(phase==='regular' && quote.regularMarketChangePercent!=null) return quote.regularMarketChangePercent;
- if(phase==='pre' && quote.preMarketChangePercent!=null) return quote.preMarketChangePercent;
- if(phase==='post' && quote.postMarketChangePercent!=null) return quote.postMarketChangePercent;
- return quote.regularMarketChangePercent ?? quote.postMarketChangePercent ?? quote.preMarketChangePercent ?? null;
-}
-
-function dayChangePercentFromQuote(quote){
- if(!quote) return null;
- return quote.regularMarketChangePercent ?? null;
-}
-
-function latestMarketTimeFromQuote(quote,phase){
- const seconds=
-  phase==='post' ? quote?.postMarketTime :
-  phase==='pre' ? quote?.preMarketTime :
-  quote?.regularMarketTime;
- return seconds ? new Date(seconds*1000).toISOString() : null;
+function resolveChangePercent(meta,price,previousClose){
+ const direct=numberOrNull(meta?.regularMarketChangePercent);
+ if(direct!==null) return {value:direct,source:'yahoo-chart-direct'};
+ if(price!==null&&previousClose!==null&&previousClose!==0){
+  return {value:((price-previousClose)/previousClose)*100,source:'yahoo-chart-fallback'};
+ }
+ return {value:null,source:'missing'};
 }
 
 async function fetchPrice(item,retry=2){
  const symbol=typeof item==='string'?item:item.symbol;
  const category=typeof item==='string'?'Unknown':item.category;
- const url=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
+ const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d&events=history&includePrePost=false`;
  try{
   const res=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 donew-stockprice'}});
   if(!res.ok) throw new Error(`HTTP ${res.status}`);
   const json=await res.json();
-  const quote=(json.quoteResponse?.result||[])[0];
-  if(!quote) throw new Error('No quote data');
-  const phase=pickQuotePhase(quote);
-  const price=latestPriceFromQuote(quote,phase);
-  const dayChangePercent=dayChangePercentFromQuote(quote);
+  const result=json?.chart?.result?.[0];
+  const meta=result?.meta||{};
+  if(!result) throw new Error('No chart data');
+  const price=numberOrNull(meta.regularMarketPrice) ?? latestClose(result);
+  const previousClose=numberOrNull(meta.chartPreviousClose) ?? numberOrNull(meta.previousClose) ?? numberOrNull(meta.regularMarketPreviousClose);
+  const change=resolveChangePercent(meta,price,previousClose);
   return {
    symbol,
    category,
    price:price??null,
-   previousClose:quote.regularMarketPreviousClose??quote.regularMarketOpen??null,
-   changePercent:dayChangePercent==null?null:Number(dayChangePercent).toFixed(2),
-   marketTime:latestMarketTimeFromQuote(quote,phase),
-   currency:quote.currency??null,
-   exchange:quote.fullExchangeName??quote.exchange??quote.exchangeName??null,
-   marketState:quote.marketState??null,
-   quoteSource:'yahoo-quote',
-   pricePhase:phase
+   previousClose:previousClose??null,
+   changePercent:change.value==null?null:Number(change.value).toFixed(2),
+   marketTime:meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null,
+   currency:meta.currency??null,
+   exchange:meta.fullExchangeName??meta.exchangeName??null,
+   marketState:meta.marketState??null,
+   quoteSource:'yahoo-chart',
+   changePercentSource:change.source
   };
  }catch(e){
   if(retry>0){await sleep(2000);return fetchPrice(item,retry-1);}
