@@ -1,4 +1,6 @@
 const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
+const STOCKPRICE_SNAPSHOT_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
+const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
 const FOCUS_SYMBOLS = [
   { symbol: "QQQ", market: "us" },
   { symbol: "SPY", market: "us" },
@@ -15,6 +17,7 @@ const FOCUS_SYMBOLS = [
   { symbol: "INTC", market: "us" },
   { symbol: "HOOD", market: "us" },
 ];
+let stockpriceSnapshotCache = null;
 
 function corsHeaders() {
   return {
@@ -93,6 +96,14 @@ function normalizeRow(item) {
     marketTime: item?.marketTime || "",
     exchange: item?.exchange || item?.marketState || "",
     category: item?.category || "",
+    source: item?.source || "",
+    error: item?.error || "",
+    retrievedAt: item?.retrievedAt || "",
+    fetchMode: item?.fetchMode || "live",
+    cacheStoredAt: item?.cacheStoredAt || "",
+    stockpriceUpdatedAt: item?.stockpriceUpdatedAt || "",
+    stockpriceCheckedAt: item?.stockpriceCheckedAt || "",
+    currency: item?.currency || "",
   };
 }
 
@@ -155,16 +166,83 @@ async function fetchYahooQuote(rawSymbol, market) {
     changePct: previousClose && last ? ((last / previousClose) - 1) * 100 : null,
     marketTime: marketTimeSeconds ? new Date(Number(marketTimeSeconds) * 1000).toISOString() : "",
     exchange: meta.fullExchangeName || meta.exchangeName || meta.exchangeTimezoneName || market.toUpperCase(),
+    source: "yahoo",
+    retrievedAt: new Date().toISOString(),
+    fetchMode: "live",
+    cacheStoredAt: new Date().toISOString(),
+    currency: meta.currency || "",
+  });
+}
+
+async function loadStockpriceSnapshot() {
+  if (stockpriceSnapshotCache && Date.now() - stockpriceSnapshotCache.cachedAt < STOCKPRICE_SNAPSHOT_CACHE_TTL_MS) {
+    return {
+      ...JSON.parse(JSON.stringify(stockpriceSnapshotCache.payload)),
+      fetchMode: "cache",
+      cacheServedAt: new Date().toISOString(),
+    };
+  }
+  const res = await timedFetch(STOCKPRICE_SNAPSHOT_URL, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+  }, 8000);
+  if (!res.ok) throw new Error(`stockprice HTTP ${res.status}`);
+  const payload = await res.json();
+  if (!payload || !Array.isArray(payload.data)) throw new Error("stockprice snapshot invalid");
+  stockpriceSnapshotCache = {
+    cachedAt: Date.now(),
+    payload: JSON.parse(JSON.stringify(payload)),
+  };
+  return {
+    ...JSON.parse(JSON.stringify(payload)),
+    fetchMode: "live",
+    cacheServedAt: new Date().toISOString(),
+  };
+}
+
+function stockpriceRow(snapshot, symbol) {
+  if (!snapshot?.data?.length) return null;
+  return snapshot.data.find((item) => String(item?.symbol || "").toUpperCase() === String(symbol || "").toUpperCase()) || null;
+}
+
+function normalizeStockpriceRow(item, snapshotMeta) {
+  if (!item) return null;
+  return normalizeRow({
+    symbol: item.symbol,
+    price: item.price,
+    previousClose: item.previousClose,
+    changePercent: item.changePercent,
+    marketTime: item.marketTime || "",
+    exchange: item.exchange || "STOCKPRICE",
+    category: item.category || "",
+    source: "stockprice",
+    retrievedAt: snapshotMeta?.checkedAt || snapshotMeta?.updatedAt || new Date().toISOString(),
+    fetchMode: snapshotMeta?.fetchMode === "cache" ? "cache" : "live",
+    cacheStoredAt: snapshotMeta?.cacheServedAt || snapshotMeta?.checkedAt || snapshotMeta?.updatedAt || new Date().toISOString(),
+    stockpriceUpdatedAt: snapshotMeta?.updatedAt || "",
+    stockpriceCheckedAt: snapshotMeta?.checkedAt || "",
+    currency: item.currency || "",
   });
 }
 
 async function loadSnapshot(targetSymbol, targetMarket) {
   const items = [];
+  let stockpriceSnapshot = null;
+  let stockpriceSnapshotError = "";
+  try {
+    stockpriceSnapshot = await loadStockpriceSnapshot();
+  } catch (snapshotError) {
+    stockpriceSnapshotError = snapshotError?.message || "stockprice unavailable";
+  }
   const queue = [
     { symbol: targetSymbol, market: targetMarket },
     ...FOCUS_SYMBOLS.filter((item) => !sameSymbol(item.symbol, targetSymbol)),
   ];
   for (const item of queue) {
+    const primary = normalizeStockpriceRow(stockpriceRow(stockpriceSnapshot, item.symbol), stockpriceSnapshot);
+    if (primary) {
+      items.push(primary);
+      continue;
+    }
     try {
       items.push(await fetchYahooQuote(item.symbol, item.market));
     } catch (error) {
@@ -176,6 +254,11 @@ async function loadSnapshot(targetSymbol, targetMarket) {
         marketTime: "",
         exchange: `${String(item.market || "").toUpperCase()} / Yahoo`,
         category: "",
+        source: stockpriceSnapshot ? "stockprice/yahoo" : "yahoo",
+        error: stockpriceSnapshotError ? `${stockpriceSnapshotError} | ${error?.message || "Yahoo failed"}` : (error?.message || "Yahoo failed"),
+        retrievedAt: new Date().toISOString(),
+        fetchMode: "live",
+        cacheStoredAt: new Date().toISOString(),
       }));
     }
     await sleep(260);
@@ -184,6 +267,13 @@ async function loadSnapshot(targetSymbol, targetMarket) {
     checkedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     data: items,
+    __meta: {
+      stockpriceUpdatedAt: stockpriceSnapshot?.updatedAt || "",
+      stockpriceCheckedAt: stockpriceSnapshot?.checkedAt || "",
+      stockpriceFetchMode: stockpriceSnapshot?.fetchMode || "",
+      stockpriceCacheServedAt: stockpriceSnapshot?.cacheServedAt || "",
+      stockpriceError: stockpriceSnapshotError,
+    },
   };
 }
 
@@ -236,6 +326,49 @@ function focusTable(snapshot, targetSymbol) {
     const item = row(snapshot, symbol);
     return `<tr><td>${safeHtml(symbolLabel(symbol))}</td><td>${item.last === null ? "未取到" : safeHtml(item.last.toFixed(2))}</td><td>${safeHtml(pct(item.changePct))}</td><td>${safeHtml(item.exchange || "-")}</td><td>${safeHtml(formatDateTime(item.marketTime))}</td></tr>`;
   }).join("");
+}
+
+function formatSourceLabel(source) {
+  if (!source) return "未取到";
+  if (source === "yahoo") return "Yahoo Finance";
+  if (source === "stockprice") return "StockPrice Center";
+  if (source === "stockprice/yahoo") return "StockPrice Center -> Yahoo";
+  return source;
+}
+
+function formatSourceNote(error) {
+  const text = String(error || "").trim();
+  if (!text) return "-";
+  if (/stockprice/i.test(text) && /HTTP/i.test(text)) return "行情中心回退读取失败";
+  if (/Yahoo/i.test(text) || /yahoo/i.test(text)) return "行情中心缺失，已尝试实时源";
+  return text;
+}
+
+function dataSourceRows(snapshot, targetSymbol) {
+  const symbols = Array.from(new Set([targetSymbol, ...FOCUS_SYMBOLS.map((item) => item.symbol)]));
+  return symbols.map((symbol) => {
+    const item = row(snapshot, symbol);
+    const status = item.last === null ? "缺失" : (item.source === "stockprice" ? "回退" : "正常");
+    return `<tr><td>${safeHtml(symbolLabel(symbol))}</td><td>${safeHtml(formatSourceLabel(item.source))}</td><td>${safeHtml(item.fetchMode === "cache" ? "缓存" : "实时")}</td><td>${safeHtml(formatDateTime(item.cacheStoredAt || item.retrievedAt))}</td><td>${safeHtml(formatDateTime(item.marketTime))}</td><td>${safeHtml(status)}</td><td>${safeHtml(formatSourceNote(item.error))}</td></tr>`;
+  }).join("");
+}
+
+function dataSourceDetailsBlock(snapshot, targetSymbol) {
+  const meta = snapshot.__meta || {};
+  return `
+<details>
+  <summary>数据来源与行情时间</summary>
+  <p>默认先读取统一行情中心 <code>stockprice/data/latest-price.json</code>；若单个标的在行情中心缺失，则再尝试 Yahoo Finance 实时行情。</p>
+  <p>行情中心文件更新时间：${safeHtml(formatDateTime(meta.stockpriceUpdatedAt))}；行情中心读取时间：${safeHtml(formatDateTime(meta.stockpriceCheckedAt || meta.stockpriceCacheServedAt))}；行情中心读取模式：${safeHtml(meta.stockpriceFetchMode === "cache" ? "缓存" : meta.stockpriceFetchMode ? "实时" : "未使用")}。</p>
+  <table>
+    <thead>
+      <tr><th>指标</th><th>实际来源</th><th>方式</th><th>数据获取时间</th><th>行情时间</th><th>状态</th><th>备注</th></tr>
+    </thead>
+    <tbody>
+      ${dataSourceRows(snapshot, targetSymbol)}
+    </tbody>
+  </table>
+</details>`.trim();
 }
 
 function formatOptionMetrics(metrics = {}) {
@@ -655,6 +788,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
         <li>如果只是局部恐慌而主线结构没坏，才有可能形成值得拿的小仓风险溢价。</li>
       </ul>
     </section>
+    ${dataSourceDetailsBlock(snapshot, payload.symbol)}
   </div>
 </body>
 </html>`;
@@ -711,6 +845,7 @@ export default async function handler(req, res) {
 <section class="hero"><h1>${safeHtml(symbol)}｜卖Put温度判断</h1><p class="meta">${safeHtml(market.toUpperCase())} 市场 · 截图来源：Barchart Options Overview · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p></section>
 ${ai.html}
 <section class="section"><h2>实时行情快照</h2><p class="status">${safeHtml(risk.summary)}</p><table><thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></section>
+${dataSourceDetailsBlock(snapshot, symbol)}
 </div></body></html>`
       : ruleHtml({ symbol, market }, snapshot, risk, "");
 
