@@ -263,6 +263,79 @@ function formatOptionMetrics(metrics = {}) {
     .join("\n");
 }
 
+function normalizeMetricValue(value) {
+  return String(value ?? "").trim();
+}
+
+function sanitizeOptionMetrics(raw = {}) {
+  return {
+    iv: normalizeMetricValue(raw.iv),
+    hv: normalizeMetricValue(raw.hv),
+    ivPercentile: normalizeMetricValue(raw.ivPercentile),
+    ivRank: normalizeMetricValue(raw.ivRank),
+    expectedMove: normalizeMetricValue(raw.expectedMove),
+    expectedMovePct: normalizeMetricValue(raw.expectedMovePct),
+    expectedRangeLow: normalizeMetricValue(raw.expectedRangeLow),
+    expectedRangeHigh: normalizeMetricValue(raw.expectedRangeHigh),
+    putCallVolRatio: normalizeMetricValue(raw.putCallVolRatio),
+    putCallOiRatio: normalizeMetricValue(raw.putCallOiRatio),
+    todayVolume: normalizeMetricValue(raw.todayVolume),
+    volumeAvg30: normalizeMetricValue(raw.volumeAvg30),
+    todayOpenInterest: normalizeMetricValue(raw.todayOpenInterest),
+    openInterest30: normalizeMetricValue(raw.openInterest30),
+    ivHigh: normalizeMetricValue(raw.ivHigh),
+    ivLow: normalizeMetricValue(raw.ivLow),
+  };
+}
+
+function parseLooseJson(text) {
+  const source = String(text || "").trim();
+  if (!source) throw new Error("解析服务未返回内容。");
+  const fenced = source.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced ? fenced[1].trim() : source;
+  return JSON.parse(candidate);
+}
+
+async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("未配置截图解析服务，请先手动录入。");
+  }
+  const res = await timedFetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_VISION_MODEL || process.env.OPENAI_MODEL || "gpt-5",
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "你是一个严格的截图字段提取器。请从用户上传的 Barchart Options Overview 截图中，尽量提取以下字段，返回 JSON，不要任何解释：iv,hv,ivPercentile,ivRank,expectedMove,expectedMovePct,expectedRangeLow,expectedRangeHigh,putCallVolRatio,putCallOiRatio,todayVolume,volumeAvg30,todayOpenInterest,openInterest30,ivHigh,ivLow。无法识别的字段返回空字符串。",
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: `标的：${symbol || "未提供"}` },
+            { type: "input_image", image_url: imageDataUrl, detail: "high" },
+          ],
+        },
+      ],
+    }),
+  }, 30000);
+  if (!res.ok) {
+    throw new Error(`截图解析失败：${res.status}`);
+  }
+  const json = await res.json();
+  return sanitizeOptionMetrics(parseLooseJson(extractTextFromResponse(json)));
+}
+
 function extractTextFromResponse(json) {
   return json?.output_text
     || (json?.output || []).flatMap((item) => item.content || []).map((c) => c.text || "").join("")
@@ -591,12 +664,23 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+    const mode = String(body.mode || "").trim().toLowerCase();
     const symbol = String(body.symbol || "").trim().toUpperCase();
     const market = String(body.market || "us").trim().toLowerCase();
     const provider = String(body.provider || "deepseek").trim().toLowerCase();
     const imageDataUrl = String(body.imageDataUrl || "").trim();
     const notes = String(body.notes || "").trim();
     const optionMetrics = (body.optionMetrics && typeof body.optionMetrics === "object") ? body.optionMetrics : {};
+
+    if (mode === "parse-image") {
+      if (!imageDataUrl.startsWith("data:image/")) return sendJson(res, 400, { ok: false, message: "请先上传截图。" });
+      const parsed = await parseOptionMetricsFromImage(symbol, imageDataUrl);
+      return sendJson(res, 200, {
+        ok: true,
+        optionMetrics: parsed,
+        message: "已根据截图自动填入字段，请检查后再生成。",
+      });
+    }
 
     if (!symbol) return sendJson(res, 400, { ok: false, message: "缺少标的代码。" });
     const hasMetrics = Object.values(optionMetrics).some((value) => String(value ?? "").trim() !== "");
