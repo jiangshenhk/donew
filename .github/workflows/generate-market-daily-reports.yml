@@ -35,25 +35,4 @@ jobs:
         id: report
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "type=${{ inputs.report_type }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.schedule }}" = "10 0 * * 1-5" ]; then
-            echo "type=morning" >> $GITHUB_OUTPUT
-          else
-            echo "type=evening" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Generate report
-        run: node scripts/generate-market-daily-report.mjs "${{ steps.report.outputs.type }}"
-
-      - name: Validate report quality
-        run: node scripts/validate-market-report.mjs "docs/市场/${{ steps.report.outputs.type == 'morning' && '每日市场早报.md' || '每日市场晚报.md' }}"
-
-      - name: Commit report files
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/市场/
-          git diff --cached --quiet && exit 0
-          git commit -m "Generate market ${{ steps.report.outputs.type }} report"
-          git pull --rebase origin main
-          git push origin HEAD:main
+            echo "type
