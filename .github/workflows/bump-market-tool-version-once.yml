@@ -1,0 +1,49 @@
+name: Bump market tool version once
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/bump-market-tool-version-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Update market analysis tool version
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          old = 'v2.2.42｜2026-07-13 03:05｜去掉强制刷新和GPT选项'
+          new = 'v2.2.43｜2026-07-18｜统一自动与手工市场报告生成逻辑'
+          files = [
+              Path('market-analysis-tool.html'),
+              Path('kline_robot_vercel/market-analysis-tool.html'),
+          ]
+
+          for file in files:
+              text = file.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'Version marker not found in {file}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Remove one-time workflow and commit
+        shell: bash
+        run: |
+          rm -f .github/workflows/bump-market-tool-version-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add market-analysis-tool.html kline_robot_vercel/market-analysis-tool.html .github/workflows/bump-market-tool-version-once.yml
+          git commit -m 'chore: bump market analysis tool to v2.2.43'
+          git push origin HEAD:main
