@@ -9,10 +9,10 @@
     "api/put-rating.js": {
       "maxDuration": 120
     },
-    "api/market-report.js": {
+    "api/news-summary.js": {
       "maxDuration": 120
     },
-    "api/news-summary.js": {
+    "api/market-report_old.js": {
       "maxDuration": 120
     }
   }
