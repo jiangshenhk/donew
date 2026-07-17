@@ -1,238 +1,123 @@
 {
-  "updatedAt": "2026-07-17T18:57:10.692Z",
-  "checkedAt": "2026-07-17T18:57:10.692Z",
-  "successCount": 23,
-  "failCount": 0,
+  "updatedAt": "2026-07-17T19:22:57.409Z",
+  "checkedAt": "2026-07-17T19:22:57.409Z",
+  "successCount": 0,
+  "failCount": 23,
   "data": [
     {
       "symbol": "QQQ",
       "category": "US ETF",
-      "price": 697.74,
-      "previousClose": 725.51,
-      "changePercent": "-3.83",
-      "marketTime": "2026-07-17T18:56:41.000Z",
-      "currency": "USD",
-      "exchange": "NGM"
+      "error": "HTTP 401"
     },
     {
       "symbol": "SPY",
       "category": "US ETF",
-      "price": 744.38,
-      "previousClose": 754.95,
-      "changePercent": "-1.40",
-      "marketTime": "2026-07-17T18:56:41.000Z",
-      "currency": "USD",
-      "exchange": "PCX"
+      "error": "HTTP 401"
     },
     {
       "symbol": "IWM",
       "category": "US ETF",
-      "price": 293.92,
-      "previousClose": 295.99,
-      "changePercent": "-0.70",
-      "marketTime": "2026-07-17T18:56:42.000Z",
-      "currency": "USD",
-      "exchange": "PCX"
+      "error": "HTTP 401"
     },
     {
       "symbol": "QLD",
       "category": "US ETF",
-      "price": 86.52,
-      "previousClose": 93.7,
-      "changePercent": "-7.66",
-      "marketTime": "2026-07-17T18:56:35.000Z",
-      "currency": "USD",
-      "exchange": "PCX"
+      "error": "HTTP 401"
     },
     {
       "symbol": "TQQQ",
       "category": "US ETF",
-      "price": 68.215,
-      "previousClose": 77.03,
-      "changePercent": "-11.44",
-      "marketTime": "2026-07-17T18:56:46.000Z",
-      "currency": "USD",
-      "exchange": "NGM"
+      "error": "HTTP 401"
     },
     {
       "symbol": "SMH",
       "category": "Technology ETF",
-      "price": 557.78,
-      "previousClose": 611.03,
-      "changePercent": "-8.71",
-      "marketTime": "2026-07-17T18:56:46.000Z",
-      "currency": "USD",
-      "exchange": "NGM"
+      "error": "HTTP 401"
     },
     {
       "symbol": "SOXX",
       "category": "Technology ETF",
-      "price": 523.9,
-      "previousClose": 581.34,
-      "changePercent": "-9.88",
-      "marketTime": "2026-07-17T18:56:47.000Z",
-      "currency": "USD",
-      "exchange": "NGM"
+      "error": "HTTP 401"
     },
     {
       "symbol": "MAGS",
       "category": "Technology ETF",
-      "price": 66.965,
-      "previousClose": 67.68,
-      "changePercent": "-1.06",
-      "marketTime": "2026-07-17T18:56:47.000Z",
-      "currency": "USD",
-      "exchange": "BTS"
+      "error": "HTTP 401"
     },
     {
       "symbol": "EEM",
       "category": "China/Emerging",
-      "price": 63.405,
-      "previousClose": 66.9,
-      "changePercent": "-5.22",
-      "marketTime": "2026-07-17T18:56:37.000Z",
-      "currency": "USD",
-      "exchange": "PCX"
+      "error": "HTTP 401"
     },
     {
       "symbol": "FXI",
       "category": "China/Emerging",
-      "price": 34.075,
-      "previousClose": 33.48,
-      "changePercent": "1.78",
-      "marketTime": "2026-07-17T18:56:51.000Z",
-      "currency": "USD",
-      "exchange": "PCX"
+      "error": "HTTP 401"
     },
     {
       "symbol": "KWEB",
       "category": "China/Emerging",
-      "price": 26.82,
-      "previousClose": 26.38,
-      "changePercent": "1.67",
-      "marketTime": "2026-07-17T18:56:49.000Z",
-      "currency": "USD",
-      "exchange": "PCX"
+      "error": "HTTP 401"
     },
     {
       "symbol": "^VIX",
       "category": "Volatility",
-      "price": 18.75,
-      "previousClose": 17.16,
-      "changePercent": "9.27",
-      "marketTime": "2026-07-17T18:41:46.000Z",
-      "currency": "USD",
-      "exchange": "CXI"
+      "error": "HTTP 401"
     },
     {
       "symbol": "VIXY",
       "category": "Volatility",
-      "price": 21.53,
-      "previousClose": 20.34,
-      "changePercent": "5.85",
-      "marketTime": "2026-07-17T18:56:25.000Z",
-      "currency": "USD",
-      "exchange": "BTS"
+      "error": "HTTP 401"
     },
     {
       "symbol": "IBIT",
       "category": "Bitcoin",
-      "price": 36.375,
-      "previousClose": 36.23,
-      "changePercent": "0.40",
-      "marketTime": "2026-07-17T18:56:56.000Z",
-      "currency": "USD",
-      "exchange": "NGM"
+      "error": "HTTP 401"
     },
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64195.58,
-      "previousClose": 62239.12,
-      "changePercent": "3.14",
-      "marketTime": "2026-07-17T18:56:54.000Z",
-      "currency": "USD",
-      "exchange": "CCC"
+      "error": "HTTP 401"
     },
     {
       "symbol": "MSTR",
       "category": "Bitcoin",
-      "price": 94.42,
-      "previousClose": 94.64,
-      "changePercent": "-0.23",
-      "marketTime": "2026-07-17T18:56:58.000Z",
-      "currency": "USD",
-      "exchange": "NMS"
+      "error": "HTTP 401"
     },
     {
       "symbol": "DX-Y.NYB",
       "category": "Macro",
-      "price": 100.765,
-      "previousClose": 101.28,
-      "changePercent": "-0.51",
-      "marketTime": "2026-07-17T18:46:56.000Z",
-      "currency": "USD",
-      "exchange": "NYB"
+      "error": "HTTP 401"
     },
     {
       "symbol": "^TNX",
       "category": "Macro",
-      "price": 4.537,
-      "previousClose": 4.609,
-      "changePercent": "-1.56",
-      "marketTime": "2026-07-17T18:41:55.000Z",
-      "currency": "USD",
-      "exchange": "CGI"
+      "error": "HTTP 401"
     },
     {
       "symbol": "JPY=X",
       "category": "Macro",
-      "price": 162.434,
-      "previousClose": 161.878,
-      "changePercent": "0.34",
-      "marketTime": "2026-07-17T18:57:03.000Z",
-      "currency": "JPY",
-      "exchange": "CCY"
+      "error": "HTTP 401"
     },
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 81.45,
-      "previousClose": 78.14,
-      "changePercent": "4.24",
-      "marketTime": "2026-07-17T18:47:01.000Z",
-      "currency": "USD",
-      "exchange": "NYM"
+      "error": "HTTP 401"
     },
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4012.6,
-      "previousClose": 3997,
-      "changePercent": "0.39",
-      "marketTime": "2026-07-17T18:47:05.000Z",
-      "currency": "USD",
-      "exchange": "CMX"
+      "error": "HTTP 401"
     },
     {
       "symbol": "INTC",
       "category": "Stock",
-      "price": 95.67,
-      "previousClose": 109.84,
-      "changePercent": "-12.90",
-      "marketTime": "2026-07-17T18:57:05.000Z",
-      "currency": "USD",
-      "exchange": "NMS"
+      "error": "HTTP 401"
     },
     {
       "symbol": "HOOD",
       "category": "Stock",
-      "price": 101.26,
-      "previousClose": 111.97,
-      "changePercent": "-9.57",
-      "marketTime": "2026-07-17T18:57:08.000Z",
-      "currency": "USD",
-      "exchange": "NMS"
+      "error": "HTTP 401"
     }
   ]
 }
