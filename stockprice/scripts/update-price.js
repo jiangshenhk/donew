@@ -11,16 +11,68 @@ const outputFile = path.join(ROOT, 'data', 'latest-price.json');
 
 async function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
+function pickQuotePhase(quote){
+ const state=String(quote?.marketState||'').toUpperCase();
+ if(state.includes('POST') && quote?.postMarketPrice!=null) return 'post';
+ if(state.includes('PRE') && quote?.preMarketPrice!=null) return 'pre';
+ return 'regular';
+}
+
+function latestPriceFromQuote(quote,phase){
+ if(!quote) return null;
+ if(phase==='regular' && quote.regularMarketPrice!=null) return quote.regularMarketPrice;
+ if(phase==='pre' && quote.preMarketPrice!=null) return quote.preMarketPrice;
+ if(phase==='post' && quote.postMarketPrice!=null) return quote.postMarketPrice;
+ return quote.regularMarketPrice ?? quote.postMarketPrice ?? quote.preMarketPrice ?? null;
+}
+
+function latestChangePercentFromQuote(quote,phase){
+ if(!quote) return null;
+ if(phase==='regular' && quote.regularMarketChangePercent!=null) return quote.regularMarketChangePercent;
+ if(phase==='pre' && quote.preMarketChangePercent!=null) return quote.preMarketChangePercent;
+ if(phase==='post' && quote.postMarketChangePercent!=null) return quote.postMarketChangePercent;
+ return quote.regularMarketChangePercent ?? quote.postMarketChangePercent ?? quote.preMarketChangePercent ?? null;
+}
+
+function dayChangePercentFromQuote(quote){
+ if(!quote) return null;
+ return quote.regularMarketChangePercent ?? null;
+}
+
+function latestMarketTimeFromQuote(quote,phase){
+ const seconds=
+  phase==='post' ? quote?.postMarketTime :
+  phase==='pre' ? quote?.preMarketTime :
+  quote?.regularMarketTime;
+ return seconds ? new Date(seconds*1000).toISOString() : null;
+}
+
 async function fetchPrice(item,retry=2){
  const symbol=typeof item==='string'?item:item.symbol;
  const category=typeof item==='string'?'Unknown':item.category;
- const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
+ const url=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
  try{
   const res=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 donew-stockprice'}});
   if(!res.ok) throw new Error(`HTTP ${res.status}`);
   const json=await res.json();
-  const meta=json.chart.result[0].meta||{};
-  return {symbol,category,price:meta.regularMarketPrice??null,previousClose:meta.chartPreviousClose??null,changePercent:meta.chartPreviousClose&&meta.regularMarketPrice?((meta.regularMarketPrice-meta.chartPreviousClose)/meta.chartPreviousClose*100).toFixed(2):null,marketTime:meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null,currency:meta.currency??null,exchange:meta.exchangeName??null};
+  const quote=(json.quoteResponse?.result||[])[0];
+  if(!quote) throw new Error('No quote data');
+  const phase=pickQuotePhase(quote);
+  const price=latestPriceFromQuote(quote,phase);
+  const dayChangePercent=dayChangePercentFromQuote(quote);
+  return {
+   symbol,
+   category,
+   price:price??null,
+   previousClose:quote.regularMarketPreviousClose??quote.regularMarketOpen??null,
+   changePercent:dayChangePercent==null?null:Number(dayChangePercent).toFixed(2),
+   marketTime:latestMarketTimeFromQuote(quote,phase),
+   currency:quote.currency??null,
+   exchange:quote.fullExchangeName??quote.exchange??quote.exchangeName??null,
+   marketState:quote.marketState??null,
+   quoteSource:'yahoo-quote',
+   pricePhase:phase
+  };
  }catch(e){
   if(retry>0){await sleep(2000);return fetchPrice(item,retry-1);}
   return {symbol,category,error:e.message};

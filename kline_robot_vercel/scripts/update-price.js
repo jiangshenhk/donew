@@ -18,8 +18,44 @@ async function sleep(ms){
   return new Promise(r=>setTimeout(r,ms));
 }
 
+function pickQuotePhase(quote){
+  const state=String(quote?.marketState||'').toUpperCase();
+  if(state.includes('POST') && quote?.postMarketPrice!=null) return 'post';
+  if(state.includes('PRE') && quote?.preMarketPrice!=null) return 'pre';
+  return 'regular';
+}
+
+function latestPriceFromQuote(quote,phase){
+  if(!quote) return null;
+  if(phase==='regular' && quote.regularMarketPrice!=null) return quote.regularMarketPrice;
+  if(phase==='pre' && quote.preMarketPrice!=null) return quote.preMarketPrice;
+  if(phase==='post' && quote.postMarketPrice!=null) return quote.postMarketPrice;
+  return quote.regularMarketPrice ?? quote.postMarketPrice ?? quote.preMarketPrice ?? null;
+}
+
+function latestChangePercentFromQuote(quote,phase){
+  if(!quote) return null;
+  if(phase==='regular' && quote.regularMarketChangePercent!=null) return quote.regularMarketChangePercent;
+  if(phase==='pre' && quote.preMarketChangePercent!=null) return quote.preMarketChangePercent;
+  if(phase==='post' && quote.postMarketChangePercent!=null) return quote.postMarketChangePercent;
+  return quote.regularMarketChangePercent ?? quote.postMarketChangePercent ?? quote.preMarketChangePercent ?? null;
+}
+
+function dayChangePercentFromQuote(quote){
+  if(!quote) return null;
+  return quote.regularMarketChangePercent ?? null;
+}
+
+function latestMarketTimeFromQuote(quote,phase){
+  const seconds=
+    phase==='post' ? quote?.postMarketTime :
+    phase==='pre' ? quote?.preMarketTime :
+    quote?.regularMarketTime;
+  return seconds ? new Date(seconds*1000).toISOString() : null;
+}
+
 async function fetchQuote(symbol){
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`;
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
 
   const res = await fetch(url, {
     headers:{"User-Agent":"Mozilla/5.0"}
@@ -28,21 +64,24 @@ async function fetchQuote(symbol){
   if(!res.ok) throw new Error(`${symbol}: ${res.status}`);
 
   const json = await res.json();
-  const result = json.chart?.result?.[0];
-  if(!result) throw new Error(`${symbol}: no data`);
-
-  const meta=result.meta||{};
-  const price=meta.regularMarketPrice ?? null;
-  const previous=meta.chartPreviousClose ?? null;
+  const quote=(json.quoteResponse?.result||[])[0];
+  if(!quote) throw new Error(`${symbol}: no quote data`);
+  const phase=pickQuotePhase(quote);
+  const price=latestPriceFromQuote(quote,phase);
+  const dayChangePercent=dayChangePercentFromQuote(quote);
 
   return {
     symbol,
     price,
-    change: price!==null&&previous!==null ? price-previous:null,
-    changePercent: price!==null&&previous ? ((price-previous)/previous)*100:null,
-    currency:meta.currency||null,
-    exchange:meta.exchangeName||null,
-    marketTime:meta.regularMarketTime ? new Date(meta.regularMarketTime*1000).toISOString():null
+    change: null,
+    changePercent: dayChangePercent==null ? null : Number(dayChangePercent),
+    previousClose: quote.regularMarketPreviousClose ?? quote.regularMarketOpen ?? null,
+    currency:quote.currency||null,
+    exchange:quote.fullExchangeName||quote.exchange||quote.exchangeName||null,
+    marketTime:latestMarketTimeFromQuote(quote,phase),
+    marketState:quote.marketState||null,
+    quoteSource:'yahoo-quote',
+    pricePhase:phase
   };
 }
 
