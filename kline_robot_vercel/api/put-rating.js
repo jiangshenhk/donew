@@ -614,6 +614,12 @@ function promptText(payload, snapshot, risk) {
   <h2>先上结论</h2>
   ...</section>
 <section class="section">
+  <h2>卖Put动作建议</h2>
+  <p><span class="highlight">动作建议：</span>...</p>
+  <p><span class="highlight">黑天鹅灯号：</span>...</p>
+  <p><span class="highlight">如果必须操作：</span>...</p>
+</section>
+<section class="section">
   <h2>期权温度怎么读</h2>
   ...
 </section>
