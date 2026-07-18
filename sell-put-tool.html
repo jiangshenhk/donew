@@ -6,6 +6,7 @@
   <title>AI卖Put温度判断｜十方斋</title>
   <meta name="description" content="上传 Barchart Options Overview 截图，结合实时行情，让 AI 判断当前卖Put是否有利、是否属于恐慌溢价。">
   <meta name="keywords" content="Sell Put, 卖Put, 恐慌溢价, IV Rank, IV Percentile, Barchart, 十方斋">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -29,38 +30,61 @@
     .shell {
       max-width: 1360px;
       margin: 0 auto;
-      padding: 28px 24px 40px;
+      padding: 18px 24px 40px;
     }
     .topbar {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       gap: 16px;
-      margin-bottom: 18px;
+      margin-bottom: 12px;
+    }
+    .brand h1 {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     h1 {
       margin: 0;
-      font-size: 52px;
-      line-height: 1.04;
+      font-size: 26px;
+      line-height: 1.2;
       letter-spacing: 0;
     }
     .version {
       display: inline-flex;
-      margin-left: 10px;
-      padding: 6px 12px;
+      align-items: center;
+      padding: 6px 10px;
       border: 1px solid var(--line);
       border-radius: 999px;
-      font-size: 16px;
+      background: #fff;
+      color: #61708f;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .visit-count {
       color: var(--muted);
-      background: rgba(255,255,255,.9);
-      vertical-align: middle;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .visit-count strong {
+      color: var(--text);
+      font-weight: 900;
     }
     .home-link {
       color: var(--primary);
       text-decoration: none;
-      font-weight: 800;
-      font-size: 18px;
-      margin-top: 8px;
+      font-weight: 750;
+      font-size: 16px;
       white-space: nowrap;
     }
     .layout {
@@ -275,9 +299,10 @@
       border: 1px solid var(--line-strong);
       background: #fff;
       color: #64748b;
-      border-radius: 12px;
-      padding: 12px 18px;
-      font-size: 15px;
+      border-radius: 10px;
+      min-height: 34px;
+      padding: 8px 14px;
+      font-size: 13px;
       font-weight: 800;
       cursor: pointer;
     }
@@ -312,17 +337,17 @@
     .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 14px;
     }
     .action, .secondary-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 44px;
-      padding: 0 16px;
-      border-radius: 10px;
-      font-size: 15px;
+      min-height: 36px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
       font-weight: 800;
       text-decoration: none;
       border: 1px solid var(--line-strong);
@@ -338,6 +363,13 @@
     .action.soft {
       background: #eef3ff;
       color: #2f44a9;
+    }
+    .action:disabled,
+    .action.disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+      box-shadow: none;
     }
     .status {
       min-height: 24px;
@@ -386,24 +418,26 @@
       .layout { grid-template-columns: 1fr; }
       .sidebar { position: static; }
       .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      h1 { font-size: 38px; }
     }
     @media (max-width: 680px) {
       .shell { padding: 20px 14px 32px; }
       .field-grid, .cards { grid-template-columns: 1fr; }
-      h1 { font-size: 32px; }
+      h1 { font-size: 22px; }
       .version { display: block; margin: 10px 0 0; width: fit-content; }
-      .topbar { flex-direction: column; }
+      .topbar { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
   <div class="shell">
     <div class="topbar">
-      <div>
-        <h1>AI卖Put温度判断 <span class="version">v0.1.17｜2026-07-18｜支持自动恢复浏览器上次报告</span></h1>
+      <div class="brand">
+        <h1>AI卖Put温度判断 <span class="version">v0.1.19｜2026-07-18｜标准化处理：结果区与访问计数</span></h1>
       </div>
-      <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+      <div class="top-actions">
+        <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
+        <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+      </div>
     </div>
 
     <div class="layout">
@@ -487,7 +521,12 @@
           </div>
         </div>
         <div id="resultHead" class="cards" style="display:none;"></div>
-        <div id="actions" class="actions" style="display:none;"></div>
+        <div id="actions" class="actions">
+          <button class="action primary disabled" type="button" disabled>新窗口打开报告</button>
+          <button class="action soft disabled" type="button" disabled>保存 HTML</button>
+          <button class="action soft disabled" type="button" disabled>保存为图片</button>
+          <button class="action soft disabled" type="button" disabled>图片分享</button>
+        </div>
         <div id="status" class="status">请先选择标的并上传截图，或手动录入期权数据。</div>
         <div class="preview-wrap">
           <div id="preview">
@@ -662,6 +701,16 @@
           }
         });
       }
+    }
+
+    function renderEmptyActions() {
+      actions.style.display = 'flex';
+      actions.innerHTML = `
+        <button class="action primary disabled" type="button" disabled>新窗口打开报告</button>
+        <button class="action soft disabled" type="button" disabled>保存 HTML</button>
+        <button class="action soft disabled" type="button" disabled>保存为图片</button>
+        <button class="action soft disabled" type="button" disabled>图片分享</button>
+      `;
     }
 
     function renderLatestReport(meta, restored = false) {
@@ -978,7 +1027,7 @@
         saveLatestReportCache(meta);
       } catch (error) {
         resultHead.style.display = 'none';
-        actions.style.display = 'none';
+        renderEmptyActions();
         preview.innerHTML = '<div class="empty-state">生成失败<span>请检查截图、标的代码或 AI 配置后重试</span></div>';
         setStatus(error.message || '生成失败。', true);
       } finally {
@@ -988,6 +1037,7 @@
       }
     });
 
+    renderEmptyActions();
     restoreLatestReportCache();
   </script>
 </body>

@@ -722,7 +722,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.45｜2026-07-18｜恢复上次报告与黑天鹅矩阵列</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.47｜2026-07-18｜标准化处理：图片分享</span></h1>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
         <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
@@ -760,6 +760,7 @@
             <button type="button" class="toolbar-primary" id="openCurrent">新窗口打开报告</button>
             <button type="button" class="toolbar-secondary" id="downloadCurrentHtml">下载 HTML</button>
             <button type="button" class="toolbar-secondary" id="downloadCurrentImage">下载图片</button>
+            <button type="button" class="toolbar-secondary" id="shareCurrentImage">图片分享</button>
           </div>
           <div class="report-preview" id="preview">
             <div class="empty-state">点击左侧按钮生成今日最新分析或本周周报。</div>
@@ -1129,15 +1130,13 @@
       });
     }
 
-    async function downloadReportImage(report) {
+    async function createReportImageBlob(report) {
       const node = $("#preview");
       if (!node) {
-        setStatus("没有可下载的报告。", true);
-        return;
+        throw new Error("没有可下载的报告。");
       }
       if (!currentReport) {
-        setStatus("请先生成报告。", true);
-        return;
+        throw new Error("请先生成报告。");
       }
       const rect = node.getBoundingClientRect();
       const width = Math.ceil(Math.max(rect.width, 980));
@@ -1156,41 +1155,46 @@
       const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
       const img = new Image();
       img.decoding = "async";
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            setStatus("图片导出失败：画布不可用。", true);
-            return;
-          }
-          ctx.fillStyle = "#0b1220";
-          ctx.fillRect(0, 0, width, height);
-          ctx.drawImage(img, 0, 0);
-          canvas.toBlob(jpgBlob => {
-            if (!jpgBlob) {
-              setStatus("图片导出失败。", true);
+      return await new Promise((resolve, reject) => {
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              reject(new Error("图片导出失败：画布不可用。"));
               return;
             }
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(jpgBlob);
-            link.download = report.fileName.replace(/\.md$/i, ".jpg");
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(link.href);
-            setStatus("已下载图片。");
-          }, "image/jpeg", 0.92);
-        } catch (error) {
-          setStatus(`图片导出失败：${error.message || error}`, true);
-        }
-      };
-      img.onerror = () => {
-        setStatus("图片导出失败：浏览器未能渲染报告截图。", true);
-      };
-      img.src = url;
+            ctx.fillStyle = "#0b1220";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob(jpgBlob => {
+              if (!jpgBlob) {
+                reject(new Error("图片导出失败。"));
+                return;
+              }
+              resolve(jpgBlob);
+            }, "image/jpeg", 0.92);
+          } catch (error) {
+            reject(error instanceof Error ? error : new Error(String(error)));
+          }
+        };
+        img.onerror = () => reject(new Error("图片导出失败：浏览器未能渲染报告截图。"));
+        img.src = url;
+      });
+    }
+
+    async function downloadReportImage(report) {
+      const jpgBlob = await createReportImageBlob(report);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(jpgBlob);
+      link.download = report.fileName.replace(/\.md$/i, ".jpg");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+      setStatus("已下载图片。");
     }
 
     function renderMarkdown(markdown) {
@@ -1561,7 +1565,34 @@
     });
     $("#downloadCurrentImage").addEventListener("click", async () => {
       if (!currentReport) return setStatus("请先生成报告。", true);
-      await downloadReportImage(currentReport);
+      try {
+        await downloadReportImage(currentReport);
+      } catch (error) {
+        setStatus(error.message || "图片导出失败。", true);
+      }
+    });
+
+    $("#shareCurrentImage").addEventListener("click", async () => {
+      if (!currentReport) return setStatus("请先生成报告。", true);
+      try {
+        const blob = await createReportImageBlob(currentReport);
+        const file = new File([blob], currentReport.fileName.replace(/\.md$/i, ".jpg"), { type: "image/jpeg" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: currentReport.title || currentReport.fileName, text: "市场分析报告" });
+          setStatus("已打开系统分享。");
+          return;
+        }
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+        setStatus("当前浏览器不支持直接分享，已改为保存图片。");
+      } catch (error) {
+        setStatus(error.message || "图片分享失败。", true);
+      }
     });
     $("#copyMarkdown").addEventListener("click", () => copyText(currentReport?.markdown || ""));
     $("#copyArchive").addEventListener("click", () => copyText(currentReport?.archiveRow || ""));
