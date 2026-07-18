@@ -621,7 +621,7 @@ function promptText(payload, snapshot, risk) {
   <p>ATR安全行权价（当前价 - 1.5 × ATR）：$83.03</p>
   <p>你选择的目标行权价：$85.00 ｜ 卖Put价格：$2.00</p>
   <p>ATR与行权价对比：...</p>
-  <ul>
+  <ul class="atr-tips">
     <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
     <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
     <li>管仓位 — ATR 高时减少合约数，ATR 低时可以适当加仓</li>
@@ -855,6 +855,8 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
     .bad { color: var(--up); font-weight: 800; }
     .up { color: var(--up); font-weight: 700; }
     .dn { color: var(--dn); font-weight: 700; }
+    .atr-tips { font-size: 0.9em; color: var(--muted); }
+    .atr-tips li { margin-bottom: 6px; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -942,7 +944,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       <p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""} ${atrAnalysis.annualizedReturn ? `｜ <span class="good">预估年化：${safeHtml(atrAnalysis.annualizedReturn)}%</span>` : ""}</p>
       ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
       ` : ""}
-      <ul>
+      <ul class="atr-tips">
         <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
         <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
         <li>管仓位 — ATR 高时减少合约数，ATR 低时可以适当加仓</li>
@@ -1014,7 +1016,7 @@ export default async function handler(req, res) {
   th,td{border:1px solid var(--line);padding:12px 14px;text-align:left;vertical-align:top}
   th{background:#22304d}
   .status{color:var(--muted)}
-  .up{color:var(--up);font-weight:700} .dn{color:var(--dn);font-weight:700}
+  .up{color:var(--up);font-weight:700} .dn{color:var(--dn);font-weight:700} .atr-tips{font-size:0.9em;color:var(--muted)} .atr-tips li{margin-bottom:6px}
   .highlight{color:var(--blue);font-weight:800} .good{color:var(--dn);font-weight:800} .warn{color:var(--gold);font-weight:800} .bad{color:var(--up);font-weight:800}
   details{margin-bottom:18px} details>summary{cursor:pointer;font-size:16px;font-weight:700;color:var(--muted);padding:14px 18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;list-style:none} details>summary::-webkit-details-marker{display:none} details>summary::before{content:"▸ "} details[open]>summary::before{content:"▾ "}
 </style></head><body><div class="page">
