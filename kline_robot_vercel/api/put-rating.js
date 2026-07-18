@@ -610,7 +610,9 @@ function promptText(payload, snapshot, risk) {
 - 每个小节标题用 h2 标签（金黄色）。
 
 结构固定为：
-<section class="section hero-judgement">...</section>
+<section class="section hero-judgement">
+  <h2>先上结论</h2>
+  ...</section>
 <section class="section">
   <h2>期权温度怎么读</h2>
   ...
@@ -903,7 +905,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
     </section>
 
     <section class="section hero-judgement">
-      <h2>当前结论</h2>
+      <h2>先上结论</h2>
       <p><span class="decision">${safeHtml(payload.symbol)} 当前卖Put：${safeHtml(risk.putStance)}</span></p>
       <p><span class="highlight">这是不是恐慌溢价？</span> ${risk.panicPremium}</p>
       <p><span class="highlight">未来3-5个交易日的大跌/跳空风险：</span> ${risk.downside}</p>
