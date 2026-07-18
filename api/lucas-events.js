@@ -8,8 +8,28 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: '未配置 DEEPSEEK_API_KEY' })
   }
 
+  let lang = 'zh'
+  let startDate = ''
+  let endDate = ''
   try {
-    const result = await callDeepSeek(DEEPSEEK_API_KEY)
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {})
+    lang = body.lang === 'en' ? 'en' : 'zh'
+    startDate = body.startDate || ''
+    endDate = body.endDate || ''
+  } catch {}
+
+  if (!startDate) {
+    const d = new Date()
+    startDate = d.toISOString().split('T')[0]
+  }
+  if (!endDate) {
+    const d = new Date()
+    d.setDate(d.getDate() + 30)
+    endDate = d.toISOString().split('T')[0]
+  }
+
+  try {
+    const result = await callDeepSeek(DEEPSEEK_API_KEY, lang, startDate, endDate)
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=600')
     res.status(200).json(result)
   } catch (err) {
@@ -17,38 +37,44 @@ export default async function handler(req, res) {
   }
 }
 
-async function callDeepSeek(apiKey) {
-  const systemPrompt = `你是一个墨尔本本地活动资讯助手。你非常了解墨尔本及维多利亚州即将发生的娱乐、文化、体育、美食、音乐、艺术、家庭等活动。
+async function callDeepSeek(apiKey, lang = 'zh', startDate, endDate) {
+  const isEn = lang === 'en'
+  const langLabel = isEn ? 'English' : '中文'
+  const descriptionLang = isEn ? 'English' : '中文'
 
-请生成墨尔本地区未来1个月内（从今天 ${new Date().toISOString().split('T')[0]} 起）的真实活动信息。
+  const days = Math.max(1, Math.round((new Date(endDate) - new Date(startDate)) / 86400000))
+  const eventCount = days >= 30 ? '80-120' : '30-50'
 
-## 输出格式要求
-必须返回一个 JSON 对象，格式如下：
+  const systemPrompt = `You are a Melbourne local event guide. You know all upcoming entertainment, culture, sports, food, music, art, and family events in Melbourne and Victoria.
+
+Generate real upcoming events in Melbourne from ${startDate} to ${endDate}.
+
+## Output format (JSON only)
 {
-  "news": "墨尔本近期活动综合概述，3-5句话，中文",
+  "news": "Overview of upcoming Melbourne events, 3-5 sentences. Write in ${langLabel}.",
   "events": [
     {
-      "name": "活动名称（英文）",
+      "name": "Event name (in ${langLabel})",
       "date": "2026-XX-XX",
-      "venue": "场地名称",
+      "venue": "Venue name",
       "category": "music|sports|culture|food|festival|art|family|market|other",
-      "description": "活动简要描述，1-2句话，中文",
+      "description": "Brief description, 1-2 sentences. Write in ${descriptionLang}.",
       "lat": -37.xxx,
       "lng": 144.xxx,
-      "url": ""
+      "url": "real ticket/booking/info URL (Ticketek, Ticketmaster, event website, or venue page); leave empty if unavailable"
     }
   ]
 }
 
-## 要求
-1. 生成 **30-50个** 活动，覆盖各类别，尽可能多
-2. 日期必须在未来1个月内
-3. 坐标范围覆盖墨尔本都会区及周边：lat: -38.5 到 -37.5, lng: 144.0 到 145.5（包括西区如 Werribee、Point Cook、Williamstown，以及 Geelong 地区）
-4. 活动名称用英文，描述用中文
-5. 尽可能使用真实、知名的活动和场地（如 MCG、Rod Laver Arena、Federation Square、NGV、Southbank、St Kilda、Flemington等）
-6. 覆盖墨尔本东区、西区、北区、CBD、以及 Geelong 等周边区域，不要只集中在CBD
-7. url 留空字符串即可
-8. 只输出 JSON，不要包含 \`\`\`json 等标记`
+## Requirements
+1. Generate **${eventCount} events** across all categories, as many real events as possible
+2. Dates must be between ${startDate} and ${endDate}
+3. Coordinates must cover Greater Melbourne area: lat -38.5 to -37.5, lng 144.0 to 145.5 (including western suburbs like Werribee, Point Cook, Williamstown, and Geelong area)
+4. Use real, well-known events and venues where possible (MCG, Rod Laver Arena, Federation Square, NGV, Southbank, St Kilda, Flemington, Geelong etc.)
+5. Cover all areas: eastern suburbs, western suburbs, northern suburbs, CBD, and Geelong — don't concentrate only in CBD
+6. Include AFL, NRL, concerts, exhibitions, festivals, night markets, food events, family activities
+7. Provide a real URL for each event if known (ticketing page, event website, or venue page); leave empty only if no URL is available
+8. Output ONLY valid JSON, no markdown fences or extra text`
 
   const resp = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
@@ -60,7 +86,7 @@ async function callDeepSeek(apiKey) {
       model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: '请生成墨尔本未来1个月的活动信息' },
+        { role: 'user', content: isEn ? 'Generate Melbourne events for the next month' : '请生成墨尔本未来1个月的活动信息' },
       ],
       temperature: 0.3,
       response_format: { type: 'json_object' },
