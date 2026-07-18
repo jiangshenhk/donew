@@ -53,6 +53,7 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
   <div id="lives">❤️❤️❤️</div>
   <div id="score">0</div>
   <div id="level">LEVEL 1</div>
+  <div id="weapon" style="position:absolute;top:66px;right:20px;font-size:13px;color:#ffd600">WPN ★</div>
 
   <div id="startScreen">
     <h1>🛩️ 打飞机</h1>
@@ -103,6 +104,9 @@ const game = {
   mouseY: canvas.height - 100,
   shooting: false,
   difficulty: 1,
+  weaponLevel: 0,
+  powerups: [],
+  powerupTimer: 0,
 }
 
 // --- Stars background ---
@@ -243,14 +247,24 @@ function spawnEnemy() {
 
 // --- Fire bullet ---
 function fireBullet() {
-  game.bullets.push({
-    x: game.player.x,
-    y: game.player.y - game.player.h / 2,
-    vx: (Math.random() - 0.5) * 8,
-    vy: -350 - Math.random() * 50,
-    w: 3,
-    h: 10,
-  })
+  const count = game.weaponLevel + 1
+  const spread = count === 1 ? 0 : 0.12
+  const startAngle = -spread * (count - 1) / 2
+  const baseSpeed = 350 + Math.random() * 50
+  const px = game.player.x
+  const py = game.player.y - game.player.h / 2
+
+  for (let i = 0; i < count; i++) {
+    const angle = startAngle + spread * i
+    game.bullets.push({
+      x: px + (Math.random() - 0.5) * 4,
+      y: py,
+      vx: Math.sin(angle) * baseSpeed + (Math.random() - 0.5) * 10,
+      vy: -Math.cos(angle) * baseSpeed,
+      w: 3,
+      h: 10,
+    })
+  }
 }
 
 // --- Init player ---
@@ -264,6 +278,7 @@ function resetGame() {
   game.bullets = []
   game.enemies = []
   game.explosions = []
+  game.powerups = []
   game.score = 0
   game.lives = 3
   game.level = 1
@@ -274,6 +289,8 @@ function resetGame() {
   game.difficulty = 1
   game.spawnInterval = 55
   game.fireTimer = 0
+  game.weaponLevel = 0
+  game.powerupTimer = 0
   initPlayer()
   document.getElementById('startScreen').style.display = 'none'
   document.getElementById('gameOver').style.display = 'none'
@@ -330,6 +347,8 @@ function update(dt) {
     document.getElementById('level').textContent = 'LEVEL ' + game.level
   }
 
+  document.getElementById('weapon').textContent = 'WPN ' + '★'.repeat(game.weaponLevel + 1) + '☆'.repeat(4 - game.weaponLevel)
+
   // --- Enemies ---
   for (let i = game.enemies.length - 1; i >= 0; i--) {
     const e = game.enemies[i]
@@ -380,6 +399,36 @@ function update(dt) {
     }
   }
 
+  // --- Powerups ---
+  game.powerupTimer++
+  if (game.powerupTimer >= 300) {
+    game.powerupTimer = 0
+    game.powerups.push({
+      x: 40 + Math.random() * (canvas.width - 80),
+      y: -20,
+      speed: 50 + Math.random() * 20,
+      size: 14,
+    })
+  }
+
+  for (let i = game.powerups.length - 1; i >= 0; i--) {
+    const p = game.powerups[i]
+    p.y += p.speed * dt
+
+    const dx = game.player.x - p.x
+    const dy = game.player.y - p.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist < game.player.w / 2 + p.size) {
+      game.weaponLevel = Math.min(4, game.weaponLevel + 1)
+      spawnExplosion(p.x, p.y, false)
+      game.powerups.splice(i, 1)
+    }
+
+    if (p.y > canvas.height + 30) {
+      game.powerups.splice(i, 1)
+    }
+  }
+
   // --- Explosions ---
   for (let i = game.explosions.length - 1; i >= 0; i--) {
     const p = game.explosions[i]
@@ -423,6 +472,41 @@ function draw() {
     ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h / 2)
   })
   ctx.shadowBlur = 0
+
+  // Powerups
+  game.powerups.forEach(p => {
+    const pulse = 0.7 + Math.sin(game.frame * 0.08 + p.x) * 0.3
+    ctx.save()
+    ctx.translate(p.x, p.y)
+
+    // Glow
+    ctx.shadowColor = '#ffd600'
+    ctx.shadowBlur = 15
+
+    // Star shape
+    ctx.fillStyle = '#ffd600'
+    ctx.beginPath()
+    for (let i = 0; i < 5; i++) {
+      const a1 = (i * 2 * Math.PI / 5) - Math.PI / 2
+      const a2 = a1 + Math.PI / 5
+      const r = p.size * pulse
+      const r2 = r * 0.4
+      ctx.lineTo(Math.cos(a1) * r, Math.sin(a1) * r)
+      ctx.lineTo(Math.cos(a2) * r2, Math.sin(a2) * r2)
+    }
+    ctx.closePath()
+    ctx.fill()
+    ctx.shadowBlur = 0
+
+    // W letter
+    ctx.fillStyle = '#1a1a2e'
+    ctx.font = 'bold 10px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('W', 0, 0)
+
+    ctx.restore()
+  })
 
   // Enemies
   game.enemies.forEach(drawEnemy)
