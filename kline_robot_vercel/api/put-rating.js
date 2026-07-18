@@ -572,6 +572,10 @@ function promptText(payload, snapshot, risk) {
     atrInfo.push(`ATR占价格比例：${atrAnalysis.atrPct}%`);
     atrInfo.push(`ATR安全行权价(当前价-1.5×ATR)：${atrAnalysis.safeStrike}`);
     atrInfo.push(`ATR适用性评估：${atrAnalysis.atrSuitability}`);
+    if (atrAnalysis.targetStrike) atrInfo.push(`用户选择的目标行权价：$${atrAnalysis.targetStrike}`);
+    if (atrAnalysis.putPrice) atrInfo.push(`卖Put价格：$${atrAnalysis.putPrice}`);
+    if (atrAnalysis.expiryDate) atrInfo.push(`到期日：${atrAnalysis.expiryDate}`);
+    if (atrAnalysis.annualizedReturn) atrInfo.push(`预估年化收益：${atrAnalysis.annualizedReturn}%`);
   }
   const marketInfo = [
     `标的：${payload.symbol}`,
@@ -609,6 +613,10 @@ function promptText(payload, snapshot, risk) {
 <section class="section hero-judgement">...</section>
 <section class="section">
   <h2>期权温度怎么读</h2>
+  ...
+</section>
+<section class="section">
+  <h2>ATR波动分析</h2>
   ...
 </section>
 <section class="section">
@@ -999,18 +1007,6 @@ export default async function handler(req, res) {
 </style></head><body><div class="page">
 <section class="hero"><h1>${safeHtml(symbol)}｜卖Put温度判断</h1><p class="meta">${safeHtml(market.toUpperCase())} 市场 · 截图来源：Barchart Options Overview · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p></section>
 ${ai.html}
-${(() => {
-  const target = row(snapshot, symbol);
-  const atrAnalysis = analyzeAtrVsPut(target, body.optionMetrics || {});
-  if (!atrAnalysis.hasData) return "";
-  return `
-<section class="section"><h2>ATR波动分析</h2>
-<p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
-<p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
-${atrAnalysis.targetStrike ? `<p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""} ${atrAnalysis.annualizedReturn ? `｜ <span class="good">预估年化：${safeHtml(atrAnalysis.annualizedReturn)}%</span>` : ""}</p>` : ""}
-${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
-</section>`;
-})()}
 <details><summary>实时行情快照</summary><div class="section"><table><thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></div></details>
 ${dataSourceDetailsBlock(snapshot, symbol)}
 </div></body></html>`
