@@ -364,8 +364,16 @@ async function searchEvents() {
   const btn = document.getElementById('searchBtn')
   const status = document.getElementById('statusText')
   btn.disabled = true
-    btn.textContent = currentLang === 'zh' ? '⏳ 搜索中...' : '⏳ Searching...'
-    status.textContent = currentLang === 'zh' ? '正在调用 DeepSeek 查找活动...' : 'Calling DeepSeek for events...'
+
+  let seconds = 0
+  const timer = setInterval(() => {
+    seconds++
+    btn.textContent = currentLang === 'zh'
+      ? '⏳ 搜索中 ' + seconds + 's...'
+      : '⏳ Searching ' + seconds + 's...'
+  }, 1000)
+
+  status.textContent = currentLang === 'zh' ? '正在调用 DeepSeek 查找活动...' : 'Calling DeepSeek for events...'
 
   try {
     const apiBase = location.origin.includes('vercel') ? '' : 'https://donew-beta.vercel.app'
@@ -383,14 +391,16 @@ async function searchEvents() {
 
     renderEvents(data)
     fitMapBounds()
+    clearInterval(timer)
     const found = data.events?.length || 0
     status.textContent = currentLang === 'zh' ? '✅ 找到 ' + found + ' 个活动' : '✅ Found ' + found + ' events'
   } catch (err) {
+    clearInterval(timer)
     status.textContent = '❌ ' + err.message
   } finally {
     isLoading = false
     btn.disabled = false
-    btn.textContent = '🔍 搜索墨尔本近期活动'
+    btn.textContent = currentLang === 'zh' ? '🔍 搜索墨尔本近期活动' : '🔍 Search Melbourne events'
   }
 }
 
