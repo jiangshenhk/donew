@@ -99,6 +99,15 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 .e-link{color:#1d4ed8;font-size:11px;text-decoration:none;margin-left:4px}
 .e-link:hover{text-decoration:underline}
 
+.filter-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.filter-chip{
+  padding:4px 10px;border-radius:999px;border:1px solid #dee2e6;
+  background:#fff;font-size:11px;font-weight:600;cursor:pointer;
+  color:#495057;transition:all 0.15s
+}
+.filter-chip:hover{border-color:#93c5fd;background:#f0f4ff}
+.filter-chip.active{background:#2563eb;color:#fff;border-color:#2563eb}
+
 .empty-state{text-align:center;padding:30px 0;color:#adb5bd;font-size:14px}
 .empty-state .icon{font-size:36px;margin-bottom:8px}
 
@@ -119,6 +128,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
   </div>
   <div class="sidebar-body" id="sidebarBody">
     <div id="newsBox" class="news-box" style="display:none"></div>
+    <div id="filterBar" class="filter-bar" style="display:none"></div>
     <div id="eventsContainer">
       <div class="empty-state" id="emptyState">
         <div class="icon">🗺️</div>
@@ -162,10 +172,17 @@ const CAT_COLORS = {
   family: '#fbc02d', market: '#795548', other: '#757575'
 }
 const CAT_LABELS = {
-  music: '音乐', sports: '体育', culture: '文化',
-  food: '美食', festival: '节日', art: '艺术',
-  family: '亲子', market: '市集', other: '其他'
+  music: { zh: '音乐', en: 'Music' },
+  sports: { zh: '体育', en: 'Sports' },
+  culture: { zh: '文化', en: 'Culture' },
+  food: { zh: '美食', en: 'Food' },
+  festival: { zh: '节日', en: 'Festival' },
+  art: { zh: '艺术', en: 'Art' },
+  family: { zh: '亲子', en: 'Family' },
+  market: { zh: '市集', en: 'Market' },
+  other: { zh: '其他', en: 'Other' }
 }
+function tl(key) { return CAT_LABELS[key]?.[currentLang] || key }
 
 const map = L.map('map', {
   center: [-37.82, 144.97],
@@ -183,6 +200,7 @@ let markerGroup = L.layerGroup().addTo(map)
 let events = []
 let isLoading = false
 let currentLang = 'zh'
+let activeFilter = 'all'
 
 function setDefaultDates() {
   const today = new Date()
@@ -210,17 +228,15 @@ function renderEvents(data) {
   events = data.events || []
   const news = data.news || ''
   const container = document.getElementById('eventsContainer')
-  const emptyState = document.getElementById('emptyState')
   const newsBox = document.getElementById('newsBox')
   const countLabel = document.getElementById('countLabel')
-
-  markerGroup.clearLayers()
-  markers = {}
+  const emptyMsg = currentLang === 'zh' ? '没有找到活动' : 'No events found'
 
   if (events.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div>没有找到活动</div></div>'
-    countLabel.textContent = '0 个活动'
+    container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div>${emptyMsg}</div></div>`
+    countLabel.textContent = currentLang === 'zh' ? '0 个活动' : '0 events'
     newsBox.style.display = 'none'
+    document.getElementById('filterBar').style.display = 'none'
     return
   }
 
@@ -231,13 +247,57 @@ function renderEvents(data) {
     newsBox.style.display = 'none'
   }
 
-  countLabel.textContent = events.length + ' 个活动'
+  activeFilter = 'all'
+  renderFilterBar()
+  renderFilteredEvents()
+}
+
+function renderFilterBar() {
+  const bar = document.getElementById('filterBar')
+  const cats = [...new Set(events.map(e => e.category || 'other'))]
+  const allLabel = currentLang === 'zh' ? '全部' : 'All'
+  let html = `<button class="filter-chip${activeFilter === 'all' ? ' active' : ''}" data-cat="all">${allLabel}</button>`
+  cats.forEach(cat => {
+    html += `<button class="filter-chip${activeFilter === cat ? ' active' : ''}" data-cat="${cat}" style="border-color:${CAT_COLORS[cat] || '#999'}">${tl(cat)}</button>`
+  })
+  bar.innerHTML = html
+  bar.style.display = 'flex'
+
+  bar.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setFilter(btn.dataset.cat)
+    })
+  })
+}
+
+function setFilter(cat) {
+  activeFilter = cat
+  renderFilterBar()
+  renderFilteredEvents()
+}
+
+function renderFilteredEvents() {
+  const container = document.getElementById('eventsContainer')
+  const countLabel = document.getElementById('countLabel')
+
+  markerGroup.clearLayers()
+  markers = {}
+
+  const filtered = activeFilter === 'all' ? events : events.filter(e => (e.category || 'other') === activeFilter)
+  const emptyMsg = currentLang === 'zh' ? '没有匹配的活动' : 'No matching events'
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div>${emptyMsg}</div></div>`
+    countLabel.textContent = filtered.length + (currentLang === 'zh' ? ' 个活动' : ' events')
+    return
+  }
+
+  countLabel.textContent = filtered.length + ' / ' + events.length + (currentLang === 'zh' ? ' 个活动' : ' events')
 
   let html = '<div class="events-list">'
-  events.forEach((e, i) => {
+  filtered.forEach((e, i) => {
     const cat = e.category || 'other'
     const cls = catClass(cat)
-    const label = CAT_LABELS[cat] || cat
     html += `
       <div class="event-card ${cls}" data-idx="${i}">
         <div class="e-name">${escape(e.name)}</div>
@@ -245,32 +305,31 @@ function renderEvents(data) {
           <span>${e.date || ''}</span>
           ${e.venue ? `<span>📍 ${escape(e.venue)}</span>` : ''}
           ${e.url ? `<a href="${escape(e.url)}" target="_blank" class="e-link">🔗</a>` : ''}
-          <span class="e-cat" style="background:${CAT_COLORS[cat] || '#999'};color:#fff">${label}</span>
+          <span class="e-cat" style="background:${CAT_COLORS[cat] || '#999'};color:#fff">${tl(cat)}</span>
         </div>
       </div>`
   })
   html += '</div>'
   container.innerHTML = html
 
-  events.forEach((e, i) => {
+  filtered.forEach((e, i) => {
     if (!e.lat || !e.lng) return
     const m = L.marker([e.lat, e.lng], { icon: makeIcon(e.category) })
-    const catLabel = CAT_LABELS[e.category] || e.category
     m.bindPopup(`
       <div class="popup-event">
         <div class="p-name">${escape(e.name)}</div>
         <div class="p-detail">${escape(e.description || '')}</div>
         <div class="p-date">📅 ${e.date || ''}</div>
         ${e.venue ? `<div class="p-venue">📍 ${escape(e.venue)}</div>` : ''}
-        ${e.url ? `<a href="${escape(e.url)}" target="_blank" class="p-link">🔗 查看详情</a>` : ''}
-        <div style="margin-top:4px"><span class="e-cat" style="background:${CAT_COLORS[e.category] || '#999'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">${catLabel}</span></div>
+        ${e.url ? `<a href="${escape(e.url)}" target="_blank" class="p-link">${currentLang === 'zh' ? '🔗 查看详情' : '🔗 Details'}</a>` : ''}
+        <div style="margin-top:4px"><span class="e-cat" style="background:${CAT_COLORS[e.category] || '#999'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">${tl(e.category)}</span></div>
       </div>
     `)
     markerGroup.addLayer(m)
     markers[i] = m
   })
 
-  document.querySelectorAll('.event-card').forEach(el => {
+  container.querySelectorAll('.event-card').forEach(el => {
     el.addEventListener('click', () => {
       const idx = parseInt(el.dataset.idx)
       const m = markers[idx]
@@ -305,8 +364,8 @@ async function searchEvents() {
   const btn = document.getElementById('searchBtn')
   const status = document.getElementById('statusText')
   btn.disabled = true
-  btn.textContent = '⏳ 搜索中...'
-  status.textContent = '正在调用 DeepSeek 查找墨尔本近期活动...'
+    btn.textContent = currentLang === 'zh' ? '⏳ 搜索中...' : '⏳ Searching...'
+    status.textContent = currentLang === 'zh' ? '正在调用 DeepSeek 查找活动...' : 'Calling DeepSeek for events...'
 
   try {
     const apiBase = location.origin.includes('vercel') ? '' : 'https://donew-beta.vercel.app'
@@ -324,7 +383,8 @@ async function searchEvents() {
 
     renderEvents(data)
     fitMapBounds()
-    status.textContent = '✅ 找到 ' + (data.events?.length || 0) + ' 个活动 | DeepSeek 生成'
+    const found = data.events?.length || 0
+    status.textContent = currentLang === 'zh' ? '✅ 找到 ' + found + ' 个活动' : '✅ Found ' + found + ' events'
   } catch (err) {
     status.textContent = '❌ ' + err.message
   } finally {
@@ -341,6 +401,10 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
     document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
     currentLang = btn.dataset.lang
+    if (events.length > 0) {
+      renderFilterBar()
+      renderFilteredEvents()
+    }
   })
 })
 </script>
