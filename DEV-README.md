@@ -132,7 +132,33 @@
 
 ---
 
-## 5. 当前线上入口
+## 5. 沙箱目录：`lucas/`（学习练手，不影响正式项目）
+
+`lucas/` 是作者儿子的个人学习练手目录，**与正式项目严格隔离**。
+
+### 位置
+
+- `lucas/` — 本地预览 / GitHub Pages
+- `kline_robot_vercel/lucas/` — Vercel 线上部署（与根目录版本保持一致）
+
+### 约定
+
+- **任何开发者 / 智能体不得修改 `lucas/` 以外的任何文件来做 lucas 相关的事情**
+- `lucas/` 内的代码不参与正式项目的构建、API、样式、数据缓存等任何流程
+- 如果 lucas 需要新增页面，同步更新两个位置：
+  1. `lucas/xxx.html`
+  2. `kline_robot_vercel/lucas/xxx.html`
+- lucas 的页面不应引用正式项目的 API、样式、工具库，除非显式注明
+
+### 当前项目
+
+| 项目 | 线上入口 | 说明 |
+| --- | --- | --- |
+| 航班实时跟踪 | `https://donew-beta.vercel.app/lucas/lucas_fly.html` | Leaflet + OpenSky API 实时航班面板 |
+
+---
+
+## 6. 当前线上入口
 
 ### 工具页
 
@@ -149,7 +175,7 @@
 
 ---
 
-## 6. 开发约定
+## 7. 开发约定
 
 ### 约定 1：不要默认推送
 
@@ -191,7 +217,7 @@ node scripts/create-tool-scaffold.mjs \
 
 ---
 
-## 7. 新增一个类似工具的标准动作
+## 8. 新增一个类似工具的标准动作
 
 如果你要加一个新工具，推荐按这个顺序：
 
@@ -206,7 +232,7 @@ node scripts/create-tool-scaffold.mjs \
 
 ---
 
-## 8. 统一脚手架命令
+## 9. 统一脚手架命令
 
 示例：
 
@@ -229,7 +255,7 @@ docs/tools/alpha-risk-tool/README.md
 
 ---
 
-## 9. 页面 UI 与结果页风格基准
+## 10. 页面 UI 与结果页风格基准
 
 新增工具时，页面风格、控件规格、结果页样式，统一参考：
 
@@ -327,7 +353,7 @@ docs/tools/alpha-risk-tool/README.md
 
 ---
 
-## 10. 推荐给新对话直接复制的提示词
+## 11. 推荐给新对话直接复制的提示词
 
 新开一个对话时，可以直接给它这段：
 
@@ -347,7 +373,7 @@ docs/tools/alpha-risk-tool/README.md
 
 ---
 
-## 10. 最后一句
+## 12. 最后一句
 
 如果你只记住一件事：
 
@@ -355,11 +381,11 @@ docs/tools/alpha-risk-tool/README.md
 
 ---
 
-## 11. 工具总览与新增模板
+## 13. 工具总览与新增模板
 
 这一章合并了原来的工具总览文档，以后以这里为准。
 
-### 11.1 当前工具全景
+### 13.1 当前工具全景
 
 | 工具 | 线上入口 | 主要代码位置 | 类型 |
 | --- | --- | --- | --- |
@@ -370,7 +396,7 @@ docs/tools/alpha-risk-tool/README.md
 | 最新每日/每周市场情况分析 | `https://donew-beta.vercel.app/market-analysis-tool.html` | `market-analysis-tool.html`、`kline_robot_vercel/market-analysis-tool.html`、`kline_robot_vercel/api/market-report-v2.js` | 交互式网页工具 |
 | 卖 Put 温度判断 | `https://donew-beta.vercel.app/sell-put-tool.html` | `sell-put-tool.html`、`kline_robot_vercel/sell-put-tool.html`、`kline_robot_vercel/api/put-rating.js` | 交互式网页工具 |
 
-### 11.2 六个工具分别怎么看
+### 13.2 六个工具分别怎么看
 
 #### K线相识度
 
@@ -465,7 +491,7 @@ docs/tools/alpha-risk-tool/README.md
 
 这是“截图 OCR + 行情快照 + AI结论”的代表模板。
 
-### 11.3 新增工具先判断类型
+### 13.3 新增工具先判断类型
 
 #### 类型 A：交互式网页工具
 
@@ -506,11 +532,11 @@ docs/tools/alpha-risk-tool/README.md
 - 产物是 Markdown / JSON / Docs 页面
 - 重点是工作流稳定，不是前台即时交互
 
-### 11.4 新增交互式网页工具的标准模板
+### 13.4 新增交互式网页工具的标准模板
 
 假设新增一个工具：`alpha-risk-tool`
 
-#### 11.4.1 直接用脚手架程序
+#### 13.4.1 直接用脚手架程序
 
 ```bash
 node scripts/create-tool-scaffold.mjs \
@@ -529,7 +555,7 @@ kline_robot_vercel/api/alpha-risk.js
 docs/tools/alpha-risk-tool/README.md
 ```
 
-#### 11.4.2 推荐处理流程
+#### 13.4.2 推荐处理流程
 
 ```text
 用户打开页面
@@ -541,7 +567,7 @@ docs/tools/alpha-risk-tool/README.md
   -> 前端展示、下载、缓存上次报告
 ```
 
-#### 11.4.3 最小 API 返回结构
+#### 13.4.3 最小 API 返回结构
 
 ```json
 {
@@ -555,7 +581,7 @@ docs/tools/alpha-risk-tool/README.md
 }
 ```
 
-#### 11.4.4 前端建议统一保留的能力
+#### 13.4.4 前端建议统一保留的能力
 
 - 新窗口打开报告
 - 下载 HTML
@@ -565,7 +591,7 @@ docs/tools/alpha-risk-tool/README.md
 - 明确显示生成时间
 - 历史输入记录（如果适合）
 
-### 11.5 新增数据中心的标准模板
+### 13.5 新增数据中心的标准模板
 
 假设新增一个“宏观事件缓存中心”：`macroevents`
 
@@ -596,7 +622,7 @@ GitHub Actions 定时触发
   -> 交互页 / API 读取这份缓存
 ```
 
-### 11.6 新增自动生成器的标准模板
+### 13.6 新增自动生成器的标准模板
 
 假设新增一个“每周复盘生成器”：`weekly-review`
 
@@ -626,7 +652,7 @@ donew/
   -> commit 回 main
 ```
 
-### 11.7 当前仓库新增工具的统一约定
+### 13.7 当前仓库新增工具的统一约定
 
 #### 命名
 
