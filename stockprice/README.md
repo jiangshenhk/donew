@@ -1,220 +1,240 @@
-# Stock Price Center
+# 最新行情中心（Stock Price Center）
 
-统一行情数据中心。
+这个目录是 donew 的统一行情缓存中心。
 
-## Purpose
-
-为 donew 投资系统提供统一行情服务，避免每个功能模块重复抓取行情。
-
-主要服务模块：
-
-- K线机器人
-- 每日日报
-- 每日晚报
-- 卖Put扫描
-- 市场温度分析
-- 动量与 ABC 结构分析
-- 后续 AI 投资分析模块
+它的定位不是“某一个前台工具自己的内部模块”，而是所有市场分析工具共享的行情底座。
 
 ---
 
-# Architecture
+## 1. 入口与相关页面
 
-整体设计：
-
-```
-                 Data Sources
-                      |
-        -------------------------------
-        |                             |
- Yahoo Finance                 Future Data Source
-        |                             |
-        --------------------------------
-                      |
-                      v
-              stockprice Center
-                      |
-        --------------------------------
-        |              |              |
-     K线机器人      日报系统       Sell Put扫描
-```
-
-stockprice 作为独立行情层，负责：
-
-- 获取行情
-- 缓存行情
-- 管理刷新频率
-- 提供统一接口
-- 记录行情时间
-
-业务模块只读取行情，不直接访问数据源。
+- 调试 / 管理页：`https://donew-beta.vercel.app/price-test.html`
+- 原始缓存文件：`stockprice/data/latest-price.json`
+- Vercel 读取 API：`kline_robot_vercel/api/latest-price.js`
 
 ---
 
-# Directory Structure
+## 2. 这个目录解决什么问题
 
-```
+统一解决以下问题：
+
+- 避免每个工具单独抓 Yahoo / 交易所 / 备用源；
+- 避免多个工具同一时刻读出不同价格；
+- 避免前端工具因为限流、超时反复失败；
+- 给所有下游工具统一提供：
+  - 最新价格
+  - 昨收
+  - 涨跌幅
+  - 行情时间
+  - 缓存检查时间
+
+下游典型使用方：
+
+- `kline_robot_vercel/api/market-report-v2.js`
+- `kline_robot_vercel/api/put-rating.js`
+- `scripts/generate-market-daily-report.mjs`
+- `kline_robot_vercel/price-test.html`
+
+---
+
+## 3. 目录结构
+
+```text
 stockprice/
-│
-├── README.md                  # 行情中心说明
-│
-├── config/                    # 配置文件
-│   ├── symbols.json           # 股票/ETF/指数/商品列表
-│   └── price-config.json      # 自动刷新开关、刷新周期
-│
-├── scripts/                  # 行情后台程序
-│   └── update-price.js        # 获取并更新行情缓存
-│
-├── data/                     # 行情数据缓存
-│   └── latest-price.json      # 最新行情数据
-│
-└── docs/                     # 技术设计文档
-    └── architecture.md
+├── README.md
+├── config/
+│   ├── symbols.json
+│   └── price-config.json
+├── scripts/
+│   └── update-price.js
+├── data/
+│   └── latest-price.json
+└── docs/
+    ├── architecture.md
+    └── workflow.md
 ```
+
+### 关键文件
+
+- `config/symbols.json`
+  - 定义需要维护的标的清单，目前是 23 个左右核心资产
+- `config/price-config.json`
+  - 行情服务开关、刷新周期配置
+- `scripts/update-price.js`
+  - 抓取并生成统一缓存的主脚本
+- `data/latest-price.json`
+  - 下游工具真正消费的缓存文件
 
 ---
 
-# Data Flow
+## 4. 处理流程
 
+```text
+GitHub Actions 定时触发
+  -> node stockprice/scripts/update-price.js
+  -> 依次读取 symbols.json 中的标的
+  -> 从外部行情源抓取数据
+  -> 标准化字段
+  -> 写入 latest-price.json
+  -> commit 回 main
+  -> Vercel / GitHub / 页面读取缓存
 ```
-GitHub Actions / Scheduled Task
-              |
-              v
-stockprice/scripts/update-price.js
-              |
-              v
-External Data Source
-(Yahoo Finance etc.)
-              |
-              v
-stockprice/data/latest-price.json
-              |
-              v
-API Layer
-              |
-              v
-Website / AI Analysis Tools
-```
+
+当前核心设计思路：
+
+- 尽量把抓取成本放到后台；
+- 页面和分析工具尽量只读缓存；
+- 行情时间与缓存时间分开保存。
 
 ---
 
-# Cache Design
+## 5. 自动更新
 
-行情数据保存两个重要时间：
+工作流文件：
 
-## 1. Cache Update Time
+- `.github/workflows/update-stockprice.yml`
 
-表示：
+特点：
 
-> 系统最后一次从数据源更新缓存的时间。
+- 定时任务约每 5 分钟运行一次；
+- 支持手工触发；
+- 先 `fetch/reset` 到最新 `origin/main`；
+- 生成缓存后 commit；
+- push 失败会自动重新同步并重试。
 
-用途：
-
-- 判断缓存是否新鲜
-- 判断后台任务是否正常运行
-
-## 2. Market Data Time
-
-表示：
-
-> 该价格本身对应的市场时间。
-
-例如：
-
-- 美股 ETF：可能是当天收盘时间
-- BTC：接近实时交易时间
-- 黄金/原油：期货市场时间
-
-两个时间必须分开显示，避免误认为缓存更新时间就是行情时间。
+这条工作流是目前最需要“少改动、稳运行”的基础设施之一。
 
 ---
 
-# Supported Assets
+## 6. 输出数据约定
 
-当前规划包括：
-
-## US ETF / Index
-
-- QQQ
-- SPY
-- IWM
-- QLD
-- TQQQ
-- SMH
-- SOXX
-- MAGS
-
-## China / Emerging Market
-
-- EEM
-- FXI
-- KWEB
-
-## Volatility
-
-- ^VIX
-- VIXY
-
-## Bitcoin Related
-
-- BTC-USD
-- IBIT
-- MSTR
-
-## Macro
-
-- DX-Y.NYB
-- ^TNX
-- JPY=X
-- CL=F
-- GC=F
-
-## Stocks
-
-- INTC
-- HOOD
-
----
-
-# Control Design
-
-行情中心支持：
-
-```
-Start
-  |
-  v
-Enable scheduled update
-
-Stop
-  |
-  v
-Disable scheduled update
-```
-
-控制配置：
-
-```
-stockprice/config/price-config.json
-```
-
-示例：
+`latest-price.json` 建议保持下面这类结构稳定：
 
 ```json
 {
-  "enabled": true,
-  "intervalMinutes": 5
+  "updatedAt": "...",
+  "checkedAt": "...",
+  "successCount": 0,
+  "failCount": 0,
+  "data": [
+    {
+      "symbol": "QQQ",
+      "category": "US ETF",
+      "price": 0,
+      "previousClose": 0,
+      "changePercent": 0,
+      "marketTime": "...",
+      "retrievedAt": "...",
+      "exchange": "NasdaqGM",
+      "currency": "USD",
+      "error": ""
+    }
+  ]
 }
 ```
 
+### 两个时间不要混
+
+#### `marketTime`
+
+表示这条价格本身对应的行情时间。
+
+#### `checkedAt` / `updatedAt`
+
+表示后台脚本什么时候检查 / 刷新了缓存。
+
+很多分析错误都来自把这两个时间混为一谈。
+
 ---
 
-# Principles
+## 7. 外部对接
 
-- 不让每个功能重复抓行情
-- 统一缓存
-- 控制访问频率
-- 降低 Yahoo 等数据源压力
-- 区分缓存更新时间和行情时间
-- 支持未来替换数据源
-- 为 AI 投资系统提供统一数据基础
+上游行情源的实现细节在 `stockprice/scripts/update-price.js`，后续允许调整，但原则不变：
+
+- 优先保证结构稳定；
+- 尽量直接取到：
+  - 最新价
+  - 昨收
+  - 日涨跌幅
+- 如果源头缺少关键字段，要在缓存里明确标记，而不是静默写 0。
+
+下游工具目前默认把这个缓存当作“统一行情真源”。
+
+---
+
+## 8. 修改时先看哪里
+
+### A. 某个价格明显不对
+
+先看：
+
+- `stockprice/data/latest-price.json`
+- `stockprice/scripts/update-price.js`
+- Actions 日志：`update-stockprice.yml`
+
+### B. 页面读不到行情
+
+先看：
+
+- `kline_robot_vercel/api/latest-price.js`
+- `kline_robot_vercel/price-test.html`
+
+### C. 市场分析或卖 Put 工具里价格怪异
+
+先确认：
+
+1. `latest-price.json` 里是否已经错了；
+2. 如果缓存是对的，再看：
+   - `kline_robot_vercel/api/market-report-v2.js`
+   - `kline_robot_vercel/api/put-rating.js`
+
+---
+
+## 9. 常见坑
+
+### 坑 1：不要前台重新自己算昨收
+
+前台和业务 API 最好直接吃缓存里的：
+
+- `price`
+- `previousClose`
+- `changePercent`
+
+不要每个工具各自再用不同方式反推。
+
+### 坑 2：不要失败时写成 0
+
+如果取不到：
+
+- 就明确写缺失 / 错误；
+- 不要把“未取到”伪装成 `0.00%`。
+
+### 坑 3：不要让每个新工具直接抓外部行情
+
+原则上：
+
+- 新工具优先读 `stockprice/data/latest-price.json`
+- 只有像 K 线相识度这种“单标的即时拉取”场景，才单独抓外部行情
+
+---
+
+## 10. 给后续智能体的扩展模板
+
+如果后续再新增一个共享数据中心，建议也按这个模式：
+
+```text
+newcenter/
+├── README.md
+├── config/
+├── scripts/
+├── data/
+└── docs/
+```
+
+并且遵守这几个规则：
+
+1. 先落缓存，再让页面消费；
+2. 输出 JSON 结构尽量稳定；
+3. 失败保留旧缓存，不轻易清空；
+4. 工作流和缓存目录分开；
+5. README 必须写清楚上下游依赖。
