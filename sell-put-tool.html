@@ -401,7 +401,7 @@
   <div class="shell">
     <div class="topbar">
       <div>
-        <h1>AI卖Put温度判断 <span class="version">v0.1.14｜2026-07-17｜增加行情中心回退与来源时间</span></h1>
+        <h1>AI卖Put温度判断 <span class="version">v0.1.17｜2026-07-18｜支持自动恢复浏览器上次报告</span></h1>
       </div>
       <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </div>
@@ -529,6 +529,7 @@
     let latestName = 'sell-put-rating.html';
     let runTimer = null;
     const historyKey = 'sellPutRatingHistory.v1';
+    const latestReportKey = 'sellPutRatingLatestReport.v1';
 
     function readHistory() {
       try {
@@ -602,6 +603,109 @@
         .replace(/\.(png|jpg|jpeg|svg)$/i, '')
         .replace(/[\\/:*?"<>|]+/g, '_');
       return `${base}_${localTimestamp()}.${cleanExt}`;
+    }
+
+    function formatSavedTime(value) {
+      if (!value) return '未知时间';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    }
+
+    function getReportGeneratedTime(meta) {
+      return meta?.generatedAt || meta?.savedAt || null;
+    }
+
+    function updateLatestBlob(html, fileName) {
+      latestHtml = html || '';
+      latestName = fileName || 'sell-put-rating.html';
+      if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
+      latestBlobUrl = latestHtml ? URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' })) : '';
+    }
+
+    function bindLatestActions() {
+      const downloadHtmlBtn = document.getElementById('downloadHtmlBtn');
+      const downloadImageBtn = document.getElementById('downloadImageBtn');
+      const shareImageBtn = document.getElementById('shareImageBtn');
+      if (downloadHtmlBtn) {
+        downloadHtmlBtn.addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = latestBlobUrl;
+          a.download = downloadFileName('html');
+          a.click();
+        });
+      }
+      if (downloadImageBtn) {
+        downloadImageBtn.addEventListener('click', async () => {
+          try {
+            await downloadReportImage();
+          } catch (error) {
+            setStatus(error.message || '下载图片失败。', true);
+          }
+        });
+      }
+      if (shareImageBtn) {
+        shareImageBtn.addEventListener('click', async () => {
+          try {
+            const blob = await downloadReportImage();
+            if (!blob) throw new Error('图片生成失败。');
+            const file = new File([blob], downloadFileName('jpg'), { type: 'image/jpeg' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: latestName.replace(/\.html$/i, ''), text: '卖Put判断报告' });
+              setStatus('已打开系统分享。');
+              return;
+            }
+            downloadBlob(blob, file.name);
+            setStatus('当前浏览器不支持直接分享，已改为保存图片。');
+          } catch (error) {
+            setStatus(error.message || '图片分享失败。', true);
+          }
+        });
+      }
+    }
+
+    function renderLatestReport(meta, restored = false) {
+      resultHead.style.display = 'grid';
+      resultHead.innerHTML = `
+        <div class="metric"><b>标的</b><span>${meta.symbol || '-'}</span></div>
+        <div class="metric"><b>市场</b><span>${(meta.market || '-').toUpperCase()}</span></div>
+        <div class="metric"><b>AI</b><span>${meta.used_ai ? (meta.provider || '已调用') : '规则版'}</span></div>
+        <div class="metric"><b>结论</b><span>${meta.status || '-'}</span></div>
+      `;
+
+      actions.style.display = 'flex';
+      actions.innerHTML = `
+        <a class="action primary" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
+        <button class="action soft" id="downloadHtmlBtn" type="button">保存 HTML</button>
+        <button class="action soft" id="downloadImageBtn" type="button">保存为图片</button>
+        <button class="action soft" id="shareImageBtn" type="button">图片分享</button>
+      `;
+      bindLatestActions();
+      preview.innerHTML = `<iframe title="卖Put判断报告" src="${latestBlobUrl}"></iframe>`;
+      const generatedLabel = formatSavedTime(getReportGeneratedTime(meta));
+      const savedLabel = meta.savedAt && meta.savedAt !== getReportGeneratedTime(meta)
+        ? `｜浏览器保存于 ${formatSavedTime(meta.savedAt)}`
+        : '';
+      setStatus(restored ? `已恢复浏览器上次报告：原生成于 ${generatedLabel}${savedLabel}` : (meta.message || '已生成报告。'));
+    }
+
+    function saveLatestReportCache(meta) {
+      localStorage.setItem(latestReportKey, JSON.stringify({
+        meta,
+        html: latestHtml,
+        fileName: latestName,
+      }));
+    }
+
+    function restoreLatestReportCache() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(latestReportKey) || 'null');
+        if (!saved || !saved.html || !saved.meta) return;
+        updateLatestBlob(saved.html, saved.fileName);
+        renderLatestReport(saved.meta, true);
+      } catch {
+        // ignore broken local cache
+      }
     }
 
     function normalizeBarchartSymbol(raw) {
@@ -867,59 +971,11 @@
         const json = await res.json();
         if (!res.ok || !json.ok) throw new Error(json.message || `生成失败（HTTP ${res.status}）`);
 
-        latestHtml = json.html || '';
-        latestName = json.filename || 'sell-put-rating.html';
-        if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
-        latestBlobUrl = URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' }));
+        updateLatestBlob(json.html || '', json.filename || 'sell-put-rating.html');
         rememberPayload(payload);
-
-        resultHead.style.display = 'grid';
-        resultHead.innerHTML = `
-          <div class="metric"><b>标的</b><span>${json.symbol || '-'}</span></div>
-          <div class="metric"><b>市场</b><span>${(json.market || '-').toUpperCase()}</span></div>
-          <div class="metric"><b>AI</b><span>${json.used_ai ? (json.provider || '已调用') : '规则版'}</span></div>
-          <div class="metric"><b>结论</b><span>${json.status || '-'}</span></div>
-        `;
-
-        actions.style.display = 'flex';
-        actions.innerHTML = `
-          <a class="action primary" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
-          <button class="action soft" id="downloadHtmlBtn" type="button">保存 HTML</button>
-          <button class="action soft" id="downloadImageBtn" type="button">保存为图片</button>
-          <button class="action soft" id="shareImageBtn" type="button">图片分享</button>
-        `;
-        document.getElementById('downloadHtmlBtn').addEventListener('click', () => {
-          const a = document.createElement('a');
-          a.href = latestBlobUrl;
-          a.download = downloadFileName('html');
-          a.click();
-        });
-        document.getElementById('downloadImageBtn').addEventListener('click', async () => {
-          try {
-            await downloadReportImage();
-          } catch (error) {
-            setStatus(error.message || '下载图片失败。', true);
-          }
-        });
-        document.getElementById('shareImageBtn').addEventListener('click', async () => {
-          try {
-            const blob = await downloadReportImage();
-            if (!blob) throw new Error('图片生成失败。');
-            const file = new File([blob], downloadFileName('jpg'), { type: 'image/jpeg' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({ files: [file], title: latestName.replace(/\.html$/i, ''), text: '卖Put判断报告' });
-              setStatus('已打开系统分享。');
-              return;
-            }
-            downloadBlob(blob, file.name);
-            setStatus('当前浏览器不支持直接分享，已改为保存图片。');
-          } catch (error) {
-            setStatus(error.message || '图片分享失败。', true);
-          }
-        });
-
-        preview.innerHTML = `<iframe title="卖Put判断报告" src="${latestBlobUrl}"></iframe>`;
-        setStatus(json.message || '已生成报告。');
+        const meta = { ...json, generatedAt: json.generatedAt || new Date().toISOString(), savedAt: new Date().toISOString() };
+        renderLatestReport(meta, false);
+        saveLatestReportCache(meta);
       } catch (error) {
         resultHead.style.display = 'none';
         actions.style.display = 'none';
@@ -931,6 +987,8 @@
         btn.disabled = false;
       }
     });
+
+    restoreLatestReportCache();
   </script>
 </body>
 </html>

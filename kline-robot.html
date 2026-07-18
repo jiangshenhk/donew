@@ -614,10 +614,11 @@
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
         : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
-    const appVersionText = '3.0.0.5｜2026-7-14｜高低位ABC细化';
+    const appVersionText = '3.0.0.7｜2026-7-18｜支持自动恢复浏览器上次报告';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';
+    const latestReportKey = 'klineRobotLatestReport.v1';
     let latestBlobUrl = '';
     let latestHtml = '';
     let latestName = 'kline-report.html';
@@ -758,6 +759,87 @@
       return `${base}_${localTimestamp()}.${cleanExt}`;
     }
 
+    function formatSavedTime(value) {
+      if (!value) return '未知时间';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    }
+
+    function getReportGeneratedTime(meta) {
+      return meta?.generatedAt || meta?.savedAt || null;
+    }
+
+    function updateLatestBlob(html, fileName) {
+      latestHtml = html || '';
+      latestName = fileName || 'kline-report.html';
+      if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
+      latestBlobUrl = latestHtml ? URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' })) : '';
+    }
+
+    function bindLatestActions(meta) {
+      const downloadBtn = document.getElementById('downloadBtn');
+      const downloadImageBtn = document.getElementById('downloadImageBtn');
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = latestBlobUrl;
+          a.download = downloadFileName('html');
+          a.click();
+        });
+      }
+      if (downloadImageBtn) {
+        downloadImageBtn.addEventListener('click', async () => {
+          try {
+            await downloadReportImage();
+          } catch (error) {
+            result.querySelector('.status')?.remove();
+            result.insertAdjacentHTML('beforeend', `<p class="status">${error.message}</p>`);
+          }
+        });
+      }
+    }
+
+    function renderLatestReport(meta, restored = false) {
+      result.innerHTML = `
+        <div class="cards">
+          <div class="metric"><b>标的</b><span>${meta.symbol || '-'}</span></div>
+          <div class="metric"><b>周期</b><span>${meta.interval || '-'}</span></div>
+          <div class="metric"><b>AI</b><span>${meta.used_gpt ? '已调用' : '未调用'}</span></div>
+          <div class="metric"><b>状态</b><span>${meta.status || '-'}</span></div>
+        </div>
+        <div class="actions">
+          <a class="action" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
+          <button class="action secondary" id="downloadBtn" type="button">下载 HTML</button>
+          <button class="action secondary" id="downloadImageBtn" type="button">下载图片</button>
+        </div>
+        <p class="status">${restored
+          ? `浏览器上次报告｜原生成于 ${formatSavedTime(getReportGeneratedTime(meta))}${meta.savedAt && meta.savedAt !== getReportGeneratedTime(meta) ? `｜浏览器保存于 ${formatSavedTime(meta.savedAt)}` : ''}`
+          : (meta.message || '')}</p>
+      `;
+      bindLatestActions(meta);
+      preview.innerHTML = `<iframe title="K线报告预览" src="${latestBlobUrl}"></iframe>`;
+    }
+
+    function saveLatestReportCache(meta) {
+      localStorage.setItem(latestReportKey, JSON.stringify({
+        meta,
+        html: latestHtml,
+        fileName: latestName,
+      }));
+    }
+
+    function restoreLatestReportCache() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(latestReportKey) || 'null');
+        if (!saved || !saved.html || !saved.meta) return;
+        updateLatestBlob(saved.html, saved.fileName);
+        renderLatestReport(saved.meta, true);
+      } catch {
+        // ignore broken local cache
+      }
+    }
+
     function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -892,41 +974,10 @@
         if (!res.ok || !json.ok) throw new Error(json.error || json.message || `生成失败（HTTP ${res.status}）`);
         rememberPayload(payload, json.symbol);
 
-        latestHtml = json.html;
-        latestName = json.filename || 'kline-report.html';
-        if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
-        latestBlobUrl = URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' }));
-        result.innerHTML = `
-          <div class="cards">
-            <div class="metric"><b>标的</b><span>${json.symbol}</span></div>
-            <div class="metric"><b>周期</b><span>${json.interval}</span></div>
-            <div class="metric"><b>AI</b><span>${json.used_gpt ? '已调用' : '未调用'}</span></div>
-            <div class="metric"><b>状态</b><span>${json.status}</span></div>
-          </div>
-          <div class="actions">
-            <a class="action" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
-            <button class="action secondary" id="downloadBtn" type="button">下载 HTML</button>
-            <button class="action secondary" id="downloadImageBtn" type="button">下载图片</button>
-          </div>
-          <p class="status">${json.message || ''}</p>
-        `;
-
-        document.getElementById('downloadBtn').addEventListener('click', () => {
-          const a = document.createElement('a');
-          a.href = latestBlobUrl;
-          a.download = downloadFileName('html');
-          a.click();
-        });
-        document.getElementById('downloadImageBtn').addEventListener('click', async () => {
-          try {
-            await downloadReportImage();
-          } catch (error) {
-            result.querySelector('.status')?.remove();
-            result.insertAdjacentHTML('beforeend', `<p class="status">${error.message}</p>`);
-          }
-        });
-
-        preview.innerHTML = `<iframe title="K线报告预览" src="${latestBlobUrl}"></iframe>`;
+        updateLatestBlob(json.html, json.filename || 'kline-report.html');
+        const meta = { ...json, generatedAt: json.generatedAt || new Date().toISOString(), savedAt: new Date().toISOString() };
+        renderLatestReport(meta, false);
+        saveLatestReportCache(meta);
       } catch (error) {
         result.textContent = error.message;
       } finally {
@@ -936,6 +987,8 @@
         btn.disabled = false;
       }
     });
+
+    restoreLatestReportCache();
   </script>
 </body>
 </html>

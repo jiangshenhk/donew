@@ -722,7 +722,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.44｜2026-07-18｜强制大跌风险与黑天鹅矩阵列</span></h1>
+      <h1>AI每日/每周市场情况分析 <span class="version">v2.2.45｜2026-07-18｜恢复上次报告与黑天鹅矩阵列</span></h1>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
         <a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
@@ -800,6 +800,7 @@
     const params = new URLSearchParams(location.search);
     const apiBase = (params.get("apiBase") || defaultApiBase).replace(/\/$/, "");
     const storageKey = "shifangzhai-menu6-market-reports-v1";
+    const latestReportKey = "shifangzhai-menu6-market-latest-report-v1";
     const generationSteps = [
       "QQQ", "SPY", "IWM", "QLD", "TQQQ", "SMH", "SOXX", "MAGS",
       "EEM", "FXI", "KWEB", "VIX", "VIXY", "IBIT", "BTC", "MSTR",
@@ -824,6 +825,17 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function formatBrowserReportTime(value) {
+      if (!value) return "未知时间";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false });
+    }
+
+    function getReportGeneratedTime(report) {
+      return report?.generatedAt || report?.savedAt || report?.cachedAt || null;
     }
 
     function inlineMarkdown(text) {
@@ -1394,7 +1406,8 @@
         if (!response.ok || !payload.ok) {
           throw new Error(payload.message || `HTTP ${response.status}`);
         }
-        currentReport = payload.report;
+        currentReport = { ...payload.report, kind, savedAt: new Date().toISOString() };
+        localStorage.setItem(latestReportKey, JSON.stringify({ ...currentReport, cachedAt: new Date().toISOString() }));
         renderReport(currentReport);
         setStatus(`已生成：${currentReport.fileName}`);
       } catch (error) {
@@ -1425,6 +1438,26 @@
           ${renderMarkdown(report.markdown)}
         </article>
       `;
+    }
+
+    function restoreLatestReport() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(latestReportKey) || "null");
+        if (!saved || !saved.markdown) return;
+        currentReport = saved;
+        if (saved.kind) currentKind = saved.kind;
+        renderReport(saved);
+        switchView("preview");
+        $("#filenameLabel").textContent = `${saved.fileName} · 浏览器上次报告`;
+        const generatedAt = getReportGeneratedTime(saved);
+        const cachedAt = saved.cachedAt;
+        const suffix = cachedAt && cachedAt !== generatedAt
+          ? `｜浏览器保存于 ${formatBrowserReportTime(cachedAt)}`
+          : "";
+        setStatus(`已恢复浏览器上次报告：原生成于 ${formatBrowserReportTime(generatedAt)}${suffix}`);
+      } catch (error) {
+        // ignore broken local cache
+      }
     }
 
     function loadSavedReports() {
@@ -1541,9 +1574,10 @@
       if (!report) return;
       if (button.dataset.action === "view") {
         currentReport = report;
+        localStorage.setItem(latestReportKey, JSON.stringify({ ...currentReport, cachedAt: new Date().toISOString() }));
         renderReport(report);
         switchView("preview");
-        setStatus(`已打开归档：${report.fileName}`);
+        setStatus(`已打开归档：${report.fileName}（${formatBrowserReportTime(report.savedAt || report.generatedAt)}）`);
       }
       if (button.dataset.action === "copy") copyText(report.markdown);
       if (button.dataset.action === "download") downloadText(report.fileName, report.markdown);
@@ -1555,6 +1589,7 @@
     });
 
     renderSavedArchive();
+    restoreLatestReport();
   </script>
 </body>
 </html>
