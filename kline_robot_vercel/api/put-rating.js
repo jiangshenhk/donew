@@ -635,7 +635,9 @@ function promptText(payload, snapshot, risk) {
 </section>
 <section class="section">
   <h2>卖Put动作建议</h2>
-  ...
+  <p><span class="highlight">动作建议：</span>...</p>
+  <p><span class="highlight">黑天鹅灯号：</span>...</p>
+  <p><span class="highlight">如果必须操作：</span>...</p>
 </section>
 
 具体要求：
@@ -914,7 +916,9 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
 
     <section class="section">
       <h2>卖Put动作建议</h2>
-      <p>${safeHtml(payload.symbol)} ${risk.putStance === "有利" ? "当前适合卖Put，可以筛选标的，但只拿你愿意接货的。" : risk.putStance === "谨慎" ? "只允许极远OTM、小仓、分批，重点防跳空。" : "先不为这点权利金暴露尾部风险。"}</p>
+      <p><span class="highlight">动作建议：</span> ${risk.putStance === "有利" ? "当前适合卖Put，可以筛选标的，但只拿你愿意接货的。" : risk.putStance === "谨慎" ? "IV与HV几乎持平，不存在恐慌溢价；所有指标均指向风险大于收益。建议等待市场情绪稳定、VIX回落后再考虑卖Put。" : "IV与HV几乎持平，不存在恐慌溢价；市场环境偏空，黑天鹅灯号高警戒。所有指标均指向风险大于收益。建议等待市场情绪稳定、VIX回落、IV与HV拉开差距后再考虑卖Put。"}</p>
+      <p><span class="highlight">黑天鹅灯号：</span> ${safeHtml(risk.blackSwan)}。${risk.putStance === "不利" ? "VIX飙升、DXY走强、半导体走弱，三重恶化背景下不宜卖Put。" : risk.putStance === "谨慎" ? "局部信号需警惕，主线结构未坏但不宜重仓。" : "系统性风险较低，可正常操作。"}</p>
+      <p><span class="highlight">如果必须操作：</span> ${risk.putStance === "有利" ? "可选择平值附近行权价，控制仓位在常规水平。" : risk.putStance === "谨慎" ? "应选择更远的虚值行权价，并大幅减少仓位，控制在常规的30%以下。" : "当前环境下仍不推荐。如果必须操作，应选择极远虚值行权价并大幅减少仓位，但风险极高。"}</p>
     </section>
 
     ${aiMessage ? `<section class="section"><h2>AI 说明</h2><p class="status">${safeHtml(aiMessage)}</p></section>` : ""}
