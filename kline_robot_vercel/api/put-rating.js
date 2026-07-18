@@ -1,4 +1,3 @@
-const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
 const STOCKPRICE_SNAPSHOT_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
 const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
 const FOCUS_SYMBOLS = [
@@ -104,74 +103,86 @@ function normalizeRow(item) {
     stockpriceUpdatedAt: item?.stockpriceUpdatedAt || "",
     stockpriceCheckedAt: item?.stockpriceCheckedAt || "",
     currency: item?.currency || "",
+    dailyAtr: item?.dailyAtr ?? null,
+    weeklyAtr: item?.weeklyAtr ?? null,
   };
+}
+
+async function fetchAtrData(symbol, retry = 2) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d&events=history&includePrePost=false`;
+  try {
+    const res = await timedFetch(url, { headers: { "User-Agent": "Mozilla/5.0 donew-put-rating" } }, 10000);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    if (!result) throw new Error("No chart data");
+    const timestamps = result?.timestamp || [];
+    const quotes = result?.indicators?.quote?.[0] || {};
+    const closes = quotes.close || [];
+    const highs = quotes.high || [];
+    const lows = quotes.low || [];
+    const bars = [];
+    for (let i = 0; i < Math.min(timestamps.length, closes.length); i += 1) {
+      const close = numberOrNull(closes[i]);
+      const high = numberOrNull(highs[i]);
+      const low = numberOrNull(lows[i]);
+      const ts = numberOrNull(timestamps[i]);
+      if (close === null || ts === null) continue;
+      bars.push({ timestamp: ts, close, high: high ?? close, low: low ?? close });
+    }
+    const dailyAtr = calculateAtr(bars, 14);
+    const weekBars = aggregateToWeekly(bars);
+    const weeklyAtr = calculateAtr(weekBars, 14);
+    return { dailyAtr, weeklyAtr, barCount: bars.length };
+  } catch (e) {
+    if (retry > 0) { await sleep(2000); return fetchAtrData(symbol, retry - 1); }
+    return { dailyAtr: null, weeklyAtr: null, error: e.message };
+  }
+}
+
+function calculateAtr(bars, period = 14) {
+  if (!bars || bars.length < period + 1) return null;
+  let trSum = 0;
+  for (let i = 1; i <= period; i += 1) {
+    const high = bars[i].high;
+    const low = bars[i].low;
+    const prevClose = bars[i - 1].close;
+    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+    trSum += tr;
+  }
+  let atr = trSum / period;
+  for (let i = period + 1; i < bars.length; i += 1) {
+    const high = bars[i].high;
+    const low = bars[i].low;
+    const prevClose = bars[i - 1].close;
+    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+    atr = (atr * (period - 1) + tr) / period;
+  }
+  return Number(atr.toFixed(4));
+}
+
+function aggregateToWeekly(dailyBarsList) {
+  const weekMap = new Map();
+  for (const bar of dailyBarsList) {
+    const date = new Date(bar.timestamp * 1000);
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() - date.getDay());
+    const weekKey = weekStart.toISOString().slice(0, 10);
+    if (!weekMap.has(weekKey)) {
+      weekMap.set(weekKey, { high: bar.high, low: bar.low, close: bar.close, bars: 1 });
+    } else {
+      const week = weekMap.get(weekKey);
+      week.high = Math.max(week.high, bar.high);
+      week.low = Math.min(week.low, bar.low);
+      week.close = bar.close;
+      week.bars += 1;
+    }
+  }
+  return Array.from(weekMap.values());
 }
 
 function sameSymbol(left, right) {
   return String(left || "").trim().toUpperCase() === String(right || "").trim().toUpperCase();
-}
-
-function normalizeSymbol(rawSymbol, market) {
-  const raw = String(rawSymbol || "").trim().toUpperCase();
-  const compact = raw.replace(/\s+/g, "");
-  const selectedMarket = String(market || "").toLowerCase();
-  if (["BTC", "BTCUSD", "BTC/USD", "BTC-USD", "BITCOIN"].includes(compact)) return { yahoo: "BTC-USD", display: "BTC" };
-  if (selectedMarket === "crypto") {
-    if (/^[A-Z0-9]+-USD$/.test(compact)) return { yahoo: compact, display: compact.replace("-USD", "") };
-    return { yahoo: `${compact}-USD`, display: compact };
-  }
-  if (selectedMarket === "hk") {
-    if (compact === "^HSI" || compact === "^HSTECH") return { yahoo: compact, display: compact };
-    const digits = compact.replace(/\D/g, "");
-    if (!digits) throw new Error(`找不到代码：${rawSymbol || ""}`);
-    const code = digits.length === 5 && digits.startsWith("0") ? digits.slice(1) : digits.padStart(4, "0");
-    return { yahoo: `${code}.HK`, display: `${code}.HK` };
-  }
-  if (selectedMarket === "cn") {
-    const normalized = compact
-      .replace(/^SH(\d{6})$/, "$1.SS")
-      .replace(/^SZ(\d{6})$/, "$1.SZ")
-      .replace(/\.SH$/, ".SS");
-    const matched = normalized.match(/^(\d{6})(?:\.(SS|SZ))?$/);
-    if (!matched) return { yahoo: compact, display: compact };
-    const code = matched[1];
-    const suffix = matched[2] || (code.startsWith("6") || code.startsWith("9") ? "SS" : "SZ");
-    return { yahoo: `${code}.${suffix}`, display: `${code}.${suffix}` };
-  }
-  return { yahoo: compact, display: compact };
-}
-
-async function fetchYahooQuote(rawSymbol, market) {
-  const normalized = normalizeSymbol(rawSymbol, market);
-  const url = `${YAHOO_BASE}${encodeURIComponent(normalized.yahoo)}?range=1mo&interval=1d&events=history&includePrePost=false`;
-  const res = await timedFetch(url, { headers: { "User-Agent": "Mozilla/5.0" } }, 7000);
-  if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
-  const payload = await res.json();
-  const result = payload?.chart?.result?.[0];
-  if (!result) {
-    const detail = payload?.chart?.error?.description || payload?.chart?.error?.code || "Yahoo no data";
-    throw new Error(detail);
-  }
-  const meta = result.meta || {};
-  const quote = result.indicators?.quote?.[0] || {};
-  const timestamps = result.timestamp || [];
-  const closes = (quote.close || []).map((value) => numberOrNull(value)).filter((value) => value !== null);
-  const last = numberOrNull(meta.regularMarketPrice) ?? closes.at(-1);
-  const previousClose = numberOrNull(meta.chartPreviousClose) ?? numberOrNull(meta.previousClose) ?? closes.at(-2);
-  const marketTimeSeconds = numberOrNull(meta.regularMarketTime) ?? timestamps.at(-1);
-  return normalizeRow({
-    symbol: rawSymbol,
-    last,
-    previousClose,
-    changePct: previousClose && last ? ((last / previousClose) - 1) * 100 : null,
-    marketTime: marketTimeSeconds ? new Date(Number(marketTimeSeconds) * 1000).toISOString() : "",
-    exchange: meta.fullExchangeName || meta.exchangeName || meta.exchangeTimezoneName || market.toUpperCase(),
-    source: "yahoo",
-    retrievedAt: new Date().toISOString(),
-    fetchMode: "live",
-    cacheStoredAt: new Date().toISOString(),
-    currency: meta.currency || "",
-  });
 }
 
 async function loadStockpriceSnapshot() {
@@ -221,6 +232,8 @@ function normalizeStockpriceRow(item, snapshotMeta) {
     stockpriceUpdatedAt: snapshotMeta?.updatedAt || "",
     stockpriceCheckedAt: snapshotMeta?.checkedAt || "",
     currency: item.currency || "",
+    dailyAtr: item?.dailyAtr ?? null,
+    weeklyAtr: item?.weeklyAtr ?? null,
   });
 }
 
@@ -241,27 +254,33 @@ async function loadSnapshot(targetSymbol, targetMarket) {
     const primary = normalizeStockpriceRow(stockpriceRow(stockpriceSnapshot, item.symbol), stockpriceSnapshot);
     if (primary) {
       items.push(primary);
-      continue;
-    }
-    try {
-      items.push(await fetchYahooQuote(item.symbol, item.market));
-    } catch (error) {
+    } else {
       items.push(normalizeRow({
         symbol: item.symbol,
         last: null,
         previousClose: null,
         changePct: null,
         marketTime: "",
-        exchange: `${String(item.market || "").toUpperCase()} / Yahoo`,
+        exchange: "STOCKPRICE",
         category: "",
-        source: stockpriceSnapshot ? "stockprice/yahoo" : "yahoo",
-        error: stockpriceSnapshotError ? `${stockpriceSnapshotError} | ${error?.message || "Yahoo failed"}` : (error?.message || "Yahoo failed"),
-        retrievedAt: new Date().toISOString(),
-        fetchMode: "live",
-        cacheStoredAt: new Date().toISOString(),
+        source: "stockprice",
+        error: stockpriceSnapshotError || "stockprice missing",
+        retrievedAt: stockpriceSnapshot?.checkedAt || stockpriceSnapshot?.updatedAt || new Date().toISOString(),
+        fetchMode: stockpriceSnapshot?.fetchMode === "cache" ? "cache" : "live",
+        cacheStoredAt: stockpriceSnapshot?.cacheServedAt || stockpriceSnapshot?.checkedAt || stockpriceSnapshot?.updatedAt || new Date().toISOString(),
       }));
     }
-    await sleep(260);
+  }
+  let atrData = { dailyAtr: null, weeklyAtr: null };
+  try {
+    atrData = await fetchAtrData(targetSymbol);
+  } catch (atrError) {
+    atrData = { dailyAtr: null, weeklyAtr: null, error: atrError?.message };
+  }
+  const targetItem = items.find((item) => sameSymbol(item.symbol, targetSymbol));
+  if (targetItem) {
+    targetItem.dailyAtr = atrData.dailyAtr;
+    targetItem.weeklyAtr = atrData.weeklyAtr;
   }
   return {
     checkedAt: new Date().toISOString(),
@@ -273,6 +292,9 @@ async function loadSnapshot(targetSymbol, targetMarket) {
       stockpriceFetchMode: stockpriceSnapshot?.fetchMode || "",
       stockpriceCacheServedAt: stockpriceSnapshot?.cacheServedAt || "",
       stockpriceError: stockpriceSnapshotError,
+      atrDaily: atrData.dailyAtr,
+      atrWeekly: atrData.weeklyAtr,
+      atrError: atrData.error || "",
     },
   };
 }
@@ -324,23 +346,23 @@ function focusTable(snapshot, targetSymbol) {
   const symbols = Array.from(new Set([targetSymbol, ...FOCUS_SYMBOLS.map((item) => item.symbol)]));
   return symbols.map((symbol) => {
     const item = row(snapshot, symbol);
-    return `<tr><td>${safeHtml(symbolLabel(symbol))}</td><td>${item.last === null ? "未取到" : safeHtml(item.last.toFixed(2))}</td><td>${safeHtml(pct(item.changePct))}</td><td>${safeHtml(item.exchange || "-")}</td><td>${safeHtml(formatDateTime(item.marketTime))}</td></tr>`;
+    const dailyAtrStr = item.dailyAtr != null ? item.dailyAtr.toFixed(2) : "-";
+    const weeklyAtrStr = item.weeklyAtr != null ? item.weeklyAtr.toFixed(2) : "-";
+    return `<tr><td>${safeHtml(symbolLabel(symbol))}</td><td>${item.last === null ? "未取到" : safeHtml(item.last.toFixed(2))}</td><td>${safeHtml(pct(item.changePct))}</td><td>${safeHtml(dailyAtrStr)}</td><td>${safeHtml(weeklyAtrStr)}</td><td>${safeHtml(item.exchange || "-")}</td><td>${safeHtml(formatDateTime(item.marketTime))}</td></tr>`;
   }).join("");
 }
 
 function formatSourceLabel(source) {
   if (!source) return "未取到";
-  if (source === "yahoo") return "Yahoo Finance";
   if (source === "stockprice") return "StockPrice Center";
-  if (source === "stockprice/yahoo") return "StockPrice Center -> Yahoo";
   return source;
 }
 
 function formatSourceNote(error) {
   const text = String(error || "").trim();
   if (!text) return "-";
-  if (/stockprice/i.test(text) && /HTTP/i.test(text)) return "行情中心回退读取失败";
-  if (/Yahoo/i.test(text) || /yahoo/i.test(text)) return "行情中心缺失，已尝试实时源";
+  if (/stockprice missing/i.test(text)) return "统一行情中心未取到";
+  if (/stockprice/i.test(text) && /HTTP/i.test(text)) return "行情中心读取失败";
   return text;
 }
 
@@ -358,7 +380,7 @@ function dataSourceDetailsBlock(snapshot, targetSymbol) {
   return `
 <details>
   <summary>数据来源与行情时间</summary>
-  <p>默认先读取统一行情中心 <code>stockprice/data/latest-price.json</code>；若单个标的在行情中心缺失，则再尝试 Yahoo Finance 实时行情。</p>
+  <p>本文行情统一只读取 <code>stockprice/data/latest-price.json</code>，不再额外请求外部实时行情源。</p>
   <p>行情中心文件更新时间：${safeHtml(formatDateTime(meta.stockpriceUpdatedAt))}；行情中心读取时间：${safeHtml(formatDateTime(meta.stockpriceCheckedAt || meta.stockpriceCacheServedAt))}；行情中心读取模式：${safeHtml(meta.stockpriceFetchMode === "cache" ? "缓存" : meta.stockpriceFetchMode ? "实时" : "未使用")}。</p>
   <table>
     <thead>
@@ -478,14 +500,62 @@ function extractTextFromResponse(json) {
     || "";
 }
 
+function analyzeAtrVsPut(target, optionMetrics) {
+  const price = target?.last;
+  const dailyAtr = target?.dailyAtr;
+  if (price == null || dailyAtr == null || price <= 0 || dailyAtr <= 0) {
+    return { hasData: false, atrPct: null, safeStrike: null, atrSafetyMargin: null, atrSuitability: "" };
+  }
+  const atrPct = (dailyAtr / price) * 100;
+  const safeStrike = price - 1.5 * dailyAtr;
+  let atrSuitability = "";
+  if (atrPct < 1.5) atrSuitability = "低波动，权利金较少但价格相对稳定";
+  else if (atrPct <= 4) atrSuitability = "波动适中，适合卖Put";
+  else if (atrPct <= 6) atrSuitability = "波动偏高，权利金丰厚但风险较大";
+  else atrSuitability = "波动过高，需卖更低行权价或减少仓位";
+  let atrSafetyMargin = null;
+  let marginNote = "";
+  const targetStrike = numberOrNull(optionMetrics?.targetStrike);
+  const expiryDate = optionMetrics?.expiryDate || "";
+  if (targetStrike != null && targetStrike > 0) {
+    const strikeGap = targetStrike - safeStrike;
+    const strikeGapPct = ((strikeGap / safeStrike) * 100).toFixed(2);
+    if (targetStrike > safeStrike) {
+      marginNote = `你选择的行权价($${targetStrike.toFixed(2)})高于ATR安全行权价($${safeStrike.toFixed(2)})，安全垫偏薄，需注意风险`;
+    } else {
+      marginNote = `你选择的行权价($${targetStrike.toFixed(2)})低于ATR安全行权价($${safeStrike.toFixed(2)})，ATR提供额外${Math.abs(strikeGapPct)}%安全垫`;
+    }
+  }
+  return {
+    hasData: true,
+    atrPct: atrPct.toFixed(2),
+    safeStrike: safeStrike.toFixed(2),
+    atrSafetyMargin,
+    marginNote,
+    atrSuitability,
+    targetStrike: targetStrike?.toFixed(2) || null,
+    expiryDate: expiryDate || null,
+  };
+}
+
 function promptText(payload, snapshot, risk) {
   const target = row(snapshot, payload.symbol);
   const optionMetricsText = formatOptionMetrics(payload.optionMetrics);
+  const atrAnalysis = analyzeAtrVsPut(target, payload.optionMetrics);
+  const atrInfo = [];
+  if (target?.dailyAtr != null) atrInfo.push(`日线ATR(14)：${target.dailyAtr}`);
+  if (target?.weeklyAtr != null) atrInfo.push(`周线ATR(14)：${target.weeklyAtr}`);
+  if (atrAnalysis.hasData) {
+    atrInfo.push(`ATR占价格比例：${atrAnalysis.atrPct}%`);
+    atrInfo.push(`ATR安全行权价(当前价-1.5×ATR)：${atrAnalysis.safeStrike}`);
+    atrInfo.push(`ATR适用性评估：${atrAnalysis.atrSuitability}`);
+  }
   const marketInfo = [
     `标的：${payload.symbol}`,
     `市场：${payload.market || "us"}`,
     `当前价格：${target.last ?? "未取到"}`,
     `日变化：${pct(target.changePct)}`,
+    atrInfo.length ? `ATR波动指标：\n${atrInfo.join("\n")}` : "",
     `市场环境风险评分：${risk.riskScore}/10`,
     `市场环境概览：${risk.summary}`,
     `卖Put环境初判：${risk.putStance}`,
@@ -775,10 +845,32 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       <h2>市场环境过滤</h2>
       <p>实时行情显示：<span class="${stanceClass}">${safeHtml(risk.summary)}</span></p>
       <table>
-        <thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>来源</th><th>行情时间</th></tr></thead>
+        <thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead>
         <tbody>${focusTable(snapshot, payload.symbol)}</tbody>
       </table>
     </section>
+
+    ${(() => {
+      const target = row(snapshot, payload.symbol);
+      const atrAnalysis = analyzeAtrVsPut(target, payload.optionMetrics);
+      if (!atrAnalysis.hasData) return "";
+      return `
+    <section class="section">
+      <h2>ATR波动分析</h2>
+      <p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
+      <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
+      ${atrAnalysis.targetStrike ? `
+      <p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>
+      ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
+      ` : ""}
+      <ul>
+        <li>ATR 衡量波动性：ATR 越大，股价波动越大，期权权利金越高</li>
+        <li>筛选标的：ATR% 在 2-4% 的股票适合卖 Put，波动适中</li>
+        <li>安全行权价 ≈ 当前价 - 1.5 × ATR，作为行权价参考</li>
+        <li>仓位管理：ATR 高时减少合约数量，ATR 低时可适当增加</li>
+      </ul>
+    </section>`;
+    })()}
 
     <section class="section">
       <h2>规则版卖Put建议</h2>
@@ -844,7 +936,19 @@ export default async function handler(req, res) {
 </style></head><body><div class="page">
 <section class="hero"><h1>${safeHtml(symbol)}｜卖Put温度判断</h1><p class="meta">${safeHtml(market.toUpperCase())} 市场 · 截图来源：Barchart Options Overview · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p></section>
 ${ai.html}
-<section class="section"><h2>实时行情快照</h2><p class="status">${safeHtml(risk.summary)}</p><table><thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></section>
+<section class="section"><h2>实时行情快照</h2><p class="status">${safeHtml(risk.summary)}</p><table><thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></section>
+${(() => {
+  const target = row(snapshot, symbol);
+  const atrAnalysis = analyzeAtrVsPut(target, body.optionMetrics || {});
+  if (!atrAnalysis.hasData) return "";
+  return `
+<section class="section"><h2>ATR波动分析</h2>
+<p><strong>ATR占价格比例：</strong> ${safeHtml(atrAnalysis.atrPct)}% ｜ <strong>${safeHtml(atrAnalysis.atrSuitability)}</strong></p>
+<p><strong>ATR安全行权价（当前价 - 1.5 × ATR）：</strong> $${safeHtml(atrAnalysis.safeStrike)}</p>
+${atrAnalysis.targetStrike ? `<p><strong>你选择的目标行权价：</strong> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>` : ""}
+${atrAnalysis.marginNote ? `<p><strong>ATR与行权价对比：</strong> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
+</section>`;
+})()}
 ${dataSourceDetailsBlock(snapshot, symbol)}
 </div></body></html>`
       : ruleHtml({ symbol, market }, snapshot, risk, "");
