@@ -377,19 +377,23 @@ function update(dt) {
     const mult = game.difficultyMult
     if (sec % 1 === 0 && sec !== game._lastWhiteSpawn) {
       game._lastWhiteSpawn = sec
-      for (let n = 0; n < mult; n++) spawnEnemyByType('white')
+      const count = 1 + Math.floor(Math.random() * mult)
+      for (let n = 0; n < count; n++) spawnEnemyByType('white')
     }
     if (sec % 3 === 0 && sec !== game._lastGreenSpawn) {
       game._lastGreenSpawn = sec
-      for (let n = 0; n < mult; n++) spawnEnemyByType('green')
+      const count = 1 + Math.floor(Math.random() * mult)
+      for (let n = 0; n < count; n++) spawnEnemyByType('green')
     }
     if (sec % 10 === 0 && sec !== game._lastBlueSpawn) {
       game._lastBlueSpawn = sec
-      for (let n = 0; n < mult; n++) spawnEnemyByType('blue')
+      const count = 1 + Math.floor(Math.random() * mult)
+      for (let n = 0; n < count; n++) spawnEnemyByType('blue')
     }
     if (sec % 20 === 0 && sec !== game._lastRedSpawn) {
       game._lastRedSpawn = sec
-      for (let n = 0; n < mult; n++) spawnEnemyByType('red')
+      const count = 1 + Math.floor(Math.random() * mult)
+      for (let n = 0; n < count; n++) spawnEnemyByType('red')
     }
   }
 
