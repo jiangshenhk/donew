@@ -617,7 +617,12 @@ function promptText(payload, snapshot, risk) {
 </section>
 <section class="section">
   <h2>ATR波动分析</h2>
-  ...
+  <p>...</p>
+  <ul>
+    <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
+    <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
+    <li>管仓位 — ATR 高时减少合约数，ATR 低时可以适当加仓</li>
+  </ul>
 </section>
 <section class="section">
   <h2>市场环境过滤</h2>
@@ -929,10 +934,9 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
       ` : ""}
       <ul>
-        <li>ATR 衡量波动性：ATR 越大，股价波动越大，期权权利金越高</li>
-        <li>筛选标的：ATR% 在 2-4% 的股票适合卖 Put，波动适中</li>
-        <li>安全行权价 ≈ 当前价 - 1.5 × ATR，作为行权价参考</li>
-        <li>仓位管理：ATR 高时减少合约数量，ATR 低时可适当增加</li>
+        <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
+        <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
+        <li>管仓位 — ATR 高时减少合约数，ATR 低时可以适当加仓</li>
       </ul>
     </section>`;
     })()}
