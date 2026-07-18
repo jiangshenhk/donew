@@ -43,10 +43,10 @@ async function callDeepSeek(apiKey) {
 ## 要求
 1. 生成 **15-25个** 活动，覆盖各类别
 2. 日期必须在未来1个月内
-3. 坐标必须在墨尔本大都会区范围内（lat: -38.5 到 -37.5, lng: 144.5 到 145.5）
+3. 坐标范围覆盖墨尔本都会区及周边：lat: -38.5 到 -37.5, lng: 144.0 到 145.5（包括西区如 Werribee、Point Cook、Williamstown，以及 Geelong 地区）
 4. 活动名称用英文，描述用中文
 5. 尽可能使用真实、知名的活动和场地（如 MCG、Rod Laver Arena、Federation Square、NGV、Southbank、St Kilda、Flemington等）
-6. 包括 AFL、NRL、音乐会、展览、节庆、夜市、市场等活动
+6. 覆盖墨尔本东区、西区、北区、CBD、以及 Geelong 等周边区域，不要只集中在CBD
 7. url 留空字符串即可
 8. 只输出 JSON，不要包含 \`\`\`json 等标记`
 
