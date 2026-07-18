@@ -480,6 +480,19 @@
           </div>
           <img id="thumb" class="preview-thumb" alt="截图预览">
         </div>
+
+        <div class="section-title" style="margin-top:16px;">目标 Sell Put 参数</div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="targetStrike">目标行权价（Delta≈0.15）</label>
+            <input id="targetStrike" name="targetStrike" type="text" placeholder="例：80">
+          </div>
+          <div class="field">
+            <label for="expiryDate">卖 Put 到期日</label>
+            <input id="expiryDate" name="expiryDate" type="date">
+          </div>
+        </div>
+
         <details class="metrics-panel" id="metricsPanel">
           <summary>
             <span>手动校对数据</span>
@@ -819,6 +832,8 @@
       fields.forEach((field) => {
         metrics[field] = String(form.elements[field]?.value || '').trim();
       });
+      metrics.targetStrike = String(form.elements.targetStrike?.value || '').trim();
+      metrics.expiryDate = String(form.elements.expiryDate?.value || '').trim();
       return metrics;
     }
 
