@@ -936,6 +936,16 @@
         if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
         latestBlobUrl = URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' }));
         rememberPayload(payload);
+        try {
+          localStorage.setItem(lastReportKey, JSON.stringify({
+            html: latestHtml,
+            symbol: json.symbol,
+            market: json.market,
+            used_ai: json.used_ai,
+            provider: json.provider,
+            status: json.status,
+          }));
+        } catch {}
 
         resultHead.style.display = 'grid';
         resultHead.innerHTML = `
@@ -995,7 +1005,41 @@
         btn.disabled = false;
       }
     });
-    renderEmptyActions();
+    const lastReportKey = 'sellPutLastReport.v1';
+    function restoreLastSession() {
+      const items = readHistory();
+      if (items.length > 0) {
+        applyHistory(items[0]);
+      }
+      try {
+        const last = JSON.parse(localStorage.getItem(lastReportKey) || '{}');
+        if (last.html) {
+          latestHtml = last.html;
+          latestBlobUrl = URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' }));
+          resultHead.style.display = 'grid';
+          resultHead.innerHTML = `
+            <div class="metric"><b>标的</b><span>${last.symbol || '-'}</span></div>
+            <div class="metric"><b>市场</b><span>${(last.market || '-').toUpperCase()}</span></div>
+            <div class="metric"><b>AI</b><span>${last.used_ai ? (last.provider || '已调用') : '规则版'}</span></div>
+            <div class="metric"><b>结论</b><span>${last.status || '-'}</span></div>
+          `;
+          const iframe = document.createElement('iframe');
+          iframe.style.cssText = 'width:100%;height:70vh;border:none;border-radius:12px;';
+          iframe.src = latestBlobUrl;
+          preview.innerHTML = '';
+          preview.appendChild(iframe);
+          actions.style.display = 'flex';
+          actions.innerHTML = `
+            <button class="action primary" type="button" onclick="window.open('${latestBlobUrl}','_blank')">新窗口打开报告</button>
+            <button class="action soft" type="button" onclick="downloadReportHtml()">保存 HTML</button>
+            <button class="action soft" type="button" onclick="downloadReportImage()">保存为图片</button>
+            <button class="action soft" type="button" onclick="copyShareUrl()">图片分享</button>
+          `;
+          setStatus('已恢复上次会话');
+        }
+      } catch {}
+    }
+    restoreLastSession();
   </script>
 </body>
 </html>
