@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-18T02:37:21.805Z",
-  "checkedAt": "2026-07-18T02:37:21.805Z",
+  "updatedAt": "2026-07-18T05:11:38.978Z",
+  "checkedAt": "2026-07-18T05:11:38.978Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -245,10 +245,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 63947.36,
+      "price": 63900,
       "previousClose": 63789.28125,
-      "changePercent": "0.25",
-      "marketTime": "2026-07-18T02:37:05.000Z",
+      "changePercent": "0.17",
+      "marketTime": "2026-07-18T05:11:25.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
@@ -330,9 +330,9 @@
     {
       "symbol": "CL=F",
       "category": "Macro",
-      "price": 81.77,
+      "price": 81.78,
       "previousClose": 78.94999694824219,
-      "changePercent": "3.57",
+      "changePercent": "3.58",
       "marketTime": "2026-07-17T20:59:58.000Z",
       "currency": "USD",
       "exchange": "NY Mercantile",
@@ -347,9 +347,9 @@
     {
       "symbol": "GC=F",
       "category": "Macro",
-      "price": 4023,
+      "price": 4018.8,
       "previousClose": 3985.60009765625,
-      "changePercent": "0.94",
+      "changePercent": "0.83",
       "marketTime": "2026-07-17T20:59:59.000Z",
       "currency": "USD",
       "exchange": "COMEX",
