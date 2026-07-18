@@ -908,7 +908,11 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       <p><span class="highlight">这是不是恐慌溢价？</span> ${risk.panicPremium}</p>
       <p><span class="highlight">未来3-5个交易日的大跌/跳空风险：</span> ${risk.downside}</p>
       <p><span class="highlight">权利金值不值得冒尾部风险？</span> ${risk.putStance === "有利" ? '<span class="dn">值得</span>' : risk.putStance === "谨慎" ? '<span class="warn">谨慎</span>' : '<span class="up">不值得</span>'}</p>
-      <p><span class="highlight">动作建议：</span> ${risk.putStance === "有利" ? "当前适合卖Put，可以筛选标的，但只拿你愿意接货的。" : risk.putStance === "谨慎" ? "只允许极远OTM、小仓、分批，重点防跳空。" : "先不为这点权利金暴露尾部风险。"}</p>
+    </section>
+
+    <section class="section">
+      <h2>卖Put动作建议</h2>
+      <p>${safeHtml(payload.symbol)} ${risk.putStance === "有利" ? "当前适合卖Put，可以筛选标的，但只拿你愿意接货的。" : risk.putStance === "谨慎" ? "只允许极远OTM、小仓、分批，重点防跳空。" : "先不为这点权利金暴露尾部风险。"}</p>
     </section>
 
     ${aiMessage ? `<section class="section"><h2>AI 说明</h2><p class="status">${safeHtml(aiMessage)}</p></section>` : ""}
