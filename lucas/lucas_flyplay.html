@@ -42,6 +42,14 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
 }
 #startScreen button:hover{background:linear-gradient(135deg,#1d4ed8,#1e40af)}
 #startScreen .controls{font-size:13px;color:#666;margin-top:24px;line-height:1.8}
+.diff-select{display:flex;gap:8px;justify-content:center;margin:16px 0}
+.diff-btn{
+  padding:8px 20px;border:2px solid #444;border-radius:8px;
+  background:transparent;color:#888;font-size:14px;font-weight:600;
+  cursor:pointer;transition:all 0.15s;font-family:inherit
+}
+.diff-btn:hover{border-color:#888;color:#ccc}
+.diff-btn.active{border-color:#2563eb;background:#1a2a4a;color:#4fc3f7}
 #startScreen .controls span{color:#888}
 </style>
 </head>
@@ -58,6 +66,11 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
   <div id="startScreen">
     <h1>🛩️ 打飞机</h1>
     <div class="sub">Shoot 'em up!</div>
+    <div class="diff-select">
+      <button class="diff-btn active" data-mult="1">初级</button>
+      <button class="diff-btn" data-mult="3">中级</button>
+      <button class="diff-btn" data-mult="5">高级</button>
+    </div>
     <button id="startBtn">开始游戏</button>
     <div class="controls">
       <span>鼠标 / 触屏</span> 移动 &nbsp;|&nbsp; <span>点击 / 空格</span> 射击<br>
@@ -105,6 +118,7 @@ const game = {
   powerups: [],
   powerupTimer: 0,
   elapsed: 0,
+  difficultyMult: 1,
 }
 
 // --- Stars background ---
@@ -360,21 +374,22 @@ function update(dt) {
   game.elapsed += dt
   const sec = Math.floor(game.elapsed)
   if (sec > 0) {
+    const mult = game.difficultyMult
     if (sec % 1 === 0 && sec !== game._lastWhiteSpawn) {
       game._lastWhiteSpawn = sec
-      spawnEnemyByType('white')
+      for (let n = 0; n < mult; n++) spawnEnemyByType('white')
     }
     if (sec % 3 === 0 && sec !== game._lastGreenSpawn) {
       game._lastGreenSpawn = sec
-      spawnEnemyByType('green')
+      for (let n = 0; n < mult; n++) spawnEnemyByType('green')
     }
     if (sec % 10 === 0 && sec !== game._lastBlueSpawn) {
       game._lastBlueSpawn = sec
-      spawnEnemyByType('blue')
+      for (let n = 0; n < mult; n++) spawnEnemyByType('blue')
     }
     if (sec % 20 === 0 && sec !== game._lastRedSpawn) {
       game._lastRedSpawn = sec
-      spawnEnemyByType('red')
+      for (let n = 0; n < mult; n++) spawnEnemyByType('red')
     }
   }
 
@@ -696,8 +711,18 @@ document.addEventListener('keyup', e => {
 })
 
 // --- Start / Restart buttons ---
-document.getElementById('startBtn').addEventListener('click', resetGame)
+document.getElementById('startBtn').addEventListener('click', () => {
+  game.difficultyMult = parseInt(document.querySelector('.diff-btn.active')?.dataset.mult || '1')
+  resetGame()
+})
 document.getElementById('restartBtn').addEventListener('click', resetGame)
+
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'))
+    btn.classList.add('active')
+  })
+})
 
 // --- Init ---
 initPlayer()
