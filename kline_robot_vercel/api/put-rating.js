@@ -487,8 +487,12 @@ async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
     }),
   }, 30000);
   if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).trim();
     if (res.status === 429) {
       throw new Error("截图解析服务当前较忙，请稍后重试，或先手动录入关键字段。");
+    }
+    if (detail.includes("image") && detail.includes("not support")) {
+      throw new Error("当前AI模型不支持图片识别，请手动录入字段，或使用本地OCR识别。");
     }
     throw new Error(`截图解析失败：${res.status}`);
   }
