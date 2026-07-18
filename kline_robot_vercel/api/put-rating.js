@@ -625,10 +625,10 @@ function promptText(payload, snapshot, risk) {
 </section>
 <section class="section">
   <h2>ATR波动分析</h2>
-  <p>ATR占价格比例：8.31% ｜ 波动过高...</p>
-  <p>ATR安全行权价（当前价 - 1.5 × ATR）：$83.03</p>
-  <p>你选择的目标行权价：$85.00 ｜ 卖Put价格：$2.00</p>
-  <p>ATR与行权价对比：...</p>
+  <p><span class="highlight">ATR占价格比例：</span>8.31% ｜ 波动过高...</p>
+  <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span>$83.03</p>
+  <p><span class="highlight">你选择的目标行权价：</span>$85.00 ｜ 卖Put价格：$2.00</p>
+  <p><span class="highlight">ATR与行权价对比：</span>...</p>
   <ul class="atr-tips">
     <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
     <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
