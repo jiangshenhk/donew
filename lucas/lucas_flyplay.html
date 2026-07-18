@@ -119,6 +119,7 @@ const game = {
   powerupTimer: 0,
   elapsed: 0,
   difficultyMult: 1,
+  threatLevel: 0,
 }
 
 // --- Stars background ---
@@ -261,18 +262,18 @@ const ENEMY_TYPES = {
 function spawnEnemyByType(type) {
   const cfg = ENEMY_TYPES[type]
   const x = 20 + Math.random() * (canvas.width - 40)
-  const wobbleType = ['white', 'green', 'blue', 'red'].indexOf(type)
+  const threatMult = 1 + game.threatLevel * 0.08
   game.enemies.push({
     x, y: -cfg.h,
     w: cfg.w, h: cfg.h,
     type,
     hp: cfg.hp,
     maxHp: cfg.hp,
-    speed: cfg.speed + Math.random() * 20,
+    speed: (cfg.speed + Math.random() * 20) * threatMult,
     rot: 0,
     wobble: Math.random() * 100,
     fireTimer: 0,
-    fireRate: cfg.fireRate,
+    fireRate: Math.max(30, Math.floor(cfg.fireRate / threatMult)),
     score: cfg.score,
     color: cfg.color,
     wingColor: cfg.wingColor,
@@ -325,6 +326,7 @@ function resetGame() {
   game.weaponLevel = 0
   game.powerupTimer = 0
   game.elapsed = 0
+  game.threatLevel = 0
   game._lastWhiteSpawn = -1
   game._lastGreenSpawn = -1
   game._lastBlueSpawn = -1
@@ -397,11 +399,17 @@ function update(dt) {
     }
   }
 
+  // Threat escalates every 30s: speed + fire rate increase
+  const newThreat = Math.floor(game.elapsed / 30)
+  if (newThreat !== game.threatLevel) {
+    game.threatLevel = newThreat
+  }
+
   // Level by elapsed time
   const newLevel = Math.floor(game.elapsed / 15) + 1
   if (newLevel !== game.level) {
     game.level = newLevel
-    document.getElementById('level').textContent = 'LEVEL ' + game.level
+    document.getElementById('level').textContent = 'LEVEL ' + game.level + (game.threatLevel > 0 ? ' ⚡+' + game.threatLevel : '')
   }
 
   const stars = game.weaponLevel + 1
