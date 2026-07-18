@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>墨尔本活动地图 🎯</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+
+#map{height:100%;width:100%}
+
+.sidebar{
+  position:absolute;top:20px;left:20px;z-index:1000;
+  width:340px;max-height:calc(100vh - 120px);
+  background:rgba(255,255,255,0.95);backdrop-filter:blur(12px);
+  border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.18);
+  display:flex;flex-direction:column;overflow:hidden;
+  pointer-events:auto
+}
+.sidebar-header{
+  padding:16px 18px 12px;border-bottom:1px solid #e9ecef;
+  display:flex;justify-content:space-between;align-items:center;
+  flex-shrink:0
+}
+.sidebar-header h2{font-size:17px;font-weight:700;color:#1a1a2e}
+.sidebar-body{overflow-y:auto;flex:1;padding:12px 18px}
+.sidebar-footer{padding:12px 18px 16px;border-top:1px solid #e9ecef;flex-shrink:0}
+
+.search-btn{
+  width:100%;padding:11px;border:none;border-radius:12px;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;
+  font-size:15px;font-weight:700;cursor:pointer;
+  transition:opacity 0.2s
+}
+.search-btn:hover{opacity:0.9}
+.search-btn:disabled{opacity:0.5;cursor:not-allowed}
+
+.status-text{font-size:12px;color:#6c757d;margin-top:8px;line-height:1.5}
+
+.news-box{
+  background:#f0f4ff;border-radius:10px;padding:12px 14px;
+  font-size:13px;line-height:1.7;color:#1a1a2e;margin-bottom:14px
+}
+
+.events-list{display:grid;gap:8px}
+.event-card{
+  background:#f8f9fa;border-radius:10px;padding:10px 12px;
+  cursor:pointer;transition:background 0.15s;border-left:3px solid #6c757d
+}
+.event-card:hover{background:#e9ecef}
+.event-card .e-name{font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:2px}
+.event-card .e-meta{font-size:11px;color:#6c757d;display:flex;gap:8px;flex-wrap:wrap}
+.event-card .e-cat{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600}
+
+.cat-music{background:#e8f5e9;color:#2e7d32;border-left-color:#43a047}
+.cat-sports{background:#fff3e0;color:#e65100;border-left-color:#fb8c00}
+.cat-culture{background:#e3f2fd;color:#1565c0;border-left-color:#1e88e5}
+.cat-food{background:#fce4ec;color:#c62828;border-left-color:#e53935}
+.cat-festival{background:#f3e5f5;color:#6a1b9a;border-left-color:#8e24aa}
+.cat-art{background:#e0f7fa;color:#00695c;border-left-color:#00897b}
+.cat-family{background:#fff8e1;color:#f57f17;border-left-color:#fbc02d}
+.cat-market{background:#efebe9;color:#4e342e;border-left-color:#795548}
+.cat-other{background:#f5f5f5;color:#616161;border-left-color:#757575}
+
+.legend{
+  position:absolute;bottom:30px;right:20px;z-index:1000;
+  background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
+  border-radius:10px;padding:10px 14px;font-size:11px;
+  box-shadow:0 2px 12px rgba(0,0,0,0.1);line-height:1.8
+}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+.popup-event{font-size:13px;line-height:1.7;max-width:240px}
+.popup-event .p-name{font-size:15px;font-weight:700;color:#1565c0}
+.popup-event .p-detail{color:#555;margin:4px 0}
+.popup-event .p-date{color:#888;font-size:12px}
+.popup-event .p-venue{color:#888;font-size:12px}
+
+.empty-state{text-align:center;padding:30px 0;color:#adb5bd;font-size:14px}
+.empty-state .icon{font-size:36px;margin-bottom:8px}
+
+@media(max-width:768px){
+  .sidebar{width:calc(100vw - 40px);left:20px;max-height:50vh;top:auto;bottom:20px}
+  .legend{bottom:auto;top:20px;right:20px}
+}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2>🎯 墨尔本活动</h2>
+    <span style="font-size:12px;color:#adb5bd" id="countLabel">0 个活动</span>
+  </div>
+  <div class="sidebar-body" id="sidebarBody">
+    <div id="newsBox" class="news-box" style="display:none"></div>
+    <div id="eventsContainer">
+      <div class="empty-state" id="emptyState">
+        <div class="icon">🗺️</div>
+        <div>点击下方按钮<br>搜索墨尔本近期活动</div>
+      </div>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <button class="search-btn" id="searchBtn">🔍 搜索墨尔本近期活动</button>
+    <div class="status-text" id="statusText">DeepSeek 将查找未来1个月的活动</div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot" style="background:#43a047"></span> 音乐</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#fb8c00"></span> 体育</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#1e88e5"></span> 文化</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#e53935"></span> 美食</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#8e24aa"></span> 节日</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#00897b"></span> 艺术</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#fbc02d"></span> 亲子</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const CAT_COLORS = {
+  music: '#43a047', sports: '#fb8c00', culture: '#1e88e5',
+  food: '#e53935', festival: '#8e24aa', art: '#00897b',
+  family: '#fbc02d', market: '#795548', other: '#757575'
+}
+const CAT_LABELS = {
+  music: '音乐', sports: '体育', culture: '文化',
+  food: '美食', festival: '节日', art: '艺术',
+  family: '亲子', market: '市集', other: '其他'
+}
+
+const map = L.map('map', {
+  center: [-37.82, 144.97],
+  zoom: 12,
+  zoomControl: true
+})
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map)
+
+let markers = {}
+let markerGroup = L.layerGroup().addTo(map)
+let events = []
+let isLoading = false
+
+function catClass(cat) { return 'cat-' + (cat || 'other') }
+
+function makeIcon(cat) {
+  const color = CAT_COLORS[cat] || '#757575'
+  return L.divIcon({
+    className: '',
+    html: `<svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="10" fill="${color}" opacity="0.85" stroke="#fff" stroke-width="2"/><text x="14" y="17" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">●</text></svg>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14]
+  })
+}
+
+function renderEvents(data) {
+  events = data.events || []
+  const news = data.news || ''
+  const container = document.getElementById('eventsContainer')
+  const emptyState = document.getElementById('emptyState')
+  const newsBox = document.getElementById('newsBox')
+  const countLabel = document.getElementById('countLabel')
+
+  markerGroup.clearLayers()
+  markers = {}
+
+  if (events.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div>没有找到活动</div></div>'
+    countLabel.textContent = '0 个活动'
+    newsBox.style.display = 'none'
+    return
+  }
+
+  if (news) {
+    newsBox.style.display = 'block'
+    newsBox.textContent = news
+  } else {
+    newsBox.style.display = 'none'
+  }
+
+  countLabel.textContent = events.length + ' 个活动'
+
+  let html = '<div class="events-list">'
+  events.forEach((e, i) => {
+    const cat = e.category || 'other'
+    const cls = catClass(cat)
+    const label = CAT_LABELS[cat] || cat
+    html += `
+      <div class="event-card ${cls}" data-idx="${i}">
+        <div class="e-name">${escape(e.name)}</div>
+        <div class="e-meta">
+          <span>${e.date || ''}</span>
+          ${e.venue ? `<span>📍 ${escape(e.venue)}</span>` : ''}
+          <span class="e-cat" style="background:${CAT_COLORS[cat] || '#999'};color:#fff">${label}</span>
+        </div>
+      </div>`
+  })
+  html += '</div>'
+  container.innerHTML = html
+
+  events.forEach((e, i) => {
+    if (!e.lat || !e.lng) return
+    const m = L.marker([e.lat, e.lng], { icon: makeIcon(e.category) })
+    const catLabel = CAT_LABELS[e.category] || e.category
+    m.bindPopup(`
+      <div class="popup-event">
+        <div class="p-name">${escape(e.name)}</div>
+        <div class="p-detail">${escape(e.description || '')}</div>
+        <div class="p-date">📅 ${e.date || ''}</div>
+        ${e.venue ? `<div class="p-venue">📍 ${escape(e.venue)}</div>` : ''}
+        <div style="margin-top:4px"><span class="e-cat" style="background:${CAT_COLORS[e.category] || '#999'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">${catLabel}</span></div>
+      </div>
+    `)
+    markerGroup.addLayer(m)
+    markers[i] = m
+  })
+
+  document.querySelectorAll('.event-card').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.idx)
+      const m = markers[idx]
+      if (m) {
+        map.setView(m.getLatLng(), 14)
+        m.openPopup()
+      }
+    })
+  })
+}
+
+function escape(s) {
+  const d = document.createElement('div')
+  d.textContent = s || ''
+  return d.innerHTML
+}
+
+function fitMapBounds() {
+  if (events.length === 0) return
+  const bounds = []
+  events.forEach(e => {
+    if (e.lat && e.lng) bounds.push([e.lat, e.lng])
+  })
+  if (bounds.length > 0) {
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+  }
+}
+
+async function searchEvents() {
+  if (isLoading) return
+  isLoading = true
+  const btn = document.getElementById('searchBtn')
+  const status = document.getElementById('statusText')
+  btn.disabled = true
+  btn.textContent = '⏳ 搜索中...'
+  status.textContent = '正在调用 DeepSeek 查找墨尔本近期活动...'
+
+  try {
+    const apiBase = location.origin.includes('vercel') ? '' : 'https://donew-beta.vercel.app'
+    const resp = await fetch(apiBase + '/api/lucas-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    })
+    const data = await resp.json()
+    if (!resp.ok || !data.ok) throw new Error(data.error || '请求失败')
+
+    renderEvents(data)
+    fitMapBounds()
+    status.textContent = '✅ 找到 ' + (data.events?.length || 0) + ' 个活动 | DeepSeek 生成'
+  } catch (err) {
+    status.textContent = '❌ ' + err.message
+  } finally {
+    isLoading = false
+    btn.disabled = false
+    btn.textContent = '🔍 搜索墨尔本近期活动'
+  }
+}
+
+document.getElementById('searchBtn').addEventListener('click', searchEvents)
+</script>
+</body>
+</html>

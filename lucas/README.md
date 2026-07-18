@@ -15,3 +15,4 @@
 | 项目 | 线上入口 | 说明 |
 | --- | --- | --- |
 | 航班实时跟踪 | `https://donew-beta.vercel.app/lucas/lucas_fly.html` | Leaflet 地图 + 模拟航班数据（本地面生成，无需 API） |
+| 墨尔本活动地图 | `https://donew-beta.vercel.app/lucas/melbourne-events.html` | 调 DeepSeek 搜索墨尔本近期活动，标注在地图上 |
