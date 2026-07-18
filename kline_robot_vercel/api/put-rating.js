@@ -598,9 +598,11 @@ function promptText(payload, snapshot, risk) {
 </section>
 
 具体要求：
-- 第一段必须给结论，直接回答“当前卖Put有利 / 谨慎 / 不利”；
-- 明确回答“这是不是恐慌溢价”；
-- 明确回答“未来3-5个交易日的大跌/跳空风险高不高”；
+- 每段开头的关键字（如"结论："、"这是不是恐慌溢价？"、"未来3-5个交易日的大跌/跳空风险高不高？"等）必须用 <span class="highlight">...</span> 包裹，使关键字显示为深蓝色；
+- 每个小节标题用 h2 标签；
+- 第一段必须给结论，直接回答"当前卖Put有利 / 谨慎 / 不利"；
+- 明确回答"这是不是恐慌溢价"；
+- 明确回答"未来3-5个交易日的大跌/跳空风险高不高"；
 - 不给具体 strike，不做期权链选价；
 - 语气务实，不写空话；
 - 重点服务 Sell Put：权利金值不值得冒尾部风险。
@@ -767,7 +769,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
     }
     .page { max-width: 1160px; margin: 0 auto; padding: 28px; }
     h1 { font-size: 44px; line-height: 1.1; margin: 0 0 12px; color: var(--gold); }
-    h2 { font-size: 28px; margin: 0 0 14px; color: var(--blue); }
+    h2 { font-size: 28px; margin: 0 0 14px; color: var(--gold); }
     p { margin: 0 0 14px; }
     .meta, .status { color: var(--muted); font-size: 15px; }
     .hero {
@@ -960,7 +962,7 @@ export default async function handler(req, res) {
   *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
   .page{max-width:1160px;margin:0 auto;padding:28px}
   h1{font-size:44px;line-height:1.1;margin:0 0 12px;color:var(--gold)}
-  h2{font-size:28px;margin:0 0 14px;color:var(--blue)}
+  h2{font-size:28px;margin:0 0 14px;color:var(--gold)}
   .meta{color:var(--muted);font-size:15px}
   .hero,.section{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:24px;margin-bottom:18px}
   .hero{padding:28px}
