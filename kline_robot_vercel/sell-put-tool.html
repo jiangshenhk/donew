@@ -432,7 +432,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI卖Put温度判断 <span class="version">v0.1.19｜2026-07-18｜标准化处理：结果区与访问计数</span></h1>
+        <h1>AI卖Put温度判断 <span class="version">v0.1.20｜2026-07-18｜ATR分析+会话恢复</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -1030,11 +1030,40 @@
           preview.appendChild(iframe);
           actions.style.display = 'flex';
           actions.innerHTML = `
-            <button class="action primary" type="button" onclick="window.open('${latestBlobUrl}','_blank')">新窗口打开报告</button>
-            <button class="action soft" type="button" onclick="downloadReportHtml()">保存 HTML</button>
-            <button class="action soft" type="button" onclick="downloadReportImage()">保存为图片</button>
-            <button class="action soft" type="button" onclick="copyShareUrl()">图片分享</button>
+            <a class="action primary" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
+            <button class="action soft" id="restoreDownloadHtmlBtn" type="button">保存 HTML</button>
+            <button class="action soft" id="restoreDownloadImageBtn" type="button">保存为图片</button>
+            <button class="action soft" id="restoreShareImageBtn" type="button">图片分享</button>
           `;
+          document.getElementById('restoreDownloadHtmlBtn').addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.href = latestBlobUrl;
+            a.download = downloadFileName('html');
+            a.click();
+          });
+          document.getElementById('restoreDownloadImageBtn').addEventListener('click', async () => {
+            try {
+              await downloadReportImage();
+            } catch (error) {
+              setStatus(error.message || '下载图片失败。', true);
+            }
+          });
+          document.getElementById('restoreShareImageBtn').addEventListener('click', async () => {
+            try {
+              const blob = await downloadReportImage();
+              if (!blob) throw new Error('图片生成失败。');
+              const file = new File([blob], downloadFileName('jpg'), { type: 'image/jpeg' });
+              if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: latestName.replace(/\.html$/i, ''), text: '卖Put判断报告' });
+                setStatus('已打开系统分享。');
+                return;
+              }
+              downloadBlob(blob, file.name);
+              setStatus('当前浏览器不支持直接分享，已改为保存图片。');
+            } catch (error) {
+              setStatus(error.message || '分享失败。', true);
+            }
+          });
           setStatus('已恢复上次会话');
         }
       } catch {}
