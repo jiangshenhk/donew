@@ -14,4 +14,4 @@
 
 | 项目 | 线上入口 | 说明 |
 | --- | --- | --- |
-| 航班实时跟踪 | `https://donew-beta.vercel.app/lucas/lucas_fly.html` | Leaflet + OpenSky API 实时航班面板 |
+| 航班实时跟踪 | `https://donew-beta.vercel.app/lucas/lucas_fly.html` | Leaflet 地图 + 模拟航班数据（本地面生成，无需 API） |
