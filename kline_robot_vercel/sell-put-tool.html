@@ -432,7 +432,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI卖Put温度判断 <span class="version">v0.1.23｜2026-07-18｜涨跌颜色+AI输出着色</span></h1>
+        <h1>AI卖Put温度判断 <span class="version">v0.1.24｜2026-07-18｜增加卖Put价格输入</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -485,6 +485,10 @@
           <div class="field">
             <label for="targetStrike">目标行权价D0.15</label>
             <input id="targetStrike" name="targetStrike" type="text" placeholder="例：80">
+          </div>
+          <div class="field">
+            <label for="putPrice">卖Put价格</label>
+            <input id="putPrice" name="putPrice" type="text" placeholder="例：2.50">
           </div>
           <div class="field">
             <label for="expiryDate">卖 Put 到期日</label>
@@ -832,6 +836,7 @@
         metrics[field] = String(form.elements[field]?.value || '').trim();
       });
       metrics.targetStrike = String(form.elements.targetStrike?.value || '').trim();
+      metrics.putPrice = String(form.elements.putPrice?.value || '').trim();
       metrics.expiryDate = String(form.elements.expiryDate?.value || '').trim();
       return metrics;
     }

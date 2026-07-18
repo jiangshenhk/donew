@@ -522,6 +522,7 @@ function analyzeAtrVsPut(target, optionMetrics) {
   let atrSafetyMargin = null;
   let marginNote = "";
   const targetStrike = numberOrNull(optionMetrics?.targetStrike);
+  const putPrice = numberOrNull(optionMetrics?.putPrice);
   const expiryDate = optionMetrics?.expiryDate || "";
   if (targetStrike != null && targetStrike > 0) {
     const strikeGap = targetStrike - safeStrike;
@@ -540,6 +541,7 @@ function analyzeAtrVsPut(target, optionMetrics) {
     marginNote,
     atrSuitability,
     targetStrike: targetStrike?.toFixed(2) || null,
+    putPrice: putPrice?.toFixed(2) || null,
     expiryDate: expiryDate || null,
   };
 }
@@ -900,7 +902,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       <p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
       <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
       ${atrAnalysis.targetStrike ? `
-      <p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>
+      <p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>
       ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
       ` : ""}
       <ul>
@@ -990,7 +992,7 @@ ${(() => {
 <section class="section"><h2>ATR波动分析</h2>
 <p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
 <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
-${atrAnalysis.targetStrike ? `<p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>` : ""}
+${atrAnalysis.targetStrike ? `<p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>` : ""}
 ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
 </section>`;
 })()}
