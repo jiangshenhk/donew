@@ -6,6 +6,8 @@
 
 > 用最少的阅读成本，快速理解 donew 这套工具系统，并且按现有风格继续开发，不乱改、不串层、不误推。
 
+这份文档是 **Codex 与 ChatGPT 共同读取的主开发说明**。两边接手 donew 任务时，都应先读本文件，再按任务类型补读对应目录的 README，避免不同智能体对仓库结构产生两套理解。
+
 ---
 
 ## 1. 你接手的是一个什么仓库
@@ -124,6 +126,7 @@
 - `.github/workflows/generate-market-daily-reports.yml`
 - `scripts/generate-market-daily-report.mjs`
 - `lib/market-report-core.mjs`
+- `.github/workflows/verify-market-generation-paths.yml`
 
 这层负责定时内容生产。
 
@@ -428,6 +431,29 @@ docs/tools/alpha-risk-tool/README.md
 
 这是“多资产快照 + AI整理 + HTML/Markdown展示”的代表模板。
 
+#### 市场报告的双入口共用关系
+
+“最新每日 / 每周市场情况分析”和“日报 / 晚报自动生成器”不是两套互不相关的工具，而是 **同一套市场判断思路，在两个执行位置使用**：
+
+```text
+同一套策略基线 / 市场判断原则 / 风险字段
+  ├── 网页手工生成：market-analysis-tool.html -> /api/market-report-v2
+  └── 自动生成：GitHub Actions -> scripts/generate-market-daily-report.mjs
+```
+
+两条链路的职责不同：
+
+- 网页手工生成：用户即时点击，生成每日 / 每周市场分析，重点是交互与即时展示。
+- 自动生成：按计划运行，生成早报 / 晚报并写入 `docs/市场/`，重点是稳定落地和历史记录。
+
+开发要求：
+
+- 两条链路应共享同一套核心判断思路、关键字段和策略口径。
+- 可以有不同的执行入口和输出格式，但不能出现相互矛盾的市场结论标准。
+- 修改市场报告规则、风险列、黑天鹅判断、卖 Put 动作约束时，必须同时检查手工与自动两条链路。
+- 使用 `.github/workflows/verify-market-generation-paths.yml` 做双链路结构校验，避免只修好网页或只修好自动生成。
+- 不要让网页 API 依赖一个看似废弃的 `_old` 文件；正式入口应保持依赖关系清晰、可独立部署。
+
 #### 卖 Put 温度判断
 
 - 入口页：`https://donew-beta.vercel.app/sell-put-tool.html`
@@ -622,3 +648,11 @@ donew/
 1. 先确认线上实际走的是哪一份
 2. 如需保持一致，成对修改
 3. 页面改动后，记得更新可见版本号，方便确认前端是否真的刷新
+
+
+如果一个市场报告规则同时用于网页手工生成和日报 / 晚报自动生成：
+
+1. 先确认两条真实调用链。
+2. 同步检查策略字段、风险列和输出口径。
+3. 分别验证网页手工生成与 GitHub Actions 自动生成。
+4. 任何一条链路失败，都不能视为任务完成。
