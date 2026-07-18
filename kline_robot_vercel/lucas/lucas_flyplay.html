@@ -87,26 +87,24 @@ window.addEventListener('resize', resize)
 const game = {
   player: { x: 0, y: 0, w: 36, h: 36 },
   bullets: [],
+  enemyBullets: [],
   enemies: [],
   explosions: [],
   stars: [],
   score: 0,
   lives: 3,
-  level: 1,
   running: false,
   over: false,
   frame: 0,
-  spawnTimer: 0,
-  spawnInterval: 60,
   fireTimer: 0,
   fireRate: 12,
   mouseX: canvas.width / 2,
   mouseY: canvas.height - 100,
   shooting: false,
-  difficulty: 1,
   weaponLevel: 0,
   powerups: [],
   powerupTimer: 0,
+  elapsed: 0,
 }
 
 // --- Stars background ---
@@ -178,8 +176,8 @@ function drawEnemy(e) {
 
   const w = e.w, h = e.h
 
-  // Body darker green
-  ctx.fillStyle = e.hp > 1 ? '#c62828' : '#ef5350'
+  // Body
+  ctx.fillStyle = e.color
   ctx.beginPath()
   ctx.moveTo(0, h / 2)
   ctx.lineTo(-w / 2.5, -h / 3)
@@ -189,12 +187,12 @@ function drawEnemy(e) {
   ctx.lineTo(w / 2.5, -h / 3)
   ctx.closePath()
   ctx.fill()
-  ctx.strokeStyle = '#b71c1c'
+  ctx.strokeStyle = e.strokeColor
   ctx.lineWidth = 1
   ctx.stroke()
 
   // Wings
-  ctx.fillStyle = '#d32f2f'
+  ctx.fillStyle = e.wingColor
   ctx.beginPath()
   ctx.moveTo(-w / 2.5, -h / 6)
   ctx.lineTo(-w, -h / 3.5)
@@ -207,6 +205,16 @@ function drawEnemy(e) {
   ctx.lineTo(w / 3, -h / 4)
   ctx.closePath()
   ctx.fill()
+
+  // HP bar (only for >1 HP enemies)
+  if (e.maxHp > 1) {
+    const barW = w * 0.8, barH = 3
+    const bx = -barW / 2, by = -h / 2 - 6
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'
+    ctx.fillRect(bx, by, barW, barH)
+    ctx.fillStyle = e.hp / e.maxHp > 0.3 ? '#4caf50' : '#f44336'
+    ctx.fillRect(bx, by, barW * (e.hp / e.maxHp), barH)
+  }
 
   ctx.restore()
 }
@@ -228,20 +236,33 @@ function spawnExplosion(x, y, big) {
   }
 }
 
-// --- Spawn enemy ---
-function spawnEnemy() {
-  const w = 24 + Math.random() * 16
-  const h = 24 + Math.random() * 16
-  const isElite = Math.random() < 0.15 + game.level * 0.02
+// --- Enemy config ---
+const ENEMY_TYPES = {
+  white:  { hp: 1,  w: 22, h: 22, speed: 55, score: 10, fireRate: 120, color: '#e0e0e0', wingColor: '#bdbdbd', strokeColor: '#9e9e9e' },
+  green:  { hp: 2,  w: 26, h: 26, speed: 50, score: 20, fireRate: 60,  color: '#66bb6a', wingColor: '#43a047', strokeColor: '#2e7d32' },
+  blue:   { hp: 5,  w: 30, h: 30, speed: 45, score: 50, fireRate: 60,  color: '#42a5f5', wingColor: '#1e88e5', strokeColor: '#1565c0' },
+  red:    { hp: 10, w: 36, h: 36, speed: 40, score: 100, fireRate: 60, color: '#ef5350', wingColor: '#e53935', strokeColor: '#c62828' },
+}
+
+function spawnEnemyByType(type) {
+  const cfg = ENEMY_TYPES[type]
+  const x = 20 + Math.random() * (canvas.width - 40)
+  const wobbleType = ['white', 'green', 'blue', 'red'].indexOf(type)
   game.enemies.push({
-    x: 30 + Math.random() * (canvas.width - 60),
-    y: -h,
-    w, h,
-    speed: 40 + Math.random() * 30 + game.level * 3,
-    hp: isElite ? 3 : 1,
+    x, y: -cfg.h,
+    w: cfg.w, h: cfg.h,
+    type,
+    hp: cfg.hp,
+    maxHp: cfg.hp,
+    speed: cfg.speed + Math.random() * 20,
     rot: 0,
     wobble: Math.random() * 100,
-    isElite,
+    fireTimer: 0,
+    fireRate: cfg.fireRate,
+    score: cfg.score,
+    color: cfg.color,
+    wingColor: cfg.wingColor,
+    strokeColor: cfg.strokeColor,
   })
 }
 
@@ -276,6 +297,7 @@ function initPlayer() {
 // --- Reset game ---
 function resetGame() {
   game.bullets = []
+  game.enemyBullets = []
   game.enemies = []
   game.explosions = []
   game.powerups = []
@@ -284,19 +306,22 @@ function resetGame() {
   game.level = 1
   game.over = false
   game.running = true
-  game.spawnTimer = 0
   game.frame = 0
-  game.difficulty = 1
-  game.spawnInterval = 55
   game.fireTimer = 0
   game.weaponLevel = 0
   game.powerupTimer = 0
+  game.elapsed = 0
+  game._lastWhiteSpawn = -1
+  game._lastGreenSpawn = -1
+  game._lastBlueSpawn = -1
+  game._lastRedSpawn = -1
   initPlayer()
   document.getElementById('startScreen').style.display = 'none'
   document.getElementById('gameOver').style.display = 'none'
   document.getElementById('score').textContent = '0'
   document.getElementById('lives').textContent = '❤️❤️❤️'
   document.getElementById('level').textContent = 'LEVEL 1'
+  document.getElementById('weapon').textContent = 'WPN ★☆☆☆☆☆☆☆☆☆'
 }
 
 // --- Update ---
@@ -321,7 +346,7 @@ function update(dt) {
     game.fireTimer = game.fireRate - 3
   }
 
-  // --- Bullets ---
+  // --- Player bullets ---
   for (let i = game.bullets.length - 1; i >= 0; i--) {
     const b = game.bullets[i]
     b.x += b.vx * dt
@@ -331,19 +356,32 @@ function update(dt) {
     }
   }
 
-  // --- Spawn enemies ---
-  game.spawnTimer++
-  if (game.spawnTimer >= game.spawnInterval) {
-    spawnEnemy()
-    game.spawnTimer = 0
-    if (game.spawnInterval > 20) game.spawnInterval -= 0.3 * game.difficulty
+  // --- Time-based enemy spawning ---
+  game.elapsed += dt
+  const sec = Math.floor(game.elapsed)
+  if (sec > 0) {
+    if (sec % 1 === 0 && sec !== game._lastWhiteSpawn) {
+      game._lastWhiteSpawn = sec
+      for (let n = 0; n < 5; n++) spawnEnemyByType('white')
+    }
+    if (sec % 2 === 0 && sec !== game._lastGreenSpawn) {
+      game._lastGreenSpawn = sec
+      for (let n = 0; n < 2; n++) spawnEnemyByType('green')
+    }
+    if (sec % 5 === 0 && sec !== game._lastBlueSpawn) {
+      game._lastBlueSpawn = sec
+      spawnEnemyByType('blue')
+    }
+    if (sec % 10 === 0 && sec !== game._lastRedSpawn) {
+      game._lastRedSpawn = sec
+      spawnEnemyByType('red')
+    }
   }
 
-  // Level up
-  const newLevel = Math.floor(game.score / 200) + 1
-  if (newLevel > game.level) {
+  // Level by elapsed time
+  const newLevel = Math.floor(game.elapsed / 15) + 1
+  if (newLevel !== game.level) {
     game.level = newLevel
-    game.difficulty = 1 + (game.level - 1) * 0.2
     document.getElementById('level').textContent = 'LEVEL ' + game.level
   }
 
@@ -357,7 +395,20 @@ function update(dt) {
     e.x += Math.sin(game.frame * 0.02 + e.wobble) * 15 * dt
     e.rot = Math.sin(game.frame * 0.03 + e.wobble) * 0.05
 
-    // Bullet collision
+    // Enemy shooting
+    e.fireTimer++
+    if (e.fireTimer >= e.fireRate) {
+      e.fireTimer = 0
+      game.enemyBullets.push({
+        x: e.x,
+        y: e.y + e.h / 2,
+        vx: (Math.random() - 0.5) * 30,
+        vy: 120 + Math.random() * 40,
+        w: 4, h: 6,
+      })
+    }
+
+    // Player bullet collision
     for (let j = game.bullets.length - 1; j >= 0; j--) {
       const b = game.bullets[j]
       if (b.x > e.x - e.w / 2 && b.x < e.x + e.w / 2 &&
@@ -365,8 +416,8 @@ function update(dt) {
         game.bullets.splice(j, 1)
         e.hp--
         if (e.hp <= 0) {
-          spawnExplosion(e.x, e.y, e.isElite)
-          game.score += e.isElite ? 30 : 10
+          spawnExplosion(e.x, e.y, e.maxHp >= 5)
+          game.score += e.score
           document.getElementById('score').textContent = game.score
           game.enemies.splice(i, 1)
         }
@@ -397,6 +448,36 @@ function update(dt) {
     // Off screen
     if (e.y > canvas.height + 50) {
       game.enemies.splice(i, 1)
+    }
+  }
+
+  // --- Enemy bullets ---
+  for (let i = game.enemyBullets.length - 1; i >= 0; i--) {
+    const b = game.enemyBullets[i]
+    b.x += b.vx * dt
+    b.y += b.vy * dt
+
+    // Hit player
+    const dx = game.player.x - b.x
+    const dy = game.player.y - b.y
+    if (Math.abs(dx) < game.player.w / 2 + 4 && Math.abs(dy) < game.player.h / 2 + 4) {
+      spawnExplosion(game.player.x, game.player.y, false)
+      game.lives--
+      document.getElementById('lives').textContent = '❤️'.repeat(game.lives) + '🖤'.repeat(3 - game.lives)
+      game.enemyBullets.splice(i, 1)
+      if (game.lives <= 0) {
+        game.running = false
+        game.over = true
+        document.getElementById('finalScore').textContent = '得分: ' + game.score
+        document.getElementById('gameOver').style.display = 'block'
+        return
+      }
+      initPlayer()
+      continue
+    }
+
+    if (b.y > canvas.height + 20 || b.x < -20 || b.x > canvas.width + 20) {
+      game.enemyBullets.splice(i, 1)
     }
   }
 
@@ -471,6 +552,17 @@ function draw() {
     ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h)
     ctx.fillStyle = '#b3e5fc'
     ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h / 2)
+  })
+  ctx.shadowBlur = 0
+
+  // Enemy bullets
+  ctx.shadowColor = '#ff6f00'
+  ctx.shadowBlur = 6
+  game.enemyBullets.forEach(b => {
+    ctx.fillStyle = '#ff8f00'
+    ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h)
+    ctx.fillStyle = '#ffd600'
+    ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w * 0.6, b.h / 2)
   })
   ctx.shadowBlur = 0
 
