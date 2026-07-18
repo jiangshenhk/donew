@@ -11,3 +11,11 @@
 ## 项目
 
 - `lucas_fly.html` — 航班实时跟踪面板（Leaflet + OpenSky API）
+- `kline_robot_vercel/lucas/lucas_fly.html` — Vercel 线上部署版（与根目录版本保持一致）
+
+## Vercel 部署说明
+
+Vercel 实际部署的是 `kline_robot_vercel/` 目录，根目录文件不会被部署。
+如需修改线上页面，同步更新：
+1. `lucas/lucas_fly.html`（本地预览 / GitHub Pages）
+2. `kline_robot_vercel/lucas/lucas_fly.html`（Vercel 线上）

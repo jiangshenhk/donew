@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>航班实时跟踪 ✈</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body,#map{height:100%;width:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+
+.info-panel{
+  position:absolute;top:20px;right:20px;z-index:1000;
+  background:rgba(0,0,0,0.75);color:#fff;
+  padding:14px 20px;border-radius:12px;
+  min-width:180px;backdrop-filter:blur(12px);
+  pointer-events:none;user-select:none;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3)
+}
+.info-panel .count{font-size:32px;font-weight:700;color:#4fc3f7;margin:2px 0 4px}
+.info-panel .label{color:#aaa;font-size:12px}
+.info-panel .sub{color:#888;font-size:11px;margin-top:4px}
+
+.bottom-bar{
+  position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:1000;
+  display:flex;gap:10px;align-items:center
+}
+.refresh-btn{
+  background:rgba(0,0,0,0.75);color:#fff;border:none;
+  padding:10px 22px;border-radius:8px;font-size:14px;cursor:pointer;
+  backdrop-filter:blur(8px);font-family:inherit;
+  transition:background 0.2s;white-space:nowrap
+}
+.refresh-btn:hover{background:rgba(0,0,0,0.92)}
+.refresh-btn:disabled{opacity:0.4;cursor:not-allowed}
+.refresh-btn .spinner{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.legend{
+  position:absolute;bottom:30px;left:20px;z-index:1000;
+  background:rgba(0,0,0,0.75);color:#fff;padding:12px 16px;border-radius:10px;
+  font-size:12px;backdrop-filter:blur(8px);line-height:1.8;min-width:120px
+}
+.legend-item{display:flex;align-items:center;gap:8px}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+.plane-marker{text-align:center;line-height:1;font-size:0}
+.plane-marker .plane-emoji{display:block;font-size:22px;transition:transform 0.3s;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5))}
+.plane-marker .alt-tag{
+  display:block;font-size:9px;color:#fff;background:rgba(0,0,0,0.6);
+  border-radius:4px;padding:0 4px;margin-top:-2px;white-space:nowrap;
+  font-family:'Courier New',monospace
+}
+
+.popup-flight{font-size:13px;line-height:1.8;min-width:160px}
+.popup-flight .callsign{font-size:18px;font-weight:700;color:#1565c0}
+.popup-flight .info-row{display:flex;justify-content:space-between;gap:12px}
+.popup-flight .info-row .val{font-weight:600;color:#333}
+.popup-flight .info-row .lbl{color:#888}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="info-panel" id="infoPanel">
+  <div class="label">✈ 实时航班</div>
+  <div class="count" id="planeCount">0</div>
+  <div class="sub" id="statusText">加载中...</div>
+</div>
+
+<div class="legend" id="legend">
+  <div class="legend-item"><span class="legend-dot" style="background:#66bb6a"></span> 低空 &lt; 3000m</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#ffa726"></span> 中空 3000-7000m</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#ef5350"></span> 高空 &gt; 7000m</div>
+  <div class="legend-item"><span class="legend-dot" style="background:#ce93d8"></span> 高度未知</div>
+</div>
+
+<div class="bottom-bar">
+  <button class="refresh-btn" id="refreshBtn">⟳ 刷新</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const API_BASE = 'https://opensky-network.org/api'
+
+const BBOX = { lamin: 18, lamax: 54, lomin: 73, lomax: 135 }
+
+const MAP_CENTER = [35, 110]
+const MAP_ZOOM = 5
+const REFRESH_INTERVAL = 30000
+
+const ALT_LOW = 3000
+const ALT_HIGH = 7000
+
+function getColor(alt) {
+  if (alt === null || alt === undefined) return '#ce93d8'
+  if (alt < ALT_LOW) return '#66bb6a'
+  if (alt < ALT_HIGH) return '#ffa726'
+  return '#ef5350'
+}
+
+function mpsToKmh(mps) {
+  if (mps === null || mps === undefined) return null
+  return Math.round(mps * 3.6)
+}
+
+function formatAlt(m) {
+  if (m === null || m === undefined) return '--'
+  return m < 10000 ? Math.round(m) + ' m' : (m / 1000).toFixed(1) + ' km'
+}
+
+const map = L.map('map', {
+  center: MAP_CENTER,
+  zoom: MAP_ZOOM,
+  zoomControl: true,
+  attributionControl: true
+})
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
+}).addTo(map)
+
+let markers = {}
+let layerGroup = L.layerGroup().addTo(map)
+let isRefreshing = false
+
+function makeIcon(heading, alt) {
+  const color = getColor(alt)
+  const rot = heading !== null && heading !== undefined ? heading : 0
+  return L.divIcon({
+    className: 'plane-marker',
+    html: `
+      <span class="plane-emoji" style="transform:rotate(${rot}deg);color:${color}">✈</span>
+      <span class="alt-tag">${alt !== null && alt !== undefined ? ((alt/1000).toFixed(1)+'km') : '?'}</span>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -20]
+  })
+}
+
+function buildPopup(state) {
+  const cs = state[1] || '--'
+  const country = state[2] || '--'
+  const alt = state[7]
+  const vel = state[9]
+  const track = state[10]
+  const speed = mpsToKmh(vel)
+  return `
+    <div class="popup-flight">
+      <div class="callsign">${cs}</div>
+      <div class="info-row"><span class="lbl">国家</span><span class="val">${country}</span></div>
+      <div class="info-row"><span class="lbl">高度</span><span class="val">${formatAlt(alt)}</span></div>
+      <div class="info-row"><span class="lbl">速度</span><span class="val">${speed !== null ? speed + ' km/h' : '--'}</span></div>
+      <div class="info-row"><span class="lbl">航向</span><span class="val">${track !== null ? track + '°' : '--'}</span></div>
+    </div>
+  `
+}
+
+async function fetchFlights() {
+  if (isRefreshing) return
+  isRefreshing = true
+  const btn = document.getElementById('refreshBtn')
+  btn.disabled = true
+  btn.textContent = '⟳ 刷新中...'
+
+  try {
+    const url = `${API_BASE}/states/all?lamin=${BBOX.lamin}&lomin=${BBOX.lomin}&lamax=${BBOX.lamax}&lomax=${BBOX.lomax}`
+    const resp = await fetch(url)
+    if (!resp.ok) throw new Error('API 请求失败: ' + resp.status)
+    const data = await resp.json()
+    const states = data.states || []
+    updateMap(states)
+    document.getElementById('statusText').textContent =
+      '更新于 ' + new Date().toLocaleTimeString()
+  } catch (err) {
+    document.getElementById('statusText').textContent = '❌ ' + err.message
+  } finally {
+    isRefreshing = false
+    btn.disabled = false
+    btn.textContent = '⟳ 刷新'
+  }
+}
+
+function updateMap(states) {
+  const seen = new Set()
+
+  states.forEach(s => {
+    const icao = s[0]
+    const lat = s[6]
+    const lng = s[5]
+    if (!icao || lat === null || lng === null) return
+
+    seen.add(icao)
+    const alt = s[7]
+    const heading = s[10]
+
+    if (markers[icao]) {
+      const m = markers[icao]
+      const newPos = L.latLng(lat, lng)
+      if (m.distanceTo) {
+        const dist = m.getLatLng().distanceTo(newPos)
+        if (dist > 100) {
+          m.setLatLng(newPos)
+        }
+      } else {
+        m.setLatLng(newPos)
+      }
+      m.setIcon(makeIcon(heading, alt))
+      if (alt !== m._alt) {
+        m._alt = alt
+      }
+    } else {
+      const m = L.marker([lat, lng], {
+        icon: makeIcon(heading, alt)
+      })
+      m._alt = alt
+      m.bindPopup(buildPopup(s))
+      markers[icao] = m
+      layerGroup.addLayer(m)
+    }
+  })
+
+  Object.keys(markers).forEach(icao => {
+    if (!seen.has(icao)) {
+      layerGroup.removeLayer(markers[icao])
+      delete markers[icao]
+    }
+  })
+
+  document.getElementById('planeCount').textContent = seen.size
+}
+
+document.getElementById('refreshBtn').addEventListener('click', fetchFlights)
+
+fetchFlights()
+setInterval(fetchFlights, REFRESH_INTERVAL)
+</script>
+</body>
+</html>
