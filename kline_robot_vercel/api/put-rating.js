@@ -873,6 +873,15 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       <p>实时行情显示：<span class="${stanceClass}">${safeHtml(risk.summary)}</span></p>
     </section>
 
+    <section class="section">
+      <h2>规则版卖Put建议</h2>
+      <ul>
+        <li>${safeHtml(payload.symbol)} 的 Barchart 截图应重点观察：IV 是否高于 HV、IV Percentile 是否处于高位、Expected Move 是否提供足够安全垫。</li>
+        <li>如果 IV 高，但同时 VIX、10Y、DXY 与半导体一起恶化，这更像风险预警，不是舒服的权利金。</li>
+        <li>如果只是局部恐慌而主线结构没坏，才有可能形成值得拿的小仓风险溢价。</li>
+      </ul>
+    </section>
+
     ${(() => {
       const target = row(snapshot, payload.symbol);
       const atrAnalysis = analyzeAtrVsPut(target, payload.optionMetrics);
@@ -894,15 +903,6 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       </ul>
     </section>`;
     })()}
-
-    <section class="section">
-      <h2>规则版卖Put建议</h2>
-      <ul>
-        <li>${safeHtml(payload.symbol)} 的 Barchart 截图应重点观察：IV 是否高于 HV、IV Percentile 是否处于高位、Expected Move 是否提供足够安全垫。</li>
-        <li>如果 IV 高，但同时 VIX、10Y、DXY 与半导体一起恶化，这更像风险预警，不是舒服的权利金。</li>
-        <li>如果只是局部恐慌而主线结构没坏，才有可能形成值得拿的小仓风险溢价。</li>
-      </ul>
-    </section>
 
     <details>
       <summary>实时行情快照</summary>
@@ -974,7 +974,6 @@ export default async function handler(req, res) {
 </style></head><body><div class="page">
 <section class="hero"><h1>${safeHtml(symbol)}｜卖Put温度判断</h1><p class="meta">${safeHtml(market.toUpperCase())} 市场 · 截图来源：Barchart Options Overview · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p></section>
 ${ai.html}
-<section class="section"><h2>市场环境过滤</h2><p class="status">${safeHtml(risk.summary)}</p></section>
 ${(() => {
   const target = row(snapshot, symbol);
   const atrAnalysis = analyzeAtrVsPut(target, body.optionMetrics || {});
