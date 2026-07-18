@@ -818,6 +818,25 @@
       await parseUploadedImage({ silent: false });
     });
 
+    document.addEventListener('paste', async (event) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          event.preventDefault();
+          const file = item.getAsFile();
+          if (!file) return;
+          imageDataUrl = await readFileAsDataUrl(file);
+          thumb.src = imageDataUrl;
+          thumb.style.display = 'block';
+          imageInput.files = null;
+          await parseUploadedImage({ silent: false });
+          setStatus('已从剪贴板粘贴截图。');
+          return;
+        }
+      }
+    });
+
     symbolInput.addEventListener('input', updateBarchartLink);
     historySelect.addEventListener('change', () => {
       const item = readHistory()[Number(historySelect.value)];
