@@ -81,7 +81,7 @@ html,body,#map{height:100%;width:100%;font-family:-apple-system,BlinkMacSystemFo
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const MAP_CENTER = [35, 110]
+const MAP_CENTER = [-28, 134]
 const MAP_ZOOM = 5
 const REFRESH_INTERVAL = 3000
 const PLANE_COUNT = 45
@@ -90,26 +90,26 @@ const ALT_LOW = 3000
 const ALT_HIGH = 7000
 
 const AIRLINES = [
-  { code: 'MU', name: '中国东方航空', country: 'China' },
-  { code: 'CA', name: '中国国航', country: 'China' },
-  { code: 'CZ', name: '中国南方航空', country: 'China' },
-  { code: 'HU', name: '海南航空', country: 'China' },
-  { code: '3U', name: '四川航空', country: 'China' },
-  { code: 'ZH', name: '深圳航空', country: 'China' },
-  { code: 'MF', name: '厦门航空', country: 'China' },
-  { code: 'SC', name: '山东航空', country: 'China' },
-  { code: 'FM', name: '上海航空', country: 'China' },
-  { code: 'KY', name: '昆明航空', country: 'China' },
-  { code: 'CX', name: '国泰航空', country: 'Hong Kong' },
-  { code: 'KA', name: '港龙航空', country: 'Hong Kong' },
-  { code: 'CI', name: '中华航空', country: 'Taiwan' },
-  { code: 'BR', name: '长荣航空', country: 'Taiwan' },
+  { code: 'QF', name: '澳洲航空', country: 'Australia' },
+  { code: 'VA', name: '维珍澳洲', country: 'Australia' },
+  { code: 'JQ', name: '捷星航空', country: 'Australia' },
+  { code: 'ZL', name: '区域快线', country: 'Australia' },
+  { code: 'TT', name: '虎航澳洲', country: 'Australia' },
+  { code: 'NZ', name: '新西兰航空', country: 'New Zealand' },
   { code: 'SQ', name: '新加坡航空', country: 'Singapore' },
-  { code: 'KE', name: '大韩航空', country: 'South Korea' },
-  { code: 'OZ', name: '韩亚航空', country: 'South Korea' },
-  { code: 'NH', name: '全日空', country: 'Japan' },
-  { code: 'JL', name: '日本航空', country: 'Japan' },
-  { code: 'TG', name: '泰国航空', country: 'Thailand' },
+  { code: 'CX', name: '国泰航空', country: 'Hong Kong' },
+  { code: 'EK', name: '阿联酋航空', country: 'UAE' },
+  { code: 'QR', name: '卡塔尔航空', country: 'Qatar' },
+  { code: 'MH', name: '马来西亚航空', country: 'Malaysia' },
+  { code: 'GA', name: '印尼鹰航', country: 'Indonesia' },
+  { code: 'PR', name: '菲律宾航空', country: 'Philippines' },
+  { code: 'TR', name: '酷航', country: 'Singapore' },
+  { code: 'D7', name: '全亚洲航空', country: 'Malaysia' },
+  { code: 'LA', name: '南美航空', country: 'Chile' },
+  { code: 'AA', name: '美国航空', country: 'United States' },
+  { code: 'UA', name: '联合航空', country: 'United States' },
+  { code: 'DL', name: '达美航空', country: 'United States' },
+  { code: 'BA', name: '英国航空', country: 'United Kingdom' },
 ]
 
 function rand(min, max) { return Math.random() * (max - min) + min }
@@ -130,27 +130,26 @@ function makeCallsign() {
 
 function genRoute() {
   const cities = [
-    { name: '北京', lat: 40.0, lng: 116.4 },
-    { name: '上海', lat: 31.2, lng: 121.5 },
-    { name: '广州', lat: 23.1, lng: 113.3 },
-    { name: '深圳', lat: 22.5, lng: 114.1 },
-    { name: '成都', lat: 30.6, lng: 104.1 },
-    { name: '武汉', lat: 30.6, lng: 114.3 },
-    { name: '西安', lat: 34.3, lng: 108.9 },
-    { name: '昆明', lat: 25.0, lng: 102.7 },
-    { name: '重庆', lat: 29.6, lng: 106.5 },
-    { name: '杭州', lat: 30.3, lng: 120.2 },
-    { name: '南京', lat: 32.1, lng: 118.8 },
-    { name: '厦门', lat: 24.5, lng: 118.1 },
-    { name: '青岛', lat: 36.1, lng: 120.4 },
-    { name: '大连', lat: 38.9, lng: 121.6 },
-    { name: '三亚', lat: 18.2, lng: 109.5 },
-    { name: '香港', lat: 22.3, lng: 114.2 },
-    { name: '首尔', lat: 37.6, lng: 127.0 },
-    { name: '东京', lat: 35.7, lng: 139.8 },
-    { name: '大阪', lat: 34.7, lng: 135.5 },
-    { name: '曼谷', lat: 13.8, lng: 100.5 },
-    { name: '新加坡', lat: 1.35, lng: 103.8 },
+    { name: 'Sydney', lat: -33.9, lng: 151.2 },
+    { name: 'Melbourne', lat: -37.8, lng: 144.9 },
+    { name: 'Brisbane', lat: -27.5, lng: 153.0 },
+    { name: 'Perth', lat: -31.9, lng: 115.9 },
+    { name: 'Adelaide', lat: -34.9, lng: 138.6 },
+    { name: 'Gold Coast', lat: -28.0, lng: 153.4 },
+    { name: 'Cairns', lat: -16.9, lng: 145.8 },
+    { name: 'Darwin', lat: -12.5, lng: 130.8 },
+    { name: 'Hobart', lat: -42.9, lng: 147.3 },
+    { name: 'Canberra', lat: -35.3, lng: 149.1 },
+    { name: 'Newcastle', lat: -32.9, lng: 151.8 },
+    { name: 'Townsville', lat: -19.3, lng: 146.8 },
+    { name: 'Alice Springs', lat: -23.7, lng: 133.9 },
+    { name: 'Auckland', lat: -37.0, lng: 174.8 },
+    { name: 'Christchurch', lat: -43.5, lng: 172.6 },
+    { name: 'Wellington', lat: -41.3, lng: 174.8 },
+    { name: 'Singapore', lat: 1.35, lng: 103.8 },
+    { name: 'Bali', lat: -8.7, lng: 115.2 },
+    { name: 'Tokyo', lat: 35.7, lng: 139.8 },
+    { name: 'Los Angeles', lat: 34.0, lng: -118.2 },
   ]
   const from = pick(cities)
   let to = pick(cities)
