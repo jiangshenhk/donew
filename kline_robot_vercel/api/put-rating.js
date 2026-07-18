@@ -639,15 +639,9 @@ function promptText(payload, snapshot, risk) {
   <h2>市场环境过滤</h2>
   ...
 </section>
-<section class="section">
-  <h2>卖Put动作建议</h2>
-  <p><span class="highlight">动作建议：</span>...</p>
-  <p><span class="highlight">黑天鹅灯号：</span>...</p>
-  <p><span class="highlight">如果必须操作：</span>...</p>
-</section>
 
 具体要求：
-- 每段开头的关键字（如"结论："、"这是不是恐慌溢价？"、"未来3-5个交易日的大跌/跳空风险高不高？"等）必须用 <span class="highlight">...</span> 包裹，使关键字显示为深蓝色；
+- 每段开头的关键字（如"这是不是恐慌溢价？"、"未来3-5个交易日的大跌/跳空风险高不高？"等）必须用 <span class="highlight">...</span> 包裹，使关键字显示为深蓝色；注意：小节标题已是"先上结论"，所以段落中不要再写"结论："；
 - 每个小节标题用 h2 标签；
 - 第一段必须给结论，直接回答"当前卖Put有利 / 谨慎 / 不利"；
 - "这是不是恐慌溢价？"的答案用颜色标注：不是 → <span class="up">不是</span>（红色），是 → <span class="dn">是</span>（绿色），不确定 → <span class="warn">不确定</span>（黄色）；
@@ -929,20 +923,6 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
 
     ${aiMessage ? `<section class="section"><h2>AI 说明</h2><p class="status">${safeHtml(aiMessage)}</p></section>` : ""}
 
-    <section class="section">
-      <h2>市场环境过滤</h2>
-      <p>实时行情显示：${risk.summary}</p>
-    </section>
-
-    <section class="section">
-      <h2>规则版卖Put建议</h2>
-      <ul>
-        <li>${safeHtml(payload.symbol)} 的 Barchart 截图应重点观察：IV 是否高于 HV、IV Percentile 是否处于高位、Expected Move 是否提供足够安全垫。</li>
-        <li>如果 IV 高，但同时 VIX、10Y、DXY 与半导体一起恶化，这更像风险预警，不是舒服的权利金。</li>
-        <li>如果只是局部恐慌而主线结构没坏，才有可能形成值得拿的小仓风险溢价。</li>
-      </ul>
-    </section>
-
     ${(() => {
       const target = row(snapshot, payload.symbol);
       const atrAnalysis = analyzeAtrVsPut(target, payload.optionMetrics);
@@ -963,6 +943,20 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       </ul>
     </section>`;
     })()}
+
+    <section class="section">
+      <h2>市场环境过滤</h2>
+      <p>实时行情显示：${risk.summary}</p>
+    </section>
+
+    <section class="section">
+      <h2>规则版卖Put建议</h2>
+      <ul>
+        <li>${safeHtml(payload.symbol)} 的 Barchart 截图应重点观察：IV 是否高于 HV、IV Percentile 是否处于高位、Expected Move 是否提供足够安全垫。</li>
+        <li>如果 IV 高，但同时 VIX、10Y、DXY 与半导体一起恶化，这更像风险预警，不是舒服的权利金。</li>
+        <li>如果只是局部恐慌而主线结构没坏，才有可能形成值得拿的小仓风险溢价。</li>
+      </ul>
+    </section>
 
     <details>
       <summary>实时行情快照</summary>
