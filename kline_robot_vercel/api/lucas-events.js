@@ -64,7 +64,7 @@ Generate real upcoming events in Melbourne from ${startDate} to ${endDate}.
 }
 
 ## Requirements
-1. Generate **15-25 events** across all categories
+1. Generate **30-50 events** across all categories, as many real events as possible
 2. Dates must be between ${startDate} and ${endDate}
 3. Coordinates must cover Greater Melbourne area: lat -38.5 to -37.5, lng 144.0 to 145.5 (including western suburbs like Werribee, Point Cook, Williamstown, and Geelong area)
 4. Use real, well-known events and venues where possible (MCG, Rod Laver Arena, Federation Square, NGV, Southbank, St Kilda, Flemington, Geelong etc.)
