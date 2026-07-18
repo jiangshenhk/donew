@@ -1,26 +1,33 @@
+import https from 'node:https'
+
+function httpsGet(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, { headers: { 'User-Agent': 'donew-beta/1.0' } }, (res) => {
+      let data = ''
+      res.on('data', chunk => data += chunk)
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, data: JSON.parse(data) }) }
+        catch { reject(new Error('JSON parse failed')) }
+      })
+    }).on('error', reject)
+  })
+}
+
 export default async function handler(req, res) {
   const { lamin, lomin, lamax, lomax } = req.query
-
   if (!lamin || !lomin || !lamax || !lomax) {
-    return res.status(400).json({ error: '缺少经纬度参数' })
+    return res.status(400).json({ error: 'missing bbox params' })
   }
 
   try {
     const url = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; donew-beta/1.0)',
-        'Accept': 'application/json'
-      }
-    })
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '')
-      return res.status(resp.status).json({ error: 'OpenSky API error', status: resp.status, statusText: resp.statusText, body: text.slice(0, 200) })
+    const result = await httpsGet(url)
+    if (result.status !== 200) {
+      return res.status(result.status).json({ error: 'OpenSky error', detail: result.data })
     }
-    const data = await resp.json()
     res.setHeader('Cache-Control', 's-maxage=10, stale-while-revalidate=5')
-    res.status(200).json(data)
+    res.status(200).json(result.data)
   } catch (err) {
-    res.status(500).json({ error: err.message, name: err.name, type: err.type })
+    res.status(500).json({ error: err.message, code: err.code })
   }
 }
