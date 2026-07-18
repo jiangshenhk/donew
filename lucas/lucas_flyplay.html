@@ -7,7 +7,8 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-serif;user-select:none}
-#gameCanvas{display:block;margin:0 auto;background:#0f1a2e;cursor:none}
+#gameCanvas{display:block;margin:0 auto;background:#0f1a2e}
+#gameCanvas.running{cursor:none}
 
 #ui{
   position:absolute;top:0;left:0;width:100%;height:100%;
@@ -21,7 +22,8 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
   text-align:center;display:none;pointer-events:auto
 }
 #gameOver h1{font-size:48px;color:#f44;text-shadow:0 0 20px rgba(255,0,0,0.5)}
-#gameOver p{font-size:18px;color:#aaa;margin:12px 0 20px}
+#gameOver p{font-size:18px;color:#aaa;margin:12px 0 8px}
+#highScore{font-size:14px;color:#ffd600;margin-bottom:20px}
 #gameOver button{
   padding:12px 36px;font-size:18px;border:none;border-radius:8px;
   background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;
@@ -71,6 +73,7 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
       <button class="diff-btn" data-mult="3">中级</button>
       <button class="diff-btn" data-mult="5">高级</button>
     </div>
+    <div id="startHighScore" style="font-size:15px;color:#ffd600;margin-bottom:16px">🏆 最高: 0</div>
     <button id="startBtn">开始游戏</button>
     <div class="controls">
       <span>鼠标 / 触屏</span> 移动 &nbsp;|&nbsp; <span>点击 / 空格</span> 射击<br>
@@ -81,6 +84,7 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
   <div id="gameOver">
     <h1>💥 GAME OVER</h1>
     <p id="finalScore">得分: 0</p>
+    <div id="highScore">🏆 最高: 0</div>
     <button id="restartBtn">再来一次</button>
   </div>
 </div>
@@ -88,6 +92,14 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
 <script>
 const canvas = document.getElementById('gameCanvas')
 const ctx = canvas.getContext('2d')
+
+let highScore = parseInt(localStorage.getItem('flyplay_highscore') || '0')
+
+function updateHighScoreDisplay() {
+  document.getElementById('highScore').textContent = '🏆 最高: ' + highScore
+  document.getElementById('startHighScore').textContent = '🏆 最高: ' + highScore
+}
+updateHighScoreDisplay()
 
 function resize() {
   canvas.width = Math.min(800, window.innerWidth)
@@ -403,6 +415,7 @@ function resetGame() {
   game._lastGreenSpawn = -1
   game._lastBlueSpawn = -1
   game._lastRedSpawn = -1
+  canvas.classList.add('running')
   initPlayer()
   document.getElementById('startScreen').style.display = 'none'
   document.getElementById('gameOver').style.display = 'none'
@@ -537,6 +550,12 @@ function update(dt) {
       if (game.lives <= 0) {
         game.running = false
         game.over = true
+        canvas.classList.remove('running')
+        if (game.score > highScore) {
+          highScore = game.score
+          localStorage.setItem('flyplay_highscore', String(highScore))
+          updateHighScoreDisplay()
+        }
         document.getElementById('finalScore').textContent = '得分: ' + game.score
         document.getElementById('gameOver').style.display = 'block'
         return
@@ -567,6 +586,12 @@ function update(dt) {
       if (game.lives <= 0) {
         game.running = false
         game.over = true
+        canvas.classList.remove('running')
+        if (game.score > highScore) {
+          highScore = game.score
+          localStorage.setItem('flyplay_highscore', String(highScore))
+          updateHighScoreDisplay()
+        }
         document.getElementById('finalScore').textContent = '得分: ' + game.score
         document.getElementById('gameOver').style.display = 'block'
         return
@@ -773,6 +798,25 @@ canvas.addEventListener('touchend', e => {
 
 // Keyboard
 document.addEventListener('keydown', e => {
+  if (!game.running && !game.over) {
+    if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+      e.preventDefault()
+      const btns = document.querySelectorAll('.diff-btn')
+      const active = document.querySelector('.diff-btn.active')
+      let idx = 0
+      btns.forEach((b, i) => { if (b === active) idx = i })
+      idx = e.code === 'ArrowLeft' ? Math.max(0, idx - 1) : Math.min(btns.length - 1, idx + 1)
+      btns.forEach(b => b.classList.remove('active'))
+      btns[idx].classList.add('active')
+      return
+    }
+    if (e.code === 'Enter' || e.code === 'Space') {
+      e.preventDefault()
+      game.difficultyMult = parseInt(document.querySelector('.diff-btn.active')?.dataset.mult || '1')
+      resetGame()
+      return
+    }
+  }
   if (e.code === 'Space') {
     e.preventDefault()
     if (!game.running && game.over) {
