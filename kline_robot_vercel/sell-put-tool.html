@@ -876,7 +876,10 @@
         ctx.fillStyle = '#0f172a';
         ctx.fillRect(0, 0, width, height);
         ctx.drawImage(image, 0, 0);
-        let jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+        let jpgBlob;
+        try {
+          jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+        } catch {}
         if (!jpgBlob) jpgBlob = dataUrlToBlob(canvas.toDataURL('image/jpeg', 0.92));
         downloadBlob(jpgBlob, downloadFileName('jpg'));
         return jpgBlob;
