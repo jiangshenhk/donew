@@ -329,9 +329,9 @@ function marketRisk(snapshot, targetSymbol) {
   if ((target.changePct || 0) < -3) risk += 0.6;
   risk = Math.max(1, Math.min(9.5, risk));
 
-  const downside = risk >= 7.5 ? "高（偏向再定价 / 跳空风险）" : risk >= 6.2 ? "中（仍需防突然转弱）" : "低（但不是无风险）";
+  const downside = risk >= 7.5 ? `<span class="up">高</span>（偏向再定价 / 跳空风险）` : risk >= 6.2 ? `<span class="warn">中</span>（仍需防突然转弱）` : `<span class="dn">低</span>（但不是无风险）`;
   const putStance = risk >= 7.5 ? "不利" : risk >= 6.2 ? "谨慎" : "有利";
-  const panicPremium = risk >= 7.5 ? "更像风险预警，不是舒服的恐慌溢价" : risk >= 6.2 ? "可能有一点溢价，但要防权利金陷阱" : "如果 IV 端配合，高概率是真溢价窗口";
+  const panicPremium = risk >= 7.5 ? `<span class="up">不是</span>。更像风险预警，不是舒服的恐慌溢价` : risk >= 6.2 ? `<span class="warn">不确定</span>。可能有一点溢价，但要防权利金陷阱` : `<span class="dn">是</span>。如果 IV 端配合，高概率是真溢价窗口`;
   const blackSwan = risk >= 7.5 ? "🔴 高警戒" : risk >= 6.2 ? "🟡 需防范" : "🟢 常规防守";
 
   return {
@@ -640,8 +640,9 @@ function promptText(payload, snapshot, risk) {
 - 每段开头的关键字（如"结论："、"这是不是恐慌溢价？"、"未来3-5个交易日的大跌/跳空风险高不高？"等）必须用 <span class="highlight">...</span> 包裹，使关键字显示为深蓝色；
 - 每个小节标题用 h2 标签；
 - 第一段必须给结论，直接回答"当前卖Put有利 / 谨慎 / 不利"；
-- 明确回答"这是不是恐慌溢价"；
-- 明确回答"未来3-5个交易日的大跌/跳空风险高不高"；
+- "这是不是恐慌溢价？"的答案用颜色标注：不是 → <span class="up">不是</span>（红色），是 → <span class="dn">是</span>（绿色），不确定 → <span class="warn">不确定</span>（黄色）；
+- "未来3-5个交易日的大跌/跳空风险高不高？"的答案用颜色标注：高/非常高 → <span class="up">高</span>（红色），低 → <span class="dn">低</span>（绿色），中/一般 → <span class="warn">中</span>（黄色）；
+- "权利金值不值得冒尾部风险？"的答案用颜色标注：不值得 → <span class="up">不值得</span>（红色），值得 → <span class="dn">值得</span>（绿色），谨慎 → <span class="warn">谨慎</span>（黄色）；
 - 不给具体 strike，不做期权链选价；
 - 语气务实，不写空话；
 - 重点服务 Sell Put：权利金值不值得冒尾部风险。
@@ -902,9 +903,14 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
     <section class="section hero-judgement">
       <h2>当前结论</h2>
       <p><span class="decision">${safeHtml(payload.symbol)} 当前卖Put：${safeHtml(risk.putStance)}</span></p>
-      <p><span class="highlight">这是不是恐慌溢价？</span> ${safeHtml(risk.panicPremium)}</p>
-      <p><span class="highlight">未来3-5个交易日的大跌/跳空风险：</span> ${safeHtml(risk.downside)}</p>
-      <p><span class="highlight">一句话动作：</span> ${safeHtml(risk.putStance === "有利" ? "可以筛选，但只拿你愿意接货的标的。" : risk.putStance === "谨慎" ? "只允许极远OTM、小仓、分批，重点防跳空。" : "先不为这点权利金暴露尾部风险。")}</p>
+      <p><span class="highlight">这是不是恐慌溢价？</span> ${risk.panicPremium}</p>
+      <p><span class="highlight">未来3-5个交易日的大跌/跳空风险：</span> ${risk.downside}</p>
+      <p><span class="highlight">权利金值不值得冒尾部风险？</span> ${risk.putStance === "有利" ? '<span class="dn">值得</span>' : risk.putStance === "谨慎" ? '<span class="warn">谨慎</span>' : '<span class="up">不值得</span>'}</p>
+    </section>
+
+    <section class="section">
+      <h2>卖Put动作建议</h2>
+      <p>${safeHtml(payload.symbol)} ${risk.putStance === "有利" ? "当前适合卖Put，可以筛选标的，但只拿你愿意接货的。" : risk.putStance === "谨慎" ? "只允许极远OTM、小仓、分批，重点防跳空。" : "先不为这点权利金暴露尾部风险。"}</p>
     </section>
 
     ${aiMessage ? `<section class="section"><h2>AI 说明</h2><p class="status">${safeHtml(aiMessage)}</p></section>` : ""}
