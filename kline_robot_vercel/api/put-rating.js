@@ -51,7 +51,9 @@ function numberOrNull(value) {
 function pct(value) {
   const n = numberOrNull(value);
   if (n === null) return "未取到";
-  return `${n > 0 ? "+" : ""}${n.toFixed(2)}%`;
+  const sign = n > 0 ? "+" : "";
+  const cls = n > 0 ? "up" : n < 0 ? "dn" : "";
+  return cls ? `<span class="${cls}">${sign}${n.toFixed(2)}%</span>` : `${sign}${n.toFixed(2)}%`;
 }
 
 function sleep(ms) {
@@ -744,9 +746,12 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       --line: #314566;
       --text: #e8eefc;
       --muted: #94a3b8;
-      --yellow: #ffd54a;
+      --gold: #ffd54a;
+      --blue: #60a5fa;
       --green: #45d483;
       --red: #ff6b7d;
+      --dn: #45d483;
+      --up: #ff6b7d;
     }
     * { box-sizing: border-box; }
     body {
@@ -757,8 +762,8 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       line-height: 1.65;
     }
     .page { max-width: 1160px; margin: 0 auto; padding: 28px; }
-    h1 { font-size: 44px; line-height: 1.1; margin: 0 0 12px; }
-    h2 { font-size: 28px; margin: 0 0 14px; }
+    h1 { font-size: 44px; line-height: 1.1; margin: 0 0 12px; color: var(--gold); }
+    h2 { font-size: 28px; margin: 0 0 14px; color: var(--blue); }
     p { margin: 0 0 14px; }
     .meta, .status { color: var(--muted); font-size: 15px; }
     .hero {
@@ -786,7 +791,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       margin-bottom: 18px;
     }
     .hero-judgement {
-      border-left: 6px solid ${risk.putStance === "有利" ? "var(--green)" : risk.putStance === "谨慎" ? "var(--yellow)" : "var(--red)"};
+      border-left: 6px solid ${risk.putStance === "有利" ? "var(--dn)" : risk.putStance === "谨慎" ? "var(--gold)" : "var(--up)"};
       background: #1b2741;
     }
     .decision {
@@ -796,12 +801,14 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       font-weight: 800;
       font-size: 18px;
       background: ${risk.putStance === "有利" ? "rgba(69,212,131,.16)" : risk.putStance === "谨慎" ? "rgba(255,213,74,.16)" : "rgba(255,107,125,.16)"};
-      color: ${risk.putStance === "有利" ? "var(--green)" : risk.putStance === "谨慎" ? "var(--yellow)" : "var(--red)"};
+      color: ${risk.putStance === "有利" ? "var(--dn)" : risk.putStance === "谨慎" ? "var(--gold)" : "var(--up)"};
     }
-    .highlight { color: var(--yellow); font-weight: 800; }
-    .good { color: var(--green); font-weight: 800; }
-    .warn { color: var(--yellow); font-weight: 800; }
-    .bad { color: var(--red); font-weight: 800; }
+    .highlight { color: var(--blue); font-weight: 800; }
+    .good { color: var(--dn); font-weight: 800; }
+    .warn { color: var(--gold); font-weight: 800; }
+    .bad { color: var(--up); font-weight: 800; }
+    .up { color: var(--up); font-weight: 700; }
+    .dn { color: var(--dn); font-weight: 700; }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -817,6 +824,22 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       vertical-align: top;
     }
     th { background: var(--panel-soft); }
+    details { margin-bottom: 18px; }
+    details > summary {
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--muted);
+      padding: 14px 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      list-style: none;
+    }
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary::before { content: "▸ "; }
+    details[open] > summary::before { content: "▾ "; }
+    details > .section { margin-top: 12px; margin-bottom: 0; border: none; padding: 0; background: none; }
   </style>
 </head>
 <body>
@@ -844,10 +867,6 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
     <section class="section">
       <h2>市场环境过滤</h2>
       <p>实时行情显示：<span class="${stanceClass}">${safeHtml(risk.summary)}</span></p>
-      <table>
-        <thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead>
-        <tbody>${focusTable(snapshot, payload.symbol)}</tbody>
-      </table>
     </section>
 
     ${(() => {
@@ -880,6 +899,17 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
         <li>如果只是局部恐慌而主线结构没坏，才有可能形成值得拿的小仓风险溢价。</li>
       </ul>
     </section>
+
+    <details>
+      <summary>实时行情快照</summary>
+      <div class="section">
+        <p class="status">${safeHtml(risk.summary)}</p>
+        <table>
+          <thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead>
+          <tbody>${focusTable(snapshot, payload.symbol)}</tbody>
+        </table>
+      </div>
+    </details>
     ${dataSourceDetailsBlock(snapshot, payload.symbol)}
   </div>
 </body>
@@ -922,10 +952,11 @@ export default async function handler(req, res) {
       ? `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${safeHtml(symbol)} 卖Put温度判断</title>
 <style>
-  :root { --bg:#0f172a; --panel:#17233a; --line:#314566; --text:#e8eefc; --muted:#94a3b8; }
+  :root { --bg:#0f172a; --panel:#17233a; --line:#314566; --text:#e8eefc; --muted:#94a3b8; --gold:#ffd54a; --blue:#60a5fa; --green:#45d483; --red:#ff6b7d; --dn:#45d483; --up:#ff6b7d; }
   *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
   .page{max-width:1160px;margin:0 auto;padding:28px}
-  h1{font-size:44px;line-height:1.1;margin:0 0 12px}
+  h1{font-size:44px;line-height:1.1;margin:0 0 12px;color:var(--gold)}
+  h2{font-size:28px;margin:0 0 14px;color:var(--blue)}
   .meta{color:var(--muted);font-size:15px}
   .hero,.section{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:24px;margin-bottom:18px}
   .hero{padding:28px}
@@ -933,22 +964,26 @@ export default async function handler(req, res) {
   th,td{border:1px solid var(--line);padding:12px 14px;text-align:left;vertical-align:top}
   th{background:#22304d}
   .status{color:var(--muted)}
+  .up{color:var(--up);font-weight:700} .dn{color:var(--dn);font-weight:700}
+  .highlight{color:var(--blue);font-weight:800} .good{color:var(--dn);font-weight:800} .warn{color:var(--gold);font-weight:800} .bad{color:var(--up);font-weight:800}
+  details{margin-bottom:18px} details>summary{cursor:pointer;font-size:16px;font-weight:700;color:var(--muted);padding:14px 18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;list-style:none} details>summary::-webkit-details-marker{display:none} details>summary::before{content:"▸ "} details[open]>summary::before{content:"▾ "}
 </style></head><body><div class="page">
 <section class="hero"><h1>${safeHtml(symbol)}｜卖Put温度判断</h1><p class="meta">${safeHtml(market.toUpperCase())} 市场 · 截图来源：Barchart Options Overview · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p></section>
 ${ai.html}
-<section class="section"><h2>实时行情快照</h2><p class="status">${safeHtml(risk.summary)}</p><table><thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></section>
+<section class="section"><h2>市场环境过滤</h2><p class="status">${safeHtml(risk.summary)}</p></section>
 ${(() => {
   const target = row(snapshot, symbol);
   const atrAnalysis = analyzeAtrVsPut(target, body.optionMetrics || {});
   if (!atrAnalysis.hasData) return "";
   return `
 <section class="section"><h2>ATR波动分析</h2>
-<p><strong>ATR占价格比例：</strong> ${safeHtml(atrAnalysis.atrPct)}% ｜ <strong>${safeHtml(atrAnalysis.atrSuitability)}</strong></p>
-<p><strong>ATR安全行权价（当前价 - 1.5 × ATR）：</strong> $${safeHtml(atrAnalysis.safeStrike)}</p>
-${atrAnalysis.targetStrike ? `<p><strong>你选择的目标行权价：</strong> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>` : ""}
-${atrAnalysis.marginNote ? `<p><strong>ATR与行权价对比：</strong> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
+<p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
+<p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
+${atrAnalysis.targetStrike ? `<p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>` : ""}
+${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
 </section>`;
 })()}
+<details><summary>实时行情快照</summary><div class="section"><table><thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></div></details>
 ${dataSourceDetailsBlock(snapshot, symbol)}
 </div></body></html>`
       : ruleHtml({ symbol, market }, snapshot, risk, "");
