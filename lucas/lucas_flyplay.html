@@ -288,16 +288,17 @@ for (let i = 0; i < 30; i++) {
 
 // --- Aircraft state ---
 const state = {
-  pos: new THREE.Vector3(0, 60, -600),
-  vel: new THREE.Vector3(0, 0, 30),
-  pitch: 0,
+  pos: new THREE.Vector3(0, 2, -800),
+  vel: new THREE.Vector3(0, 0, 0),
+  pitch: 0.15,
   roll: 0,
   yaw: 0,
-  throttle: 0.3,
-  speed: 30,
+  throttle: 0,
+  speed: 0,
   started: false,
   crashed: false,
   vs: 0,
+  onGround: true,
 }
 
 const keys = {}
@@ -305,9 +306,25 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true
   if (e.code === 'Space' && !state.started) {
     state.started = true
-    state.throttle = 0.5
+    state.throttle = 0.7
     document.getElementById('controls-help').style.opacity = '0'
     document.getElementById('hud').style.display = 'block'
+  }
+  if (e.code === 'KeyR' && state.crashed) {
+    state.pos.set(0, 2, -800)
+    state.vel.set(0, 0, 0)
+    state.pitch = 0.15
+    state.roll = 0
+    state.yaw = 0
+    state.throttle = 0
+    state.speed = 0
+    state.started = false
+    state.crashed = false
+    state.vs = 0
+    state.onGround = true
+    statusMsg.textContent = ''
+    document.getElementById('controls-help').style.opacity = '1'
+    document.getElementById('hud').style.display = 'none'
   }
 })
 document.addEventListener('keyup', e => { keys[e.code] = false })
@@ -322,18 +339,17 @@ const throttleFill = document.getElementById('throttleFill')
 const statusMsg = document.getElementById('statusMsg')
 
 const gravity = 9.8
-const maxThrust = 80
-const dragFactor = 0.02
-const liftFactor = 0.04
+const maxThrust = 90
+const dragFactor = 0.015
+const liftFactor = 0.045
 
 function update() {
   const dt = Math.min(clock.getDelta(), 0.05)
 
   if (state.started && !state.crashed) {
-    // --- Controls ---
     const pitchRate = 1.2
     const rollRate = 1.8
-    const yawRate = 1.0
+    const yawRate = 0.8
     const thrRate = 0.5
 
     if (keys['KeyW']) state.pitch -= pitchRate * dt
@@ -358,7 +374,7 @@ function update() {
     forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw)
 
     const thrustForce = forward.clone().multiplyScalar(thrust)
-    const dragForce = state.vel.clone().normalize().multiplyScalar(-drag)
+    const dragForce = speed > 0.1 ? state.vel.clone().normalize().multiplyScalar(-drag) : new THREE.Vector3(0, 0, 0)
     const liftForce = new THREE.Vector3(0, lift, 0)
     const gravityForce = new THREE.Vector3(0, -gravity * 1.5, 0)
 
@@ -373,41 +389,43 @@ function update() {
     const groundH = getHeight(state.pos.x, state.pos.z)
     if (state.pos.y < groundH + 2) {
       state.pos.y = groundH + 2
-      if (state.vel.y < -5) {
+      state.onGround = true
+      if (state.vel.y < -10) {
         state.crashed = true
         statusMsg.textContent = '💥 CRASH! Press R to restart'
         statusMsg.style.color = '#f00'
         return
       }
-      state.vel.y = Math.max(0, state.vel.y * 0.5)
+      state.vel.y = Math.max(0, state.vel.y * 0.3)
+    } else {
+      state.onGround = false
     }
 
     state.speed = state.vel.length()
     state.vs = state.vel.y * 60
 
-    // Camera follows aircraft
     camera.position.copy(state.pos)
     camera.quaternion.setFromEuler(new THREE.Euler(state.pitch, state.yaw, state.roll, 'ZYX'))
 
-    // HUD
     const altFt = Math.round(state.pos.y * 3.28)
     const spdKn = Math.round(state.speed * 1.94)
     const hdgDeg = Math.round(((state.yaw * 180 / Math.PI) % 360 + 360) % 360)
     const vsFpm = Math.round(state.vs * 3.28)
 
     hudAlt.textContent = altFt
-    hudAlt.className = 'hud-val' + (altFt < 100 ? ' warn' : '')
+    hudAlt.className = 'hud-val' + (altFt < 100 && !state.onGround ? ' warn' : '')
     hudSpd.textContent = spdKn
     hudVs.textContent = vsFpm
     hudHdg.textContent = hdgDeg + '°'
     throttleFill.style.height = (state.throttle * 100) + '%'
 
-    // Warning at low altitude
-    if (altFt < 200 && altFt > 0) {
+    if (state.onGround) {
+      if (speed < 2) statusMsg.textContent = '🛫 Push throttle (↑) and pull back (S) to take off!'
+      else statusMsg.textContent = '🛫 Pull S to lift off!'
+      statusMsg.style.color = '#0f0'
+    } else if (altFt < 200) {
       statusMsg.textContent = '⚠️ LOW ALTITUDE!'
       statusMsg.style.color = '#ff0'
-    } else if (altFt < 50) {
-      statusMsg.textContent = ''
     } else {
       statusMsg.textContent = ''
     }
