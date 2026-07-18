@@ -82,7 +82,7 @@ html,body,#map{height:100%;width:100%;font-family:-apple-system,BlinkMacSystemFo
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const API_PROXY = '/api/lucas-fly-proxy'
+const API_PROXY = 'https://corsproxy.io/?'
 
 const BBOX = { lamin: 18, lamax: 54, lomin: 73, lomax: 135 }
 
@@ -167,7 +167,7 @@ async function fetchFlights() {
   btn.textContent = '⟳ 刷新中...'
 
   try {
-    const url = `${API_PROXY}?lamin=${BBOX.lamin}&lomin=${BBOX.lomin}&lamax=${BBOX.lamax}&lomax=${BBOX.lomax}`
+    const url = API_PROXY + `https://opensky-network.org/api/states/all?lamin=${BBOX.lamin}&lomin=${BBOX.lomin}&lamax=${BBOX.lamax}&lomax=${BBOX.lomax}`
     const resp = await fetch(url)
     if (!resp.ok) throw new Error('API 请求失败: ' + resp.status)
     const data = await resp.json()
