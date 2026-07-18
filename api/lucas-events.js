@@ -9,11 +9,13 @@ export default async function handler(req, res) {
   }
 
   let lang = 'zh'
+  let area = 'all'
   let startDate = ''
   let endDate = ''
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {})
     lang = body.lang === 'en' ? 'en' : 'zh'
+    area = body.area === 'west' ? 'west' : 'all'
     startDate = body.startDate || ''
     endDate = body.endDate || ''
   } catch {}
@@ -29,7 +31,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const result = await callDeepSeek(DEEPSEEK_API_KEY, lang, startDate, endDate)
+    const result = await callDeepSeek(DEEPSEEK_API_KEY, lang, area, startDate, endDate)
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=600')
     res.status(200).json(result)
   } catch (err) {
@@ -37,7 +39,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function callDeepSeek(apiKey, lang = 'zh', startDate, endDate) {
+async function callDeepSeek(apiKey, lang = 'zh', area = 'all', startDate, endDate) {
   const isEn = lang === 'en'
   const langLabel = isEn ? 'English' : '中文'
   const descriptionLang = isEn ? 'English' : '中文'
@@ -45,13 +47,23 @@ async function callDeepSeek(apiKey, lang = 'zh', startDate, endDate) {
   const days = Math.max(1, Math.round((new Date(endDate) - new Date(startDate)) / 86400000))
   const eventCount = days >= 30 ? '80-120' : '30-50'
 
+  const isWest = area === 'west'
+  const areaLabel = isWest ? (isEn ? 'Western Melbourne + Geelong' : '墨尔本西区 + Geelong')
+    : (isEn ? 'Greater Melbourne' : '墨尔本都会区')
+  const coordRange = isWest
+    ? 'lat -38.5 to -37.5, lng 144.0 to 145.0'
+    : 'lat -38.5 to -37.5, lng 144.0 to 145.5'
+  const areaFocus = isWest
+    ? 'Focus ONLY on western suburbs and Geelong: Werribee, Point Cook, Williamstown, Footscray, Sunshine, Altona, Laverton, Hoppers Crossing, Tarneit, Wyndham Vale, Geelong city, Bellarine Peninsula, Torquay, Surf Coast. Do NOT include events in CBD, eastern suburbs, or northern suburbs.'
+    : 'Cover all areas: eastern suburbs, western suburbs, northern suburbs, CBD, and Geelong — don\'t concentrate only in CBD'
+
   const systemPrompt = `You are a Melbourne local event guide. You know all upcoming entertainment, culture, sports, food, music, art, and family events in Melbourne and Victoria.
 
-Generate real upcoming events in Melbourne from ${startDate} to ${endDate}.
+Generate real upcoming events in ${areaLabel} from ${startDate} to ${endDate}.
 
 ## Output format (JSON only)
 {
-  "news": "Overview of upcoming Melbourne events, 3-5 sentences. Write in ${langLabel}.",
+  "news": "Overview of upcoming events, 3-5 sentences. Write in ${langLabel}.",
   "events": [
     {
       "name": "Event name (in ${langLabel})",
@@ -69,9 +81,9 @@ Generate real upcoming events in Melbourne from ${startDate} to ${endDate}.
 ## Requirements
 1. Generate **${eventCount} events** across all categories, as many real events as possible
 2. Dates must be between ${startDate} and ${endDate}
-3. Coordinates must cover Greater Melbourne area: lat -38.5 to -37.5, lng 144.0 to 145.5 (including western suburbs like Werribee, Point Cook, Williamstown, and Geelong area)
-4. Use real, well-known events and venues where possible (MCG, Rod Laver Arena, Federation Square, NGV, Southbank, St Kilda, Flemington, Geelong etc.)
-5. Cover all areas: eastern suburbs, western suburbs, northern suburbs, CBD, and Geelong — don't concentrate only in CBD
+3. Coordinates must be within: ${coordRange}
+4. Use real, well-known events and venues where possible
+5. ${areaFocus}
 6. Include AFL, NRL, concerts, exhibitions, festivals, night markets, food events, family activities
 7. Provide a real URL for each event if known (ticketing page, event website, or venue page); leave empty only if no URL is available
 8. Output ONLY valid JSON, no markdown fences or extra text`
