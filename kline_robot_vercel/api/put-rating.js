@@ -582,6 +582,12 @@ function promptText(payload, snapshot, risk) {
 
 请严格输出 HTML 片段，不要输出 Markdown，不要包 \`\`\`。
 
+样式规则：
+- 所有涨跌百分比必须用颜色标注：<span class="up">+X.XX%</span> 表示上涨（红色），<span class="dn">-X.XX%</span> 表示下跌（绿色）；
+- 例如：QQQ <span class="dn">-1.50%</span> / SPY <span class="dn">-0.99%</span> / VIX <span class="up">+12.19%</span>；
+- 每段开头的关键字（如"结论："、"这是不是恐慌溢价？"等）用 <span class="highlight">...</span> 包裹（深蓝色）；
+- 每个小节标题用 h2 标签（金黄色）。
+
 结构固定为：
 <section class="section hero-judgement">...</section>
 <section class="section">
@@ -872,7 +878,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
 
     <section class="section">
       <h2>市场环境过滤</h2>
-      <p>实时行情显示：<span class="${stanceClass}">${safeHtml(risk.summary)}</span></p>
+      <p>实时行情显示：${risk.summary}</p>
     </section>
 
     <section class="section">
@@ -909,7 +915,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
     <details>
       <summary>实时行情快照</summary>
       <div class="section">
-        <p class="status">${safeHtml(risk.summary)}</p>
+        <p class="status">${risk.summary}</p>
         <table>
           <thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead>
           <tbody>${focusTable(snapshot, payload.symbol)}</tbody>
