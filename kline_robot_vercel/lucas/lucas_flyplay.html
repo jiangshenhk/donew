@@ -248,7 +248,7 @@ function spawnEnemy() {
 // --- Fire bullet ---
 function fireBullet() {
   const count = game.weaponLevel + 1
-  const spread = count === 1 ? 0 : 0.12
+  const spread = count <= 1 ? 0 : 0.04 + count * 0.02
   const startAngle = -spread * (count - 1) / 2
   const baseSpeed = 350 + Math.random() * 50
   const px = game.player.x
@@ -347,7 +347,8 @@ function update(dt) {
     document.getElementById('level').textContent = 'LEVEL ' + game.level
   }
 
-  document.getElementById('weapon').textContent = 'WPN ' + '★'.repeat(game.weaponLevel + 1) + '☆'.repeat(4 - game.weaponLevel)
+  const stars = game.weaponLevel + 1
+  document.getElementById('weapon').textContent = 'WPN ' + '★'.repeat(stars) + '☆'.repeat(10 - stars)
 
   // --- Enemies ---
   for (let i = game.enemies.length - 1; i >= 0; i--) {
@@ -419,7 +420,7 @@ function update(dt) {
     const dy = game.player.y - p.y
     const dist = Math.sqrt(dx * dx + dy * dy)
     if (dist < game.player.w / 2 + p.size) {
-      game.weaponLevel = Math.min(4, game.weaponLevel + 1)
+      game.weaponLevel = Math.min(9, game.weaponLevel + 1)
       spawnExplosion(p.x, p.y, false)
       game.powerups.splice(i, 1)
     }
