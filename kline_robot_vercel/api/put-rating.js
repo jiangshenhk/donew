@@ -617,7 +617,10 @@ function promptText(payload, snapshot, risk) {
 </section>
 <section class="section">
   <h2>ATR波动分析</h2>
-  <p>...</p>
+  <p>你选择的目标行权价：$85.00 ｜ 卖Put价格：$2.00 ｜ 到期日：2026-07-24 ｜ 预估年化：146.59%</p>
+  <p>ATR与行权价对比：...</p>
+  <p>ATR占价格比例：8.31% ｜ 波动过高...</p>
+  <p>ATR安全行权价（当前价 - 1.5 × ATR）：$83.03</p>
   <ul>
     <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
     <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
@@ -927,12 +930,12 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       return `
     <section class="section">
       <h2>ATR波动分析</h2>
-      <p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
-      <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
       ${atrAnalysis.targetStrike ? `
       <p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""} ${atrAnalysis.annualizedReturn ? `｜ <span class="good">预估年化：${safeHtml(atrAnalysis.annualizedReturn)}%</span>` : ""}</p>
       ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
       ` : ""}
+      <p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
+      <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
       <ul>
         <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
         <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
