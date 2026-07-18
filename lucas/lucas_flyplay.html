@@ -239,9 +239,9 @@ function spawnExplosion(x, y, big) {
 // --- Enemy config ---
 const ENEMY_TYPES = {
   white:  { hp: 1,  w: 22, h: 22, speed: 55, score: 10, fireRate: 120, color: '#e0e0e0', wingColor: '#bdbdbd', strokeColor: '#9e9e9e' },
-  green:  { hp: 2,  w: 26, h: 26, speed: 50, score: 20, fireRate: 60,  color: '#66bb6a', wingColor: '#43a047', strokeColor: '#2e7d32' },
-  blue:   { hp: 5,  w: 30, h: 30, speed: 45, score: 50, fireRate: 60,  color: '#42a5f5', wingColor: '#1e88e5', strokeColor: '#1565c0' },
-  red:    { hp: 10, w: 36, h: 36, speed: 40, score: 100, fireRate: 60, color: '#ef5350', wingColor: '#e53935', strokeColor: '#c62828' },
+  green:  { hp: 2,  w: 26, h: 26, speed: 50, score: 20, fireRate: 120, color: '#66bb6a', wingColor: '#43a047', strokeColor: '#2e7d32' },
+  blue:   { hp: 5,  w: 30, h: 30, speed: 45, score: 50, fireRate: 120, color: '#42a5f5', wingColor: '#1e88e5', strokeColor: '#1565c0' },
+  red:    { hp: 10, w: 36, h: 36, speed: 40, score: 100, fireRate: 120, color: '#ef5350', wingColor: '#e53935', strokeColor: '#c62828' },
 }
 
 function spawnEnemyByType(type) {
@@ -362,17 +362,17 @@ function update(dt) {
   if (sec > 0) {
     if (sec % 1 === 0 && sec !== game._lastWhiteSpawn) {
       game._lastWhiteSpawn = sec
-      for (let n = 0; n < 5; n++) spawnEnemyByType('white')
+      spawnEnemyByType('white')
     }
-    if (sec % 2 === 0 && sec !== game._lastGreenSpawn) {
+    if (sec % 3 === 0 && sec !== game._lastGreenSpawn) {
       game._lastGreenSpawn = sec
-      for (let n = 0; n < 2; n++) spawnEnemyByType('green')
+      spawnEnemyByType('green')
     }
-    if (sec % 5 === 0 && sec !== game._lastBlueSpawn) {
+    if (sec % 10 === 0 && sec !== game._lastBlueSpawn) {
       game._lastBlueSpawn = sec
       spawnEnemyByType('blue')
     }
-    if (sec % 10 === 0 && sec !== game._lastRedSpawn) {
+    if (sec % 20 === 0 && sec !== game._lastRedSpawn) {
       game._lastRedSpawn = sec
       spawnEnemyByType('red')
     }
