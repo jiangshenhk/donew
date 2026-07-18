@@ -250,7 +250,7 @@
   </a>
 
   <a href="https://donew-beta.vercel.app/sell-put-tool.html" class="main-card mindset">
-    <strong>AI卖期权</strong>
+    <strong>AI看期权</strong>
     <!--  <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span> -->
   </a>
   
