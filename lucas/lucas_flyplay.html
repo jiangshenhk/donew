@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Flight Sim ✈</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#000;font-family:'Courier New',monospace}
+#game-container{width:100%;height:100%;position:relative}
+canvas{display:block}
+
+#hud{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;color:#0f0;font-size:14px;
+  text-shadow:0 0 4px rgba(0,255,0,0.5),0 0 8px rgba(0,0,0,0.8);
+}
+#hud .top-left{position:absolute;top:20px;left:20px;line-height:1.8}
+#hud .top-right{position:absolute;top:20px;right:20px;line-height:1.8;text-align:right}
+#hud .bottom-center{
+  position:absolute;bottom:40px;left:50%;transform:translateX(-50%);
+  text-align:center;font-size:12px;color:rgba(0,255,0,0.6);
+  line-height:1.6
+}
+.hud-label{color:rgba(0,255,0,0.4);font-size:11px}
+.hud-val{font-size:18px;font-weight:bold}
+.hud-val.warn{color:#f00;animation:blink 0.5s infinite}
+@keyframes blink{50%{opacity:0}}
+
+#crosshair{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:40px;height:40px
+}
+#crosshair::before,#crosshair::after{
+  content:'';position:absolute;background:rgba(0,255,0,0.5)
+}
+#crosshair::before{width:2px;height:100%;left:50%;transform:translateX(-50%)}
+#crosshair::after{width:100%;height:2px;top:50%;transform:translateY(-50%)}
+
+#horizon-bar{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:200px;height:2px;
+  background:rgba(0,255,0,0.3);box-shadow:0 0 6px rgba(0,255,0,0.3)
+}
+
+.throttle-bar{
+  position:absolute;right:30px;bottom:80px;width:8px;height:120px;
+  background:rgba(0,255,0,0.15);border:1px solid rgba(0,255,0,0.3);border-radius:4px
+}
+.throttle-fill{
+  position:absolute;bottom:0;width:100%;border-radius:3px;
+  background:rgba(0,255,0,0.6);transition:height 0.1s
+}
+.throttle-label{
+  position:absolute;right:12px;bottom:200px;font-size:10px;color:rgba(0,255,0,0.4)
+}
+
+#controls-help{
+  position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,0.3);font-size:11px;text-align:center;
+  pointer-events:none;line-height:1.6;font-family:sans-serif;
+  transition:opacity 1s
+}
+</style>
+</head>
+<body>
+<div id="game-container">
+  <div id="hud" style="display:none">
+    <div class="top-left">
+      <div class="hud-label">ALT</div>
+      <div class="hud-val" id="altDisplay">0</div>
+      <div class="hud-label">SPD (kn)</div>
+      <div class="hud-val" id="spdDisplay">0</div>
+    </div>
+    <div class="top-right">
+      <div class="hud-label">HDG</div>
+      <div class="hud-val" id="hdgDisplay">0°</div>
+      <div class="hud-label">VS (fpm)</div>
+      <div class="hud-val" id="vsDisplay">0</div>
+    </div>
+    <div id="horizon-bar"></div>
+    <div id="crosshair"></div>
+    <div class="throttle-label">THR</div>
+    <div class="throttle-bar"><div class="throttle-fill" id="throttleFill" style="height:30%"></div></div>
+    <div class="bottom-center">
+      <div id="statusMsg"></div>
+    </div>
+  </div>
+  <div id="controls-help">
+    <b>W</b> Pitch Down &nbsp; <b>S</b> Pitch Up &nbsp; <b>A</b> Roll L &nbsp; <b>D</b> Roll R &nbsp;
+    <b>Q</b> Yaw L &nbsp; <b>E</b> Yaw R &nbsp; <b>↑↓</b> Throttle &nbsp; <b>Space</b> Start
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.163.0/build/three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three'
+
+// --- Scene setup ---
+const container = document.getElementById('game-container')
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x87CEEB)
+scene.fog = new THREE.Fog(0x87CEEB, 2000, 5000)
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.5, 8000)
+camera.position.set(0, 50, 0)
+
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
+container.prepend(renderer.domElement)
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(window.innerWidth, window.innerHeight)
+})
+
+// --- Lighting ---
+const sun = new THREE.DirectionalLight(0xffeedd, 1.2)
+sun.position.set(500, 800, 300)
+sun.castShadow = true
+sun.shadow.mapSize.set(2048, 2048)
+sun.shadow.camera.near = 10
+sun.shadow.camera.far = 2000
+sun.shadow.camera.left = -500
+sun.shadow.camera.right = 500
+sun.shadow.camera.top = 500
+sun.shadow.camera.bottom = -500
+scene.add(sun)
+scene.add(new THREE.AmbientLight(0x8899bb, 0.5))
+
+const hemi = new THREE.HemisphereLight(0x87CEEB, 0x3a7d44, 0.6)
+scene.add(hemi)
+
+// --- Terrain ---
+const terrainSize = 4000
+const segments = 128
+const geo = new THREE.PlaneGeometry(terrainSize, terrainSize, segments, segments)
+geo.rotateX(-Math.PI / 2)
+
+const pos = geo.attributes.position
+const colors = new Float32Array(pos.count * 3)
+
+for (let i = 0; i < pos.count; i++) {
+  const x = pos.getX(i)
+  const z = pos.getZ(i)
+  const dist = Math.sqrt(x * x + z * z)
+  let h = 0
+  h += Math.sin(x * 0.003) * 30 + Math.cos(z * 0.004) * 25
+  h += Math.sin(x * 0.008 + z * 0.006) * 15
+  h += Math.sin(x * 0.015) * Math.cos(z * 0.012) * 8
+  if (dist < 600) h = Math.max(h, -2)
+  pos.setY(i, h)
+
+  const steep = Math.abs(h) > 20 ? 1 : 0
+  const r = 0.2 + 0.3 * (1 - steep) + 0.1 * steep
+  const g = 0.5 * (1 - steep) + 0.2 * steep
+  const b = 0.15 * (1 - steep) + 0.1 * steep
+  colors[i * 3] = r
+  colors[i * 3 + 1] = g
+  colors[i * 3 + 2] = b
+}
+
+geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+geo.computeVertexNormals()
+
+const terrainMat = new THREE.MeshLambertMaterial({
+  vertexColors: true,
+  roughness: 0.8,
+})
+const terrain = new THREE.Mesh(geo, terrainMat)
+terrain.receiveShadow = true
+scene.add(terrain)
+
+// --- Water ---
+const waterGeo = new THREE.PlaneGeometry(terrainSize * 1.5, terrainSize * 1.5)
+waterGeo.rotateX(-Math.PI / 2)
+const waterMat = new THREE.MeshLambertMaterial({
+  color: 0x3a7bd5,
+  transparent: true,
+  opacity: 0.4,
+})
+const water = new THREE.Mesh(waterGeo, waterMat)
+water.position.y = -3
+scene.add(water)
+
+// --- Runway ---
+const rwMat = new THREE.MeshLambertMaterial({ color: 0x333333 })
+const runway = new THREE.Mesh(new THREE.PlaneGeometry(30, 400), rwMat)
+runway.rotation.x = -Math.PI / 2
+runway.position.set(0, 0.5, -800)
+runway.receiveShadow = true
+scene.add(runway)
+
+const rwLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
+for (let i = -180; i < 180; i += 20) {
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(1, 6), rwLineMat)
+  line.rotation.x = -Math.PI / 2
+  line.position.set(0, 0.6, -800 + i)
+  scene.add(line)
+}
+const rwEndMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
+for (let x of [-12, 12]) {
+  const end = new THREE.Mesh(new THREE.PlaneGeometry(6, 2), rwEndMat)
+  end.rotation.x = -Math.PI / 2
+  end.position.set(x, 0.6, -1000)
+  scene.add(end)
+}
+
+// --- Trees ---
+const treeTrunkMat = new THREE.MeshLambertMaterial({ color: 0x5D4037 })
+const treeLeafMat = new THREE.MeshLambertMaterial({ color: 0x2E7D32 })
+for (let i = 0; i < 400; i++) {
+  const angle = Math.random() * Math.PI * 2
+  const rad = 300 + Math.random() * 1500
+  const x = Math.cos(angle) * rad
+  const z = Math.sin(angle) * rad
+  const h = getHeight(x, z)
+  if (h < 5 || h > 40) continue
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.5, 3), treeTrunkMat)
+  trunk.position.set(x, h + 1.5, z)
+  trunk.castShadow = true
+  scene.add(trunk)
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(2 + Math.random() * 2, 4), treeLeafMat)
+  leaf.position.set(x, h + 4 + Math.random() * 2, z)
+  leaf.castShadow = true
+  scene.add(leaf)
+}
+
+function getHeight(x, z) {
+  let h = 0
+  h += Math.sin(x * 0.003) * 30 + Math.cos(z * 0.004) * 25
+  h += Math.sin(x * 0.008 + z * 0.006) * 15
+  h += Math.sin(x * 0.015) * Math.cos(z * 0.012) * 8
+  if (Math.sqrt(x * x + z * z) < 600) h = Math.max(h, -2)
+  return h
+}
+
+// --- Clouds ---
+const cloudMat = new THREE.MeshLambertMaterial({
+  color: 0xffffff,
+  transparent: true,
+  opacity: 0.8,
+})
+for (let i = 0; i < 80; i++) {
+  const group = new THREE.Group()
+  const count = 3 + Math.floor(Math.random() * 6)
+  for (let j = 0; j < count; j++) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(8 + Math.random() * 15, 6), cloudMat)
+    s.position.set(
+      (Math.random() - 0.5) * 30,
+      (Math.random() - 0.5) * 5,
+      (Math.random() - 0.5) * 30
+    )
+    s.scale.y = 0.4 + Math.random() * 0.3
+    group.add(s)
+  }
+  const angle = Math.random() * Math.PI * 2
+  const rad = 200 + Math.random() * 1800
+  group.position.set(
+    Math.cos(angle) * rad,
+    80 + Math.random() * 60,
+    Math.sin(angle) * rad
+  )
+  scene.add(group)
+}
+
+// --- Mountains in distance ---
+const mtMat = new THREE.MeshLambertMaterial({ color: 0x6d8a7d })
+for (let i = 0; i < 30; i++) {
+  const angle = Math.random() * Math.PI * 2
+  const rad = 1500 + Math.random() * 1000
+  const w = 60 + Math.random() * 120
+  const h = 80 + Math.random() * 150
+  const m = new THREE.Mesh(new THREE.ConeGeometry(w, h, 5), mtMat)
+  m.position.set(Math.cos(angle) * rad, getHeight(Math.cos(angle) * rad, Math.sin(angle) * rad) + h / 2, Math.sin(angle) * rad)
+  scene.add(m)
+}
+
+// --- Aircraft state ---
+const state = {
+  pos: new THREE.Vector3(0, 60, -600),
+  vel: new THREE.Vector3(0, 0, 30),
+  pitch: 0,
+  roll: 0,
+  yaw: 0,
+  throttle: 0.3,
+  speed: 30,
+  started: false,
+  crashed: false,
+  vs: 0,
+}
+
+const keys = {}
+document.addEventListener('keydown', e => {
+  keys[e.code] = true
+  if (e.code === 'Space' && !state.started) {
+    state.started = true
+    state.throttle = 0.5
+    document.getElementById('controls-help').style.opacity = '0'
+    document.getElementById('hud').style.display = 'block'
+  }
+})
+document.addEventListener('keyup', e => { keys[e.code] = false })
+
+// --- Game loop ---
+const clock = new THREE.Clock()
+const hudAlt = document.getElementById('altDisplay')
+const hudSpd = document.getElementById('spdDisplay')
+const hudHdg = document.getElementById('hdgDisplay')
+const hudVs = document.getElementById('vsDisplay')
+const throttleFill = document.getElementById('throttleFill')
+const statusMsg = document.getElementById('statusMsg')
+
+const gravity = 9.8
+const maxThrust = 80
+const dragFactor = 0.02
+const liftFactor = 0.04
+
+function update() {
+  const dt = Math.min(clock.getDelta(), 0.05)
+
+  if (state.started && !state.crashed) {
+    // --- Controls ---
+    const pitchRate = 1.2
+    const rollRate = 1.8
+    const yawRate = 1.0
+    const thrRate = 0.5
+
+    if (keys['KeyW']) state.pitch -= pitchRate * dt
+    if (keys['KeyS']) state.pitch += pitchRate * dt
+    if (keys['KeyA']) state.roll -= rollRate * dt
+    if (keys['KeyD']) state.roll += rollRate * dt
+    if (keys['KeyQ']) state.yaw -= yawRate * dt
+    if (keys['KeyE']) state.yaw += yawRate * dt
+    if (keys['ArrowUp']) state.throttle = Math.min(1, state.throttle + thrRate * dt)
+    if (keys['ArrowDown']) state.throttle = Math.max(0, state.throttle - thrRate * dt)
+
+    state.pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, state.pitch))
+    state.roll = ((state.roll + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI
+
+    const thrust = state.throttle * maxThrust
+    const speed = state.vel.length()
+    const drag = dragFactor * speed * speed
+    const lift = liftFactor * speed * speed * Math.cos(state.pitch)
+
+    const forward = new THREE.Vector3(0, 0, -1)
+    forward.applyAxisAngle(new THREE.Vector3(1, 0, 0), state.pitch)
+    forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), state.yaw)
+
+    const thrustForce = forward.clone().multiplyScalar(thrust)
+    const dragForce = state.vel.clone().normalize().multiplyScalar(-drag)
+    const liftForce = new THREE.Vector3(0, lift, 0)
+    const gravityForce = new THREE.Vector3(0, -gravity * 1.5, 0)
+
+    state.vel.add(thrustForce.multiplyScalar(dt))
+    state.vel.add(dragForce.multiplyScalar(dt))
+    state.vel.add(liftForce.multiplyScalar(dt))
+    state.vel.add(gravityForce.multiplyScalar(dt))
+
+    state.pos.add(state.vel.clone().multiplyScalar(dt))
+
+    // Ground collision
+    const groundH = getHeight(state.pos.x, state.pos.z)
+    if (state.pos.y < groundH + 2) {
+      state.pos.y = groundH + 2
+      if (state.vel.y < -5) {
+        state.crashed = true
+        statusMsg.textContent = '💥 CRASH! Press R to restart'
+        statusMsg.style.color = '#f00'
+        return
+      }
+      state.vel.y = Math.max(0, state.vel.y * 0.5)
+    }
+
+    state.speed = state.vel.length()
+    state.vs = state.vel.y * 60
+
+    // Camera follows aircraft
+    camera.position.copy(state.pos)
+    camera.quaternion.setFromEuler(new THREE.Euler(state.pitch, state.yaw, state.roll, 'ZYX'))
+
+    // HUD
+    const altFt = Math.round(state.pos.y * 3.28)
+    const spdKn = Math.round(state.speed * 1.94)
+    const hdgDeg = Math.round(((state.yaw * 180 / Math.PI) % 360 + 360) % 360)
+    const vsFpm = Math.round(state.vs * 3.28)
+
+    hudAlt.textContent = altFt
+    hudAlt.className = 'hud-val' + (altFt < 100 ? ' warn' : '')
+    hudSpd.textContent = spdKn
+    hudVs.textContent = vsFpm
+    hudHdg.textContent = hdgDeg + '°'
+    throttleFill.style.height = (state.throttle * 100) + '%'
+
+    // Warning at low altitude
+    if (altFt < 200 && altFt > 0) {
+      statusMsg.textContent = '⚠️ LOW ALTITUDE!'
+      statusMsg.style.color = '#ff0'
+    } else if (altFt < 50) {
+      statusMsg.textContent = ''
+    } else {
+      statusMsg.textContent = ''
+    }
+  }
+
+  renderer.render(scene, camera)
+  requestAnimationFrame(update)
+}
+
+update()
+</script>
+</body>
+</html>

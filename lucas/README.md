@@ -14,5 +14,6 @@
 
 | 项目 | 线上入口 | 说明 |
 | --- | --- | --- |
-| 航班实时跟踪 | `https://donew-beta.vercel.app/lucas/lucas_fly.html` | Leaflet 地图 + 模拟航班数据（本地面生成，无需 API） |
+| 航班实时跟踪 | `https://donew-beta.vercel.app/lucas/lucas_fly.html` | Leaflet 地图 + 模拟航班数据 |
 | 墨尔本活动地图 | `https://donew-beta.vercel.app/lucas/melbourne-events.html` | 调 DeepSeek 搜索墨尔本近期活动，标注在地图上 |
+| 3D 飞行模拟器 | `https://donew-beta.vercel.app/lucas/lucas_flyplay.html` | Three.js 第一人称 3D 飞行，驾驶飞机在三维世界中飞行 |
