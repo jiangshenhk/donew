@@ -540,7 +540,7 @@ function analyzeAtrVsPut(target, optionMetrics) {
     const expiry = new Date(expiryDate);
     daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
     if (daysToExpiry > 0) {
-      const capitalPerContract = targetStrike * 100 - putPrice * 100;
+      const capitalPerContract = targetStrike * 100;
       const profitPerContract = putPrice * 100;
       const periodReturn = profitPerContract / capitalPerContract;
       annualizedReturn = ((periodReturn * 365) / daysToExpiry * 100).toFixed(2);
