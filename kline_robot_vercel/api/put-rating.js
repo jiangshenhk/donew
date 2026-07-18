@@ -524,6 +524,8 @@ function analyzeAtrVsPut(target, optionMetrics) {
   const targetStrike = numberOrNull(optionMetrics?.targetStrike);
   const putPrice = numberOrNull(optionMetrics?.putPrice);
   const expiryDate = optionMetrics?.expiryDate || "";
+  let daysToExpiry = null;
+  let annualizedReturn = null;
   if (targetStrike != null && targetStrike > 0) {
     const strikeGap = targetStrike - safeStrike;
     const strikeGapPct = ((strikeGap / safeStrike) * 100).toFixed(2);
@@ -531,6 +533,17 @@ function analyzeAtrVsPut(target, optionMetrics) {
       marginNote = `你选择的行权价($${targetStrike.toFixed(2)})高于ATR安全行权价($${safeStrike.toFixed(2)})，安全垫偏薄，需注意风险`;
     } else {
       marginNote = `你选择的行权价($${targetStrike.toFixed(2)})低于ATR安全行权价($${safeStrike.toFixed(2)})，ATR提供额外${Math.abs(strikeGapPct)}%安全垫`;
+    }
+  }
+  if (expiryDate && putPrice != null && targetStrike != null && targetStrike > 0 && putPrice > 0) {
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+    if (daysToExpiry > 0) {
+      const capitalPerContract = targetStrike * 100 - putPrice * 100;
+      const profitPerContract = putPrice * 100;
+      const periodReturn = profitPerContract / capitalPerContract;
+      annualizedReturn = ((periodReturn * 365) / daysToExpiry * 100).toFixed(2);
     }
   }
   return {
@@ -543,6 +556,8 @@ function analyzeAtrVsPut(target, optionMetrics) {
     targetStrike: targetStrike?.toFixed(2) || null,
     putPrice: putPrice?.toFixed(2) || null,
     expiryDate: expiryDate || null,
+    daysToExpiry,
+    annualizedReturn,
   };
 }
 
@@ -902,7 +917,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       <p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
       <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
       ${atrAnalysis.targetStrike ? `
-      <p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>
+      <p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""} ${atrAnalysis.annualizedReturn ? `｜ <span class="good">预估年化：${safeHtml(atrAnalysis.annualizedReturn)}%</span>` : ""}</p>
       ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
       ` : ""}
       <ul>
@@ -992,7 +1007,7 @@ ${(() => {
 <section class="section"><h2>ATR波动分析</h2>
 <p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
 <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
-${atrAnalysis.targetStrike ? `<p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>` : ""}
+${atrAnalysis.targetStrike ? `<p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""} ${atrAnalysis.annualizedReturn ? `｜ <span class="good">预估年化：${safeHtml(atrAnalysis.annualizedReturn)}%</span>` : ""}</p>` : ""}
 ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
 </section>`;
 })()}
