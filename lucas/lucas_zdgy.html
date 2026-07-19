@@ -160,8 +160,8 @@ function update() {
   if (state.frame === 60 || state.frame % 360 === 0) spawnSquad();
   if (state.frame > 120 && (state.frame - 240) % 720 === 0) spawnDoor();
   if (state.frame % 600 === 0 && state.frame > 120) {
-    if (state.bulletCount > 1) state.bulletCount--;
     if (state.damage > 1) state.damage--;
+    if (state.bulletCount > 1) state.bulletCount--;
   }
 
   if (keys.left) { player.x -= state.playerSpeed; mouseActive = false; }
@@ -556,3 +556,4 @@ loop();
 </script>
 </body>
 </html>
+// 1784445051
