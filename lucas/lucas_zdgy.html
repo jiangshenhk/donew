@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.13.0</div>
+<div id="ver">VER 2.14.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -79,7 +79,7 @@ function giftY(i) { return 55 + i * 34; }
 function makeGift() {
   const w = GIFT_LANE * 0.7;
   const upg = pickUpgrade();
-  const hp = 3 + Math.floor(Math.random() * 3);
+  const hp = upg.bonus <= 1 ? 3 + Math.floor(Math.random() * 3) : 7 + Math.floor(Math.random() * 6);
   return { x: GIFT_LANE / 2 - w / 2, y: 0, targetY: 0, w, h: 40, hp, maxHp: hp, scale: 1, targetScale: 1, ...upg };
 }
 
@@ -574,4 +574,4 @@ loop();
 </script>
 </body>
 </html>
-// 1784449289
+// 1784449399
