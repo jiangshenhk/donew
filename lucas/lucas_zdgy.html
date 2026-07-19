@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.3.0</div>
+<div id="ver">VER 2.4.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -144,6 +144,14 @@ function shoot() {
 
 function aabb(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
 
+function consumeStats(amount) {
+  let n = amount;
+  while (n > 0 && state.damage > 1) { state.damage--; n--; }
+  while (n > 0 && state.bulletCount > 1) { state.bulletCount--; n--; }
+  if (n < amount) emit(VW / 2, VH - 100, 30, '#ffd700', 5, 30);
+  return n === 0;
+}
+
 function update() {
   if (state.screen !== 'playing') return;
   state.frame++;
@@ -238,7 +246,10 @@ function update() {
     for (const imp of sq.imps) { imp.y += imp.spd; alive = true; }
     sq.demon.y += sq.demon.spd;
     if (sq.demon.hp > 0) alive = true;
-    if (sq.demon.y + sq.demon.h > VH - 20 && sq.demon.hp > 0) { state.screen = 'gameover'; return; }
+    if (sq.demon.y + sq.demon.h > VH - 20 && sq.demon.hp > 0) {
+      if (consumeStats(4)) { sq.demon.hp = 0; emit(sq.demon.x + sq.demon.w / 2, sq.demon.y + sq.demon.h / 2, 60, '#ffd700', 8, 35); }
+      else { state.screen = 'gameover'; return; }
+    }
     if (!alive) squads.splice(i, 1);
   }
 
@@ -249,7 +260,10 @@ function update() {
 
   for (let i = doors.length - 1; i >= 0; i--) {
     const d = doors[i]; d.y += d.spd;
-    if (d.y + d.h > VH - 20 && d.hp > 0) { state.screen = 'gameover'; return; }
+    if (d.y + d.h > VH - 20 && d.hp > 0) {
+      if (consumeStats(2)) { d.hp = 0; emit(d.x + d.w / 2, d.y + d.h / 2, 50, '#ffd700', 8, 30); }
+      else { state.screen = 'gameover'; return; }
+    }
     if (d.hp <= 0) doors.splice(i, 1);
   }
 
@@ -443,7 +457,7 @@ function render() {
     ctx.font = '12px sans-serif'; ctx.fillText('每10秒弹道和威力降一级，需持续收集', VW / 2, VH / 2 - 5);
     ctx.fillStyle = '#4fc3f7'; ctx.fillText('🔫弹道  💥威力(范围)  ⚡速度', VW / 2, VH / 2 + 22);
     ctx.font = '11px sans-serif'; ctx.fillStyle = '#666';
-    ctx.fillText('恶魔/门走到底部即为失败', VW / 2, VH / 2 + 52);
+    ctx.fillText('到底消耗效果抵扣(恶魔4/门2)，不足则失败', VW / 2, VH / 2 + 52);
     ctx.fillStyle = '#00d2ff'; ctx.font = 'bold 16px sans-serif';
     ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.003) * 0.5;
     ctx.fillText('— 点击 / 按空格开始 —', VW / 2, VH / 2 + 85);
