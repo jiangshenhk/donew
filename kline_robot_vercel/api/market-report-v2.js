@@ -83,6 +83,26 @@ const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
 const STRATEGY_BASELINE_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md";
 const STRATEGY_BASELINE_CACHE_TTL_MS = 60 * 60 * 1000;
 let strategyBaselineCache = { text: "", fetchedAt: 0 };
+const FOCUS_POOL_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/docs/SellPut/sell-put-focus.json";
+const FOCUS_POOL_CACHE_TTL_MS = 10 * 60 * 1000;
+let focusPoolCache = { symbols: [], fetchedAt: 0 };
+
+async function fetchFocusPool(forceRefresh = false) {
+  if (!forceRefresh && focusPoolCache.symbols.length && Date.now() - focusPoolCache.fetchedAt < FOCUS_POOL_CACHE_TTL_MS) {
+    return focusPoolCache.symbols;
+  }
+  try {
+    const res = await timedFetch(FOCUS_POOL_URL, {}, 5000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.focusSymbols?.length) {
+        focusPoolCache = { symbols: data.focusSymbols.map(s => String(s).toUpperCase().trim()).filter(Boolean), fetchedAt: Date.now() };
+        return focusPoolCache.symbols;
+      }
+    }
+  } catch {}
+  return focusPoolCache.symbols.length ? focusPoolCache.symbols : ["QLD", "MSTR", "INTC"];
+}
 
 async function fetchStrategyBaseline(forceRefresh = false) {
   if (!forceRefresh && strategyBaselineCache.text && Date.now() - strategyBaselineCache.fetchedAt < STRATEGY_BASELINE_CACHE_TTL_MS) {
@@ -1005,7 +1025,7 @@ function formatHeadlineValue(value) {
   return n > 0 ? `+${n.toFixed(2)}%` : `${n.toFixed(2)}%`;
 }
 
-function buildMarketDataInput(meta, snapshot, classification, targets, jin10Items = [], focusSymbols = (process.env.FOCUS_SYMBOLS || "QLD,MSTR,INTC").split(",").map(s => s.trim()).filter(Boolean)) {
+function buildMarketDataInput(meta, snapshot, classification, targets, jin10Items = [], focusSymbols = ["QLD", "MSTR", "INTC"]) {
   const now = new Date().toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false });
   const focusData = focusSymbols.map(s => {
     const item = row(snapshot, s);
@@ -1094,9 +1114,10 @@ async function legacyHandler(req, res) {
     const kind = normalizeReportKind(req.query.kind);
     const provider = String(req.query.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
     const forceRefresh = ["1", "true", "yes"].includes(String(req.query.forceRefresh || "").toLowerCase());
-    const defaultFocus = process.env.FOCUS_SYMBOLS || "QLD,MSTR,INTC";
-    const focusRaw = String(req.query.focus || defaultFocus).toUpperCase();
-    const focusSymbols = focusRaw.split(",").map(s => s.trim()).filter(Boolean);
+    const focusRaw = req.query.focus;
+    const focusSymbols = focusRaw
+      ? focusRaw.toUpperCase().split(",").map(s => s.trim()).filter(Boolean)
+      : await fetchFocusPool();
     const meta = kindMeta(kind);
     const snapshot = await fetchMarketSnapshot(forceRefresh);
     const jin10 = await fetchJin10News();

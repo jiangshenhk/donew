@@ -1,0 +1,4 @@
+{
+  "description": "当前 Sell Put 重点关注的标的池",
+  "focusSymbols": ["QLD", "MSTR", "INTC"]
+}
