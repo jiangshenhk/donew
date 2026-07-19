@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.12.0</div>
+<div id="ver">VER 2.13.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -55,9 +55,10 @@ function pickUpgrade() {
   if (state.damage < 5) opts.push({ type: 'damage', label: '威力' });
   if (state.playerSpeed < 9) opts.push({ type: 'speed', label: '速度' });
   if (opts.length === 0) {
-    const fallback = [{ type: 'bullet', label: '弹道' }, { type: 'damage', label: '威力' }, { type: 'speed', label: '速度' }];
+    const fallback = [{ type: 'bullet', label: '弹道', max: 8, cur: state.bulletCount }, { type: 'damage', label: '威力', max: 5, cur: state.damage }, { type: 'speed', label: '速度', max: 9, cur: state.playerSpeed }];
     const pick = fallback[Math.floor(Math.random() * 3)];
-    return { type: pick.type, bonus: 0, label: '+' + 0 + pick.label };
+    let bonus = Math.random() < 0.5 ? 1 : 2;
+    return { type: pick.type, bonus, label: '+' + bonus + pick.label };
   }
   const pick = opts[Math.floor(Math.random() * opts.length)];
   const max = pick.type === 'bullet' ? 8 : pick.type === 'damage' ? 5 : 9;
@@ -573,4 +574,4 @@ loop();
 </script>
 </body>
 </html>
-// 1784449231
+// 1784449289
