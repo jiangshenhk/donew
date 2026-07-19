@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.5.0</div>
+<div id="ver">VER 2.6.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -243,7 +243,13 @@ function update() {
 
   for (let i = squads.length - 1; i >= 0; i--) {
     const sq = squads[i]; let alive = false;
-    for (const imp of sq.imps) { imp.y += imp.spd; alive = true; }
+    for (let j = sq.imps.length - 1; j >= 0; j--) {
+      const imp = sq.imps[j]; imp.y += imp.spd; alive = true;
+      if (imp.y + imp.h > VH - 20) {
+        if (consumeStats(1)) { sq.imps.splice(j, 1); emit(imp.x + imp.w / 2, VH - 20, 15, '#ffd700', 4, 18); }
+        else { state.screen = 'gameover'; return; }
+      }
+    }
     sq.demon.y += sq.demon.spd;
     if (sq.demon.hp > 0) alive = true;
     if (sq.demon.y + sq.demon.h > VH - 20 && sq.demon.hp > 0) {
@@ -460,7 +466,7 @@ function render() {
     ctx.font = '12px sans-serif'; ctx.fillText('每10秒弹道和威力降一级，需持续收集', VW / 2, VH / 2 - 5);
     ctx.fillStyle = '#4fc3f7'; ctx.fillText('🔫弹道  💥威力(范围)  ⚡速度', VW / 2, VH / 2 + 22);
     ctx.font = '11px sans-serif'; ctx.fillStyle = '#666';
-    ctx.fillText('到底消耗效果抵扣(恶魔4/门2)，不足则失败', VW / 2, VH / 2 + 52);
+    ctx.fillText('到底消耗效果抵扣(小鬼1/恶魔4/门2)，不足则失败', VW / 2, VH / 2 + 52);
     ctx.fillStyle = '#00d2ff'; ctx.font = 'bold 16px sans-serif';
     ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.003) * 0.5;
     ctx.fillText('— 点击 / 按空格开始 —', VW / 2, VH / 2 + 85);
