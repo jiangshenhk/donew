@@ -77,7 +77,7 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
     <div id="startHighScore" style="font-size:15px;color:#ffd600;margin-bottom:16px">🏆 Best: 0</div>
     <button id="startBtn">Start Game</button>
     <div class="controls">
-      <span>Mouse / Touch</span> Move &nbsp;|&nbsp; <span>Click / Space</span> Shoot<br>
+      <span>Mouse / Touch</span> Move · Auto-fire enabled<br>
       Shoot enemies to score, avoid collisions
     </div>
   </div>
@@ -103,12 +103,21 @@ function updateHighScoreDisplay() {
 }
 updateHighScoreDisplay()
 
+let scale = 1
+
 function resize() {
-  canvas.width = Math.min(800, window.innerWidth)
-  canvas.height = Math.min(700, window.innerHeight - 20)
+  canvas.width = window.innerWidth
+  canvas.height = window.innerHeight
+  scale = Math.min(canvas.width / 420, canvas.height / 750)
 }
 resize()
-window.addEventListener('resize', resize)
+window.addEventListener('resize', () => {
+  resize()
+  if (game.running) {
+    game.player.x = Math.max(game.player.w * scale / 2, Math.min(canvas.width - game.player.w * scale / 2, game.player.x))
+    game.player.y = Math.max(game.player.h * scale / 2, Math.min(canvas.height - game.player.h * scale / 2, game.player.y))
+  }
+})
 
 // --- Game state ---
 const game = {
@@ -127,7 +136,7 @@ const game = {
   fireRate: 12,
   mouseX: canvas.width / 2,
   mouseY: canvas.height - 100,
-  shooting: false,
+  shooting: true,
   weaponLevel: 0,
   powerups: [],
   powerupTimer: 0,
@@ -150,6 +159,7 @@ for (let i = 0; i < 120; i++) {
 function drawPlayer(x, y, w, h) {
   ctx.save()
   ctx.translate(x, y)
+  ctx.scale(scale, scale)
   const hw = w / 2, hh = h / 2
 
   // Engine flame
@@ -235,6 +245,7 @@ function drawPlayer(x, y, w, h) {
 function drawEnemy(e) {
   ctx.save()
   ctx.translate(e.x, e.y)
+  ctx.scale(scale, scale)
   const rot = e.rot || 0
   ctx.rotate(rot)
 
@@ -523,10 +534,11 @@ function update(dt) {
     }
 
     // Player bullet collision
+    const es = scale
     for (let j = game.bullets.length - 1; j >= 0; j--) {
       const b = game.bullets[j]
-      if (b.x > e.x - e.w / 2 && b.x < e.x + e.w / 2 &&
-          b.y > e.y - e.h / 2 && b.y < e.y + e.h / 2) {
+      if (b.x > e.x - e.w * es / 2 && b.x < e.x + e.w * es / 2 &&
+          b.y > e.y - e.h * es / 2 && b.y < e.y + e.h * es / 2) {
         game.bullets.splice(j, 1)
         e.hp--
         if (e.hp <= 0) {
@@ -671,34 +683,39 @@ function draw() {
   })
 
   // Bullets
+  ctx.save()
+  ctx.scale(scale, scale)
   ctx.shadowColor = '#4fc3f7'
   ctx.shadowBlur = 8
   game.bullets.forEach(b => {
     ctx.fillStyle = '#4fc3f7'
-    ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h)
+    ctx.fillRect(b.x / scale - b.w / 2, b.y / scale - b.h / 2, b.w, b.h)
     ctx.fillStyle = '#b3e5fc'
-    ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h / 2)
+    ctx.fillRect(b.x / scale - b.w / 2, b.y / scale - b.h / 2, b.w, b.h / 2)
   })
   ctx.shadowBlur = 0
+  ctx.restore()
 
   // Enemy bullets
+  ctx.save()
+  ctx.scale(scale, scale)
   ctx.shadowColor = '#ff6f00'
   ctx.shadowBlur = 6
   game.enemyBullets.forEach(b => {
     ctx.fillStyle = '#ff8f00'
-    ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h)
+    ctx.fillRect(b.x / scale - b.w / 2, b.y / scale - b.h / 2, b.w, b.h)
     ctx.fillStyle = '#ffd600'
-    ctx.fillRect(b.x - b.w / 2, b.y - b.h / 2, b.w * 0.6, b.h / 2)
+    ctx.fillRect(b.x / scale - b.w / 2, b.y / scale - b.h / 2, b.w * 0.6, b.h / 2)
   })
   ctx.shadowBlur = 0
+  ctx.restore()
 
   // Powerups
   game.powerups.forEach(p => {
     const pulse = 0.7 + Math.sin(game.frame * 0.08 + p.x) * 0.3
     ctx.save()
     ctx.translate(p.x, p.y)
-
-    // Glow
+    ctx.scale(scale, scale)
     ctx.shadowColor = '#ffd600'
     ctx.shadowBlur = 15
 
@@ -736,15 +753,18 @@ function draw() {
   }
 
   // Explosions
+  ctx.save()
+  ctx.scale(scale, scale)
   game.explosions.forEach(p => {
     const alpha = p.life / p.maxLife
     ctx.globalAlpha = alpha
     ctx.fillStyle = p.color
     ctx.beginPath()
-    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2)
+    ctx.arc(p.x / scale, p.y / scale, p.size * alpha, 0, Math.PI * 2)
     ctx.fill()
   })
   ctx.globalAlpha = 1
+  ctx.restore()
 }
 
 // --- Game loop ---
@@ -764,26 +784,14 @@ canvas.addEventListener('mousemove', e => {
   game.mouseY = (e.clientY - rect.top) * (canvas.height / rect.height)
 })
 
-canvas.addEventListener('mousedown', e => {
-  e.preventDefault()
-  game.shooting = true
-  if (!game.running && !game.over) {
-    // clicking on start screen
-  }
-})
-
-canvas.addEventListener('mouseup', () => { game.shooting = false })
-canvas.addEventListener('mouseleave', () => { game.shooting = false })
-
-// Touch
+// Touch / mouse (move only, auto-fire is always on)
 canvas.addEventListener('touchstart', e => {
   e.preventDefault()
   const t = e.touches[0]
   const rect = canvas.getBoundingClientRect()
   game.mouseX = (t.clientX - rect.left) * (canvas.width / rect.width)
   game.mouseY = (t.clientY - rect.top) * (canvas.height / rect.height)
-  game.shooting = true
-})
+}, { passive: false })
 
 canvas.addEventListener('touchmove', e => {
   e.preventDefault()
@@ -791,12 +799,7 @@ canvas.addEventListener('touchmove', e => {
   const rect = canvas.getBoundingClientRect()
   game.mouseX = (t.clientX - rect.left) * (canvas.width / rect.width)
   game.mouseY = (t.clientY - rect.top) * (canvas.height / rect.height)
-})
-
-canvas.addEventListener('touchend', e => {
-  e.preventDefault()
-  game.shooting = false
-})
+}, { passive: false })
 
 // Keyboard
 document.addEventListener('keydown', e => {
@@ -819,7 +822,7 @@ document.addEventListener('keydown', e => {
       return
     }
   }
-  if (e.code === 'Space') {
+  if (e.code === 'Space' || e.code === 'Enter') {
     e.preventDefault()
     if (!game.running && game.over) {
       resetGame()
@@ -829,14 +832,6 @@ document.addEventListener('keydown', e => {
       resetGame()
       return
     }
-    game.shooting = true
-  }
-})
-
-document.addEventListener('keyup', e => {
-  if (e.code === 'Space') {
-    e.preventDefault()
-    game.shooting = false
   }
 })
 
