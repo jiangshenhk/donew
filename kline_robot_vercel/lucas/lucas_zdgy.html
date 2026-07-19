@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>深渊守护者</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="version">VER 1.0.0</div>
+<style>
+#version{
+  position:fixed;bottom:8px;right:12px;z-index:100;
+  font:11px Arial,sans-serif;color:#fff;opacity:0.5;
+  pointer-events:none;user-select:none
+}
+</style>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H, giftLaneW, enemyLaneW;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  giftLaneW = W * 0.3;
+  enemyLaneW = W - giftLaneW;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const WEAPONS = [
+  { name: '手枪',   count: 1,  spread: 0,  rate: 280, dmg: 1, size: 4, color: '#ffdd57' },
+  { name: '双发',   count: 2,  spread: 3,  rate: 280, dmg: 1, size: 4, color: '#ff6b6b' },
+  { name: '三连',   count: 3,  spread: 5,  rate: 280, dmg: 1, size: 4, color: '#48dbfb' },
+  { name: '散射',   count: 5,  spread: 9,  rate: 320, dmg: 1, size: 4, color: '#ff9ff3' },
+  { name: '机枪',   count: 1,  spread: 0,  rate: 80,  dmg: 1, size: 3, color: '#feca57' },
+  { name: '激光',   count: 1,  spread: 0,  rate: 50,  dmg: 3, size: 6, color: '#ff4757' },
+  { name: '火箭筒', count: 1,  spread: 0,  rate: 400, dmg: 5, size: 8, color: '#2ed573', explosive: true },
+];
+
+const state = {
+  screen: 'menu',
+  score: 0,
+  weaponLevel: 0,
+  frames: 0,
+  lastShot: 0,
+  giftFrozenBase: 5,
+};
+
+const player = { x: 0, y: 0, w: 32, h: 36 };
+const keys = { left: false, right: false };
+let touchX = null;
+let gifts = [];
+let bullets = [];
+let squads = [];
+let particles = [];
+
+// ─── rounded rect helper ──────────────────────────────────────────
+function rndRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ─── particles ─────────────────────────────────────────────────────
+function emit(x, y, n, color, spd, life) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = Math.random() * spd;
+    particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: life||30, maxLife: life||30, color, size: 2+Math.random()*4 });
+  }
+}
+
+// ─── gifts ─────────────────────────────────────────────────────────
+const GIFT_H = 44, GIFT_GAP = 6, GIFT_TOP = 78;
+
+function giftY(i) { return GIFT_TOP + i * (GIFT_H + GIFT_GAP); }
+
+function makeGift() {
+  const w = giftLaneW * 0.7;
+  return { x: giftLaneW/2 - w/2, y: 0, w, h: GIFT_H, frozen: state.giftFrozenBase, maxFrozen: state.giftFrozenBase };
+}
+
+function repositionGifts() {
+  for (let i = 0; i < gifts.length; i++) {
+    gifts[i].y = giftY(i);
+  }
+}
+
+// ─── squads ────────────────────────────────────────────────────────
+const IMP_S = 15, DEMON_W = 46, DEMON_H = 52;
+
+function spawnSquad() {
+  const cols = 8;
+  const rows = 5 + Math.floor(Math.random() * 3);
+  const gapX = 21, gapY = 19;
+  const totalW = cols * gapX;
+  const sx = giftLaneW + (enemyLaneW - totalW) / 2 + gapX / 2;
+  const spd = 0.35 + state.frames * 0.000025;
+  const hp = 80 + state.frames * 0.1;
+  const ey = -60;
+
+  const imps = [];
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      imps.push({ x: sx + c*gapX, y: ey + 55 + r*gapY, w: IMP_S, h: IMP_S, hp: 1, speed: spd });
+
+  const demon = {
+    x: sx + (cols*gapX)/2 - DEMON_W/2, y: ey,
+    w: DEMON_W, h: DEMON_H,
+    hp, maxHp: hp, speed: spd,
+  };
+
+  squads.push({ imps, demon });
+}
+
+// ─── shooting ──────────────────────────────────────────────────────
+function shoot() {
+  const now = Date.now();
+  const wpn = WEAPONS[Math.min(state.weaponLevel, WEAPONS.length - 1)];
+  if (now - state.lastShot < wpn.rate) return;
+  state.lastShot = now;
+
+  const bx = player.x;
+  const by = player.y - player.h/2;
+  const spd = 10;
+
+  if (wpn.count === 1) {
+    bullets.push({ x: bx - wpn.size/2, y: by, w: wpn.size, h: 12, vy: -spd, dmg: wpn.dmg, color: wpn.color, explosive: !!wpn.explosive });
+  } else {
+    for (let i = 0; i < wpn.count; i++) {
+      const off = (i - (wpn.count-1)/2) * wpn.spread;
+      bullets.push({ x: bx + off - wpn.size/2, y: by, w: wpn.size, h: 12, vy: -spd + Math.abs(off)*0.3, dmg: wpn.dmg, color: wpn.color });
+    }
+  }
+}
+
+// ─── collision helpers ─────────────────────────────────────────────
+function rectOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// ─── update ────────────────────────────────────────────────────────
+function update() {
+  if (state.screen !== 'playing') return;
+
+  state.frames++;
+
+  // difficulty scaling
+  if (state.frames % 300 === 0) {
+    state.giftFrozenBase = Math.min(5 + Math.floor(state.frames / 1500), 20);
+  }
+
+  // spawn gifts
+  if (state.frames % 180 === 0 && gifts.length < 5) {
+    gifts.push(makeGift());
+    repositionGifts();
+  }
+
+  // spawn squads
+  if (state.frames === 60 || state.frames % 360 === 0) {
+    spawnSquad();
+  }
+
+  // player movement
+  if (keys.left) player.x -= 5;
+  if (keys.right) player.x += 5;
+  if (touchX !== null) {
+    const d = touchX - player.x;
+    if (Math.abs(d) > 5) player.x += Math.sign(d) * Math.min(7, Math.abs(d)*0.15);
+  }
+  player.x = Math.max(player.w/2, Math.min(W - player.w/2, player.x));
+
+  shoot();
+
+  // ── bullets ──
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.y += b.vy;
+    if (b.y + b.h < 0 || b.y > H) { bullets.splice(i, 1); continue; }
+
+    let hit = false;
+
+    // vs gifts
+    if (!hit && b.x < giftLaneW) {
+      for (const g of gifts) {
+        if (rectOverlap(b, g)) {
+          g.frozen--;
+          emit(b.x + b.w/2, b.y, 3, '#a8d8ea', 2, 12);
+          if (g.frozen <= 0) {
+            if (state.weaponLevel < WEAPONS.length - 1) state.weaponLevel++;
+            else state.score += 50;
+            emit(g.x + g.w/2, g.y + g.h/2, 30, '#00d2ff', 5, 35);
+            gifts.splice(gifts.indexOf(g), 1);
+            repositionGifts();
+          }
+          hit = true;
+          break;
+        }
+      }
+    }
+
+    // vs enemies
+    if (!hit && b.x + b.w > giftLaneW) {
+      for (const sq of squads) {
+        for (let j = sq.imps.length - 1; j >= 0; j--) {
+          const imp = sq.imps[j];
+          if (rectOverlap(b, imp)) {
+            imp.hp -= b.dmg;
+            emit(b.x + b.w/2, b.y, 3, '#ff6b6b', 2, 12);
+            if (imp.hp <= 0) {
+              sq.imps.splice(j, 1);
+              state.score += 10;
+              emit(imp.x + imp.w/2, imp.y + imp.h/2, 12, '#ff6b6b', 4, 22);
+            }
+            hit = true;
+            break;
+          }
+        }
+        if (hit) break;
+
+        const d = sq.demon;
+        if (rectOverlap(b, d)) {
+          d.hp -= b.dmg;
+          emit(b.x + b.w/2, b.y, 6, '#ff4757', 3, 18);
+          if (b.explosive) {
+            const r = 55;
+            emit(d.x + d.w/2, d.y + d.h/2, 35, '#ff6348', 7, 28);
+            for (const sq2 of squads) {
+              for (let k = sq2.imps.length - 1; k >= 0; k--) {
+                const im = sq2.imps[k];
+                if (Math.hypot(im.x+im.w/2 - (d.x+d.w/2), im.y+im.h/2 - (d.y+d.h/2)) < r) {
+                  sq2.imps.splice(k, 1);
+                  state.score += 10;
+                }
+              }
+              if (sq2.demon !== d) {
+                const dx = sq2.demon.x+sq2.demon.w/2 - (d.x+d.w/2);
+                const dy = sq2.demon.y+sq2.demon.h/2 - (d.y+d.h/2);
+                if (Math.hypot(dx, dy) < r) sq2.demon.hp -= b.dmg * 0.5;
+              }
+            }
+          }
+          hit = true;
+          if (d.hp <= 0) {
+            state.score += 100;
+            emit(d.x + d.w/2, d.y + d.h/2, 50, '#ff4757', 8, 35);
+          }
+        }
+      }
+    }
+
+    if (hit) bullets.splice(i, 1);
+  }
+
+  // ── squads ──
+  for (let i = squads.length - 1; i >= 0; i--) {
+    const sq = squads[i];
+    let alive = false;
+
+    for (const imp of sq.imps) {
+      imp.y += imp.speed;
+      alive = true;
+    }
+
+    sq.demon.y += sq.demon.speed;
+    if (sq.demon.hp > 0) alive = true;
+
+    if (sq.demon.y + sq.demon.h > H - 20 && sq.demon.hp > 0) {
+      state.screen = 'gameover';
+      return;
+    }
+
+    if (!alive) squads.splice(i, 1);
+  }
+
+  // ── particles ──
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    if (--p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ─── draw ──────────────────────────────────────────────────────────
+function drawBg() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  const grd = ctx.createLinearGradient(0, 0, giftLaneW, 0);
+  grd.addColorStop(0, 'rgba(0,50,100,0.12)');
+  grd.addColorStop(1, 'rgba(0,50,100,0)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, giftLaneW, H);
+
+  ctx.strokeStyle = 'rgba(0,100,200,0.12)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath(); ctx.moveTo(giftLaneW, 0); ctx.lineTo(giftLaneW, H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  for (let i = 0; i < 25; i++) {
+    const sx = (i*137.5 + state.frames*0.3) % W;
+    const sy = (i*97.3 + state.frames*0.15) % H;
+    ctx.fillStyle = `rgba(100,150,255,${0.06 + Math.sin(i*2.7+state.frames*0.008)*0.04})`;
+    ctx.beginPath(); ctx.arc(sx, sy, 1, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawGift(g) {
+  const pct = g.frozen / g.maxFrozen;
+  ctx.save();
+
+  const grd = ctx.createLinearGradient(g.x, g.y, g.x, g.y + g.h);
+  grd.addColorStop(0, `rgba(80,170,255,${0.5+pct*0.4})`);
+  grd.addColorStop(1, `rgba(40,90,200,${0.5+pct*0.4})`);
+  ctx.fillStyle = grd;
+  ctx.strokeStyle = `rgba(180,220,255,${pct*0.6+0.2})`;
+  ctx.lineWidth = 1.5;
+  rndRect(g.x, g.y, g.w, g.h, 5);
+  ctx.fill(); ctx.stroke();
+
+  // frost crystals
+  if (pct > 0.2) {
+    ctx.fillStyle = `rgba(255,255,255,${pct*0.35})`;
+    for (let i = 0; i < 5; i++) {
+      const ix = g.x + 8 + (i*19+7) % (g.w-16);
+      const iy = g.y + 8 + (i*13+11) % (g.h-16);
+      ctx.beginPath();
+      ctx.moveTo(ix, iy); ctx.lineTo(ix+3, iy+5); ctx.lineTo(ix-3, iy+5);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // frozen bar
+  const bw = g.w - 16, bh = 4;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  rndRect(g.x+8, g.y+g.h-11, bw, bh, 2); ctx.fill();
+  ctx.fillStyle = 'rgba(120,210,255,0.85)';
+  rndRect(g.x+8, g.y+g.h-11, bw*(1-pct), bh, 2); ctx.fill();
+
+  // label
+  ctx.fillStyle = `rgba(255,255,255,${1-pct*0.4})`;
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('❄' + g.frozen, g.x+g.w/2, g.y+g.h/2-2);
+
+  const nextWpn = WEAPONS[Math.min(state.weaponLevel + 1, WEAPONS.length-1)];
+  ctx.fillStyle = nextWpn.color;
+  ctx.font = '9px sans-serif';
+  ctx.fillText(nextWpn.name, g.x+g.w/2, g.y+g.h/2+14);
+
+  ctx.restore();
+}
+
+function drawDemon(d) {
+  ctx.save();
+  const grd = ctx.createRadialGradient(d.x+d.w/2, d.y+d.h/2, 4, d.x+d.w/2, d.y+d.h/2, d.w/2);
+  grd.addColorStop(0, '#8b0000');
+  grd.addColorStop(0.5, '#4a0000');
+  grd.addColorStop(1, '#1a0000');
+  ctx.fillStyle = grd;
+  rndRect(d.x, d.y, d.w, d.h, 7); ctx.fill();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillText('👹', d.x+d.w/2, d.y+d.h/2);
+
+  const hpPct = d.hp / d.maxHp;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  rndRect(d.x, d.y-8, d.w, 5, 2.5); ctx.fill();
+  ctx.fillStyle = hpPct > 0.3 ? '#ff4444' : '#ff0000';
+  rndRect(d.x, d.y-8, d.w*hpPct, 5, 2.5); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = '7px sans-serif';
+  ctx.fillText(Math.ceil(d.hp), d.x+d.w/2, d.y-5.5);
+  ctx.restore();
+}
+
+function drawImp(imp) {
+  ctx.save();
+  ctx.fillStyle = '#2d1b00';
+  ctx.beginPath(); ctx.arc(imp.x+imp.w/2, imp.y+imp.h/2, imp.w/2, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#ff4444';
+  ctx.beginPath(); ctx.arc(imp.x+imp.w/2, imp.y+imp.h/2-1, 3, 0, Math.PI); ctx.fill();
+
+  ctx.fillStyle = '#8b0000';
+  ctx.beginPath();
+  ctx.arc(imp.x+imp.w/2-2.5, imp.y+imp.h/2-3, 1.5, 0, Math.PI*2);
+  ctx.arc(imp.x+imp.w/2+2.5, imp.y+imp.h/2-3, 1.5, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ff6348';
+  ctx.beginPath();
+  ctx.moveTo(imp.x+imp.w/2-3, imp.y+imp.h/2-4);
+  ctx.lineTo(imp.x+imp.w/2-6, imp.y+imp.h/2+3);
+  ctx.lineTo(imp.x+imp.w/2-1, imp.y+imp.h/2-1);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(imp.x+imp.w/2+3, imp.y+imp.h/2-4);
+  ctx.lineTo(imp.x+imp.w/2+6, imp.y+imp.h/2+3);
+  ctx.lineTo(imp.x+imp.w/2+1, imp.y+imp.h/2-1);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawPlayer() {
+  ctx.save();
+
+  ctx.fillStyle = '#1a1a2e';
+  rndRect(player.x - player.w/2 + 3, player.y + 4, player.w-6, player.h-8, 5);
+  ctx.fill();
+
+  ctx.fillStyle = '#e2b631';
+  ctx.beginPath(); ctx.arc(player.x, player.y-4, player.w/2-3, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(player.x-5, player.y-7, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(player.x+5, player.y-7, 2.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#333';
+  ctx.beginPath(); ctx.arc(player.x-5, player.y-7, 1.2, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(player.x+5, player.y-7, 1.2, 0, Math.PI*2); ctx.fill();
+
+  ctx.fillStyle = '#e2b631';
+  ctx.fillRect(player.x-10, player.y+1, 3, 5);
+  ctx.fillRect(player.x+7, player.y+1, 3, 5);
+
+  const wpn = WEAPONS[Math.min(state.weaponLevel, WEAPONS.length-1)];
+  ctx.fillStyle = wpn.color;
+  ctx.shadowColor = wpn.color;
+  ctx.shadowBlur = 10;
+  ctx.fillRect(player.x-1, player.y-14, 2, 11);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+function drawBullet(b) {
+  ctx.save();
+  ctx.fillStyle = b.color;
+  ctx.shadowColor = b.color;
+  ctx.shadowBlur = 12;
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const a = p.life / p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * a, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawHUD() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, W, 34);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText('⭐ ' + state.score, 10, 17);
+
+  ctx.textAlign = 'center';
+  const wpn = WEAPONS[Math.min(state.weaponLevel, WEAPONS.length-1)];
+  ctx.fillStyle = wpn.color;
+  ctx.fillText('🔫 ' + wpn.name, W/2, 17);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText(Math.floor(state.frames/60) + 's', W-10, 17);
+  ctx.restore();
+
+  // bottom indicator
+  const hasGifts = gifts.some(g => g.frozen > 0);
+  if (hasGifts) {
+    ctx.fillStyle = 'rgba(80,180,255,0.2)';
+    ctx.fillRect(0, H-4, giftLaneW, 4);
+  }
+  const threat = squads.reduce((s, q) => s + (q.demon.hp > 0 ? q.demon.hp : 0) + q.imps.length, 0);
+  if (threat > 0) {
+    ctx.fillStyle = 'rgba(255,50,50,0.2)';
+    ctx.fillRect(giftLaneW, H-4, W-giftLaneW, 4);
+  }
+}
+
+function render() {
+  drawBg();
+
+  if (state.screen === 'menu') {
+    ctx.fillStyle = 'rgba(0,20,40,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#00d2ff';
+    ctx.font = 'bold 38px sans-serif';
+    ctx.shadowColor = '#00d2ff';
+    ctx.shadowBlur = 25;
+    ctx.fillText('深渊守护者', W/2, H/2-70);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px sans-serif';
+    ctx.fillText('← → 或 A/D 移动 · 自动射击', W/2, H/2-15);
+    ctx.fillText('射击冰封礼物获取武器升级', W/2, H/2+15);
+    ctx.fillStyle = '#688';
+    ctx.font = '13px sans-serif';
+    ctx.fillText('恶魔突破防线即告失败', W/2, H/2+45);
+    ctx.fillStyle = '#00d2ff';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.globalAlpha = 0.5 + Math.sin(Date.now()*0.003)*0.5;
+    ctx.fillText('— 点击开始 —', W/2, H/2+95);
+    ctx.restore();
+    return;
+  }
+
+  if (state.screen === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ff4757';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.shadowColor = '#ff4757';
+    ctx.shadowBlur = 25;
+    ctx.fillText('游戏结束', W/2, H/2-80);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = '22px sans-serif';
+    ctx.fillText('得分: ' + state.score, W/2, H/2-20);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px sans-serif';
+    ctx.fillText('存活 ' + Math.floor(state.frames/60) + ' 秒', W/2, H/2+15);
+    const wpn = WEAPONS[Math.min(state.weaponLevel, WEAPONS.length-1)];
+    ctx.fillStyle = wpn.color;
+    ctx.fillText('最终武器: ' + wpn.name, W/2, H/2+50);
+    ctx.fillStyle = '#00d2ff';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.globalAlpha = 0.5 + Math.sin(Date.now()*0.003)*0.5;
+    ctx.fillText('— 点击重新开始 —', W/2, H/2+105);
+    ctx.restore();
+    return;
+  }
+
+  // gift lane
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, giftLaneW, H); ctx.clip();
+  ctx.fillStyle = 'rgba(0,60,120,0.06)';
+  ctx.fillRect(0, 0, giftLaneW, H);
+  ctx.fillStyle = 'rgba(0,120,200,0.08)';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('— 礼物通道 —', giftLaneW/2, 60);
+  for (const g of gifts) if (g.frozen > 0) drawGift(g);
+  ctx.restore();
+
+  // enemy lane
+  ctx.save();
+  ctx.beginPath(); ctx.rect(giftLaneW, 0, enemyLaneW, H); ctx.clip();
+  for (const sq of squads) {
+    for (const imp of sq.imps) drawImp(imp);
+    if (sq.demon.hp > 0) drawDemon(sq.demon);
+  }
+  ctx.restore();
+
+  drawParticles();
+  for (const b of bullets) drawBullet(b);
+  drawPlayer();
+  drawHUD();
+}
+
+// ─── game loop ─────────────────────────────────────────────────────
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ─── input ─────────────────────────────────────────────────────────
+canvas.addEventListener('click', () => {
+  if (state.screen === 'menu' || state.screen === 'gameover') {
+    state.score = 0;
+    state.weaponLevel = 0;
+    state.frames = 0;
+    state.giftFrozenBase = 5;
+    state.screen = 'playing';
+    player.x = W/2;
+    player.y = H - 45;
+    bullets = [];
+    squads = [];
+    particles = [];
+    gifts = [];
+    for (let i = 0; i < 5; i++) {
+      gifts.push(makeGift());
+    }
+    repositionGifts();
+  }
+});
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const r = canvas.getBoundingClientRect();
+  const x = (t.clientX - r.left) * (canvas.width / r.width);
+  if (state.screen !== 'playing') {
+    if (state.screen === 'menu' || state.screen === 'gameover') {
+      touchX = null;
+      canvas.dispatchEvent(new MouseEvent('click'));
+    }
+    return;
+  }
+  touchX = x;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const r = canvas.getBoundingClientRect();
+  touchX = (t.clientX - r.left) * (canvas.width / r.width);
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => { e.preventDefault(); touchX = null; }, { passive: false });
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+  if (e.key === ' ' || e.key === 'Enter') canvas.dispatchEvent(new MouseEvent('click'));
+});
+
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+});
+
+player.y = H - 45;
+player.x = W / 2;
+loop();
+</script>
+</body>
+</html>
