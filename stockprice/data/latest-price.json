@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-19T09:13:07.022Z",
-  "checkedAt": "2026-07-19T09:13:07.022Z",
+  "updatedAt": "2026-07-19T10:43:05.620Z",
+  "checkedAt": "2026-07-19T10:43:05.620Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -245,10 +245,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64617.62,
+      "price": 64612.92,
       "previousClose": 64712.375,
       "changePercent": "-0.15",
-      "marketTime": "2026-07-19T09:12:53.000Z",
+      "marketTime": "2026-07-19T10:42:49.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
