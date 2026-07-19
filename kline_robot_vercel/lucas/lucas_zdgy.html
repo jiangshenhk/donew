@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.0.0</div>
+<div id="ver">VER 2.1.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -40,7 +40,7 @@ window.addEventListener('resize', resize);
 const GIFT_LANE = Math.round(VW * 0.5);
 const ENEMY_LANE = VW - GIFT_LANE;
 
-const MAX_GIFTS = 4;
+const MAX_GIFTS = 8;
 const IW = 13, IH = 13;   // imp size
 const IGX = 20, IGY = 18; // imp grid spacing
 
@@ -54,7 +54,7 @@ function pickUpgrade() {
   if (state.bulletCount < 8) opts.push({ type: 'bullet', label: '弹道' });
   if (state.damage < 5) opts.push({ type: 'damage', label: '威力' });
   if (state.playerSpeed < 9) opts.push({ type: 'speed', label: '速度' });
-  if (opts.length === 0) return { type: 'done', bonus: 0, label: '' };
+  if (opts.length === 0) return { type: 'done', bonus: 0, label: '已满' };
   const pick = opts[Math.floor(Math.random() * opts.length)];
   const max = pick.type === 'bullet' ? 8 : pick.type === 'damage' ? 5 : 9;
   const cur = pick.type === 'bullet' ? state.bulletCount : pick.type === 'damage' ? state.damage : state.playerSpeed;
@@ -69,7 +69,7 @@ let mouseX = null, mouseActive = false;
 
 let gifts = [], bullets = [], squads = [], doors = [], particles = [];
 
-function giftY(i) { return 70 + i * 44; }
+function giftY(i) { return 55 + i * 34; }
 
 function makeGift() {
   const w = GIFT_LANE * 0.7;
@@ -114,7 +114,7 @@ function spawnSquad() {
     for (let c = 0; c < cols; c++)
       imps.push({ x: sx + c * IGX, y: ey + 50 + r * IGY, w: IW, h: IH, hp: 1, spd });
 
-  const demon = { x: sx + (tw) / 2 - 28, y: ey - 55, w: 56, h: 62, hp, maxHp: hp, spd };
+  const demon = { x: sx + (tw) / 2 - 28, y: ey - 55, w: 56, h: 52, hp, maxHp: hp, spd };
   squads.push({ imps, demon });
 }
 
@@ -174,6 +174,7 @@ function update() {
             } else state.score += 50;
             emit(g.x + g.w / 2, g.y + g.h / 2, 25, '#00d2ff', 4, 30);
             gifts.splice(gifts.indexOf(g), 1);
+            gifts.unshift(makeGift());
             repositionGifts();
           }
           hit = true; break;
@@ -416,7 +417,7 @@ function render() {
     ctx.fillText('深渊守护者', VW / 2, VH / 2 - 80); ctx.shadowBlur = 0;
     ctx.fillStyle = '#aaa'; ctx.font = '13px sans-serif';
     ctx.fillText('← → / A,D / 鼠标移动', VW / 2, VH / 2 - 35);
-    ctx.font = '12px sans-serif'; ctx.fillText('射击礼物解冻获取升级(共4个)', VW / 2, VH / 2 - 5);
+    ctx.font = '12px sans-serif'; ctx.fillText('射击礼物解冻获取升级(上限后可得分)', VW / 2, VH / 2 - 5);
     ctx.fillStyle = '#4fc3f7'; ctx.fillText('🔫弹道  💥威力(范围)  ⚡速度', VW / 2, VH / 2 + 22);
     ctx.font = '11px sans-serif'; ctx.fillStyle = '#666';
     ctx.fillText('恶魔/门走到底部即为失败', VW / 2, VH / 2 + 52);
@@ -448,10 +449,7 @@ function render() {
   ctx.fillStyle = 'rgba(0,120,200,0.07)'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
   ctx.fillText('— 礼物 —', GIFT_LANE / 2, 55);
   gifts.forEach((g, i) => { if (g.hp > 0) drawGift(g, i); });
-  if (gifts.length === 0) {
-    ctx.fillStyle = 'rgba(100,200,255,0.3)'; ctx.font = '12px sans-serif';
-    ctx.fillText('已全部升级', GIFT_LANE / 2, VH / 2);
-  }
+
   ctx.restore();
 
   ctx.save(); ctx.beginPath(); ctx.rect(GIFT_LANE, 0, ENEMY_LANE, VH); ctx.clip();
@@ -474,7 +472,7 @@ function startGame() {
   state.frame = 0; state.screen = 'playing';
   player.x = VW / 2;
   bullets = []; squads = []; doors = []; particles = []; gifts = [];
-  for (let i = 0; i < MAX_GIFTS; i++) { gifts.push(makeGift()); }
+  for (let i = 0; i < 8; i++) { gifts.push(makeGift()); }
   repositionGifts();
 }
 
