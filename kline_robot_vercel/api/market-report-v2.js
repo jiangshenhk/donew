@@ -1,7 +1,7 @@
 const MARKET_SYMBOLS = [
   "QQQ", "SPY", "IWM", "QLD", "TQQQ", "SMH", "SOXX", "MAGS",
   "EEM", "FXI", "KWEB", "^VIX", "VIXY", "IBIT", "BTC-USD", "MSTR",
-  "DX-Y.NYB", "^TNX", "JPY=X", "CL=F", "GC=F", "INTC", "HOOD",
+  "DX-Y.NYB", "^TNX", "^2YR", "JPY=X", "CNY=X", "CL=F", "GC=F", "INTC", "HOOD",
 ];
 
 const REQUIRED_TARGETS = ["QLD", "EEM", "MSTR", "INTC", "HOOD"];
@@ -28,7 +28,9 @@ const SYMBOL_LABELS = {
   MSTR: "MSTR",
   "DX-Y.NYB": "DXY",
   "^TNX": "10Y",
+  "^2YR": "2Y",
   "JPY=X": "USDJPY",
+  "CNY=X": "USDCNY",
   "CL=F": "WTI",
   "GC=F": "黄金",
   INTC: "INTC",
@@ -73,6 +75,7 @@ const FRED_SERIES = {
   "BTC-USD": "CBBTCUSD",
   "^VIX": "VIXCLS",
   "^TNX": "DGS10",
+  "^2YR": "DGS2",
   "DX-Y.NYB": "DTWEXBGS",
 };
 const STOCKPRICE_SNAPSHOT_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";

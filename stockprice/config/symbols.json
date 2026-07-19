@@ -74,7 +74,15 @@
       "category": "Macro"
     },
     {
+      "symbol": "^2YR",
+      "category": "Macro"
+    },
+    {
       "symbol": "JPY=X",
+      "category": "Macro"
+    },
+    {
+      "symbol": "CNY=X",
       "category": "Macro"
     },
     {
