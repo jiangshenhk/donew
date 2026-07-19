@@ -1005,9 +1005,21 @@ function formatHeadlineValue(value) {
   return n > 0 ? `+${n.toFixed(2)}%` : `${n.toFixed(2)}%`;
 }
 
-function buildMarketDataInput(meta, snapshot, classification, targets, jin10Items = []) {
+function buildMarketDataInput(meta, snapshot, classification, targets, jin10Items = [], focusSymbols = ["QLD", "MSTR", "INTC"]) {
   const now = new Date().toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false });
-  return `## 当前时间与报告参数
+  const focusData = focusSymbols.map(s => {
+    const item = row(snapshot, s);
+    return `- ${symbolLabel(s)}：最新价 ${formatPrice(item.last)}，日变化 ${formatPctValue(item.changePct)}，相对20日线 ${formatPctValue(item.vs20Pct)}，相对50日线 ${formatPctValue(item.vs50Pct)}`;
+  }).join("\n");
+  return `## 本次重点分析标的
+${focusSymbols.map(s => `- ${symbolLabel(s)}`).join("、")}
+
+请在第 9 节重点分析以上标的的卖 Put 可行性，给出明确的当前判断（可卖 / 谨慎卖 / 暂不卖）和原因。
+
+### 重点标的行情数据
+${focusData}
+
+## 当前时间与报告参数
 - 生成时间：${now}
 - 报告类型：${meta.kind === "weekly" ? "周报" : meta.sessionLabel || "日报"}
 - 市场阶段：${meta.marketPhaseLabel || "美股最新阶段"}
@@ -1082,13 +1094,15 @@ async function legacyHandler(req, res) {
     const kind = normalizeReportKind(req.query.kind);
     const provider = String(req.query.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
     const forceRefresh = ["1", "true", "yes"].includes(String(req.query.forceRefresh || "").toLowerCase());
+    const focusRaw = String(req.query.focus || "QLD,MSTR,INTC").toUpperCase();
+    const focusSymbols = focusRaw.split(",").map(s => s.trim()).filter(Boolean);
     const meta = kindMeta(kind);
     const snapshot = await fetchMarketSnapshot(forceRefresh);
     const jin10 = await fetchJin10News();
     const classification = classify(snapshot);
     const targets = targetRows(snapshot, classification);
     const strategyBaseline = await fetchStrategyBaseline();
-    const userInput = buildMarketDataInput(meta, snapshot, classification, targets, jin10.items);
+    const userInput = buildMarketDataInput(meta, snapshot, classification, targets, jin10.items, focusSymbols);
     const ai = await callAI(strategyBaseline, userInput, provider).catch(error => ({
       used: false,
       provider: provider === "openai" ? "GPT" : "DeepSeek",
@@ -1102,6 +1116,7 @@ async function legacyHandler(req, res) {
       headline: meta.title,
       finalCommand: "按策略规则执行",
       targets,
+      focus: focusSymbols,
       aiProvider: ai.provider,
       usedAi: ai.used,
       retrievedAt: new Date().toISOString(),
