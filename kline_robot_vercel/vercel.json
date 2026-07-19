@@ -15,5 +15,8 @@
     "api/market-report-v2.js": {
       "maxDuration": 120
     }
+  },
+  "github": {
+    "silent": true
   }
 }
