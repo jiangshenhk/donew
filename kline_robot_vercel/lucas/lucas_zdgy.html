@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.15.0</div>
+<div id="ver">VER 2.16.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -51,17 +51,17 @@ const state = {
 
 function pickUpgrade() {
   const opts = [];
-  if (state.bulletCount < 8) opts.push({ type: 'bullet', label: '弹道' });
+  if (state.bulletCount < 10) opts.push({ type: 'bullet', label: '弹道' });
   if (state.damage < 5) opts.push({ type: 'damage', label: '威力' });
-  if (state.playerSpeed < 9) opts.push({ type: 'speed', label: '速度' });
+  if (state.playerSpeed < 10) opts.push({ type: 'speed', label: '速度' });
   if (opts.length === 0) {
-    const fallback = [{ type: 'bullet', label: '弹道', max: 8, cur: state.bulletCount }, { type: 'damage', label: '威力', max: 5, cur: state.damage }, { type: 'speed', label: '速度', max: 9, cur: state.playerSpeed }];
+    const fallback = [{ type: 'bullet', label: '弹道', max: 10, cur: state.bulletCount }, { type: 'damage', label: '威力', max: 5, cur: state.damage }, { type: 'speed', label: '速度', max: 10, cur: state.playerSpeed }];
     const pick = fallback[Math.floor(Math.random() * 3)];
     let bonus = Math.random() < 0.5 ? 1 : 2;
     return { type: pick.type, bonus, label: '+' + bonus + pick.label };
   }
   const pick = opts[Math.floor(Math.random() * opts.length)];
-  const max = pick.type === 'bullet' ? 8 : pick.type === 'damage' ? 5 : 9;
+  const max = pick.type === 'bullet' ? 10 : pick.type === 'damage' ? 5 : 10;
   const cur = pick.type === 'bullet' ? state.bulletCount : pick.type === 'damage' ? state.damage : state.playerSpeed;
   let bonus = Math.random() < 0.5 ? 1 : 2;
   if (cur + bonus > max) bonus = Math.max(1, max - cur);
@@ -188,9 +188,9 @@ function update() {
           emit(b.x + b.w / 2, b.y, 2, '#7ec8e3', 2, 10);
           if (g.hp <= 0) {
             if (g.bonus > 0) {
-              if (g.type === 'bullet') state.bulletCount = Math.min(8, state.bulletCount + g.bonus);
+              if (g.type === 'bullet') state.bulletCount = Math.min(10, state.bulletCount + g.bonus);
               else if (g.type === 'damage') state.damage = Math.min(5, state.damage + g.bonus);
-              else if (g.type === 'speed') state.playerSpeed = Math.min(9, state.playerSpeed + g.bonus);
+              else if (g.type === 'speed') state.playerSpeed = Math.min(10, state.playerSpeed + g.bonus);
             } else state.score += 50;
             state.lastDecay = state.frame;
             emit(g.x + g.w / 2, g.y + g.h / 2, 25, '#00d2ff', 4, 30);
