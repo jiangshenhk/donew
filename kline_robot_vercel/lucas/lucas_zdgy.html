@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.8.0</div>
+<div id="ver">VER 2.9.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -45,7 +45,7 @@ const IW = 13, IH = 13;   // imp size
 const IGX = 20, IGY = 18; // imp grid spacing
 
 const state = {
-  screen: 'menu', score: 0, frame: 0, lastShot: 0,
+  screen: 'menu', score: 0, frame: 0, lastShot: 0, lastDecay: 0,
   bulletCount: 1, damage: 1, playerSpeed: 4,
 };
 
@@ -159,9 +159,11 @@ function update() {
   if (state.frame % 180 === 0 && gifts.length < MAX_GIFTS) { gifts.unshift(makeGift()); repositionGifts(); }
   if (state.frame === 60 || state.frame % 360 === 0) spawnSquad();
   if (state.frame > 120 && (state.frame - 240) % 720 === 0) spawnDoor();
-  if (state.frame % 600 === 0 && state.frame > 120) {
+  if (state.frame - state.lastDecay >= 600 && state.frame > 120) {
+    state.lastDecay = state.frame;
     if (state.damage > 1) state.damage--;
-    if (state.bulletCount > 1) state.bulletCount--;
+    else if (state.playerSpeed > 4) state.playerSpeed--;
+    else if (state.bulletCount > 1) state.bulletCount--;
   }
 
   if (keys.left) { player.x -= state.playerSpeed; mouseActive = false; }
@@ -188,6 +190,7 @@ function update() {
               else if (g.type === 'damage') state.damage = Math.min(5, state.damage + g.bonus);
               else if (g.type === 'speed') state.playerSpeed = Math.min(9, state.playerSpeed + g.bonus);
             } else state.score += 50;
+            state.lastDecay = state.frame;
             emit(g.x + g.w / 2, g.y + g.h / 2, 25, '#00d2ff', 4, 30);
             gifts.splice(gifts.indexOf(g), 1);
             gifts.unshift(makeGift());
@@ -422,9 +425,9 @@ function drawParticles() {
 function drawBottomStatus() {
   if (state.frame < 60) return;
   const shield = (state.bulletCount - 1) + (state.damage - 1);
-  const elapsed = state.frame % 600;
-  const secs = Math.ceil((600 - elapsed) / 60);
-  const pct = elapsed / 600;
+  const elapsed = state.frame - state.lastDecay;
+  const secs = Math.ceil(Math.max(0, 600 - elapsed) / 60);
+  const pct = Math.min(elapsed / 600, 1);
   const cx = GIFT_LANE / 2, sy = VH - 170;
 
   ctx.save();
@@ -476,7 +479,7 @@ function render() {
     ctx.fillText('深渊守护者', VW / 2, VH / 2 - 80); ctx.shadowBlur = 0;
     ctx.fillStyle = '#aaa'; ctx.font = '13px sans-serif';
     ctx.fillText('← → / A,D / 鼠标移动', VW / 2, VH / 2 - 35);
-    ctx.font = '12px sans-serif'; ctx.fillText('每10秒弹道和威力降一级，需持续收集', VW / 2, VH / 2 - 5);
+    ctx.font = '12px sans-serif'; ctx.fillText('打掉礼物重置倒计时，每10秒威力→速度→弹道', VW / 2, VH / 2 - 5);
     ctx.fillStyle = '#4fc3f7'; ctx.fillText('🔫弹道  💥威力(范围)  ⚡速度', VW / 2, VH / 2 + 22);
     ctx.font = '11px sans-serif'; ctx.fillStyle = '#666';
     ctx.fillText('到底消耗效果抵扣(小鬼1/恶魔4/门2)，不足则失败', VW / 2, VH / 2 + 52);
@@ -528,7 +531,7 @@ function loop() { update(); render(); requestAnimationFrame(loop); }
 
 function startGame() {
   state.score = 0; state.bulletCount = 1; state.damage = 1; state.playerSpeed = 4;
-  state.frame = 0; state.screen = 'playing';
+  state.frame = 0; state.lastDecay = 0; state.screen = 'playing';
   player.x = VW / 2;
   bullets = []; squads = []; doors = []; particles = []; gifts = [];
   for (let i = 0; i < 8; i++) { gifts.push(makeGift()); }
