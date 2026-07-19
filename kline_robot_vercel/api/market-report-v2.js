@@ -922,10 +922,22 @@ function classify(snapshot) {
   const smh = row(snapshot, "SMH");
   const soxx = row(snapshot, "SOXX");
 
+  // 三灯否决制 — 7天卖Put硬规则
+  const vixLevel = numberOrNull(vix.last);
+  const qqqChg = numberOrNull(qqq.changePct);
+  const light1 = vixLevel === null ? "unknown" : vixLevel > 18 ? "red" : vixLevel > 15 ? "yellow" : "green";
+  const light2 = qqqChg === null ? "unknown" : qqqChg < -1.5 ? "red" : qqqChg < -0.5 ? "yellow" : "green";
+  const light3 = "yellow"; // 事件日历无法自动判断，AI 在 prompt 里处理
+
   let risk = 5.5;
-  if ((vix.changePct || 0) > 5) risk += 1.2;
+  // 灯1：VIX 绝对水平
+  if (light1 === "red") risk += 1.5;
+  else if (light1 === "yellow") risk += 0.6;
+  // 灯2：QQQ 日涨跌（跌破10日线的近似判断）
+  if (light2 === "red") risk += 1.2;
+  else if (light2 === "yellow") risk += 0.5;
+
   if ((tnx.changePct || 0) > 1 || (dxy.changePct || 0) > 0.3) risk += 0.8;
-  if ((qqq.changePct || 0) < 0 || (spy.changePct || 0) < 0) risk += 0.8;
   if ((smh.changePct || 0) < -1 || (soxx.changePct || 0) < -1) risk += 0.6;
   if ((btc.changePct || 0) < -2) risk += 0.8;
   if ((iwm.changePct || 0) > (spy.changePct || 0)) risk -= 0.3;
@@ -946,6 +958,8 @@ function classify(snapshot) {
     executionLevel,
     putEnvironment,
     eventRisk,
+    light1,
+    light2,
     marketStage: risk >= 7.5 ? "risk-off / 高beta降级" : risk >= 6.2 ? "横风震荡 / 主线筛选" : "顺风修复 / 可小仓进攻",
     trueTheme: `VIX ${pct(vix.changePct)}、10Y ${pct(tnx.changePct)}、DXY ${pct(dxy.changePct)}、半导体 ${pct(smh.changePct)}、BTC ${pct(btc.changePct)} 的组合确认`,
     truthTeller: "VIX、10Y/DXY、SMH/SOXX、BTC 与 MSTR 相对强弱",
