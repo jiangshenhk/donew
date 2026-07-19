@@ -45,14 +45,17 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
 }
 #startScreen button:hover{background:linear-gradient(135deg,#1d4ed8,#1e40af)}
 #startScreen .controls{font-size:13px;color:#666;margin-top:24px;line-height:1.8}
-.diff-select{display:flex;gap:8px;justify-content:center;margin:16px 0}
+.diff-select{display:flex;gap:10px;justify-content:center;margin:16px 0}
 .diff-btn{
-  padding:8px 20px;border:2px solid #444;border-radius:8px;
-  background:rgba(255,255,255,0.05);color:#888;font-size:14px;font-weight:600;
-  cursor:pointer;transition:all 0.15s;font-family:inherit
+  width:76px;height:68px;border:2px solid #555;border-radius:10px;
+  background:rgba(255,255,255,0.06);color:#aaa;font-size:13px;font-weight:700;
+  cursor:pointer;font-family:inherit;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:4px;transition:all 0.15s
 }
-.diff-btn:hover{border-color:#888;color:#ccc;background:rgba(255,255,255,0.1)}
-.diff-btn.active{border-color:#ffd600;background:#ffd600;color:#1a1a2e;box-shadow:0 0 12px rgba(255,215,0,0.5)}
+.diff-btn .mult{font-size:10px;font-weight:400;opacity:0.5}
+.diff-btn:hover{border-color:#aaa;color:#fff;background:rgba(255,255,255,0.12)}
+.diff-btn.active{border-color:#ffd600;background:#ffd600;color:#1a1a2e;box-shadow:0 0 14px rgba(255,215,0,0.5)}
+.diff-btn.active .mult{opacity:0.8}
 #startScreen .controls span{color:#888}
 </style>
 </head>
@@ -70,9 +73,9 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
     <h1>🛩️ Sky Fighters</h1>
     <div class="sub">Shoot 'em up!</div>
     <div class="diff-select">
-      <button class="diff-btn active" data-mult="1">Easy</button>
-      <button class="diff-btn" data-mult="3">Medium</button>
-      <button class="diff-btn" data-mult="5">Hard</button>
+      <button class="diff-btn active" data-mult="1">Easy<span class="mult">1×</span></button>
+      <button class="diff-btn" data-mult="3">Medium<span class="mult">3×</span></button>
+      <button class="diff-btn" data-mult="5">Hard<span class="mult">5×</span></button>
     </div>
     <div id="startHighScore" style="font-size:15px;color:#ffd600;margin-bottom:16px">🏆 Best: 0</div>
     <button id="startBtn">Start Game</button>
