@@ -363,13 +363,14 @@ function spawnEnemyByType(type) {
   const cfg = ENEMY_TYPES[type]
   const x = 20 + Math.random() * (canvas.width - 40)
   const threatMult = 1 + game.threatLevel * 0.08
+  const speedScale = Math.min(1, (scale + 0.5) / 1.5)
   game.enemies.push({
     x, y: -cfg.h,
     w: cfg.w, h: cfg.h,
     type,
     hp: cfg.hp,
     maxHp: cfg.hp,
-    speed: (cfg.speed + Math.random() * 20) * threatMult,
+    speed: (cfg.speed + Math.random() * 20) * threatMult * speedScale,
     rot: 0,
     wobble: Math.random() * 100,
     fireTimer: 0,
@@ -477,26 +478,36 @@ function update(dt) {
   game.elapsed += dt
   const sec = Math.floor(game.elapsed)
   if (sec > 0) {
+    const screenPenalty = Math.min(0.4, (1 - scale) * 0.6)
+    const skipChance = Math.max(0, screenPenalty)
     const mult = game.difficultyMult
     if (sec % 1 === 0 && sec !== game._lastWhiteSpawn) {
       game._lastWhiteSpawn = sec
-      const count = 1 + Math.floor(Math.random() * mult)
-      for (let n = 0; n < count; n++) spawnEnemyByType('white')
+      if (Math.random() >= skipChance) {
+        const count = 1 + Math.floor(Math.random() * mult)
+        for (let n = 0; n < count; n++) spawnEnemyByType('white')
+      }
     }
     if (sec % 3 === 0 && sec !== game._lastGreenSpawn) {
       game._lastGreenSpawn = sec
-      const count = 1 + Math.floor(Math.random() * mult)
-      for (let n = 0; n < count; n++) spawnEnemyByType('green')
+      if (Math.random() >= skipChance) {
+        const count = 1 + Math.floor(Math.random() * mult)
+        for (let n = 0; n < count; n++) spawnEnemyByType('green')
+      }
     }
     if (sec % 10 === 0 && sec !== game._lastBlueSpawn) {
       game._lastBlueSpawn = sec
-      const count = 1 + Math.floor(Math.random() * mult)
-      for (let n = 0; n < count; n++) spawnEnemyByType('blue')
+      if (Math.random() >= skipChance) {
+        const count = 1 + Math.floor(Math.random() * mult)
+        for (let n = 0; n < count; n++) spawnEnemyByType('blue')
+      }
     }
     if (sec % 20 === 0 && sec !== game._lastRedSpawn) {
       game._lastRedSpawn = sec
-      const count = 1 + Math.floor(Math.random() * mult)
-      for (let n = 0; n < count; n++) spawnEnemyByType('red')
+      if (Math.random() >= skipChance) {
+        const count = 1 + Math.floor(Math.random() * mult)
+        for (let n = 0; n < count; n++) spawnEnemyByType('red')
+      }
     }
   }
 
