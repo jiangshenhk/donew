@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.2.0</div>
+<div id="ver">VER 2.3.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -399,6 +399,21 @@ function drawParticles() {
   }
 }
 
+function drawDecayTimer() {
+  if (state.frame < 120) return;
+  const elapsed = state.frame % 600;
+  const remaining = 600 - elapsed;
+  const secs = Math.ceil(remaining / 60);
+  const pct = elapsed / 600;
+  ctx.save();
+  const barW = GIFT_LANE * 0.6, barH = 5, barX = (GIFT_LANE - barW) / 2, barY = VH - 110;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; rRect(barX, barY, barW, barH, 2.5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,100,100,0.5)'; rRect(barX, barY, barW * (1 - pct), barH, 2.5); ctx.fill();
+  ctx.fillStyle = '#ff6b6b'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('⬇ 🔫💥 ' + secs + 's', GIFT_LANE / 2, barY - 7);
+  ctx.restore();
+}
+
 function drawHUD() {
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, VW, 30);
@@ -469,7 +484,7 @@ function render() {
   ctx.restore();
 
   drawParticles(); for (const b of bullets) drawBullet(b);
-  drawPlayer(); drawHUD();
+  drawPlayer(); drawHUD(); drawDecayTimer();
   ctx.restore();
 }
 
