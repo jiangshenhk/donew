@@ -142,6 +142,7 @@ const game = {
   mouseX: canvas.width / 2,
   mouseY: canvas.height - 100,
   shooting: true,
+  touchOffsetY: 0,
   weaponLevel: 0,
   powerups: [],
   powerupTimer: 0,
@@ -376,7 +377,7 @@ function spawnEnemyByType(type) {
     rot: 0,
     wobble: Math.random() * 100,
     fireTimer: 0,
-    fireRate: Math.max(30, Math.floor(cfg.fireRate / threatMult)),
+    fireRate: Math.max(40, Math.floor(cfg.fireRate / threatMult * (game.difficultyMult === 1 ? 2.5 : game.difficultyMult === 3 ? 1 : 0.6))),
     score: cfg.score,
     color: cfg.color,
     wingColor: cfg.wingColor,
@@ -449,9 +450,10 @@ function update(dt) {
   if (!game.running || game.over) return
   game.frame++
 
-  // Player position (follow mouse, clamped)
+  // Player position (follow pointer, with touch offset so finger doesn't block plane)
+  const targetY = game.mouseY + game.touchOffsetY
   game.player.x += (game.mouseX - game.player.x) * 0.15
-  game.player.y += (game.mouseY - game.player.y) * 0.15
+  game.player.y += (targetY - game.player.y) * 0.15
   game.player.x = Math.max(game.player.w / 2, Math.min(canvas.width - game.player.w / 2, game.player.x))
   game.player.y = Math.max(game.player.h / 2, Math.min(canvas.height - game.player.h / 2, game.player.y))
 
@@ -480,7 +482,7 @@ function update(dt) {
   game.elapsed += dt
   const sec = Math.floor(game.elapsed)
   if (sec > 0) {
-    const screenPenalty = Math.min(0.4, (1 - scale) * 0.6)
+    const screenPenalty = Math.min(0.7, (1 - scale) * 1.2)
     const skipChance = Math.max(0, screenPenalty)
     const mult = game.difficultyMult
     if (sec % 1 === 0 && sec !== game._lastWhiteSpawn) {
@@ -796,10 +798,12 @@ function loop(time) {
 // --- Input (move = follow pointer, auto-fire always on) ---
 function pointerHandler(e) {
   const rect = canvas.getBoundingClientRect()
-  const cx = e.clientX || (e.touches?.[0]?.clientX ?? game.mouseX)
-  const cy = e.clientY || (e.touches?.[0]?.clientY ?? game.mouseY)
+  const isTouch = e.touches?.length > 0
+  const cx = e.clientX ?? e.touches?.[0]?.clientX ?? game.mouseX
+  const cy = e.clientY ?? e.touches?.[0]?.clientY ?? game.mouseY
   game.mouseX = (cx - rect.left) * (canvas.width / rect.width)
   game.mouseY = (cy - rect.top) * (canvas.height / rect.height)
+  game.touchOffsetY = isTouch ? -60 * scale : 0
 }
 
 canvas.addEventListener('mousemove', pointerHandler)
