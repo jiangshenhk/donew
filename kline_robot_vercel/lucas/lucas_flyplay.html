@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>打飞机 🛩️</title>
+<title>Sky Fighters 🛩️</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-serif;user-select:none}
@@ -24,7 +24,7 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
 #gameOver h1{font-size:48px;color:#f44;text-shadow:0 0 20px rgba(255,0,0,0.5)}
 #gameOver p{font-size:18px;color:#aaa;margin:12px 0 8px}
 #highScore{font-size:14px;color:#ffd600;margin-bottom:20px}
-#version{position:absolute;bottom:8px;right:12px;font-size:10px;color:rgba(255,255,255,0.15);pointer-events:none}
+#version{position:absolute;bottom:8px;right:12px;font-size:11px;color:rgba(255,255,255,0.5);pointer-events:none;font-family:Arial,sans-serif}
 #gameOver button{
   padding:12px 36px;font-size:18px;border:none;border-radius:8px;
   background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;
@@ -67,26 +67,26 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
   <div id="weapon" style="position:absolute;top:66px;right:20px;font-size:13px;color:#ffd600">WPN ★</div>
 
   <div id="startScreen">
-    <h1>🛩️ 打飞机</h1>
+    <h1>🛩️ Sky Fighters</h1>
     <div class="sub">Shoot 'em up!</div>
     <div class="diff-select">
-      <button class="diff-btn active" data-mult="1">初级</button>
-      <button class="diff-btn" data-mult="3">中级</button>
-      <button class="diff-btn" data-mult="5">高级</button>
+      <button class="diff-btn active" data-mult="1">Easy</button>
+      <button class="diff-btn" data-mult="3">Medium</button>
+      <button class="diff-btn" data-mult="5">Hard</button>
     </div>
-    <div id="startHighScore" style="font-size:15px;color:#ffd600;margin-bottom:16px">🏆 最高: 0</div>
-    <button id="startBtn">开始游戏</button>
+    <div id="startHighScore" style="font-size:15px;color:#ffd600;margin-bottom:16px">🏆 Best: 0</div>
+    <button id="startBtn">Start Game</button>
     <div class="controls">
-      <span>鼠标 / 触屏</span> 移动 &nbsp;|&nbsp; <span>点击 / 空格</span> 射击<br>
-      击落敌机得分，被撞则损失生命
+      <span>Mouse / Touch</span> Move &nbsp;|&nbsp; <span>Click / Space</span> Shoot<br>
+      Shoot enemies to score, avoid collisions
     </div>
   </div>
 
   <div id="gameOver">
     <h1>💥 GAME OVER</h1>
-    <p id="finalScore">得分: 0</p>
-    <div id="highScore">🏆 最高: 0</div>
-    <button id="restartBtn">再来一次</button>
+    <p id="finalScore">Score: 0</p>
+    <div id="highScore">🏆 Best: 0</div>
+    <button id="restartBtn">Play Again</button>
   </div>
   <div id="version">VER 1.0.2</div>
 </div>
@@ -98,8 +98,8 @@ const ctx = canvas.getContext('2d')
 let highScore = parseInt(localStorage.getItem('flyplay_highscore') || '0')
 
 function updateHighScoreDisplay() {
-  document.getElementById('highScore').textContent = '🏆 最高: ' + highScore
-  document.getElementById('startHighScore').textContent = '🏆 最高: ' + highScore
+  document.getElementById('highScore').textContent = '🏆 Best: ' + highScore
+  document.getElementById('startHighScore').textContent = '🏆 Best: ' + highScore
 }
 updateHighScoreDisplay()
 
@@ -558,7 +558,7 @@ function update(dt) {
           localStorage.setItem('flyplay_highscore', String(highScore))
           updateHighScoreDisplay()
         }
-        document.getElementById('finalScore').textContent = '得分: ' + game.score
+        document.getElementById('finalScore').textContent = 'Score: ' + game.score
         document.getElementById('gameOver').style.display = 'block'
         return
       }
@@ -594,7 +594,7 @@ function update(dt) {
           localStorage.setItem('flyplay_highscore', String(highScore))
           updateHighScoreDisplay()
         }
-        document.getElementById('finalScore').textContent = '得分: ' + game.score
+        document.getElementById('finalScore').textContent = 'Score: ' + game.score
         document.getElementById('gameOver').style.display = 'block'
         return
       }
