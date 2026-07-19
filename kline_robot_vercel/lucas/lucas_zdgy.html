@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 1.0.1</div>
+<div id="ver">VER 1.1.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -84,13 +84,14 @@ let particles = [];
 function giftY(i) { return 70 + i * 43; }
 
 function makeGift() {
-  const w = GIFT_LANE * 0.72;
-  return { x: GIFT_LANE / 2 - w / 2, y: 0, w, h: 38, hp: state.giftHP, maxHp: state.giftHP, label: '' };
+  const w = GIFT_LANE * 0.68;
+  return { x: GIFT_LANE / 2 - w / 2, y: 0, targetY: 0, w, h: 38, hp: state.giftHP, maxHp: state.giftHP, scale: 1, targetScale: 1 };
 }
 
 function repositionGifts() {
   for (let i = 0; i < gifts.length; i++) {
-    gifts[i].y = giftY(i);
+    gifts[i].targetY = giftY(i);
+    gifts[i].targetScale = i === gifts.length - 1 ? 1.5 : 1;
   }
 }
 
@@ -226,6 +227,11 @@ function update() {
     p.x += p.vx; p.y += p.vy;
     if (--p.life <= 0) particles.splice(i, 1);
   }
+
+  for (const g of gifts) {
+    g.y += (g.targetY - g.y) * 0.1;
+    g.scale += (g.targetScale - g.scale) * 0.08;
+  }
 }
 
 // ─── Draw ───────────────────────────────────────────────────────
@@ -268,22 +274,28 @@ function rRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawGift(g) {
+function drawGift(g, idx) {
   const pct = g.hp / g.maxHp;
+  const isPrimary = idx === gifts.length - 1;
   ctx.save();
+
+  const cx = g.x + g.w / 2, cy = g.y + g.h / 2;
+  ctx.translate(cx, cy);
+  ctx.scale(g.scale, g.scale);
+  ctx.translate(-cx, -cy);
 
   const grd = ctx.createLinearGradient(g.x, g.y, g.x, g.y + g.h);
   grd.addColorStop(0, `rgba(80,170,255,${0.5 + pct * 0.4})`);
   grd.addColorStop(1, `rgba(40,90,200,${0.5 + pct * 0.4})`);
   ctx.fillStyle = grd;
   ctx.strokeStyle = `rgba(180,220,255,${pct * 0.6 + 0.2})`;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = isPrimary ? 2.5 : 1.5;
   rRect(g.x, g.y, g.w, g.h, 4);
   ctx.fill(); ctx.stroke();
 
   if (pct > 0.2) {
     ctx.fillStyle = `rgba(255,255,255,${pct * 0.3})`;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < (isPrimary ? 6 : 4); i++) {
       const ix = g.x + 6 + (i * 17 + 5) % (g.w - 12);
       const iy = g.y + 6 + (i * 13 + 7) % (g.h - 12);
       ctx.beginPath();
@@ -299,14 +311,14 @@ function drawGift(g) {
   rRect(g.x + 7, g.y + g.h - 9, bw * (1 - pct), bh, 1.5); ctx.fill();
 
   ctx.fillStyle = `rgba(255,255,255,${1 - pct * 0.4})`;
-  ctx.font = 'bold 12px sans-serif';
+  ctx.font = `bold ${isPrimary ? 16 : 11}px sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('❄' + g.hp, g.x + g.w / 2, g.y + g.h / 2 - 3);
 
   const nextBonus = getBonus(state.weaponLv + 1);
   if (nextBonus > 0) {
     ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 10px sans-serif';
+    ctx.font = `bold ${isPrimary ? 14 : 10}px sans-serif`;
     ctx.fillText('+' + nextBonus + '弹道', g.x + g.w / 2, g.y + g.h / 2 + 13);
   }
   ctx.restore();
@@ -493,7 +505,7 @@ function render() {
   ctx.font = '9px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('— 礼物 —', GIFT_LANE / 2, 55);
-  for (const g of gifts) if (g.hp > 0) drawGift(g);
+  gifts.forEach((g, i) => { if (g.hp > 0) drawGift(g, i); });
   ctx.restore();
 
   // enemy lane
