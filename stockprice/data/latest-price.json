@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-18T23:53:23.367Z",
-  "checkedAt": "2026-07-18T23:53:23.367Z",
+  "updatedAt": "2026-07-19T01:12:37.875Z",
+  "checkedAt": "2026-07-19T01:12:37.875Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -245,19 +245,19 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64773.84,
+      "price": 64732.35,
       "previousClose": 63899.4609375,
-      "changePercent": "1.37",
-      "marketTime": "2026-07-18T23:53:07.000Z",
+      "changePercent": "1.30",
+      "marketTime": "2026-07-19T01:12:21.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
       "quoteSource": "yahoo-chart",
       "changePercentSource": "price-vs-previous-daily-close",
-      "previousCloseSource": "bar-derived-override-direct(64956.113)",
+      "previousCloseSource": "bar-derived-override-direct(64712.375)",
       "previousCloseDate": "2026-07-17",
-      "latestBarDate": "2026-07-18",
-      "marketDate": "2026-07-18"
+      "latestBarDate": "2026-07-19",
+      "marketDate": "2026-07-19"
     },
     {
       "symbol": "MSTR",
