@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.10.0</div>
+<div id="ver">VER 2.11.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -101,7 +101,7 @@ function spawnDoor() {
   const dw = 7 * IW, dh = 2 * IH;
   const x = GIFT_LANE + (ENEMY_LANE - dw) / 2;
   const hp = 200 + state.frame * 0.25;
-  const spd = 0.3 + state.frame * 0.00003;
+  const spd = 0.35 + state.frame * 0.00003;
   doors.push({ x, y: -dh - 50, w: dw, h: dh, hp, maxHp: hp, spd });
 }
 
@@ -118,7 +118,7 @@ function spawnSquad() {
     for (let c = 0; c < cols; c++)
       imps.push({ x: sx + c * IGX, y: ey + 50 + r * IGY, w: IW, h: IH, hp: 1, spd });
 
-  const demon = { x: sx + (tw) / 2 - 28, y: ey - 55, w: 56, h: 52, hp, maxHp: hp, spd };
+  const demon = { x: sx + (tw) / 2 - 28, y: ey - 92, w: 56, h: 52, hp, maxHp: hp, spd };
   squads.push({ imps, demon });
 }
 
@@ -573,3 +573,4 @@ loop();
 </script>
 </body>
 </html>
+// 1784447430
