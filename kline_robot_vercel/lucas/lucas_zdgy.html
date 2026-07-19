@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 1.4.0</div>
+<div id="ver">VER 1.5.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -99,7 +99,7 @@ function emit(x, y, n, color, spd, life) {
 }
 
 function spawnDoor() {
-  const dw = 52, dh = 64;
+  const dw = 68, dh = 44;
   const x = GIFT_LANE + (ENEMY_LANE - dw) / 2;
   const hp = 150 + state.frame * 0.2;
   const spd = 0.3 + state.frame * 0.00003;
@@ -208,7 +208,7 @@ function update() {
           }
         }
         if (hit) break;
-        if (aabb(b, sq.demon)) {
+        if (sq.demon.hp > 0 && aabb(b, sq.demon)) {
           sq.demon.hp -= b.dmg;
           emit(b.x + b.w / 2, b.y, 4, '#ff4757', 2, 14);
           if (b.aoe > 0) {
@@ -238,7 +238,7 @@ function update() {
 
     if (!hit && b.x + b.w > GIFT_LANE) {
       for (const d of doors) {
-        if (aabb(b, d)) {
+        if (d.hp > 0 && aabb(b, d)) {
           d.hp -= b.dmg;
           emit(b.x + b.w / 2, b.y, 4, '#b388ff', 2, 14);
           if (d.hp <= 0) {
@@ -400,33 +400,30 @@ function drawDoor(d) {
   const hpPct = d.hp / d.maxHp;
 
   const grd = ctx.createLinearGradient(d.x, d.y, d.x, d.y + d.h);
-  grd.addColorStop(0, '#6a1b9a'); grd.addColorStop(0.5, '#4a148c'); grd.addColorStop(1, '#2a0a5a');
+  grd.addColorStop(0, '#7b1fa2'); grd.addColorStop(0.5, '#4a148c'); grd.addColorStop(1, '#2a0a5a');
   ctx.fillStyle = grd;
-  rRect(d.x, d.y, d.w, d.h, 4); ctx.fill();
+  rRect(d.x, d.y, d.w, d.h, 5); ctx.fill();
 
-  ctx.fillStyle = '#8e24aa';
-  ctx.fillRect(d.x + 4, d.y + 6, d.w - 8, 10);
-  ctx.fillRect(d.x + 4, d.y + 22, d.w - 8, d.h - 30);
-
-  ctx.strokeStyle = 'rgba(255,200,100,0.4)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(255,200,100,0.5)';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(d.x + d.w / 2, d.y + 6);
+  ctx.moveTo(d.x + d.w / 2, d.y + 4);
   ctx.lineTo(d.x + d.w / 2, d.y + d.h - 4);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(d.x + 8, d.y + 16);
-  ctx.lineTo(d.x + d.w - 8, d.y + 16);
+  ctx.moveTo(d.x + 10, d.y + d.h / 2);
+  ctx.lineTo(d.x + d.w - 10, d.y + d.h / 2);
   ctx.stroke();
 
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  rRect(d.x, d.y - 12, d.w, 8, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  const barY = d.y - 16, barH = 10;
+  rRect(d.x, barY, d.w, barH, 3); ctx.fill();
   ctx.fillStyle = hpPct > 0.3 ? '#ff6b35' : '#ff0000';
-  rRect(d.x, d.y - 12, d.w * hpPct, 8, 3); ctx.fill();
+  rRect(d.x, barY, d.w * hpPct, barH, 3); ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 8px sans-serif';
+  ctx.font = 'bold 10px sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(Math.ceil(d.hp), d.x + d.w / 2, d.y - 8);
+  ctx.fillText(Math.ceil(d.hp) + '/' + Math.ceil(d.maxHp), d.x + d.w / 2, barY + barH / 2);
   ctx.restore();
 }
 
