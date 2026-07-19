@@ -1,8 +1,8 @@
 {
-  "updatedAt": "2026-07-19T17:11:15.189Z",
-  "checkedAt": "2026-07-19T17:11:15.189Z",
-  "successCount": 23,
-  "failCount": 0,
+  "updatedAt": "2026-07-19T18:06:32.904Z",
+  "checkedAt": "2026-07-19T18:06:32.904Z",
+  "successCount": 24,
+  "failCount": 1,
   "data": [
     {
       "symbol": "QQQ",
@@ -245,10 +245,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64551.07,
+      "price": 64410,
       "previousClose": 64712.375,
-      "changePercent": "-0.25",
-      "marketTime": "2026-07-19T17:11:00.000Z",
+      "changePercent": "-0.47",
+      "marketTime": "2026-07-19T18:06:12.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
@@ -311,6 +311,11 @@
       "marketDate": "2026-07-17"
     },
     {
+      "symbol": "^2YR",
+      "category": "Macro",
+      "error": "HTTP 404"
+    },
+    {
       "symbol": "JPY=X",
       "category": "Macro",
       "price": 162.353,
@@ -326,6 +331,23 @@
       "previousCloseDate": "2026-07-17",
       "latestBarDate": "2026-07-17",
       "marketDate": "2026-07-17"
+    },
+    {
+      "symbol": "CNY=X",
+      "category": "Macro",
+      "price": 6.7677,
+      "previousClose": 6.7766,
+      "changePercent": "-0.13",
+      "marketTime": "2026-07-19T16:04:47.000Z",
+      "currency": "CNY",
+      "exchange": "CCY",
+      "marketState": null,
+      "quoteSource": "yahoo-chart",
+      "changePercentSource": "price-vs-previous-daily-close",
+      "previousCloseSource": "direct-previous-close-validated",
+      "previousCloseDate": "2026-07-17",
+      "latestBarDate": "2026-07-19",
+      "marketDate": "2026-07-19"
     },
     {
       "symbol": "CL=F",
