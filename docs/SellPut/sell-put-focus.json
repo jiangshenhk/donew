@@ -1,4 +1,5 @@
 {
-  "description": "当前 Sell Put 重点关注的标的池",
+  "description": "当前交易候选标的（系统默认 focus 池）",
+  "note": "完整标的分类见 docs/SellPut/策略/02_标的池子/",
   "focusSymbols": ["QLD", "MSTR", "INTC"]
 }
