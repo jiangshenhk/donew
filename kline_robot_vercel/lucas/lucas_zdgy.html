@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.7.0</div>
+<div id="ver">VER 2.8.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -419,36 +419,49 @@ function drawParticles() {
   }
 }
 
-function drawDecayTimer() {
-  if (state.frame < 120) return;
+function drawBottomStatus() {
+  if (state.frame < 60) return;
+  const shield = (state.bulletCount - 1) + (state.damage - 1);
   const elapsed = state.frame % 600;
-  const remaining = 600 - elapsed;
-  const secs = Math.ceil(remaining / 60);
+  const secs = Math.ceil((600 - elapsed) / 60);
   const pct = elapsed / 600;
+  const cx = GIFT_LANE / 2, sy = VH - 170;
+
   ctx.save();
-  const barW = GIFT_LANE * 0.6, barH = 5, barX = (GIFT_LANE - barW) / 2, barY = VH - 110;
-  ctx.fillStyle = 'rgba(255,255,255,0.08)'; rRect(barX, barY, barW, barH, 2.5); ctx.fill();
-  ctx.fillStyle = 'rgba(255,100,100,0.5)'; rRect(barX, barY, barW * (1 - pct), barH, 2.5); ctx.fill();
-  ctx.fillStyle = '#ff6b6b'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('⬇ 🔫💥 ' + secs + 's', GIFT_LANE / 2, barY - 7);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('⭐' + state.score, cx, sy);
+
+  ctx.fillStyle = '#4fc3f7';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.fillText('🔫' + state.bulletCount + '  💥' + state.damage + '  ⚡' + state.playerSpeed, cx, sy + 32);
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('🛡️' + shield, cx, sy + 60);
+
+  const barW = GIFT_LANE * 0.55, barH = 8, barX = (GIFT_LANE - barW) / 2, barY = sy + 80;
+  ctx.fillStyle = 'rgba(255,255,255,0.1)'; rRect(barX, barY, barW, barH, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,100,100,0.6)'; rRect(barX, barY, barW * (1 - pct), barH, 3); ctx.fill();
+  ctx.fillStyle = '#ff6b6b';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('⬇ 🔫💥 ' + secs + 's', cx, barY + barH + 14);
+
   ctx.restore();
 }
 
 function drawHUD() {
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, VW, 30);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left'; ctx.fillText('⭐' + state.score, 8, 15);
-  const shield = (state.bulletCount - 1) + (state.damage - 1);
-  ctx.textAlign = 'center'; ctx.fillStyle = '#4fc3f7';
-  ctx.fillText('🔫' + state.bulletCount + ' 💥' + state.damage + ' ⚡' + state.playerSpeed, VW / 2, 13);
-  ctx.fillStyle = '#ffd700'; ctx.font = '9px sans-serif';
-  ctx.fillText('🛡️' + shield, VW / 2, 25);
-  ctx.textAlign = 'right'; ctx.fillStyle = '#888'; ctx.font = 'bold 11px sans-serif';
-  ctx.fillText(Math.floor(state.frame / 60) + 's', VW - 8, 15);
-  ctx.fillStyle = gifts.length > 0 ? 'rgba(80,180,255,0.15)' : 'rgba(80,180,255,0.05)';
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, VW, 24);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left'; ctx.fillText('⭐' + state.score, 6, 12);
+  ctx.textAlign = 'right'; ctx.fillStyle = '#888';
+  ctx.fillText(Math.floor(state.frame / 60) + 's', VW - 6, 12);
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
   ctx.fillRect(0, VH - 3, GIFT_LANE, 3);
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
   ctx.fillRect(GIFT_LANE, VH - 3, ENEMY_LANE, 3);
   ctx.restore();
 }
@@ -507,7 +520,7 @@ function render() {
   ctx.restore();
 
   drawParticles(); for (const b of bullets) drawBullet(b);
-  drawPlayer(); drawHUD(); drawDecayTimer();
+  drawPlayer(); drawHUD(); drawBottomStatus();
   ctx.restore();
 }
 
