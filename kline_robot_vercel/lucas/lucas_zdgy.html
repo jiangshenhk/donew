@@ -367,10 +367,10 @@ function drawDoor(d) {
   ctx.fillStyle = grd; rRect(d.x, d.y, d.w, d.h, 4); ctx.fill();
   ctx.strokeStyle = 'rgba(255,200,100,0.4)'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(d.x + d.w / 2, d.y + 3); ctx.lineTo(d.x + d.w / 2, d.y + d.h - 3); ctx.stroke();
-  const barY = d.y - 16, barH = 10;
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; rRect(d.x, barY, d.w, barH, 3); ctx.fill();
-  ctx.fillStyle = hpPct > 0.3 ? '#ff6b35' : '#ff0000'; rRect(d.x, barY, d.w * hpPct, barH, 3); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const barY = d.y - 20, barH = 20, barW = d.w * 2, barX = d.x + d.w / 2 - barW / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; rRect(barX, barY, barW, barH, 4); ctx.fill();
+  ctx.fillStyle = hpPct > 0.3 ? '#ff6b35' : '#ff0000'; rRect(barX, barY, barW * hpPct, barH, 4); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(Math.ceil(d.hp) + '/' + Math.ceil(d.maxHp), d.x + d.w / 2, barY + barH / 2);
   ctx.restore();
 }
