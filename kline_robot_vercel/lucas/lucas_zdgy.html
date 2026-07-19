@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 2.9.0</div>
+<div id="ver">VER 2.10.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -147,6 +147,7 @@ function aabb(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b
 function consumeStats(amount) {
   let n = amount;
   while (n > 0 && state.damage > 1) { state.damage--; n--; }
+  while (n > 0 && state.playerSpeed > 4) { state.playerSpeed--; n--; }
   while (n > 0 && state.bulletCount > 1) { state.bulletCount--; n--; }
   if (n < amount) emit(VW / 2, VH - 100, 30, '#ffd700', 5, 30);
   return n === 0;
@@ -424,7 +425,7 @@ function drawParticles() {
 
 function drawBottomStatus() {
   if (state.frame < 60) return;
-  const shield = (state.bulletCount - 1) + (state.damage - 1);
+  const shield = (state.damage - 1) + (state.playerSpeed - 4) + (state.bulletCount - 1);
   const elapsed = state.frame - state.lastDecay;
   const secs = Math.ceil(Math.max(0, 600 - elapsed) / 60);
   const pct = Math.min(elapsed / 600, 1);
