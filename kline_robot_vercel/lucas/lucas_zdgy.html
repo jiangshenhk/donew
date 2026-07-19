@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 1.2.0</div>
+<div id="ver">VER 1.3.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -45,7 +45,7 @@ const GIFT_LANE = Math.round(VW * 0.5);
 const ENEMY_LANE = VW - GIFT_LANE;
 
 const state = {
-  screen: 'menu', score: 0, frame: 0, lastShot: 0,
+  screen: 'menu', score: 0, frame: 0, lastShot: 0, squadCount: 0,
   bulletCount: 1, damage: 1, playerSpeed: 4,
 };
 
@@ -71,6 +71,7 @@ let mouseActive = false;
 let gifts = [];
 let bullets = [];
 let squads = [];
+let doors = [];
 let particles = [];
 
 function giftY(i) { return 55 + i * 36; }
@@ -97,7 +98,16 @@ function emit(x, y, n, color, spd, life) {
   }
 }
 
+function spawnDoor() {
+  const dw = 52, dh = 64;
+  const x = GIFT_LANE + (ENEMY_LANE - dw) / 2;
+  const hp = 150 + state.frame * 0.2;
+  const spd = 0.3 + state.frame * 0.00003;
+  doors.push({ x, y: -dh, w: dw, h: dh, hp, maxHp: hp, spd });
+}
+
 function spawnSquad() {
+  state.squadCount++;
   const cols = 7, rows = 5 + Math.floor(Math.random() * 3);
   const gapX = 20, gapY = 18;
   const tw = cols * gapX;
@@ -114,6 +124,8 @@ function spawnSquad() {
   const demon = { x: sx + (tw) / 2 - 28, y: ey - 60, w: 56, h: 62, hp, maxHp: hp, spd };
 
   squads.push({ imps, demon });
+
+  if (state.squadCount % 2 === 0) spawnDoor();
 }
 
 function shoot() {
@@ -223,6 +235,20 @@ function update() {
         }
       }
     }
+
+    if (!hit && b.x + b.w > GIFT_LANE) {
+      for (const d of doors) {
+        if (aabb(b, d)) {
+          d.hp -= b.dmg;
+          emit(b.x + b.w / 2, b.y, 4, '#b388ff', 2, 14);
+          if (d.hp <= 0) {
+            state.score += 200;
+            emit(d.x + d.w / 2, d.y + d.h / 2, 50, '#b388ff', 8, 35);
+          }
+          hit = true; break;
+        }
+      }
+    }
     if (hit) bullets.splice(i, 1);
   }
 
@@ -240,6 +266,13 @@ function update() {
     const p = particles[i];
     p.x += p.vx; p.y += p.vy;
     if (--p.life <= 0) particles.splice(i, 1);
+  }
+
+  for (let i = doors.length - 1; i >= 0; i--) {
+    const d = doors[i];
+    d.y += d.spd;
+    if (d.y + d.h > VH - 20 && d.hp > 0) { state.screen = 'gameover'; return; }
+    if (d.hp <= 0) doors.splice(i, 1);
   }
 
   for (const g of gifts) {
@@ -362,6 +395,41 @@ function drawDemon(d) {
   ctx.restore();
 }
 
+function drawDoor(d) {
+  ctx.save();
+  const hpPct = d.hp / d.maxHp;
+
+  const grd = ctx.createLinearGradient(d.x, d.y, d.x, d.y + d.h);
+  grd.addColorStop(0, '#6a1b9a'); grd.addColorStop(0.5, '#4a148c'); grd.addColorStop(1, '#2a0a5a');
+  ctx.fillStyle = grd;
+  rRect(d.x, d.y, d.w, d.h, 4); ctx.fill();
+
+  ctx.fillStyle = '#8e24aa';
+  ctx.fillRect(d.x + 4, d.y + 6, d.w - 8, 10);
+  ctx.fillRect(d.x + 4, d.y + 22, d.w - 8, d.h - 30);
+
+  ctx.strokeStyle = 'rgba(255,200,100,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(d.x + d.w / 2, d.y + 6);
+  ctx.lineTo(d.x + d.w / 2, d.y + d.h - 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(d.x + 8, d.y + 16);
+  ctx.lineTo(d.x + d.w - 8, d.y + 16);
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  rRect(d.x, d.y - 12, d.w, 8, 3); ctx.fill();
+  ctx.fillStyle = hpPct > 0.3 ? '#ff6b35' : '#ff0000';
+  rRect(d.x, d.y - 12, d.w * hpPct, 8, 3); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 8px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(Math.ceil(d.hp), d.x + d.w / 2, d.y - 8);
+  ctx.restore();
+}
+
 function drawImp(imp) {
   ctx.save();
   ctx.fillStyle = '#2d1b00';
@@ -476,7 +544,7 @@ function render() {
     ctx.fillText('🔫弹道  💥威力(范围)  ⚡速度', VW / 2, VH / 2 + 22);
     ctx.font = '11px sans-serif';
     ctx.fillStyle = '#666';
-    ctx.fillText('恶魔走到底部即为失败', VW / 2, VH / 2 + 52);
+    ctx.fillText('恶魔/门走到底部即为失败', VW / 2, VH / 2 + 52);
 
     ctx.fillStyle = '#00d2ff';
     ctx.font = 'bold 16px sans-serif';
@@ -532,6 +600,7 @@ function render() {
     for (const imp of sq.imps) drawImp(imp);
     if (sq.demon.hp > 0) drawDemon(sq.demon);
   }
+  for (const d of doors) if (d.hp > 0) drawDoor(d);
   ctx.restore();
 
   drawParticles();
@@ -553,9 +622,10 @@ function startGame() {
   state.damage = 1;
   state.playerSpeed = 4;
   state.frame = 0;
+  state.squadCount = 0;
   state.screen = 'playing';
   player.x = VW / 2;
-  bullets = []; squads = []; particles = []; gifts = [];
+  bullets = []; squads = []; doors = []; particles = []; gifts = [];
   for (let i = 0; i < 8; i++) { gifts.push(makeGift()); }
   repositionGifts();
 }
