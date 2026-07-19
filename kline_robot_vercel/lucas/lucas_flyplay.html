@@ -94,7 +94,7 @@ html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-
     <div id="highScore">🏆 Best: 0</div>
     <button id="restartBtn">Play Again</button>
   </div>
-  <div id="version">VER 1.0.4</div>
+  <div id="version">VER 1.0.5</div>
 </div>
 
 <script>
@@ -453,8 +453,8 @@ function update(dt) {
 
   // Player position (follow pointer, with touch offset so finger doesn't block plane)
   const targetY = game.mouseY + game.touchOffsetY
-  game.player.x += (game.mouseX - game.player.x) * 0.15
-  game.player.y += (targetY - game.player.y) * 0.15
+  game.player.x += (game.mouseX - game.player.x) * 0.3
+  game.player.y += (targetY - game.player.y) * 0.3
   game.player.x = Math.max(game.player.w / 2, Math.min(canvas.width - game.player.w / 2, game.player.x))
   game.player.y = Math.max(game.player.h / 2, Math.min(canvas.height - game.player.h / 2, game.player.y))
 
