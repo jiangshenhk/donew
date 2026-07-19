@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-19T01:12:37.875Z",
-  "checkedAt": "2026-07-19T01:12:37.875Z",
+  "updatedAt": "2026-07-19T04:33:16.719Z",
+  "checkedAt": "2026-07-19T04:33:16.719Z",
   "successCount": 23,
   "failCount": 0,
   "data": [
@@ -245,10 +245,10 @@
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
-      "price": 64732.35,
+      "price": 64661.93,
       "previousClose": 63899.4609375,
-      "changePercent": "1.30",
-      "marketTime": "2026-07-19T01:12:21.000Z",
+      "changePercent": "1.19",
+      "marketTime": "2026-07-19T04:33:04.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
@@ -288,7 +288,7 @@
       "marketState": null,
       "quoteSource": "yahoo-chart",
       "changePercentSource": "price-vs-previous-daily-close",
-      "previousCloseSource": "bar-derived-override-direct(101.28)",
+      "previousCloseSource": "bar-derived-override-direct(100.94)",
       "previousCloseDate": "2026-07-16",
       "latestBarDate": "2026-07-17",
       "marketDate": "2026-07-17"
@@ -339,7 +339,7 @@
       "marketState": null,
       "quoteSource": "yahoo-chart",
       "changePercentSource": "price-vs-previous-daily-close",
-      "previousCloseSource": "bar-derived-override-direct(78.14)",
+      "previousCloseSource": "bar-derived-override-direct(79.34)",
       "previousCloseDate": "2026-07-16",
       "latestBarDate": "2026-07-17",
       "marketDate": "2026-07-17"
@@ -356,7 +356,7 @@
       "marketState": null,
       "quoteSource": "yahoo-chart",
       "changePercentSource": "price-vs-previous-daily-close",
-      "previousCloseSource": "bar-derived-override-direct(3997)",
+      "previousCloseSource": "bar-derived-override-direct(4061.1)",
       "previousCloseDate": "2026-07-16",
       "latestBarDate": "2026-07-17",
       "marketDate": "2026-07-17"
