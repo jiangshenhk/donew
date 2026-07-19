@@ -59,7 +59,7 @@ function getBonus(level) {
   return WEAPONS[level].count - WEAPONS[level - 1].count;
 }
 
-const GIFT_LANE = Math.round(VW * 0.28);
+const GIFT_LANE = Math.round(VW * 0.5);
 const ENEMY_LANE = VW - GIFT_LANE;
 
 const state = {
