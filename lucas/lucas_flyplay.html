@@ -777,29 +777,18 @@ function loop(time) {
   requestAnimationFrame(loop)
 }
 
-// --- Input ---
-canvas.addEventListener('mousemove', e => {
+// --- Input (move = follow pointer, auto-fire always on) ---
+function pointerHandler(e) {
   const rect = canvas.getBoundingClientRect()
-  game.mouseX = (e.clientX - rect.left) * (canvas.width / rect.width)
-  game.mouseY = (e.clientY - rect.top) * (canvas.height / rect.height)
-})
+  const cx = e.clientX || (e.touches?.[0]?.clientX ?? game.mouseX)
+  const cy = e.clientY || (e.touches?.[0]?.clientY ?? game.mouseY)
+  game.mouseX = (cx - rect.left) * (canvas.width / rect.width)
+  game.mouseY = (cy - rect.top) * (canvas.height / rect.height)
+}
 
-// Touch / mouse (move only, auto-fire is always on)
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault()
-  const t = e.touches[0]
-  const rect = canvas.getBoundingClientRect()
-  game.mouseX = (t.clientX - rect.left) * (canvas.width / rect.width)
-  game.mouseY = (t.clientY - rect.top) * (canvas.height / rect.height)
-}, { passive: false })
-
-canvas.addEventListener('touchmove', e => {
-  e.preventDefault()
-  const t = e.touches[0]
-  const rect = canvas.getBoundingClientRect()
-  game.mouseX = (t.clientX - rect.left) * (canvas.width / rect.width)
-  game.mouseY = (t.clientY - rect.top) * (canvas.height / rect.height)
-}, { passive: false })
+canvas.addEventListener('mousemove', pointerHandler)
+canvas.addEventListener('touchstart', pointerHandler, { passive: true })
+canvas.addEventListener('touchmove', pointerHandler, { passive: true })
 
 // Keyboard
 document.addEventListener('keydown', e => {
