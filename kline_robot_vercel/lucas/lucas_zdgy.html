@@ -13,7 +13,7 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ver">VER 1.1.0</div>
+<div id="ver">VER 1.2.0</div>
 <style>
 #ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
 </style>
@@ -41,31 +41,27 @@ function resize() {
 resize();
 window.addEventListener('resize', resize);
 
-const WEAPONS = [
-  { count: 1, spread: 0, rate: 280 },
-  { count: 2, spread: 2, rate: 270 },
-  { count: 3, spread: 3, rate: 260 },
-  { count: 5, spread: 4, rate: 250 },
-  { count: 6, spread: 5, rate: 245 },
-  { count: 8, spread: 6, rate: 235 },
-];
-
-function getBonus(level) {
-  if (level <= 0 || level >= WEAPONS.length) return 0;
-  return WEAPONS[level].count - WEAPONS[level - 1].count;
-}
-
 const GIFT_LANE = Math.round(VW * 0.5);
 const ENEMY_LANE = VW - GIFT_LANE;
 
 const state = {
-  screen: 'menu',
-  score: 0,
-  weaponLv: 0,
-  frame: 0,
-  lastShot: 0,
-  giftHP: 5,
+  screen: 'menu', score: 0, frame: 0, lastShot: 0,
+  bulletCount: 1, damage: 1, playerSpeed: 4,
 };
+
+function pickUpgrade() {
+  const opts = [];
+  if (state.bulletCount < 8) opts.push({ type: 'bullet', label: '弹道' });
+  if (state.damage < 5) opts.push({ type: 'damage', label: '威力' });
+  if (state.playerSpeed < 9) opts.push({ type: 'speed', label: '速度' });
+  if (opts.length === 0) return { type: 'bullet', bonus: 0, label: '' };
+  const pick = opts[Math.floor(Math.random() * opts.length)];
+  const max = pick.type === 'bullet' ? 8 : pick.type === 'damage' ? 5 : 9;
+  const cur = pick.type === 'bullet' ? state.bulletCount : pick.type === 'damage' ? state.damage : state.playerSpeed;
+  let bonus = Math.random() < 0.5 ? 1 : 2;
+  if (cur + bonus > max) bonus = Math.max(1, max - cur);
+  return { type: pick.type, bonus, label: '+' + bonus + pick.label };
+}
 
 const player = { x: VW / 2, y: VH - 42, w: 28, h: 32 };
 const keys = { left: false, right: false };
@@ -77,11 +73,13 @@ let bullets = [];
 let squads = [];
 let particles = [];
 
-function giftY(i) { return 70 + i * 43; }
+function giftY(i) { return 55 + i * 36; }
 
 function makeGift() {
   const w = GIFT_LANE * 0.68;
-  return { x: GIFT_LANE / 2 - w / 2, y: 0, targetY: 0, w, h: 38, hp: state.giftHP, maxHp: state.giftHP, scale: 1, targetScale: 1 };
+  const upg = pickUpgrade();
+  const hp = state.frame < 1200 ? 3 + Math.floor(Math.random() * 3) : 3 + Math.floor(Math.random() * 4);
+  return { x: GIFT_LANE / 2 - w / 2, y: 0, targetY: 0, w, h: 38, hp, maxHp: hp, scale: 1, targetScale: 1, ...upg };
 }
 
 function repositionGifts() {
@@ -113,27 +111,29 @@ function spawnSquad() {
     for (let c = 0; c < cols; c++)
       imps.push({ x: sx + c * gapX, y: ey + 50 + r * gapY, w: 13, h: 13, hp: 1, spd });
 
-  const demon = { x: sx + (tw) / 2 - 20, y: ey, w: 40, h: 46, hp, maxHp: hp, spd };
+  const demon = { x: sx + (tw) / 2 - 28, y: ey - 60, w: 56, h: 62, hp, maxHp: hp, spd };
 
   squads.push({ imps, demon });
 }
 
 function shoot() {
   const now = Date.now();
-  const wpn = WEAPONS[Math.min(state.weaponLv, WEAPONS.length - 1)];
-  if (now - state.lastShot < wpn.rate) return;
+  const rate = Math.max(200, 280 - state.bulletCount * 6);
+  if (now - state.lastShot < rate) return;
   state.lastShot = now;
 
   const bx = player.x, by = player.y - player.h / 2;
   const bspd = 11, bw = 3, bh = 10;
+  const cnt = state.bulletCount, spread = Math.min(8, cnt);
+  const dmg = state.damage, aoe = dmg >= 3 ? 20 + dmg * 6 : 0;
 
-  if (wpn.count === 1) {
-    bullets.push({ x: bx - bw / 2, y: by, w: bw, h: bh, vy: -bspd });
+  if (cnt === 1) {
+    bullets.push({ x: bx - bw / 2, y: by, w: bw, h: bh, vy: -bspd, dmg, aoe });
   } else {
-    const half = (wpn.count - 1) / 2;
-    for (let i = 0; i < wpn.count; i++) {
-      const off = (i - half) * wpn.spread;
-      bullets.push({ x: bx + off - bw / 2, y: by, w: bw, h: bh, vy: -bspd + Math.abs(off) * 0.15 });
+    const half = (cnt - 1) / 2;
+    for (let i = 0; i < cnt; i++) {
+      const off = (i - half) * spread;
+      bullets.push({ x: bx + off - bw / 2, y: by, w: bw, h: bh, vy: -bspd + Math.abs(off) * 0.12, dmg, aoe });
     }
   }
 }
@@ -146,13 +146,12 @@ function update() {
   if (state.screen !== 'playing') return;
   state.frame++;
 
-  if (state.frame % 300 === 0) state.giftHP = Math.min(5 + Math.floor(state.frame / 1500), 20);
-  if (state.frame % 180 === 0 && gifts.length < 5) { gifts.push(makeGift()); repositionGifts(); }
+
+  if (state.frame % 180 === 0 && gifts.length < 8) { gifts.unshift(makeGift()); repositionGifts(); }
   if (state.frame === 60 || state.frame % 360 === 0) spawnSquad();
 
-  const spd = 4;
-  if (keys.left) { player.x -= spd; mouseActive = false; }
-  if (keys.right) { player.x += spd; mouseActive = false; }
+  if (keys.left) { player.x -= state.playerSpeed; mouseActive = false; }
+  if (keys.right) { player.x += state.playerSpeed; mouseActive = false; }
   if (mouseActive && mouseX !== null) {
     player.x += (mouseX - player.x) * 0.18;
   }
@@ -172,8 +171,11 @@ function update() {
           g.hp--;
           emit(b.x + b.w / 2, b.y, 2, '#7ec8e3', 2, 10);
           if (g.hp <= 0) {
-            if (state.weaponLv < WEAPONS.length - 1) state.weaponLv++;
-            else state.score += 50;
+            if (g.bonus > 0) {
+              if (g.type === 'bullet') state.bulletCount = Math.min(8, state.bulletCount + g.bonus);
+              else if (g.type === 'damage') state.damage = Math.min(5, state.damage + g.bonus);
+              else if (g.type === 'speed') state.playerSpeed = Math.min(9, state.playerSpeed + g.bonus);
+            } else state.score += 50;
             emit(g.x + g.w / 2, g.y + g.h / 2, 25, '#00d2ff', 4, 30);
             gifts.splice(gifts.indexOf(g), 1);
             gifts.unshift(makeGift());
@@ -195,8 +197,24 @@ function update() {
         }
         if (hit) break;
         if (aabb(b, sq.demon)) {
-          sq.demon.hp--;
+          sq.demon.hp -= b.dmg;
           emit(b.x + b.w / 2, b.y, 4, '#ff4757', 2, 14);
+          if (b.aoe > 0) {
+            emit(sq.demon.x + sq.demon.w / 2, sq.demon.y + sq.demon.h / 2, 8, '#ff6348', 3, 15);
+            for (const sq2 of squads) {
+              for (let k = sq2.imps.length - 1; k >= 0; k--) {
+                const im = sq2.imps[k];
+                if (Math.hypot(im.x+im.w/2 - (sq.demon.x+sq.demon.w/2), im.y+im.h/2 - (sq.demon.y+sq.demon.h/2)) < b.aoe) {
+                  sq2.imps.splice(k, 1); state.score += 10;
+                }
+              }
+              if (sq2.demon !== sq.demon) {
+                const dx = sq2.demon.x+sq2.demon.w/2 - (sq.demon.x+sq.demon.w/2);
+                const dy = sq2.demon.y+sq2.demon.h/2 - (sq.demon.y+sq.demon.h/2);
+                if (Math.hypot(dx, dy) < b.aoe) sq2.demon.hp -= b.dmg * 0.5;
+              }
+            }
+          }
           if (sq.demon.hp <= 0) {
             state.score += 100;
             emit(sq.demon.x + sq.demon.w / 2, sq.demon.y + sq.demon.h / 2, 45, '#ff4757', 6, 30);
@@ -307,38 +325,40 @@ function drawGift(g, idx) {
   rRect(g.x + 7, g.y + g.h - 9, bw * (1 - pct), bh, 1.5); ctx.fill();
 
   ctx.fillStyle = `rgba(255,255,255,${1 - pct * 0.4})`;
-  ctx.font = `bold ${isPrimary ? 16 : 11}px sans-serif`;
+  ctx.font = `bold ${isPrimary ? 15 : 11}px sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('❄' + g.hp, g.x + g.w / 2, g.y + g.h / 2 - 3);
+  ctx.fillText('❄' + g.hp, g.x + g.w / 2, g.y + g.h / 2 - 4);
 
-  const nextBonus = getBonus(state.weaponLv + 1);
-  if (nextBonus > 0) {
-    ctx.fillStyle = '#ffd700';
-    ctx.font = `bold ${isPrimary ? 14 : 10}px sans-serif`;
-    ctx.fillText('+' + nextBonus + '弹道', g.x + g.w / 2, g.y + g.h / 2 + 13);
+  if (g.label) {
+    const color = g.type === 'bullet' ? '#4fc3f7' : g.type === 'damage' ? '#ff6b6b' : '#69db7c';
+    ctx.fillStyle = color;
+    ctx.font = `bold ${isPrimary ? 13 : 10}px sans-serif`;
+    ctx.fillText(g.label, g.x + g.w / 2, g.y + g.h / 2 + 12);
   }
   ctx.restore();
 }
 
 function drawDemon(d) {
   ctx.save();
-  const grd = ctx.createRadialGradient(d.x + d.w / 2, d.y + d.h / 2, 3, d.x + d.w / 2, d.y + d.h / 2, d.w / 2);
+  const grd = ctx.createRadialGradient(d.x + d.w / 2, d.y + d.h / 2, 5, d.x + d.w / 2, d.y + d.h / 2, d.w / 2);
   grd.addColorStop(0, '#8b0000'); grd.addColorStop(0.5, '#4a0000'); grd.addColorStop(1, '#1a0000');
   ctx.fillStyle = grd;
-  rRect(d.x, d.y, d.w, d.h, 6); ctx.fill();
+  rRect(d.x, d.y, d.w, d.h, 8); ctx.fill();
 
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = '20px sans-serif';
-  ctx.fillText('👹', d.x + d.w / 2, d.y + d.h / 2);
+  ctx.font = '28px sans-serif';
+  ctx.fillText('👹', d.x + d.w / 2, d.y + d.h / 2 + 2);
 
   const hpPct = d.hp / d.maxHp;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  rRect(d.x, d.y - 7, d.w, 4, 2); ctx.fill();
+  const barY = d.y - 12;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  rRect(d.x, barY, d.w, 8, 3); ctx.fill();
   ctx.fillStyle = hpPct > 0.3 ? '#ff4444' : '#ff0000';
-  rRect(d.x, d.y - 7, d.w * hpPct, 4, 2); ctx.fill();
+  rRect(d.x, barY, d.w * hpPct, 8, 3); ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = '6px sans-serif';
-  ctx.fillText(Math.ceil(d.hp), d.x + d.w / 2, d.y - 5);
+  ctx.font = 'bold 9px sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(Math.ceil(d.hp) + '/' + Math.ceil(d.maxHp), d.x + d.w / 2, barY + 4);
   ctx.restore();
 }
 
@@ -376,7 +396,6 @@ function drawPlayer() {
   ctx.fillRect(player.x - 8, player.y, 2.5, 4);
   ctx.fillRect(player.x + 5.5, player.y, 2.5, 4);
 
-  const wpn = WEAPONS[Math.min(state.weaponLv, WEAPONS.length - 1)];
   ctx.fillStyle = '#4fc3f7';
   ctx.shadowColor = '#4fc3f7';
   ctx.shadowBlur = 8;
@@ -420,9 +439,8 @@ function drawHUD() {
   ctx.fillText('⭐' + state.score, 8, 15);
 
   ctx.textAlign = 'center';
-  const wpn = WEAPONS[Math.min(state.weaponLv, WEAPONS.length - 1)];
   ctx.fillStyle = '#4fc3f7';
-  ctx.fillText('🔫' + wpn.count + '弹道', VW / 2, 15);
+  ctx.fillText('🔫' + state.bulletCount + ' 💥' + state.damage + ' ⚡' + state.playerSpeed, VW / 2, 15);
 
   ctx.textAlign = 'right';
   ctx.fillStyle = '#888';
@@ -451,11 +469,14 @@ function render() {
 
     ctx.fillStyle = '#aaa';
     ctx.font = '13px sans-serif';
-    ctx.fillText('← → / A,D / 鼠标移动', VW / 2, VH / 2 - 25);
-    ctx.fillText('射击冰封礼物获取弹道升级', VW / 2, VH / 2 + 5);
+    ctx.fillText('← → / A,D / 鼠标移动', VW / 2, VH / 2 - 35);
+    ctx.font = '12px sans-serif';
+    ctx.fillText('射击礼物解冻获取升级', VW / 2, VH / 2 - 5);
+    ctx.fillStyle = '#4fc3f7';
+    ctx.fillText('🔫弹道  💥威力(范围)  ⚡速度', VW / 2, VH / 2 + 22);
     ctx.font = '11px sans-serif';
     ctx.fillStyle = '#666';
-    ctx.fillText('恶魔走到底部即为失败', VW / 2, VH / 2 + 35);
+    ctx.fillText('恶魔走到底部即为失败', VW / 2, VH / 2 + 52);
 
     ctx.fillStyle = '#00d2ff';
     ctx.font = 'bold 16px sans-serif';
@@ -481,9 +502,9 @@ function render() {
     ctx.fillStyle = '#aaa';
     ctx.font = '14px sans-serif';
     ctx.fillText('存活 ' + Math.floor(state.frame / 60) + ' 秒', VW / 2, VH / 2 + 15);
-    const wpn = WEAPONS[Math.min(state.weaponLv, WEAPONS.length - 1)];
     ctx.fillStyle = '#4fc3f7';
-    ctx.fillText('最终: ' + wpn.count + '弹道', VW / 2, VH / 2 + 45);
+    ctx.font = '15px sans-serif';
+    ctx.fillText('🔫' + state.bulletCount + '弹道  💥' + state.damage + '威力  ⚡' + state.playerSpeed + '速度', VW / 2, VH / 2 + 50);
 
     ctx.fillStyle = '#00d2ff';
     ctx.font = 'bold 16px sans-serif';
@@ -528,13 +549,14 @@ function loop() {
 
 function startGame() {
   state.score = 0;
-  state.weaponLv = 0;
+  state.bulletCount = 1;
+  state.damage = 1;
+  state.playerSpeed = 4;
   state.frame = 0;
-  state.giftHP = 5;
   state.screen = 'playing';
   player.x = VW / 2;
   bullets = []; squads = []; particles = []; gifts = [];
-  for (let i = 0; i < 5; i++) { gifts.push(makeGift()); }
+  for (let i = 0; i < 8; i++) { gifts.push(makeGift()); }
   repositionGifts();
 }
 
