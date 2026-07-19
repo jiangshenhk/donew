@@ -13,6 +13,10 @@ canvas{display:block}
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="ver">VER 1.0.1</div>
+<style>
+#ver{position:fixed;bottom:6px;right:10px;z-index:100;font:10px Arial,sans-serif;color:#fff;opacity:0.4;pointer-events:none}
+</style>
 <script>
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
