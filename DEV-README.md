@@ -215,6 +215,22 @@ node scripts/create-tool-scaffold.mjs \
   --api your-tool
 ```
 
+### 约定 5：Sell Put 标的池在统一文件里维护
+
+当前重点关注标的池放在：
+
+```
+docs/SellPut/sell-put-focus.json
+```
+
+所有市场报告 API 默认从这个文件读取 focus 标的列表，AI 会重点分析这些标的的卖 Put 可行性。
+
+如果你需要临时换一批标的来分析，可以在 URL 上加 `?focus=TSLA,AAPL,NVDA`。
+
+如果你想永久换标的池，直接编辑这个 JSON 文件，API 会自动读取最新内容。
+
+如果以后有另一个 AI 来自动选标的，也是往这个文件里写。
+
 ---
 
 ## 8. 新增一个类似工具的标准动作
