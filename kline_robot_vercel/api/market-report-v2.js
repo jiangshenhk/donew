@@ -1005,7 +1005,7 @@ function formatHeadlineValue(value) {
   return n > 0 ? `+${n.toFixed(2)}%` : `${n.toFixed(2)}%`;
 }
 
-function buildMarketDataInput(meta, snapshot, classification, targets, jin10Items = [], focusSymbols = ["QLD", "MSTR", "INTC"]) {
+function buildMarketDataInput(meta, snapshot, classification, targets, jin10Items = [], focusSymbols = (process.env.FOCUS_SYMBOLS || "QLD,MSTR,INTC").split(",").map(s => s.trim()).filter(Boolean)) {
   const now = new Date().toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false });
   const focusData = focusSymbols.map(s => {
     const item = row(snapshot, s);
@@ -1094,7 +1094,8 @@ async function legacyHandler(req, res) {
     const kind = normalizeReportKind(req.query.kind);
     const provider = String(req.query.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
     const forceRefresh = ["1", "true", "yes"].includes(String(req.query.forceRefresh || "").toLowerCase());
-    const focusRaw = String(req.query.focus || "QLD,MSTR,INTC").toUpperCase();
+    const defaultFocus = process.env.FOCUS_SYMBOLS || "QLD,MSTR,INTC";
+    const focusRaw = String(req.query.focus || defaultFocus).toUpperCase();
     const focusSymbols = focusRaw.split(",").map(s => s.trim()).filter(Boolean);
     const meta = kindMeta(kind);
     const snapshot = await fetchMarketSnapshot(forceRefresh);
