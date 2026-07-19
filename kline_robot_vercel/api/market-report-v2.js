@@ -4,7 +4,15 @@ const MARKET_SYMBOLS = [
   "DX-Y.NYB", "^TNX", "^2YR", "JPY=X", "CNY=X", "CL=F", "GC=F", "INTC", "HOOD",
 ];
 
-const REQUIRED_TARGETS = ["QLD", "EEM", "MSTR", "INTC", "HOOD"];
+const REQUIRED_TARGETS_FALLBACK = ["QLD", "EEM", "MSTR", "INTC", "HOOD"];
+let requiredTargetsCache = null;
+
+function getRequiredTargets() {
+  if (requiredTargetsCache) return requiredTargetsCache;
+  requiredTargetsCache = focusPoolCache.symbols.length ? [...focusPoolCache.symbols] : REQUIRED_TARGETS_FALLBACK;
+  return requiredTargetsCache;
+}
+
 const CRITICAL_SYMBOLS = [
   "QQQ", "SPY", "IWM", "SMH", "SOXX", "BTC-USD", "^VIX",
   "^TNX", "DX-Y.NYB", "MSTR", "INTC", "HOOD",
@@ -969,7 +977,8 @@ function targetRows(snapshot, classification) {
     INTC: "弱于SOXX/QQQ、出现公司事件风险",
     HOOD: "Crypto风险退潮、券商风险偏好降温、强势结构跌破",
   };
-  return REQUIRED_TARGETS.map(symbol => ({
+  const targets = getRequiredTargets();
+  return targets.map(symbol => ({
     symbol,
     wind,
     level,
@@ -978,7 +987,7 @@ function targetRows(snapshot, classification) {
     dte: noSell ? "不建议" : "4-10个自然日",
     cushion: "优先>=7%",
     size: noSell ? "0" : cautious ? "极小仓/小仓" : "小仓",
-    invalid: invalid[symbol],
+    invalid: invalid[symbol] || "弱于板块或大盘、出现独立利空事件",
     latest: row(snapshot, symbol),
   }));
 }
