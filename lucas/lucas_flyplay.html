@@ -9,6 +9,7 @@
 html,body{height:100%;overflow:hidden;background:#0a0a1a;font-family:Arial,sans-serif;user-select:none}
 #gameCanvas{display:block;margin:0 auto;background:#0f1a2e}
 #gameCanvas.running{cursor:none}
+#gameCanvas{touch-action:none}
 
 #ui{
   position:absolute;top:0;left:0;width:100%;height:100%;
@@ -807,8 +808,8 @@ function pointerHandler(e) {
 }
 
 canvas.addEventListener('mousemove', pointerHandler)
-canvas.addEventListener('touchstart', pointerHandler, { passive: true })
-canvas.addEventListener('touchmove', pointerHandler, { passive: true })
+canvas.addEventListener('touchstart', e => { e.preventDefault(); pointerHandler(e) }, { passive: false })
+canvas.addEventListener('touchmove', e => { e.preventDefault(); pointerHandler(e) }, { passive: false })
 
 // Keyboard
 document.addEventListener('keydown', e => {
