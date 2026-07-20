@@ -1,6 +1,9 @@
 name: Ground Market Reports
 
 on:
+  push:
+    paths:
+      - 'scripts/apply-market-grounding.mjs'
   workflow_dispatch:
 
 permissions:
@@ -24,11 +27,17 @@ jobs:
           node --check scripts/generate-market-daily-report.mjs
           node --check scripts/validate-market-report.mjs
           node --check kline_robot_vercel/api/market-report-v2.js
+          grep -q 'EVIDENCE_GROUNDING_RULES' lib/market-report-core.mjs
+          grep -q 'sanitizeUnsupportedClaims' kline_robot_vercel/api/market-report-v2.js
+      - name: Remove one-time patch files
+        run: |
+          rm scripts/apply-market-grounding.mjs
+          rm .github/workflows/ground-market-reports.yml
       - name: Commit
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add lib/market-report-core.mjs scripts/generate-market-daily-report.mjs scripts/validate-market-report.mjs kline_robot_vercel/api/market-report-v2.js
+          git add -A lib/market-report-core.mjs scripts/generate-market-daily-report.mjs scripts/validate-market-report.mjs kline_robot_vercel/api/market-report-v2.js scripts/apply-market-grounding.mjs .github/workflows/ground-market-reports.yml
           git commit -m 'fix: prevent unsupported claims in market reports'
           git pull --rebase origin main
           git push origin HEAD:main
