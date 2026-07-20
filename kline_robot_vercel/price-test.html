@@ -16,7 +16,7 @@ button.primary{background:var(--blue);color:#fff}button:disabled{opacity:.5;curs
 .dot{width:9px;height:9px;border-radius:50%;background:var(--amber)}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}
 .panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:4px}.panel-head h2{font-size:20px;margin:0}#message{color:var(--muted);font-size:13px}
 .group{margin-top:22px}.group:first-child{margin-top:12px}.group h3{font-size:15px;margin:0;padding:9px 0;color:var(--muted)}
-.table{overflow-x:auto}.row{display:grid;grid-template-columns:1.1fr 1fr 1fr 1.4fr 1.4fr;gap:14px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line);min-width:700px}
+.table{overflow-x:auto}.row{display:grid;grid-template-columns:1.1fr 1fr 1fr 0.8fr 0.8fr 1.4fr 1.4fr;gap:14px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line);min-width:900px}
 .row.header{font-size:12px;color:var(--muted);padding-top:5px}.row:last-child{border-bottom:0}.symbol{font-weight:650}.up{color:var(--green)}.down{color:var(--red)}.muted{color:var(--muted);font-size:13px}
 .empty{text-align:center;color:var(--muted);padding:55px 10px}.error{background:#fff2f2;color:var(--red);padding:14px;border-radius:10px;margin:14px 0;white-space:pre-wrap}
 @media(max-width:820px){.head{display:block}.actions{justify-content:flex-start;margin-top:16px}.summary{grid-template-columns:1fr 1fr}.summary .card:first-child{grid-column:span 2}h1{font-size:25px}}
@@ -82,10 +82,14 @@ async function loadPrice(){
   $('message').textContent='来源：'+loaded.source+'｜共 '+items.length+' 个标的｜页面检查：'+fmt.format(new Date());
   if(!items.length){$('data').innerHTML='<div class="empty">缓存中暂时没有行情数据。</div>';return}
   const groups={};items.forEach(x=>(groups[x.category||'Other']??=[]).push(x));
-  $('data').innerHTML=Object.entries(groups).map(([name,list])=>'<section class="group"><h3>'+esc(name)+'</h3><div class="table"><div class="row header"><span>代码</span><span>价格</span><span>涨跌幅</span><span>市场时间</span><span>状态 / 市场</span></div>'+list.map(x=>{
-   const n=Number(x.changePercent),cls=Number.isFinite(n)?(n>=0?'up':'down'):'muted',change=Number.isFinite(n)?(n>=0?'+':'')+n.toFixed(2)+'%':'—';
-   return '<div class="row"><span class="symbol">'+esc(x.symbol)+'</span><span>'+price(x.price)+'</span><span class="'+cls+'">'+change+'</span><span class="muted">'+ft(x.marketTime)+'</span><span class="muted">'+esc(x.error?'失败：'+x.error:(x.exchange||'正常'))+'</span></div>'
-  }).join('')+'</div></section>').join('');
+   $('data').innerHTML=Object.entries(groups).map(([name,list])=>'<section class="group"><h3>'+esc(name)+'</h3><div class="table"><div class="row header"><span>代码</span><span>价格</span><span>涨跌幅</span><span>vs5</span><span>vs10</span><span>市场时间</span><span>状态 / 市场</span></div>'+list.map(x=>{
+    const n=Number(x.changePercent),cls=Number.isFinite(n)?(n>=0?'up':'down'):'muted',change=Number.isFinite(n)?(n>=0?'+':'')+n.toFixed(2)+'%':'—';
+    const vs5=x.vs5Pct!=null?(Number(x.vs5Pct)>=0?'+':'')+Number(x.vs5Pct).toFixed(2)+'%':'—';
+    const vs10=x.vs10Pct!=null?(Number(x.vs10Pct)>=0?'+':'')+Number(x.vs10Pct).toFixed(2)+'%':'—';
+    const vsCls5=x.vs5Pct!=null?(Number(x.vs5Pct)>=0?'up':'down'):'muted';
+    const vsCls10=x.vs10Pct!=null?(Number(x.vs10Pct)>=0?'up':'down'):'muted';
+    return '<div class="row"><span class="symbol">'+esc(x.symbol)+'</span><span>'+price(x.price)+'</span><span class="'+cls+'">'+change+'</span><span class="'+vsCls5+'">'+vs5+'</span><span class="'+vsCls10+'">'+vs10+'</span><span class="muted">'+ft(x.marketTime)+'</span><span class="muted">'+esc(x.error?'失败：'+x.error:(x.exchange||'正常'))+'</span></div>'
+   }).join('')+'</div></section>').join('');
  }catch(e){$('status').className='value status bad';$('status').innerHTML='<span class="dot"></span><span>读取失败</span>';$('message').textContent='';$('error').innerHTML='<div class="error">'+esc(e.message)+'</div>';$('data').innerHTML=''}
  finally{$('refresh').disabled=false}
 }
