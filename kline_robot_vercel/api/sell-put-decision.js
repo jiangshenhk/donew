@@ -595,6 +595,12 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - "权利金值不值得冒尾部风险？"必须回答并着色：值得=<span class="dn">值得</span>（绿色），不值得=<span class="up">不值得</span>（红色），谨慎=<span class="warn">谨慎</span>（黄色）
 - ATR% > 6% 或价格位于所有均线下方且20日跌幅>15%，自动倾向"谨慎卖Put"或"暂不卖Put"
 - IV Rank > 90% 是高溢价信号，但必须结合趋势方向综合判断，不能只看IV就给出"可卖Put"
+- **事件风险强制检查**：必须扫描新闻中有无即将发生的以下事件，如果存在必须在报告中显眼标出：
+  · 财报发布（标的自身或同行业龙头）
+  · FOMC/美联储决议/利率决议
+  · 非农数据、CPI、PPI、GDP 等重大经济数据
+  · 其他可能引发大幅波动的政策或地缘事件
+  如果到期日（用户提供的expiryDate）涵盖这些事件日期，必须在综合结论和卖Put建议中明确警告
 - 语气务实，不写空话，面向卖Put交易者，明确区分事实和推测
 
 ### 第1节 · 综合结论 (<section class="section hero-judgement">)
@@ -602,15 +608,16 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 第一行用大徽章给出结论：<span class="judge-badge" style='background:#1a3a2a;color:#45d483;'>可卖Put</span>（可卖Put→#45d483绿底，谨慎卖Put→#ffd54a黄底text:#333，暂不卖Put→#ff6b7d红底）
 - 第二行用 <span class="judge-reason"> 包裹一句核心判断理由
 - 然后必须逐条回答三个关键问题（每行用 class="highlight" 标关键字，答案必须着色）：
-  · "这是不是恐慌溢价？" — is/不是/不确定
+  · "这是不是恐慌溢价？" — 是/不是/不确定
   · "未来3-5个交易日的大跌/跳空风险？" — 高/低/中
   · "权利金值不值得冒尾部风险？" — 值得/不值得/谨慎
+- **如果新闻中出现近期（7天内）的财报/FOMC/非农/CPI等重大事件，必须在此用一行 <span class="highlight-red">⚠️ 近期事件风险：列出事件名称和日期</span> 显眼警示**
 - 下方用 1-2 行补充关键量化数据
 
 ### 第2节 · 市场环境 (<section class="section">)
 - 先输出 <h2>市场环境</h2>
 - 然后用一排 class="data-item" 标签展示关键行情：<span class="data-item">QQQ <span style="color:#45d483;">+0.68%</span></span>
-- 然后用 <ul class="bullet-list"> 列出 3-5 条要点，涵盖：宏观/地缘、半导体/科技情绪、利率与美元、综合判断
+- 然后用 <ul class="bullet-list"> 列出 3-5 条要点，涵盖：宏观/地缘、半导体/科技情绪、利率与美元、近期事件风险、综合判断
 
 ### 第3节 · 期权温度解读 (<section class="section">)
 - 先输出 <h2>期权温度解读</h2>
@@ -667,7 +674,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
   </div>
   （徽章类名：可卖Put→badge-green，谨慎卖Put→badge-yellow，暂不卖Put→badge-red）
 - 然后用 <ul class="bullet-list"> 列出以下四项，每项结构参照示例：
-  <li><strong>关键风险点：</strong> 此处列出3条风险，每条前用编号①②③，每条用 <span class="highlight-red">...</span> 包裹，具体指出风险是什么、触发条件、后果</li>
+  <li><strong>关键风险点：</strong> 此处列出3-4条风险，每条前用编号①②③④，每条用 <span class="highlight-red">...</span> 包裹。必须包含以下维度：趋势风险（跌幅/ATR）、事件风险（财报/FOMC/非农等，如有）、Gamma风险（到期日临近时的风险）、地缘/宏观风险。每条要具体指出风险是什么、触发条件、后果</li>
   <li><strong>如果必须操作：</strong> <span class="highlight-yellow">...</span> 给出仓位控制、策略调整、止损条件等具体建议，不是空话</li>
   <li><strong>建议行权价参考区间：</strong> 基于ATR安全行权价和支撑位给出具体价格区间，用 <span class="highlight-green">安全</span> / <span class="highlight-red">危险</span> / <span class="highlight-yellow">边缘</span> 标注当前选择的相对位置</li>
 - 最后输出一条独立警告条（不要放在 ul 里面）：
@@ -676,6 +683,8 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
   </div>
 
 ### 第6节 · 未来3-5个交易日关注清单 (<section class="section">)
+- 先输出 <h2>未来3-5个交易日关注清单</h2>
+- 先检查新闻中有无近期重大事件（财报/FOMC/非农/CPI），如果有，在此节开头用一行 <span class="highlight-red">📅 近期重要事件：[事件名+日期]</span> 显眼标出
 - 分两列排版（flex 或 grid），每列列出 4-5 条需要监控的信号
 - 底部用标签行展示：改变判断的信号（绿色好转信号、红色恶化信号、黄色中性信号）
 
