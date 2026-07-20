@@ -369,6 +369,35 @@ function marketRisk(snapshot, targetSymbol) {
   };
 }
 
+function adjustedRisk(risk, klineStats, targetSymbol) {
+  let riskScore = parseFloat(risk.riskScore);
+  const atrPct = parseFloat(klineStats?.atrPct || "0");
+  const d20 = klineStats?.returns?.d20 != null ? parseFloat(klineStats.returns.d20) : 0;
+  const d5 = klineStats?.returns?.d5 != null ? parseFloat(klineStats.returns.d5) : 0;
+  let notes = [];
+
+  if (atrPct > 8) { riskScore += 1.0; notes.push("ATR极高(>8%)"); }
+  else if (atrPct > 6) { riskScore += 0.5; notes.push("ATR偏高(>6%)"); }
+
+  if (d20 < -20) { riskScore += 1.0; notes.push("20日暴跌>20%"); }
+  else if (d20 < -10) { riskScore += 0.5; notes.push("20日跌幅>10%"); }
+
+  if (d5 < -5) { riskScore += 0.3; notes.push("5日跌幅>5%"); }
+
+  riskScore = Math.max(1, Math.min(9.5, riskScore));
+  const putStance = riskScore >= 7.5 ? "不利" : riskScore >= 6.2 ? "谨慎" : "有利";
+  const blackSwan = riskScore >= 7.5 ? "🔴 高警戒" : riskScore >= 6.2 ? "🟡 需防范" : "🟢 常规防守";
+
+  return {
+    ...risk,
+    riskScore: riskScore.toFixed(1),
+    putStance,
+    blackSwan,
+    adjusted: notes.length > 0,
+    adjustmentNotes: notes,
+  };
+}
+
 function focusTable(snapshot, targetSymbol) {
   const symbols = Array.from(new Set([targetSymbol, ...FOCUS_SYMBOLS.map((i) => i.symbol)]));
   return symbols.map((s) => {
@@ -683,7 +712,7 @@ function buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, snap
   <div class="chips">
     <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
     <span class="chip">黑天鹅灯号：${safeHtml(risk.blackSwan)}</span>
-    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>
+    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("+"))}</span>` : ""}
   </div>
 </section>
 
@@ -794,7 +823,7 @@ function buildAiReportWrapper(symbol, market, risk, aiHtml, snapshot) {
   <div class="chips">
     <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
     <span class="chip">黑天鹅灯号：${safeHtml(risk.blackSwan)}</span>
-    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>
+    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("+"))}</span>` : ""}
   </div>
 </section>
 ${aiHtml}
@@ -835,18 +864,19 @@ export default async function handler(req, res) {
 
     const optionMetricsText = formatOptionMetrics(optionMetrics);
 
-    const [stockpriceSnapshot, newsData] = await Promise.all([
+    const [stockpriceSnapshot, newsData, klineRaw] = await Promise.all([
       loadStockpriceSnapshot().catch(() => ({ data: [], checkedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })),
       loadNews().catch(() => ({ items: [], count: 0 })),
+      fetchKlineData(symbol).catch(() => ({ error: "fetch failed" })),
     ]);
 
-    const risk = marketRisk(stockpriceSnapshot, symbol);
-
-    const newsText = summarizeNews(newsData.items);
-
-    const klineRaw = await fetchKlineData(symbol);
     const klineStats = Array.isArray(klineRaw) ? computeKlineStats(klineRaw) : null;
     const klineStatsFormatted = formatKlineStats(klineStats);
+
+    const rawRisk = marketRisk(stockpriceSnapshot, symbol);
+    const risk = adjustedRisk(rawRisk, klineStats, symbol);
+
+    const newsText = summarizeNews(newsData.items);
 
     const prompt = buildPrompt({
       symbol, market, optionMetricsText,
