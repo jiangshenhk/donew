@@ -714,7 +714,7 @@ function buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, snap
   <div class="chips">
     <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
     <span class="chip">黑天鹅灯号：${safeHtml(risk.blackSwan)}</span>
-    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("+"))}</span>` : ""}
+    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
   </div>
 </section>
 
@@ -825,7 +825,7 @@ function buildAiReportWrapper(symbol, market, risk, aiHtml, snapshot) {
   <div class="chips">
     <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
     <span class="chip">黑天鹅灯号：${safeHtml(risk.blackSwan)}</span>
-    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("+"))}</span>` : ""}
+    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
   </div>
 </section>
 ${aiHtml}
