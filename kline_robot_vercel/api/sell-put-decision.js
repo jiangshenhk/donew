@@ -609,14 +609,45 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ### 第3节 · 期权温度解读 (<section class="section">)
 - 先输出 <h2>期权温度解读</h2>
-- 然后用 class="data-item" 标签行展示核心数据：IV vs HV、IV Rank、Put/Call Ratio、Expected Move
-- 然后用 <ul class="bullet-list"> 列出要点，逐条解读：IV vs HV 对比、PCR 信号、Expected Move 安全垫、是否存在恐慌溢价
+- 然后用一行标签展示核心数据+解读（不要只用 class="data-item" 罗列数字，必须标注含义）：
+  示例格式：
+  <div style="display:flex;flex-wrap:wrap;gap:16px 30px;margin-bottom:12px;">
+    <div><span class="tag">IV 104.23%</span> vs <span class="tag">HV 94.28%</span> <span class="highlight-yellow">IV > HV 约10%</span></div>
+    <div><span class="tag">IV Rank 100.00%</span> <span class="highlight-red">历史极值</span></div>
+    <div><span class="tag">Put/Call Vol 0.47</span> <span class="highlight-green">call活跃</span> / OI 0.96 <span class="warn">中性</span></div>
+    <div><span class="tag">Expected Move 5.23%</span> (±5.16点)</div>
+  </div>
+  （每条先用 class="tag" 显示指标数值，紧接着用 class="highlight-green/highlight-red/highlight-yellow" 或 class="up/dn/warn" 标注含义）
+- 然后用 <ul class="bullet-list"> 列出 4-5 条详细解读，涵盖：
+  · IV vs HV 对比及含义（溢价水平）
+  · IV Percentile / IV Rank 位置及对卖Put的意义
+  · Put/Call Ratio 信号解读（成交量 PCR vs 持仓量 PCR，分别说明）
+  · Expected Move 安全垫评估（与行权价的距离比较）
+  · 恐慌溢价判断（是不是真正的恐慌溢价，还是风险预警）
 
 ### 第4节 · K线技术信号 (<section class="section">)
 - 先输出 <h2>K线技术信号</h2>
-- 然后用 class="tag" 标签展示趋势方向、近期强弱、检测到的形态
-- 用一个标准表格展示 SMA5/10/20/50 数值和价格相对位置
-- 然后用 <ul class="bullet-list"> 列出要点，涵盖：趋势判断、K线形态含义、支撑/阻力位、ATR波动分析+行权价安全垫对比、量价配合
+- 然后用 <div class="flex-between"> 一行展示趋势概况+强弱+形态（必须包含具体数值）：
+  示例格式：
+  <div class="flex-between">
+    <span><span class="highlight-red">趋势：空头</span> (SMA5=100.18 < SMA10=104.70 < SMA20=117.70)</span>
+    <span><span class="badge-red">弱势</span> 近5日4跌</span>
+    <span><span class="badge-yellow">流星/墓碑十字</span> 上影线</span>
+  </div>
+  （不要在 <span class="tag"> 里写"趋势：强烈下跌"，要用 highlight-green/highlight-red 着色趋势，并在括号里给出具体均线数值或涨跌天数）
+- 然后用一个标准表格展示 SMA5/10/20/50：
+  <table>
+    <tr><th>均线</th><th>SMA5</th><th>SMA10</th><th>SMA20</th><th>SMA50</th></tr>
+    <tr><td>数值</td><td>100.18</td><td>104.70</td><td>117.70</td><td>116.97</td></tr>
+    <tr><td>价格相对</td><td><span class="highlight-red">↓ 下方</span></td><td>...</td></tr>
+  </table>
+  （价格相对位置必须着色：上方用 class="highlight-green"，下方用 class="highlight-red"，远下方加"远"字）
+- 然后用 <ul class="bullet-list"> 列出 5 条详细解读，涵盖：
+  · 趋势判断（均线排列是多头还是空头，中期趋势方向）
+  · K线形态含义（检测到的形态代表的信号，是看涨还是看跌）
+  · 支撑/阻力位（引用支撑区间和阻力区间的具体数值）
+  · ATR波动分析+行权价安全垫（ATR占比、ATR安全行权价、用户选择的行权价是否低于安全价）
+  · 量价配合（成交量是否配合趋势，放量涨还是放量跌，缩量反弹等）
 
 ### 第5节 · 综合卖Put建议 (<section class="section">)
 - 先输出 <h2>综合卖Put建议</h2>
