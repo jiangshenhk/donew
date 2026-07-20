@@ -89,10 +89,21 @@ function updateHistory(markdown) {
 function updateToday(markdown) {
   const core = extractSection(markdown, ['一句话结论', '本期市场在交易什么']) || '市场结构分析完成';
   const action = extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行';
-  const section = `\n## ${displayDate} ${label}\n\n- 核心判断：${core}\n- 策略倾向：${action}\n`;
-  let text = fs.existsSync(todayFile) ? fs.readFileSync(todayFile, 'utf8') : '# 今日市场记录\n';
-  const key = `## ${displayDate} ${label}`;
-  if (!text.includes(key)) text += section;
+  const link = `[📊 ${hkDate}市场结构日报（${label}）](/docs/市场/${hkDate}市场结构日报(${label}).md)`;
+  let text = fs.existsSync(todayFile) ? fs.readFileSync(todayFile, 'utf8') : '# 今日市场结构日报\n';
+  const reportKey = `## ${displayDate} ${label}`;
+  if (!text.includes(reportKey)) {
+    text += `\n## ${displayDate} ${label}\n\n- 核心判断：${core}\n- 策略倾向：${action}\n`;
+  }
+  const latestSection = text.match(/## 最新报告[\s\S]*?(?=\n## |\n$|$)/);
+  if (latestSection) {
+    if (!latestSection[0].includes(hkDate + label)) {
+      const newLinks = latestSection[0] + `\n${link}\n`;
+      text = text.replace(latestSection[0], newLinks);
+    }
+  } else {
+    text = text.replace(/\n---/, `\n## 最新报告\n\n${link}\n\n---`);
+  }
   fs.writeFileSync(todayFile, text);
 }
 
