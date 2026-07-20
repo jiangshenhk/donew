@@ -373,7 +373,7 @@ function focusTable(snapshot, targetSymbol) {
   const symbols = Array.from(new Set([targetSymbol, ...FOCUS_SYMBOLS.map((i) => i.symbol)]));
   return symbols.map((s) => {
     const item = row(snapshot, s);
-    return `<tr><td>${safeHtml(symbolLabel(s))}</td><td>${item.last === null ? "未取到" : safeHtml(item.last.toFixed(2))}</td><td>${safeHtml(pct(item.changePct))}</td><td>${safeHtml(item.exchange || "-")}</td><td>${safeHtml(formatDateTime(item.marketTime))}</td></tr>`;
+    return `<tr><td>${safeHtml(symbolLabel(s))}</td><td>${item.last === null ? "未取到" : safeHtml(item.last.toFixed(2))}</td><td>${pct(item.changePct)}</td><td>${safeHtml(item.exchange || "-")}</td><td>${safeHtml(formatDateTime(item.marketTime))}</td></tr>`;
   }).join("");
 }
 
@@ -483,6 +483,17 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, putPrice, expiryDa
   };
 }
 
+function stripCodeFenceAndExtract(html) {
+  let text = String(html || "").trim();
+  text = text.replace(/```html\s*/gi, "").replace(/```\s*$/, "").trim();
+  if (!text) return "";
+  const bodyMatch = text.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) text = bodyMatch[1].trim();
+  const pageMatch = text.match(/(<div\s+[^>]*class=["']page["'][^>]*>[\s\S]*)/i);
+  if (pageMatch) text = pageMatch[1];
+  return text;
+}
+
 function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate, klineStats }) {
   const target = row(stockpriceSnapshot, symbol);
   const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
@@ -535,66 +546,53 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ## 报告生成要求
 
-请生成一份结构完整的 HTML 代码（不要包 markdown 代码块 \`\`\`），包含以下章节：
+**重要：严格输出规则**
+- 不要输出 \`\`\`html 或 \`\`\` 代码块，不要输出 DOCTYPE、<html>、<head>、<body> 等外层标签
+- 不要输出任何前言/后记/解释文字（如"以下是您所需的"）
+- 直接从第一个 <section> 标签开始输出，到最后一个 </section> 结束
+- 以下是你必须按顺序输出的章节：
 
-<section class="section hero-judgement">
-  <h2>综合结论</h2>
-  — 立即回答"当前卖Put有利/谨慎/不利"
-  — 用一句话总结核心判断理由
-</section>
+### 第1节 · 综合结论 (<section class="section hero-judgement">)
+- 用一个醒目的颜色大徽章输出结论: "<span style='display:inline-block;font-size:1.8rem;font-weight:700;padding:6px 24px;border-radius:60px;background:#3d1e2a;color:#ff6b7d;'>⚠️ 谨慎</span>"（有利=#45d483绿色底，谨慎=#ffd54a黄底，不利=#ff6b7d红底）
+- 紧接着用一句话总结核心判断理由
+- 下方用 1-2 行补充关键量化依据
 
-<section class="section">
-  <h2>市场环境</h2>
-  — 基于行情快照和新闻的宏观判断
-  — VIX、QQQ、SMH、DXY、10Y等关键信号
-  — 当前是否适合卖Put
-</section>
+### 第2节 · 市场环境 (<section class="section">)
+- 先用一排小药丸标签展示关键行情：<span style='background:#1a2338;padding:6px 16px;border-radius:40px;'>QQQ <span style='color:#45d483'>+0.68%</span></span>
+- 然后列出 3-5 条要点（每条前用 🔹），涵盖：宏观/地缘、半导体/科技情绪、利率与美元、综合判断
 
-<section class="section">
-  <h2>期权温度解读</h2>
-  — IV vs HV 对比
-  — IV Percentile / IV Rank 位置
-  — Put/Call Ratio 信号
-  — Expected Move 安全垫评估
-  — 是否存在恐慌溢价
-</section>
+### 第3节 · 期权温度解读 (<section class="section">)
+- 先用标签行展示核心数据：IV vs HV、IV Rank、Put/Call Ratio、Expected Move
+- 然后列出要点（🔹），逐条解读：IV vs HV 对比、PCR 信号、Expected Move 安全垫、是否存在恐慌溢价
 
-<section class="section">
-  <h2>K线技术信号</h2>
-  — 趋势方向判断（基于均线排列、价格位置）
-  — 检测到的K线形态及含义
-  — 支撑/阻力位
-  — ATR波动分析
-  — 量价配合情况
-</section>
+### 第4节 · K线技术信号 (<section class="section">)
+- 先用一行标签展示趋势方向、近期强弱、检测到的形态
+- 用一个表格展示 SMA5/10/20/50 数值和价格相对位置
+- 然后列出要点（🔹），涵盖：趋势判断、K线形态含义、支撑/阻力位、ATR波动分析+行权价安全垫对比、量价配合
 
-<section class="section">
-  <h2>综合卖Put建议</h2>
-  — 动作建议（可卖/谨慎卖/暂不卖）
-  — 关键风险点
-  — 如果必须操作的注意事项
-  — 建议的行权价参考区间（基于支撑位和ATR）
-</section>
+### 第5节 · 综合卖Put建议 (<section class="section">)
+- 顶部用显眼的行动建议条：<span style='font-size:1.5rem;font-weight:700'>动作建议</span> + 颜色大徽章（暂不卖/谨慎卖/可卖）+ 到期日/行权价/中间价标签
+- 列出关键风险点（🔹，标红）
+- 如果必须操作的建议（🔹，标黄）
+- 建议的行权价参考区间（基于ATR安全价和支撑位）
+- 最后一行特别提醒：当前风险环境中最重要的注意事项
 
-<section class="section">
-  <h2>未来3-5个交易日关注清单</h2>
-  — 需要盯的关键事件或数据
-  — 可能改变判断的信号
-</section>
+### 第6节 · 未来3-5个交易日关注清单 (<section class="section">)
+- 分两列排版（flex 或 grid），每列列出 4-5 条需要监控的信号
+- 底部用标签行展示：改变判断的信号（绿色好转信号、红色恶化信号、黄色中性信号）
 
-样式要求（直接用内联style，不要用class）：
-- 小节标题(h2)颜色: #ffd54a (金黄色)
-- 关键指标使用高亮色：涨/偏多用 #45d483 (绿色)，跌/偏空用 #ff6b7d (红色)，中性/警告用 #ffd54a (黄色)
-- 每个分析要点前用 🔹 或其他符号区分
-- 表格边框色: #314566
-- 背景深色为主，文字浅色 #e8eefc
-- 整体在 <div class="page"> 内部
+### 视觉风格参考（可直接使用以下CSS class，或使用内联style）
+- 涨/偏多：<span class="highlight-green"> 或 <span class="dn">
+- 跌/偏空：<span class="highlight-red"> 或 <span class="up">
+- 中性/警告：<span class="highlight-yellow"> 或 <span class="warn">
+- 关键指标标签：用 <span class="tag"> （圆角深色小标签）
+- 要点列表：用 <ul class="bullet-list">（每行带 🔹 符）
+- 数据药丸：<span class="data-item"> （圆角药丸形数据展示）
+- 表格：标准 <table> + <th>/<td>
+- h2 标题: color:#ffd54a，border-bottom:1px solid #314566
+- 建议条：background:#1a2338;border-radius:16px;padding:16px
 
-语气要求：
-- 务实、不写空话
-- 面向卖Put交易者
-- 明确区分事实判断和主观推测
-- 风险点必须明确指出`;
+记住：直接输出 HTML 片段，不要任何包装标记！`;
 }
 
 async function callAI(symbol, prompt) {
@@ -829,16 +827,17 @@ export default async function handler(req, res) {
     });
 
     const ai = await callAI(symbol, prompt);
+    const cleanHtml = stripCodeFenceAndExtract(ai.html);
 
-    const finalHtml = ai.html
-      ? buildAiReportWrapper(symbol, market, risk, ai.html, stockpriceSnapshot)
+    const finalHtml = cleanHtml
+      ? buildAiReportWrapper(symbol, market, risk, cleanHtml, stockpriceSnapshot)
       : buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, stockpriceSnapshot, targetStrike, putPrice, expiryDate);
 
     return sendJson(res, 200, {
       ok: true,
       symbol, market,
       provider: ai.provider,
-      used_ai: !!ai.html,
+      used_ai: !!cleanHtml,
       status: risk.putStance,
       risk_score: risk.riskScore,
       message: ai.html
