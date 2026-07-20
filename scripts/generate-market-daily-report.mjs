@@ -72,13 +72,17 @@ function updateHistory(markdown) {
   let text = fs.readFileSync(historyFile, 'utf8');
   const month = `## 📅 ${hkDate.slice(0, 4)}年${Number(hkDate.slice(5, 7))}月`;
   const weekday = ['日', '一', '二', '三', '四', '五', '六'][new Date(now).getDay()];
-  const core = extractSection(markdown, ['一句话结论', '本期市场在交易什么']) || '市场结构分析完成';
-  const action = extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行';
+  const core = (extractSection(markdown, ['一句话结论', '本期市场在交易什么']) || '市场结构分析完成').replace(/\|/g, '｜').replace(/\n/g, ' ').slice(0, 120);
+  const action = (extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行').replace(/\|/g, '｜').replace(/\n/g, ' ').slice(0, 120);
   const link = `[📊 ${label}](/docs/市场/${hkDate}市场结构日报(${label}).md)`;
+  const header = '| 日期 | 星期 | 类型 | 报告 | 核心判断 | 策略倾向 |\n|:---|:---|:---|:---|:---|:---|';
   const row = `| **${displayDate}** | ${weekday} | 日报 | ${link} | ${core} | ${action} |`;
   if (text.includes(link)) return;
-  if (text.includes(month)) text = text.replace(month, `${month}\n\n${row}`);
-  else text += `\n\n---\n\n${month}\n\n${row}`;
+  if (text.includes(month)) {
+    text = text.replace(month, `${month}\n\n${header}\n${row}`);
+  } else {
+    text += `\n\n---\n\n${month}\n\n${header}\n${row}`;
+  }
   fs.writeFileSync(historyFile, text);
 }
 
