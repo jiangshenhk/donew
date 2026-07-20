@@ -416,7 +416,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v1.0.2｜2026-07-21｜补回Tesseract本地OCR实时解析</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v1.1.0｜2026-07-21｜html2canvas图片导出+历史报告对比</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -496,6 +496,12 @@
         </div>
 
         <button class="primary-btn" id="submitBtn" type="submit">生成综合卖Put决策</button>
+
+        <div class="field full" style="margin-top:16px;">
+          <label for="compareFile">导入历史 HTML 报告对比</label>
+          <input type="file" id="compareFile" accept=".html" style="font-size:14px;" placeholder="选择之前保存的 HTML 报告">
+        </div>
+
         <div class="note">
           一次生成涵盖：新闻摘要 · 市场环境 · K线技术信号 · 期权温度 · 综合卖Put建议<br>
           <strong>截图非必需 — 有更好，没有也能基于行情+K线生成判断</strong>
@@ -505,7 +511,8 @@
       <section class="panel result">
         <div class="result-top">
           <div class="tabs">
-            <button class="tab active" data-view="preview" type="button">当前报告</button>
+            <button class="tab active" data-view="current" type="button">当前报告</button>
+            <button class="tab" data-view="compare" id="compareTab" type="button" style="display:none;">历史对比</button>
           </div>
         </div>
         <div id="resultHead" class="cards" style="display:none;"></div>
@@ -526,6 +533,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script>
     const apiBase = (() => {
       const params = new URLSearchParams(location.search);
@@ -557,6 +565,12 @@
     let runTimer = null;
     const historyKey = 'sellPutDecisionHistory.v1';
     const latestReportKey = 'sellPutDecisionLatestReport.v1';
+
+    const compareFileInput = document.getElementById('compareFile');
+    const compareTab = document.getElementById('compareTab');
+    let compareHtml = '';
+    let compareBlobUrl = '';
+    let currentView = 'current';
 
     function readHistory() {
       try {
@@ -901,38 +915,83 @@
         await new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
       }
       const doc = frame.contentDocument;
-      const width = Math.min(Math.max(doc.documentElement.scrollWidth, doc.body.scrollWidth, 960), 1800);
-      const height = Math.min(Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, 600), 24000);
-      const html = doc.documentElement.cloneNode(true);
-      html.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-      html.querySelectorAll('script').forEach((node) => node.remove());
-      const serialized = new XMLSerializer().serializeToString(html);
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="100%" height="100%">${serialized}</foreignObject></svg>`;
-      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-      const svgUrl = URL.createObjectURL(svgBlob);
-      try {
-        const image = new Image();
-        const imageLoaded = await new Promise((resolve) => {
-          image.onload = () => resolve(true);
-          image.onerror = () => resolve(false);
-          image.src = svgUrl;
-        });
-        if (!imageLoaded) throw new Error('图片导出失败。');
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(image, 0, 0);
-        let jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-        if (!jpgBlob) jpgBlob = dataUrlToBlob(canvas.toDataURL('image/jpeg', 0.92));
-        downloadBlob(jpgBlob, downloadFileName('jpg'));
-        return jpgBlob;
-      } finally {
-        URL.revokeObjectURL(svgUrl);
-      }
+      if (typeof html2canvas === 'undefined') throw new Error('图片导出库加载中，请重试。');
+      const canvas = await html2canvas(doc.body, {
+        backgroundColor: '#0f172a',
+        allowTaint: false,
+        useCORS: false,
+        scale: 2,
+        width: Math.min(Math.max(doc.documentElement.scrollWidth, doc.body.scrollWidth, 960), 1800),
+        height: Math.min(Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, 600), 24000),
+        windowWidth: doc.documentElement.scrollWidth,
+        windowHeight: doc.documentElement.scrollHeight,
+      });
+      const jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      if (!jpgBlob) throw new Error('图片导出失败。');
+      downloadBlob(jpgBlob, downloadFileName('jpg'));
+      return jpgBlob;
     }
+
+    document.querySelectorAll('.tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentView = tab.dataset.view;
+        if (currentView === 'compare') {
+          document.getElementById('resultHead').style.display = 'none';
+          document.getElementById('actions').style.display = 'none';
+          document.getElementById('status').style.display = 'none';
+          const compareWrap = document.getElementById('compareWrap');
+          if (compareWrap) compareWrap.style.display = '';
+          preview.style.display = 'none';
+        } else {
+          document.getElementById('resultHead').style.display = 'grid';
+          document.getElementById('actions').style.display = 'flex';
+          document.getElementById('status').style.display = '';
+          const compareWrap = document.getElementById('compareWrap');
+          if (compareWrap) compareWrap.style.display = 'none';
+          preview.style.display = '';
+        }
+      });
+    });
+
+    compareFileInput.addEventListener('change', async () => {
+      const file = compareFileInput.files && compareFileInput.files[0];
+      if (!file) return;
+      try {
+        const text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = reject;
+          reader.readAsText(file);
+        });
+        if (!text.trim().toLowerCase().includes('<html')) throw new Error('文件不是有效的 HTML 报告');
+        compareHtml = text;
+        if (compareBlobUrl) URL.revokeObjectURL(compareBlobUrl);
+        compareBlobUrl = URL.createObjectURL(new Blob([compareHtml], { type: 'text/html;charset=utf-8' }));
+        compareTab.style.display = '';
+        compareTab.classList.add('active');
+        document.querySelectorAll('.tab').forEach((t) => { if (t !== compareTab) t.classList.remove('active'); });
+        currentView = 'compare';
+        document.getElementById('resultHead').style.display = 'none';
+        document.getElementById('actions').style.display = 'none';
+        document.getElementById('status').style.display = 'none';
+        preview.style.display = 'none';
+        let compareWrap = document.getElementById('compareWrap');
+        if (!compareWrap) {
+          compareWrap = document.createElement('div');
+          compareWrap.id = 'compareWrap';
+          compareWrap.className = 'preview-wrap';
+          preview.parentNode.appendChild(compareWrap);
+        }
+        compareWrap.style.display = '';
+        compareWrap.innerHTML = `<iframe title="历史报告对比" src="${compareBlobUrl}"></iframe>`;
+        setStatus('已导入历史报告，可切换"当前报告"和"历史对比"查看。');
+      } catch (error) {
+        setStatus(error.message || '导入失败。', true);
+        compareFileInput.value = '';
+      }
+    });
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
