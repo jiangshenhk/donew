@@ -416,7 +416,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v1.0.0｜2026-07-21｜新闻+行情+K线+期权四合一</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v1.0.1｜2026-07-21｜新增剪贴板粘贴截图支持</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -460,7 +460,7 @@
         <div class="upload-box">
           <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
           <div class="upload-hint">
-            上传截图后自动 OCR 提取期权字段，或展开下方面板手动录入。不传截图也可只填部分字段。
+            支持选择文件上传或 Ctrl+V 直接粘贴截图。不传截图也可只填部分字段。
           </div>
           <img id="thumb" class="preview-thumb" alt="截图预览">
         </div>
@@ -767,6 +767,24 @@
         reader.readAsDataURL(file);
       });
     }
+
+    document.addEventListener('paste', async (event) => {
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          event.preventDefault();
+          const file = item.getAsFile();
+          if (!file) return;
+          imageDataUrl = await readFileAsDataUrl(file);
+          thumb.src = imageDataUrl;
+          thumb.style.display = 'block';
+          imageInput.files = null;
+          setStatus('已从剪贴板粘贴截图，点击生成时自动识别。');
+          return;
+        }
+      }
+    });
 
     imageInput.addEventListener('change', async () => {
       const file = imageInput.files && imageInput.files[0];
