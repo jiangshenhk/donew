@@ -553,29 +553,32 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 以下是你必须按顺序输出的章节：
 
 ### 第1节 · 综合结论 (<section class="section hero-judgement">)
-- 用一个醒目的颜色大徽章输出结论: "<span style='display:inline-block;font-size:1.8rem;font-weight:700;padding:6px 24px;border-radius:60px;background:#3d1e2a;color:#ff6b7d;'>⚠️ 谨慎</span>"（有利=#45d483绿色底，谨慎=#ffd54a黄底，不利=#ff6b7d红底）
-- 紧接着用一句话总结核心判断理由
+- 先输出 <h2>综合结论</h2>
+- 然后用一个醒目的颜色大徽章输出结论: "<span class="judge-badge" style='background:#1a3a2a;color:#45d483;'>有利</span>"（有利=#45d483绿底，谨慎=#ffd54a黄底，不利=#ff6b7d红底）
+- 紧接着用 <span class="judge-reason"> 包裹一句核心判断理由
 - 下方用 1-2 行补充关键量化依据
 
 ### 第2节 · 市场环境 (<section class="section">)
-- 先用一排小药丸标签展示关键行情：<span style='background:#1a2338;padding:6px 16px;border-radius:40px;'>QQQ <span style='color:#45d483'>+0.68%</span></span>
-- 然后列出 3-5 条要点（每条前用 🔹），涵盖：宏观/地缘、半导体/科技情绪、利率与美元、综合判断
+- 先输出 <h2>市场环境</h2>
+- 然后用一排 class="data-item" 标签展示关键行情：<span class="data-item">QQQ <span style="color:#45d483;">+0.68%</span></span>
+- 然后用 <ul class="bullet-list"> 列出 3-5 条要点，涵盖：宏观/地缘、半导体/科技情绪、利率与美元、综合判断
 
 ### 第3节 · 期权温度解读 (<section class="section">)
-- 先用标签行展示核心数据：IV vs HV、IV Rank、Put/Call Ratio、Expected Move
-- 然后列出要点（🔹），逐条解读：IV vs HV 对比、PCR 信号、Expected Move 安全垫、是否存在恐慌溢价
+- 先输出 <h2>期权温度解读</h2>
+- 然后用 class="data-item" 标签行展示核心数据：IV vs HV、IV Rank、Put/Call Ratio、Expected Move
+- 然后用 <ul class="bullet-list"> 列出要点，逐条解读：IV vs HV 对比、PCR 信号、Expected Move 安全垫、是否存在恐慌溢价
 
 ### 第4节 · K线技术信号 (<section class="section">)
-- 先用一行标签展示趋势方向、近期强弱、检测到的形态
-- 用一个表格展示 SMA5/10/20/50 数值和价格相对位置
-- 然后列出要点（🔹），涵盖：趋势判断、K线形态含义、支撑/阻力位、ATR波动分析+行权价安全垫对比、量价配合
+- 先输出 <h2>K线技术信号</h2>
+- 然后用 class="tag" 标签展示趋势方向、近期强弱、检测到的形态
+- 用一个标准表格展示 SMA5/10/20/50 数值和价格相对位置
+- 然后用 <ul class="bullet-list"> 列出要点，涵盖：趋势判断、K线形态含义、支撑/阻力位、ATR波动分析+行权价安全垫对比、量价配合
 
 ### 第5节 · 综合卖Put建议 (<section class="section">)
-- 顶部用显眼的行动建议条：<span style='font-size:1.5rem;font-weight:700'>动作建议</span> + 颜色大徽章（暂不卖/谨慎卖/可卖）+ 到期日/行权价/中间价标签
-- 列出关键风险点（🔹，标红）
-- 如果必须操作的建议（🔹，标黄）
-- 建议的行权价参考区间（基于ATR安全价和支撑位）
-- 最后一行特别提醒：当前风险环境中最重要的注意事项
+- 先输出 <h2>综合卖Put建议</h2>
+- 然后用显眼的行动建议条（background:#1a2338;border-radius:16px;padding:16px;margin-bottom:16px）：<span style='font-size:1.5rem;font-weight:700'>动作建议</span> + 判断大徽章（class="badge-red"/"badge-green"/"badge-yellow"）+ 到期日/行权价/中间价 class="tag" 标签
+- 然后用 <ul class="bullet-list"> 列出：关键风险点（🔹+highlight-red）、如果必须操作的建议（🔹+highlight-yellow）、建议的行权价参考区间
+- 最后一条特别提醒（highlight-red着色）
 
 ### 第6节 · 未来3-5个交易日关注清单 (<section class="section">)
 - 分两列排版（flex 或 grid），每列列出 4-5 条需要监控的信号
