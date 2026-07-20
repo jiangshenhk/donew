@@ -111,16 +111,28 @@ function resolvePreviousClose(result,meta){
 }
 
 function resolveChangePercent(price,previousClose){
- if(price!==null&&previousClose!==null&&previousClose!==0){
-  return {value:((price-previousClose)/previousClose)*100,source:'price-vs-previous-daily-close'};
- }
- return {value:null,source:'missing'};
+  if(price!==null&&previousClose!==null&&previousClose!==0){
+   return {value:((price-previousClose)/previousClose)*100,source:'price-vs-previous-daily-close'};
+  }
+  return {value:null,source:'missing'};
+}
+
+function calcSMA(bars, n){
+  if(!bars.length||n<1) return null;
+  const closes=bars.slice(-n).map(b=>b.close).filter(c=>c!==null);
+  if(closes.length<n) return null;
+  return closes.reduce((a,b)=>a+b,0)/closes.length;
+}
+
+function calcVsPct(price, sma){
+  if(price===null||sma===null||sma===0) return null;
+  return ((price-sma)/sma)*100;
 }
 
 async function fetchPrice(item,retry=2){
  const symbol=typeof item==='string'?item:item.symbol;
  const category=typeof item==='string'?'Unknown':item.category;
- const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d&events=history&includePrePost=false`;
+  const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=21d&interval=1d&events=history&includePrePost=false`;
  try{
   const res=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 donew-stockprice'}});
   if(!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -128,27 +140,37 @@ async function fetchPrice(item,retry=2){
   const result=json?.chart?.result?.[0];
   const meta=result?.meta||{};
   if(!result) throw new Error('No chart data');
-  const price=numberOrNull(meta.regularMarketPrice) ?? latestClose(result);
-  const previous=resolvePreviousClose(result,meta);
-  const previousClose=previous.value;
-  const change=resolveChangePercent(price,previousClose);
-  return {
-   symbol,
-   category,
-   price:price??null,
-   previousClose:previousClose??null,
-   changePercent:change.value==null?null:Number(change.value).toFixed(2),
-   marketTime:meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null,
-   currency:meta.currency??null,
-   exchange:meta.fullExchangeName??meta.exchangeName??null,
-   marketState:meta.marketState??null,
-   quoteSource:'yahoo-chart',
-   changePercentSource:change.source,
-   previousCloseSource:previous.source,
-   previousCloseDate:previous.previousCloseDate,
-   latestBarDate:previous.latestBarDate,
-   marketDate:previous.marketDate
-  };
+   const price=numberOrNull(meta.regularMarketPrice) ?? latestClose(result);
+   const bars=dailyBars(result,meta?.exchangeTimezoneName||'UTC');
+   const sma5=calcSMA(bars,5);
+   const sma10=calcSMA(bars,10);
+   const vs5Pct=calcVsPct(price,sma5);
+   const vs10Pct=calcVsPct(price,sma10);
+   const previous=resolvePreviousClose(result,meta);
+   const previousClose=previous.value;
+   const change=resolveChangePercent(price,previousClose);
+   return {
+    symbol,
+    category,
+    price:price??null,
+    previousClose:previousClose??null,
+    changePercent:change.value==null?null:Number(change.value).toFixed(2),
+    marketTime:meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null,
+    currency:meta.currency??null,
+    exchange:meta.fullExchangeName??meta.exchangeName??null,
+    marketState:meta.marketState??null,
+    quoteSource:'yahoo-chart',
+    changePercentSource:change.source,
+    previousCloseSource:previous.source,
+    previousCloseDate:previous.previousCloseDate,
+    latestBarDate:previous.latestBarDate,
+    marketDate:previous.marketDate,
+    sma5:sma5??null,
+    sma10:sma10??null,
+    vs5Pct:vs5Pct!=null?Number(vs5Pct).toFixed(2):null,
+    vs10Pct:vs10Pct!=null?Number(vs10Pct).toFixed(2):null,
+    barCount:bars.length
+   };
  }catch(e){
   if(retry>0){await sleep(2000);return fetchPrice(item,retry-1);}
   return {symbol,category,error:e.message};
@@ -167,7 +189,13 @@ async function main(){
  const newData=JSON.stringify(data);
  const updatedAt=oldData===newData&&old.updatedAt?old.updatedAt:now;
  fs.mkdirSync(path.dirname(outputFile),{recursive:true});
- fs.writeFileSync(outputFile,JSON.stringify({updatedAt,checkedAt:now,successCount,failCount,data},null,2));
- console.log(`Saved ${data.length} symbols success=${successCount} fail=${failCount}`);
+  fs.writeFileSync(outputFile,JSON.stringify({updatedAt,checkedAt:now,successCount,failCount,data},null,2));
+  console.log(`Saved ${data.length} symbols success=${successCount} fail=${failCount}`);
+  const keySymbols=['QQQ','SPY','IWM','QLD','SMH','SOXX','BTC-USD','^VIX','^TNX','^2YR','MSTR','INTC','CL=F','GC=F','EEM'];
+  for(const item of data){
+   if(keySymbols.includes(item.symbol)){
+    console.log(`${item.symbol}: price=${item.price} sma5=${item.sma5} sma10=${item.sma10} vs5=${item.vs5Pct}% vs10=${item.vs10Pct}% bars=${item.barCount}`);
+   }
+  }
 }
 main();
