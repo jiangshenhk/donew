@@ -434,8 +434,31 @@ async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
   return sanitizeOptionMetrics(parseLooseJson(extractTextFromResponse(json)));
 }
 
-function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes }) {
+function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate }) {
   const target = row(stockpriceSnapshot, symbol);
+
+  let strikeSection = "";
+  if (targetStrike || putPrice || expiryDate) {
+    const strike = numberOrNull(targetStrike);
+    const price = numberOrNull(putPrice);
+    let annualizedReturn = null;
+    let daysToExpiry = null;
+    if (expiryDate && price != null && strike != null && strike > 0 && price > 0) {
+      const now = new Date();
+      const expiry = new Date(expiryDate);
+      daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+      if (daysToExpiry > 0) {
+        const returnPerPeriod = price / strike;
+        annualizedReturn = (returnPerPeriod * 365 / daysToExpiry * 100).toFixed(2);
+      }
+    }
+    strikeSection = `\n## 期权链数据${annualizedReturn ? `（年化收益率: ${annualizedReturn}%）` : ""}
+- 行权价格：${strike != null ? `$${strike}` : "未提供"}
+- 中间价（期权价格）：${price != null ? `$${price}` : "未提供"}
+- 到期日：${expiryDate || "未提供"}${daysToExpiry != null ? `（距离到期${daysToExpiry}天）` : ""}${annualizedReturn ? `\n- 预估年化收益率：${annualizedReturn}%` : ""}
+`;
+  }
+
   return `你是一个专门帮助美股卖Put交易者做综合决策的分析助手。
 
 请根据以下所有信息，生成一份完整的卖Put决策分析报告。
@@ -448,7 +471,7 @@ function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, ne
 
 ## 期权温度数据
 ${optionMetricsText || "用户未提供期权温度数据，请根据市场环境和技术面给出一般性建议。"}
-
+${strikeSection}
 ## 市场行情快照
 ${marketRisk(stockpriceSnapshot, symbol).summary}
 
@@ -696,6 +719,9 @@ export default async function handler(req, res) {
     const market = String(body.market || "us").trim().toLowerCase();
     const imageDataUrl = String(body.imageDataUrl || "").trim();
     const notes = String(body.notes || "").trim();
+    const targetStrike = String(body.targetStrike || body.optionMetrics?.targetStrike || "").trim();
+    const putPrice = String(body.putPrice || body.optionMetrics?.putPrice || "").trim();
+    const expiryDate = String(body.expiryDate || body.optionMetrics?.expiryDate || "").trim();
     const rawMetrics = (body.optionMetrics && typeof body.optionMetrics === "object") ? body.optionMetrics : {};
 
     if (!symbol) return sendJson(res, 400, { ok: false, message: "缺少标的代码。" });
@@ -730,6 +756,7 @@ export default async function handler(req, res) {
       symbol, market, optionMetricsText,
       stockpriceSnapshot, newsText,
       klineStatsFormatted, notes,
+      targetStrike, putPrice, expiryDate,
     });
 
     const ai = await callAI(symbol, prompt);

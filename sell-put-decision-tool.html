@@ -416,7 +416,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v1.1.0｜2026-07-21｜html2canvas图片导出+历史报告对比</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v1.2.0｜2026-07-21｜补行权价/期权价/到期日+年化收益率计算</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -486,13 +486,16 @@
               <div class="field"><label for="volumeAvg30">Volume Avg (30D)</label><input id="volumeAvg30" name="volumeAvg30" type="text" placeholder="1330"></div>
               <div class="field"><label for="todayOpenInterest">Today's Open Interest</label><input id="todayOpenInterest" name="todayOpenInterest" type="text" placeholder="53070"></div>
               <div class="field"><label for="openInterest30">Open Int (30D)</label><input id="openInterest30" name="openInterest30" type="text" placeholder="49753"></div>
+              <div class="field full"><label for="targetStrike">行权价格</label><input id="targetStrike" name="targetStrike" type="text" placeholder="85.00"></div>
+              <div class="field"><label for="putPrice">中间价 (期权价格)</label><input id="putPrice" name="putPrice" type="text" placeholder="2.00"></div>
+              <div class="field"><label for="expiryDate">到期日</label><input id="expiryDate" name="expiryDate" type="date"></div>
             </div>
           </div>
         </details>
 
         <div class="field full">
           <label for="notes">补充说明（可选）</label>
-          <textarea id="notes" name="notes" placeholder="当前关注的价位、持仓情况、想问AI的问题等"></textarea>
+          <textarea id="notes" name="notes" placeholder="期权链数据为，到期日  ，行权价  ，中间价  。&#10;或补充当前持仓、市场关注点等问题"></textarea>
         </div>
 
         <button class="primary-btn" id="submitBtn" type="submit">生成综合卖Put决策</button>
@@ -901,6 +904,9 @@
         'todayVolume', 'volumeAvg30', 'todayOpenInterest', 'openInterest30'];
       const metrics = {};
       fields.forEach((f) => { metrics[f] = String(form.elements[f]?.value || '').trim(); });
+      metrics.targetStrike = String(form.elements.targetStrike?.value || '').trim();
+      metrics.putPrice = String(form.elements.putPrice?.value || '').trim();
+      metrics.expiryDate = String(form.elements.expiryDate?.value || '').trim();
       return metrics;
     }
 
