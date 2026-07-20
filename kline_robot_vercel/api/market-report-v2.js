@@ -169,6 +169,8 @@ function normalizeStockpriceRow(item, snapshotMeta, fetchMode) {
     symbol: item?.symbol,
     last,
     changePct: changePct ?? (last !== null && previousClose ? (last / previousClose - 1) * 100 : null),
+    vs5Pct: numberOrNull(item?.vs5Pct),
+    vs10Pct: numberOrNull(item?.vs10Pct),
     vs20Pct: null,
     vs50Pct: null,
     marketState: item?.exchange || "STOCKPRICE",
@@ -924,16 +926,17 @@ function classify(snapshot) {
 
   // 三灯否决制 — 7天卖Put硬规则
   const vixLevel = numberOrNull(vix.last);
-  const qqqChg = numberOrNull(qqq.changePct);
+  const qqqVs5 = numberOrNull(qqq.vs5Pct);
+  const qqqVs10 = numberOrNull(qqq.vs10Pct);
   const light1 = vixLevel === null ? "unknown" : vixLevel > 18 ? "red" : vixLevel > 15 ? "yellow" : "green";
-  const light2 = qqqChg === null ? "unknown" : qqqChg < -1.5 ? "red" : qqqChg < -0.5 ? "yellow" : "green";
+  const light2 = qqqVs10 === null ? "unknown" : qqqVs10 < 0 ? "red" : qqqVs5 !== null && qqqVs5 < 0 ? "yellow" : "green";
   const light3 = "yellow"; // 事件日历无法自动判断，AI 在 prompt 里处理
 
   let risk = 5.5;
   // 灯1：VIX 绝对水平
   if (light1 === "red") risk += 1.5;
   else if (light1 === "yellow") risk += 0.6;
-  // 灯2：QQQ 日涨跌（跌破10日线的近似判断）
+  // 灯2：QQQ 相对5日线/10日线位置
   if (light2 === "red") risk += 1.2;
   else if (light2 === "yellow") risk += 0.5;
 
@@ -1052,7 +1055,7 @@ function buildMarketDataInput(meta, snapshot, classification, targets, jin10Item
   const now = new Date().toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour12: false });
   const focusData = focusSymbols.map(s => {
     const item = row(snapshot, s);
-    return `- ${symbolLabel(s)}：最新价 ${formatPrice(item.last)}，日变化 ${formatPctValue(item.changePct)}，相对20日线 ${formatPctValue(item.vs20Pct)}，相对50日线 ${formatPctValue(item.vs50Pct)}`;
+    return `- ${symbolLabel(s)}：最新价 ${formatPrice(item.last)}，日变化 ${formatPctValue(item.changePct)}，相对5日线 ${formatPctValue(item.vs5Pct)}，相对10日线 ${formatPctValue(item.vs10Pct)}，相对20日线 ${formatPctValue(item.vs20Pct)}`;
   }).join("\n");
   return `## 本次重点分析标的
 ${focusSymbols.map(s => `- ${symbolLabel(s)}`).join("、")}
@@ -1068,11 +1071,11 @@ ${focusData}
 - 市场阶段：${meta.marketPhaseLabel || "美股最新阶段"}
 
 ## 行情快照表
-| 标的 | 最新价 | 日变化 | 相对20日线 | 相对50日线 |
-|:---|---:|---:|---:|---:|
+| 标的 | 最新价 | 日变化 | 相对5日线 | 相对10日线 | 相对20日线 |
+|:---|---:|---:|---:|---:|---:|
 ${MARKET_SYMBOLS.map(symbol => {
   const item = row(snapshot, symbol);
-  return `| ${symbolLabel(symbol)} | ${item.last === null ? "-" : item.last?.toFixed?.(2)} | ${formatPctValue(item.changePct)} | ${formatPctValue(item.vs20Pct)} | ${formatPctValue(item.vs50Pct)} |`;
+  return `| ${symbolLabel(symbol)} | ${item.last === null ? "-" : item.last?.toFixed?.(2)} | ${formatPctValue(item.changePct)} | ${formatPctValue(item.vs5Pct)} | ${formatPctValue(item.vs10Pct)} | ${formatPctValue(item.vs20Pct)} |`;
 }).join("\n")}
 
 ## 风险评分与执行等级
