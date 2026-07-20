@@ -434,29 +434,79 @@ async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
   return sanitizeOptionMetrics(parseLooseJson(extractTextFromResponse(json)));
 }
 
-function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate }) {
+function analyzeAtrVsPut(targetRow, klineStats, targetStrike, putPrice, expiryDate) {
+  const price = targetRow?.last;
+  const dailyAtr = numberOrNull(klineStats?.atr);
+  if (price == null || dailyAtr == null || price <= 0 || dailyAtr <= 0) {
+    return { hasData: false, atrPct: null, safeStrike: null, marginNote: "", atrSuitability: "" };
+  }
+  const atrPct = (dailyAtr / price) * 100;
+  const safeStrike = price - 1.5 * dailyAtr;
+  let atrSuitability = "";
+  if (atrPct < 1.5) atrSuitability = "低波动，权利金较少但价格相对稳定";
+  else if (atrPct <= 4) atrSuitability = "波动适中，适合卖Put";
+  else if (atrPct <= 6) atrSuitability = "波动偏高，权利金丰厚但风险较大";
+  else atrSuitability = "波动过高，需卖更低行权价或减少仓位";
+  let marginNote = "";
+  const strike = numberOrNull(targetStrike);
+  const pPrice = numberOrNull(putPrice);
+  let daysToExpiry = null;
+  let annualizedReturn = null;
+  if (strike != null && strike > 0) {
+    const strikeGapPct = ((strike - safeStrike) / safeStrike * 100);
+    if (strike > safeStrike) {
+      marginNote = `你选择的行权价($${strike.toFixed(2)})高于ATR安全行权价($${safeStrike.toFixed(2)})，安全垫偏薄(高于安全价${strikeGapPct.toFixed(2)}%)，需注意风险`;
+    } else {
+      marginNote = `你选择的行权价($${strike.toFixed(2)})低于ATR安全行权价($${safeStrike.toFixed(2)})，ATR提供额外${Math.abs(strikeGapPct.toFixed(2))}%安全垫`;
+    }
+  }
+  if (expiryDate && pPrice != null && strike != null && strike > 0 && pPrice > 0) {
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+    if (daysToExpiry > 0) {
+      const returnPerPeriod = pPrice / strike;
+      annualizedReturn = (returnPerPeriod * 365 / daysToExpiry * 100).toFixed(2);
+    }
+  }
+  return {
+    hasData: true,
+    atrPct: atrPct.toFixed(2),
+    safeStrike: safeStrike.toFixed(2),
+    marginNote,
+    atrSuitability,
+    strike: strike?.toFixed(2) || null,
+    putPrice: pPrice?.toFixed(2) || null,
+    expiryDate: expiryDate || null,
+    daysToExpiry,
+    annualizedReturn,
+  };
+}
+
+function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate, klineStats }) {
   const target = row(stockpriceSnapshot, symbol);
+  const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
 
   let strikeSection = "";
+  let atrSection = "";
   if (targetStrike || putPrice || expiryDate) {
     const strike = numberOrNull(targetStrike);
     const price = numberOrNull(putPrice);
-    let annualizedReturn = null;
-    let daysToExpiry = null;
-    if (expiryDate && price != null && strike != null && strike > 0 && price > 0) {
-      const now = new Date();
-      const expiry = new Date(expiryDate);
-      daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
-      if (daysToExpiry > 0) {
-        const returnPerPeriod = price / strike;
-        annualizedReturn = (returnPerPeriod * 365 / daysToExpiry * 100).toFixed(2);
-      }
-    }
-    strikeSection = `\n## 期权链数据${annualizedReturn ? `（年化收益率: ${annualizedReturn}%）` : ""}
+    let ann = atrAnalysis.annualizedReturn;
+    let dte = atrAnalysis.daysToExpiry;
+    strikeSection = `\n## 期权链数据${ann ? `（年化收益率: ${ann}%）` : ""}
 - 行权价格：${strike != null ? `$${strike}` : "未提供"}
 - 中间价（期权价格）：${price != null ? `$${price}` : "未提供"}
-- 到期日：${expiryDate || "未提供"}${daysToExpiry != null ? `（距离到期${daysToExpiry}天）` : ""}${annualizedReturn ? `\n- 预估年化收益率：${annualizedReturn}%` : ""}
+- 到期日：${expiryDate || "未提供"}${dte != null ? `（距离到期${dte}天）` : ""}${ann ? `\n- 预估年化收益率：${ann}%` : ""}
 `;
+  }
+  if (atrAnalysis.hasData) {
+    atrSection = `\n## ATR波动分析与行权价安全评估
+- ATR(14)：${numberOrNull(klineStats?.atr)?.toFixed(4)} | ATR占价格比例：${atrAnalysis.atrPct}% | ${atrAnalysis.atrSuitability}
+- ATR安全行权价（当前价 - 1.5 × ATR）：$${atrAnalysis.safeStrike}
+${atrAnalysis.strike ? `- 你选择的行权价：$${atrAnalysis.strike} | ${atrAnalysis.marginNote}
+- 安全垫评估：请AI在报告中判断当前行权价的安全垫是否充足
+` : ""}`;
   }
 
   return `你是一个专门帮助美股卖Put交易者做综合决策的分析助手。
@@ -471,7 +521,7 @@ function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, ne
 
 ## 期权温度数据
 ${optionMetricsText || "用户未提供期权温度数据，请根据市场环境和技术面给出一般性建议。"}
-${strikeSection}
+${strikeSection}${atrSection}
 ## 市场行情快照
 ${marketRisk(stockpriceSnapshot, symbol).summary}
 
@@ -583,8 +633,10 @@ async function callAI(symbol, prompt) {
   return { provider: "规则版", html: "" };
 }
 
-function buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, snapshot) {
+function buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, snapshot, targetStrike, putPrice, expiryDate) {
   const stanceClass = risk.putStance === "有利" ? "good" : risk.putStance === "谨慎" ? "warn" : "bad";
+  const target = row(snapshot, symbol);
+  const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
   return `<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(symbol)} 综合卖Put决策</title>
@@ -608,6 +660,7 @@ function buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, snap
   th,td{border:1px solid var(--line);padding:10px 12px;text-align:left}
   th{background:#22304d}
   ul{margin:8px 0;padding-left:20px} li{margin-bottom:6px}
+  .atr-tips{font-size:0.9em;color:var(--muted)} .atr-tips li{margin-bottom:6px}
 </style></head>
 <body><div class="page">
 <section class="hero">
@@ -648,6 +701,21 @@ ${optionMetricsText ? `
 <section class="section">
   <h2>期权温度数据</h2>
   <pre style="background:#0a0f1a;padding:14px;border-radius:10px;overflow-x:auto;font-size:13px;color:#b0c4e8">${safeHtml(optionMetricsText)}</pre>
+</section>` : ""}
+
+${atrAnalysis.hasData ? `
+<section class="section">
+  <h2>ATR波动分析与行权价安全</h2>
+  <p><span class="highlight">ATR(14)：</span>${safeHtml(numberOrNull(klineStats?.atr)?.toFixed(4))} | <span class="highlight">ATR占价格比例：</span>${safeHtml(atrAnalysis.atrPct)}% | <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
+  <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span>$${safeHtml(atrAnalysis.safeStrike)}</p>
+  ${atrAnalysis.strike ? `
+  <p><span class="highlight">你选择的行权价：</span>$${safeHtml(atrAnalysis.strike)} ${atrAnalysis.putPrice ? `｜ 期权价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""} ${atrAnalysis.annualizedReturn ? `｜ <span class="good">预估年化：${safeHtml(atrAnalysis.annualizedReturn)}%</span>` : ""}</p>
+  <p><span class="highlight">安全垫对比：</span>${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
+  <ul class="atr-tips">
+    <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
+    <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
+    <li>管仓位 — ATR 高时减少合约数，ATR 低时可以适当加仓</li>
+  </ul>
 </section>` : ""}
 
 <section class="section">
@@ -757,13 +825,14 @@ export default async function handler(req, res) {
       stockpriceSnapshot, newsText,
       klineStatsFormatted, notes,
       targetStrike, putPrice, expiryDate,
+      klineStats,
     });
 
     const ai = await callAI(symbol, prompt);
 
     const finalHtml = ai.html
       ? buildAiReportWrapper(symbol, market, risk, ai.html, stockpriceSnapshot)
-      : buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, stockpriceSnapshot);
+      : buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, stockpriceSnapshot, targetStrike, putPrice, expiryDate);
 
     return sendJson(res, 200, {
       ok: true,
