@@ -651,9 +651,24 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ### 第5节 · 综合卖Put建议 (<section class="section">)
 - 先输出 <h2>综合卖Put建议</h2>
-- 然后用显眼的行动建议条（background:#1a2338;border-radius:16px;padding:16px;margin-bottom:16px）：<span style='font-size:1.5rem;font-weight:700'>动作建议</span> + 判断大徽章（class="badge-red"/"badge-green"/"badge-yellow"）+ 到期日/行权价/中间价 class="tag" 标签
-- 然后用 <ul class="bullet-list"> 列出：关键风险点（🔹+highlight-red）、如果必须操作的建议（🔹+highlight-yellow）、建议的行权价参考区间
-- 最后一条特别提醒（highlight-red着色）
+- 然后用一个深色行动建议条包裹动作建议+徽章+标签，格式必须如下：
+  <div style="background:#1a2338;border-radius:16px;padding:16px 20px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+      <span style="font-size:1.5rem;font-weight:700;">动作建议</span>
+      <span class="badge-red" style="font-size:1.2rem;padding:4px 28px;">暂不卖 / 极度谨慎</span>
+      <span class="tag">到期日24日 d=0.14</span>
+      <span class="tag">行权价83 中间价1.41</span>
+    </div>
+  </div>
+  （徽章类名：有利→badge-green，谨慎→badge-yellow，不利→badge-red）
+- 然后用 <ul class="bullet-list"> 列出以下四项，每项结构参照示例：
+  <li><strong>关键风险点：</strong> 此处列出3条风险，每条前用编号①②③，每条用 <span class="highlight-red">...</span> 包裹，具体指出风险是什么、触发条件、后果</li>
+  <li><strong>如果必须操作：</strong> <span class="highlight-yellow">...</span> 给出仓位控制、策略调整、止损条件等具体建议，不是空话</li>
+  <li><strong>建议行权价参考区间：</strong> 基于ATR安全行权价和支撑位给出具体价格区间，用 <span class="highlight-green">安全</span> / <span class="highlight-red">危险</span> / <span class="highlight-yellow">边缘</span> 标注当前选择的相对位置</li>
+- 最后输出一条独立警告条（不要放在 ul 里面）：
+  <div style="background:#1f2b44;border-radius:12px;padding:12px 16px;margin-top:10px;">
+    <span class="highlight-yellow">⚠️ 特别提醒：</span> 用1-2句话总结当前风险环境中最重要的注意事项
+  </div>
 
 ### 第6节 · 未来3-5个交易日关注清单 (<section class="section">)
 - 分两列排版（flex 或 grid），每列列出 4-5 条需要监控的信号
