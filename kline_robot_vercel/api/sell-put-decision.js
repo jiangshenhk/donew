@@ -577,7 +577,12 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ## 报告生成要求
 
-**核心理念：你是一个专门帮用户判断"当前卖Put是否有利"的美股期权研究助手。你的任务是整合所有数据源，判断当前卖Put到底是：有利（真正的恐慌溢价）、谨慎（有溢价但容易变成陷阱）、还是不利（风险预警，不值得拿权利金）。**
+**核心理念：你是一个专门帮用户判断"当前是否适合卖Put"的美股期权研究助手。你的任务是整合所有数据源，判断当前卖Put到底是：可卖Put（真正的恐慌溢价，权利金值得拿）、谨慎卖Put（有溢价但容易变陷阱）、还是暂不卖Put（风险大于收益）。**
+
+**重要约束：**
+- 绝对不要输出"买入/卖出/做多/做空"等股票交易建议。你只判断期权卖方策略（Sell Put）的利弊
+- 你的三个结论选项固定为：可卖Put、谨慎卖Put、暂不卖Put（不是买/卖/持有）
+- 所有行动建议的措辞必须以"卖Put"为落脚点，例如"当前适合卖Put"而非"当前适合买入"
 
 **重要：严格输出规则**
 - 不要输出 \`\`\`html 或 \`\`\` 代码块，不要输出 DOCTYPE、<html>、<head>、<body> 等外层标签
@@ -588,13 +593,13 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - "这是不是恐慌溢价？"必须回答并着色：是=<span class="dn">是</span>（绿色），不是=<span class="up">不是</span>（红色），不确定=<span class="warn">不确定</span>（黄色）
 - "未来3-5个交易日的大跌/跳空风险高不高？"必须回答并着色：高=<span class="up">高</span>（红色），低=<span class="dn">低</span>（绿色），中=<span class="warn">中</span>（黄色）
 - "权利金值不值得冒尾部风险？"必须回答并着色：值得=<span class="dn">值得</span>（绿色），不值得=<span class="up">不值得</span>（红色），谨慎=<span class="warn">谨慎</span>（黄色）
-- ATR% > 6% 或价格位于所有均线下方且20日跌幅>15%，自动倾向"谨慎"或"不利"
-- IV Rank > 90% 是高溢价信号，但必须结合趋势方向综合判断，不能只看IV就给出"有利"
+- ATR% > 6% 或价格位于所有均线下方且20日跌幅>15%，自动倾向"谨慎卖Put"或"暂不卖Put"
+- IV Rank > 90% 是高溢价信号，但必须结合趋势方向综合判断，不能只看IV就给出"可卖Put"
 - 语气务实，不写空话，面向卖Put交易者，明确区分事实和推测
 
 ### 第1节 · 综合结论 (<section class="section hero-judgement">)
 - 先输出 <h2>综合结论</h2>
-- 第一行用大徽章给出结论：<span class="judge-badge" style='background:#1a3a2a;color:#45d483;'>有利</span>（有利=#45d483绿底，谨慎=#ffd54a黄底text:#222，不利=#ff6b7d红底）
+- 第一行用大徽章给出结论：<span class="judge-badge" style='background:#1a3a2a;color:#45d483;'>可卖Put</span>（可卖Put→#45d483绿底，谨慎卖Put→#ffd54a黄底text:#333，暂不卖Put→#ff6b7d红底）
 - 第二行用 <span class="judge-reason"> 包裹一句核心判断理由
 - 然后必须逐条回答三个关键问题（每行用 class="highlight" 标关键字，答案必须着色）：
   · "这是不是恐慌溢价？" — is/不是/不确定
@@ -655,12 +660,12 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
   <div style="background:#1a2338;border-radius:16px;padding:16px 20px;margin-bottom:16px;">
     <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
       <span style="font-size:1.5rem;font-weight:700;">动作建议</span>
-      <span class="badge-red" style="font-size:1.2rem;padding:4px 28px;">暂不卖 / 极度谨慎</span>
+      <span class="badge-red" style="font-size:1.2rem;padding:4px 28px;">暂不卖Put</span>
       <span class="tag">到期日24日 d=0.14</span>
       <span class="tag">行权价83 中间价1.41</span>
     </div>
   </div>
-  （徽章类名：有利→badge-green，谨慎→badge-yellow，不利→badge-red）
+  （徽章类名：可卖Put→badge-green，谨慎卖Put→badge-yellow，暂不卖Put→badge-red）
 - 然后用 <ul class="bullet-list"> 列出以下四项，每项结构参照示例：
   <li><strong>关键风险点：</strong> 此处列出3条风险，每条前用编号①②③，每条用 <span class="highlight-red">...</span> 包裹，具体指出风险是什么、触发条件、后果</li>
   <li><strong>如果必须操作：</strong> <span class="highlight-yellow">...</span> 给出仓位控制、策略调整、止损条件等具体建议，不是空话</li>
