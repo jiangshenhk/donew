@@ -485,7 +485,7 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, putPrice, expiryDa
 
 function stripCodeFenceAndExtract(html) {
   let text = String(html || "").trim();
-  text = text.replace(/```html\s*/gi, "").replace(/```\s*$/, "").trim();
+  text = text.replace(/^[\s\S]*?```html\s*/i, "").replace(/```[\s\S]*$/, "").trim();
   if (!text) return "";
   const bodyMatch = text.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   if (bodyMatch) text = bodyMatch[1].trim();
@@ -748,6 +748,21 @@ function buildAiReportWrapper(symbol, market, risk, aiHtml, snapshot) {
   .up{color:var(--up);font-weight:700} .dn{color:var(--dn);font-weight:700} .warn{color:var(--gold);font-weight:700}
   .good{color:var(--dn);font-weight:800} .bad{color:var(--up);font-weight:800}
   .highlight{color:var(--blue);font-weight:800}
+  .highlight-green{color:var(--dn);font-weight:600} .highlight-red{color:var(--up);font-weight:600} .highlight-yellow{color:var(--gold);font-weight:600}
+  .badge-green{background:#1b3a2a;color:var(--dn);padding:2px 12px;border-radius:30px;display:inline-block}
+  .badge-red{background:#3d1e2a;color:var(--up);padding:2px 12px;border-radius:30px;display:inline-block}
+  .badge-yellow{background:#3d3520;color:var(--gold);padding:2px 12px;border-radius:30px;display:inline-block}
+  .tag{background:#1f2b44;border-radius:30px;padding:2px 14px;font-size:0.8rem;color:#b0c4e8;display:inline-block}
+  .data-grid{display:flex;flex-wrap:wrap;gap:12px 20px;margin:12px 0}
+  .data-item{background:#1a2338;padding:6px 16px 6px 12px;border-radius:40px;border-left:3px solid #314566;font-size:0.95rem}
+  .bullet-list{list-style:none;padding-left:0} .bullet-list li{padding:6px 0 6px 28px;position:relative;border-bottom:1px solid #1f2b44}
+  .bullet-list li:before{content:"🔹";position:absolute;left:0;color:var(--gold)}
+  .judge-badge{display:inline-block;font-weight:700;padding:6px 24px;border-radius:60px;font-size:1.5rem;margin-right:18px;letter-spacing:1px}
+  .judge-reason{font-size:1.1rem;opacity:0.9;margin-top:6px}
+  .flex-between{display:flex;justify-content:space-between;align-items:center}
+  .mt-2{margin-top:12px} .mb-1{margin-bottom:6px}
+  hr{border:0.5px solid var(--line);margin:16px 0;opacity:0.5}
+  .inline-icon{margin-right:6px}
   .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
   .chip{border:1px solid #334155;background:#1d2943;color:#dce7fb;border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
   table{width:100%;border-collapse:collapse;margin:12px 0;border-radius:12px;overflow:hidden;font-size:14px}
