@@ -523,7 +523,7 @@ function stripCodeFenceAndExtract(html) {
   return text;
 }
 
-function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate, klineStats }) {
+function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate, klineStats, risk, rawRisk }) {
   const target = row(stockpriceSnapshot, symbol);
   const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
 
@@ -563,7 +563,9 @@ ${atrAnalysis.strike ? `- 你选择的行权价：$${atrAnalysis.strike} | ${atr
 ${optionMetricsText || "用户未提供期权温度数据，请根据市场环境和技术面给出一般性建议。"}
 ${strikeSection}${atrSection}
 ## 市场行情快照
-${marketRisk(stockpriceSnapshot, symbol).summary}
+${risk.summary}
+市场风险评分：${risk.riskScore}/10${risk.adjusted ? `（原始 ${rawRisk.riskScore}，${risk.adjustmentNotes.join("，")} 后上调）` : ""}
+卖Put环境判定：${risk.putStance} | ${risk.blackSwan}
 
 ## 最新24小时新闻要点
 ${newsText || "暂无新闻数据。"}
@@ -883,7 +885,7 @@ export default async function handler(req, res) {
       stockpriceSnapshot, newsText,
       klineStatsFormatted, notes,
       targetStrike, putPrice, expiryDate,
-      klineStats,
+      klineStats, risk, rawRisk,
     });
 
     const ai = await callAI(symbol, prompt);
