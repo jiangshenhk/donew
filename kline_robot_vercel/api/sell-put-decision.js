@@ -758,8 +758,7 @@ function buildAiReportWrapper(symbol, market, risk, aiHtml, snapshot) {
   .tag{background:#1f2b44;border-radius:30px;padding:2px 14px;font-size:0.8rem;color:#b0c4e8;display:inline-block}
   .data-grid{display:flex;flex-wrap:wrap;gap:12px 20px;margin:12px 0}
   .data-item{background:#1a2338;padding:6px 16px 6px 12px;border-radius:40px;border-left:3px solid #314566;font-size:0.95rem}
-  .bullet-list{list-style:none;padding-left:0} .bullet-list li{padding:6px 0 6px 28px;position:relative;border-bottom:1px solid #1f2b44}
-  .bullet-list li:before{content:"🔹";position:absolute;left:0;color:var(--gold)}
+  .bullet-list{list-style:none;padding-left:0} .bullet-list li{padding:6px 0 6px 8px;position:relative;border-bottom:1px solid #1f2b44}
   .judge-badge{display:inline-block;font-weight:700;padding:6px 24px;border-radius:60px;font-size:1.5rem;margin-right:18px;letter-spacing:1px}
   .judge-reason{font-size:1.1rem;opacity:0.9;margin-top:6px}
   .flex-between{display:flex;justify-content:space-between;align-items:center}
