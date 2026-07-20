@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'scripts/apply-market-grounding.mjs'
+      - '.github/workflows/ground-market-reports.yml'
   workflow_dispatch:
 
 permissions:
