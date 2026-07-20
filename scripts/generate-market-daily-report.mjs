@@ -61,7 +61,7 @@ async function callAI() {
 
 function extractSection(text, names) {
   for (const name of names) {
-    const match = text.match(new RegExp(`##?\\s*${name}[\\s\\S]*?(?=\\n##|$)`));
+    const match = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}[\\s\\S]*?(?=\\n##|$)`));
     if (match) return match[0].replace(/[#\n]/g, ' ').trim().slice(0, 180);
   }
   return '';
