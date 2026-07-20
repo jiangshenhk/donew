@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI综合卖Put决策｜十方斋</title>
+  <meta name="description" content="综合新闻/行情/K线形态/期权温度，一次生成完整卖Put决策报告。上传Barchart截图，自动整合所有分析维度。">
+  <meta name="keywords" content="Sell Put, 卖Put, 综合决策, 期权分析, 十方斋">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --line: #d7deea;
+      --line-strong: #c4d0e4;
+      --text: #0f172a;
+      --muted: #64748b;
+      --primary: #2f5fe3;
+      --primary-soft: #e7eeff;
+      --dark: #121b2e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      background: linear-gradient(180deg, #fbfcff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    .shell {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 18px 24px 40px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .brand h1 {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+    .version {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #61708f;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .visit-count {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .visit-count strong {
+      color: var(--text);
+      font-weight: 900;
+    }
+    .home-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 750;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 396px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+    }
+    .sidebar {
+      padding: 22px;
+      position: sticky;
+      top: 18px;
+    }
+    .result {
+      padding: 18px;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .field.full { grid-column: 1 / -1; }
+    .field label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #475569;
+    }
+    .label-help {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .label-help label {
+      margin: 0;
+    }
+    .help-tip {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: help;
+      user-select: none;
+    }
+    .help-tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      z-index: 10;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      width: min(300px, 78vw);
+      transform: translateX(-50%);
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0f172a;
+      color: #fff;
+      box-shadow: 0 14px 32px rgba(15, 23, 42, .22);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.55;
+      text-align: left;
+      white-space: pre-line;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease;
+    }
+    .help-tip:hover::after,
+    .help-tip:focus::after {
+      opacity: 1;
+    }
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .quick-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .quick-link:hover { text-decoration: underline; }
+    .history-select { margin-bottom: 14px; }
+    select, input, textarea {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      background: #fff;
+      color: var(--text);
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    .upload-box {
+      border: 1.5px dashed #b9c7df;
+      border-radius: 16px;
+      padding: 18px;
+      background: #f8fbff;
+    }
+    .upload-box input[type="file"] { width: 100%; font-size: 15px; }
+    .upload-hint {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .preview-thumb {
+      margin-top: 14px;
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      display: none;
+      background: #fff;
+    }
+    .primary-btn {
+      width: 100%;
+      margin-top: 16px;
+      border: 0;
+      border-radius: 12px;
+      padding: 15px 18px;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(180deg, #3467f0 0%, #2a57cf 100%);
+    }
+    .primary-btn:disabled {
+      cursor: wait;
+      opacity: 0.75;
+    }
+    .note {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .metrics-panel {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fbfdff;
+    }
+    .metrics-panel summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .metrics-panel summary::-webkit-details-marker { display: none; }
+    .metrics-panel .panel-body { padding: 0 14px 14px; }
+    .result-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .tab {
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: #64748b;
+      border-radius: 10px;
+      min-height: 34px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .tab.active {
+      color: #111827;
+      box-shadow: inset 0 0 0 1px #f5cd57;
+      background: #fff6d9;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: #fff;
+    }
+    .metric b {
+      display: block;
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .metric span {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .action, .secondary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 800;
+      text-decoration: none;
+      border: 1px solid var(--line-strong);
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    .action.primary {
+      background: var(--dark);
+      color: #fff;
+      border-color: var(--dark);
+    }
+    .action.soft {
+      background: #eef3ff;
+      color: #2f44a9;
+    }
+    .action:disabled,
+    .action.disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+      box-shadow: none;
+    }
+    .status {
+      min-height: 24px;
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .preview-wrap {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #fff;
+      min-height: 680px;
+    }
+    #preview {
+      min-height: 680px;
+      background: #fff;
+    }
+    #preview iframe {
+      width: 100%;
+      min-height: 680px;
+      border: 0;
+      background: #fff;
+    }
+    .empty-state {
+      display: flex;
+      min-height: 680px;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 34px;
+      color: #64748b;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      border: 1px dashed var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .empty-state span {
+      display: block;
+      margin-top: 8px;
+      font-size: 18px;
+      color: #94a3b8;
+    }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+      .shell { padding: 20px 14px 32px; }
+      .field-grid, .cards { grid-template-columns: 1fr; }
+      h1 { font-size: 22px; }
+      .version { display: block; margin: 10px 0 0; width: fit-content; }
+      .topbar { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <h1>AI综合卖Put决策 <span class="version">v1.0.0｜2026-07-21｜新闻+行情+K线+期权四合一</span></h1>
+      </div>
+      <div class="top-actions">
+        <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
+        <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+      </div>
+    </div>
+
+    <div class="layout">
+      <form class="panel sidebar" id="toolForm">
+        <div class="field-grid">
+          <div class="field full history-select">
+            <label for="historySelect">历史记录</label>
+            <select id="historySelect">
+              <option value="">选择历史标的</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="market">市场</label>
+            <select id="market" name="market">
+              <option value="" selected>自动识别</option>
+              <option value="us">美股</option>
+              <option value="hk">港股</option>
+              <option value="cn">A股</option>
+              <option value="global">全球指数/宏观</option>
+              <option value="crypto">加密</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="label-help">
+              <label for="symbol">标的代码</label>
+              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="输入参考：&#10;美股：QLD / MSTR / INTC / HOOD&#10;美股指数：^VIX&#10;宏观：^TNX（10年美债）、DX-Y.NYB（美元指数）&#10;港股：00700 / 09988&#10;A股：600570 / 000001&#10;加密：BTC / BTC-USD">?</button>
+            </div>
+            <input id="symbol" name="symbol" value="QLD" placeholder="QLD / MSTR / INTC / HOOD" required>
+          </div>
+        </div>
+
+        <div class="label-row">
+          <p class="section-title" style="margin-bottom:0;">上传 Barchart 截图</p>
+          <a id="barchartLink" class="quick-link" href="https://www.barchart.com/stocks/quotes/QLD/overview" target="_blank" rel="noopener noreferrer">打开 Barchart</a>
+        </div>
+        <div class="upload-box">
+          <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
+          <div class="upload-hint">
+            上传截图后自动 OCR 提取期权字段，或展开下方面板手动录入。不传截图也可只填部分字段。
+          </div>
+          <img id="thumb" class="preview-thumb" alt="截图预览">
+        </div>
+
+        <details class="metrics-panel" id="metricsPanel">
+          <summary>
+            <span>手动校对 / 录入数据</span>
+            <span>展开 / 收起</span>
+          </summary>
+          <div class="panel-body">
+            <div class="field-grid" style="margin-bottom:0;">
+              <div class="field"><label for="iv">IV (%)</label><input id="iv" name="iv" type="text" placeholder="52.97"></div>
+              <div class="field"><label for="hv">HV (%)</label><input id="hv" name="hv" type="text" placeholder="60.72"></div>
+              <div class="field"><label for="ivPercentile">IV Percentile (%)</label><input id="ivPercentile" name="ivPercentile" type="text" placeholder="94"></div>
+              <div class="field"><label for="ivRank">IV Rank (%)</label><input id="ivRank" name="ivRank" type="text" placeholder="77.17"></div>
+              <div class="field"><label for="expectedMove">Expected Move</label><input id="expectedMove" name="expectedMove" type="text" placeholder="9.33"></div>
+              <div class="field"><label for="expectedMovePct">Expected Move (%)</label><input id="expectedMovePct" name="expectedMovePct" type="text" placeholder="11.13"></div>
+              <div class="field"><label for="expectedRangeLow">Expected Range Low</label><input id="expectedRangeLow" name="expectedRangeLow" type="text" placeholder="74.53"></div>
+              <div class="field"><label for="expectedRangeHigh">Expected Range High</label><input id="expectedRangeHigh" name="expectedRangeHigh" type="text" placeholder="93.19"></div>
+              <div class="field"><label for="putCallVolRatio">Put/Call Vol Ratio</label><input id="putCallVolRatio" name="putCallVolRatio" type="text" placeholder="9.31"></div>
+              <div class="field"><label for="putCallOiRatio">Put/Call OI Ratio</label><input id="putCallOiRatio" name="putCallOiRatio" type="text" placeholder="0.39"></div>
+              <div class="field"><label for="todayVolume">Today's Volume</label><input id="todayVolume" name="todayVolume" type="text" placeholder="2640"></div>
+              <div class="field"><label for="volumeAvg30">Volume Avg (30D)</label><input id="volumeAvg30" name="volumeAvg30" type="text" placeholder="1330"></div>
+              <div class="field"><label for="todayOpenInterest">Today's Open Interest</label><input id="todayOpenInterest" name="todayOpenInterest" type="text" placeholder="53070"></div>
+              <div class="field"><label for="openInterest30">Open Int (30D)</label><input id="openInterest30" name="openInterest30" type="text" placeholder="49753"></div>
+            </div>
+          </div>
+        </details>
+
+        <div class="field full">
+          <label for="notes">补充说明（可选）</label>
+          <textarea id="notes" name="notes" placeholder="当前关注的价位、持仓情况、想问AI的问题等"></textarea>
+        </div>
+
+        <button class="primary-btn" id="submitBtn" type="submit">生成综合卖Put决策</button>
+        <div class="note">
+          一次生成涵盖：新闻摘要 · 市场环境 · K线技术信号 · 期权温度 · 综合卖Put建议<br>
+          <strong>截图非必需 — 有更好，没有也能基于行情+K线生成判断</strong>
+        </div>
+      </form>
+
+      <section class="panel result">
+        <div class="result-top">
+          <div class="tabs">
+            <button class="tab active" data-view="preview" type="button">当前报告</button>
+          </div>
+        </div>
+        <div id="resultHead" class="cards" style="display:none;"></div>
+        <div id="actions" class="actions">
+          <button class="action primary disabled" type="button" disabled>新窗口打开报告</button>
+          <button class="action soft disabled" type="button" disabled>保存 HTML</button>
+          <button class="action soft disabled" type="button" disabled>保存为图片</button>
+          <button class="action soft disabled" type="button" disabled>图片分享</button>
+        </div>
+        <div id="status" class="status">请选择标的，可选上传截图或录入期权数据。</div>
+        <div class="preview-wrap">
+          <div id="preview">
+            <div class="empty-state">等待生成综合卖Put决策报告<span>新闻 · 行情 · K线 · 期权 四维一体分析</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = (() => {
+      const params = new URLSearchParams(location.search);
+      const override = params.get('apiBase');
+      const origin = String(location.origin || '').replace(/\/$/, '');
+      const fallback = 'https://donew-beta.vercel.app';
+      if (override) return override.replace(/\/$/, '');
+      if (!origin || origin === 'null' || location.protocol === 'file:') return fallback;
+      return origin;
+    })();
+
+    const form = document.getElementById('toolForm');
+    const btn = document.getElementById('submitBtn');
+    const thumb = document.getElementById('thumb');
+    const statusEl = document.getElementById('status');
+    const preview = document.getElementById('preview');
+    const resultHead = document.getElementById('resultHead');
+    const actions = document.getElementById('actions');
+    const imageInput = document.getElementById('imageFile');
+    const barchartLink = document.getElementById('barchartLink');
+    const symbolInput = document.getElementById('symbol');
+    const historySelect = document.getElementById('historySelect');
+    const metricsPanel = document.getElementById('metricsPanel');
+
+    let imageDataUrl = '';
+    let latestHtml = '';
+    let latestBlobUrl = '';
+    let latestName = 'sell-put-decision.html';
+    let runTimer = null;
+    const historyKey = 'sellPutDecisionHistory.v1';
+    const latestReportKey = 'sellPutDecisionLatestReport.v1';
+
+    function readHistory() {
+      try {
+        const items = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        return Array.isArray(items) ? items : [];
+      } catch { return []; }
+    }
+
+    function writeHistory(items) {
+      localStorage.setItem(historyKey, JSON.stringify(items.slice(0, 12)));
+    }
+
+    function marketText(value) {
+      return ({ us: '美股', hk: '港股', cn: 'A股', global: '全球指数/宏观', crypto: '加密', '': '自动识别' })[value] || '自动识别';
+    }
+
+    function renderHistory() {
+      const items = readHistory();
+      historySelect.innerHTML = '<option value="">选择历史标的</option>';
+      items.forEach((item, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = `${item.symbol || '-'} · ${marketText(item.market || '')}`;
+        historySelect.appendChild(option);
+      });
+    }
+
+    function applyHistory(item) {
+      if (!item) return;
+      form.elements.market.value = item.market || '';
+      form.elements.symbol.value = item.symbol || 'QLD';
+      Object.entries(item.optionMetrics || {}).forEach(([key, value]) => {
+        if (form.elements[key]) form.elements[key].value = value || '';
+      });
+      updateBarchartLink();
+    }
+
+    function rememberPayload(payload) {
+      const clean = {
+        market: payload.market || '',
+        symbol: payload.symbol || '',
+        optionMetrics: payload.optionMetrics || {},
+        updatedAt: Date.now(),
+      };
+      const key = `${String(clean.market || '')}|${String(clean.symbol || '').toUpperCase()}`;
+      const items = readHistory().filter((i) => `${String(i.market || '')}|${String(i.symbol || '').toUpperCase()}` !== key);
+      writeHistory([clean, ...items]);
+      renderHistory();
+    }
+
+    function localTimestamp() {
+      const date = new Date();
+      const pad = (v) => String(v).padStart(2, '0');
+      return [date.getFullYear(), pad(date.getMonth() + 1), pad(date.getDate())].join('') + '_' + [pad(date.getHours()), pad(date.getMinutes()), pad(date.getSeconds())].join('');
+    }
+
+    function downloadFileName(extension) {
+      const cleanExt = String(extension || 'html').replace(/^\./, '');
+      const base = (latestName || 'sell-put-decision.html').replace(/\.html?$/i, '').replace(/\.(png|jpg|jpeg|svg)$/i, '').replace(/[\\/:*?"<>|]+/g, '_');
+      return `${base}_${localTimestamp()}.${cleanExt}`;
+    }
+
+    function formatSavedTime(value) {
+      if (!value) return '未知时间';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    }
+
+    function getReportGeneratedTime(meta) {
+      return meta?.generatedAt || meta?.savedAt || null;
+    }
+
+    function updateLatestBlob(html, fileName) {
+      latestHtml = html || '';
+      latestName = fileName || 'sell-put-decision.html';
+      if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
+      latestBlobUrl = latestHtml ? URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' })) : '';
+    }
+
+    function bindLatestActions() {
+      const downloadHtmlBtn = document.getElementById('downloadHtmlBtn');
+      const downloadImageBtn = document.getElementById('downloadImageBtn');
+      const shareImageBtn = document.getElementById('shareImageBtn');
+      if (downloadHtmlBtn) {
+        downloadHtmlBtn.addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = latestBlobUrl;
+          a.download = downloadFileName('html');
+          a.click();
+        });
+      }
+      if (downloadImageBtn) {
+        downloadImageBtn.addEventListener('click', async () => {
+          try { await downloadReportImage(); }
+          catch (error) { setStatus(error.message || '下载图片失败。', true); }
+        });
+      }
+      if (shareImageBtn) {
+        shareImageBtn.addEventListener('click', async () => {
+          try {
+            const blob = await downloadReportImage();
+            if (!blob) throw new Error('图片生成失败。');
+            const file = new File([blob], downloadFileName('jpg'), { type: 'image/jpeg' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: latestName.replace(/\.html$/i, ''), text: '卖Put决策报告' });
+              setStatus('已打开系统分享。');
+              return;
+            }
+            downloadBlob(blob, file.name);
+            setStatus('当前浏览器不支持直接分享，已改为保存图片。');
+          } catch (error) {
+            setStatus(error.message || '图片分享失败。', true);
+          }
+        });
+      }
+    }
+
+    function renderEmptyActions() {
+      actions.style.display = 'flex';
+      actions.innerHTML = `
+        <button class="action primary disabled" type="button" disabled>新窗口打开报告</button>
+        <button class="action soft disabled" type="button" disabled>保存 HTML</button>
+        <button class="action soft disabled" type="button" disabled>保存为图片</button>
+        <button class="action soft disabled" type="button" disabled>图片分享</button>
+      `;
+    }
+
+    function renderLatestReport(meta, restored = false) {
+      resultHead.style.display = 'grid';
+      resultHead.innerHTML = `
+        <div class="metric"><b>标的</b><span>${meta.symbol || '-'}</span></div>
+        <div class="metric"><b>市场</b><span>${(meta.market || '-').toUpperCase()}</span></div>
+        <div class="metric"><b>AI</b><span>${meta.used_ai ? (meta.provider || '已调用') : '规则版'}</span></div>
+        <div class="metric"><b>结论</b><span>${meta.status || '-'}</span></div>
+      `;
+
+      actions.style.display = 'flex';
+      actions.innerHTML = `
+        <a class="action primary" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
+        <button class="action soft" id="downloadHtmlBtn" type="button">保存 HTML</button>
+        <button class="action soft" id="downloadImageBtn" type="button">保存为图片</button>
+        <button class="action soft" id="shareImageBtn" type="button">图片分享</button>
+      `;
+      bindLatestActions();
+      preview.innerHTML = `<iframe title="卖Put决策报告" src="${latestBlobUrl}"></iframe>`;
+      const generatedLabel = formatSavedTime(getReportGeneratedTime(meta));
+      const savedLabel = meta.savedAt && meta.savedAt !== getReportGeneratedTime(meta)
+        ? `｜浏览器保存于 ${formatSavedTime(meta.savedAt)}`
+        : '';
+      setStatus(restored ? `已恢复浏览器上次报告：原生成于 ${generatedLabel}${savedLabel}` : (meta.message || '已生成报告。'));
+    }
+
+    function saveLatestReportCache(meta) {
+      localStorage.setItem(latestReportKey, JSON.stringify({
+        meta, html: latestHtml, fileName: latestName,
+      }));
+    }
+
+    function restoreLatestReportCache() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(latestReportKey) || 'null');
+        if (!saved || !saved.html || !saved.meta) return;
+        updateLatestBlob(saved.html, saved.fileName);
+        renderLatestReport(saved.meta, true);
+      } catch { /* ignore */ }
+    }
+
+    function normalizeBarchartSymbol(raw) {
+      const value = String(raw || '').trim().toUpperCase();
+      if (!value) return 'QLD';
+      return value.replace(/\s+/g, '').replace(/\//g, '-').replace(/^\^/, '');
+    }
+
+    function updateBarchartLink() {
+      const normalized = normalizeBarchartSymbol(symbolInput.value);
+      barchartLink.href = `https://www.barchart.com/stocks/quotes/${encodeURIComponent(normalized)}/overview`;
+    }
+
+    function setStatus(text, isError = false) {
+      statusEl.textContent = text;
+      statusEl.style.color = isError ? '#dc2626' : '#64748b';
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const [meta, base64] = dataUrl.split(',');
+      const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+      const binary = atob(base64 || '');
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mime });
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
+    }
+
+    async function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    imageInput.addEventListener('change', async () => {
+      const file = imageInput.files && imageInput.files[0];
+      if (!file) { imageDataUrl = ''; thumb.style.display = 'none'; return; }
+      imageDataUrl = await readFileAsDataUrl(file);
+      thumb.src = imageDataUrl;
+      thumb.style.display = 'block';
+      setStatus('截图已上传，点击生成时自动识别。');
+    });
+
+    symbolInput.addEventListener('input', updateBarchartLink);
+    historySelect.addEventListener('change', () => {
+      const item = readHistory()[Number(historySelect.value)];
+      applyHistory(item);
+    });
+    renderHistory();
+    updateBarchartLink();
+
+    function collectOptionMetrics() {
+      const fields = ['iv', 'hv', 'ivPercentile', 'ivRank', 'expectedMove', 'expectedMovePct',
+        'expectedRangeLow', 'expectedRangeHigh', 'putCallVolRatio', 'putCallOiRatio',
+        'todayVolume', 'volumeAvg30', 'todayOpenInterest', 'openInterest30'];
+      const metrics = {};
+      fields.forEach((f) => { metrics[f] = String(form.elements[f]?.value || '').trim(); });
+      return metrics;
+    }
+
+    function hasAnyMetrics(metrics) {
+      return Object.values(metrics).some((v) => String(v || '').trim());
+    }
+
+    async function downloadReportImage() {
+      const frame = preview.querySelector('iframe');
+      if (!frame) throw new Error('请先生成报告。');
+      if (!frame.contentDocument || frame.contentDocument.readyState !== 'complete') {
+        await new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
+      }
+      const doc = frame.contentDocument;
+      const width = Math.min(Math.max(doc.documentElement.scrollWidth, doc.body.scrollWidth, 960), 1800);
+      const height = Math.min(Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, 600), 24000);
+      const html = doc.documentElement.cloneNode(true);
+      html.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+      html.querySelectorAll('script').forEach((node) => node.remove());
+      const serialized = new XMLSerializer().serializeToString(html);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="100%" height="100%">${serialized}</foreignObject></svg>`;
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      try {
+        const image = new Image();
+        const imageLoaded = await new Promise((resolve) => {
+          image.onload = () => resolve(true);
+          image.onerror = () => resolve(false);
+          image.src = svgUrl;
+        });
+        if (!imageLoaded) throw new Error('图片导出失败。');
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(image, 0, 0);
+        let jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+        if (!jpgBlob) jpgBlob = dataUrlToBlob(canvas.toDataURL('image/jpeg', 0.92));
+        downloadBlob(jpgBlob, downloadFileName('jpg'));
+        return jpgBlob;
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const optionMetrics = collectOptionMetrics();
+      const hasMetrics = hasAnyMetrics(optionMetrics);
+
+      btn.disabled = true;
+      const startAt = Date.now();
+      clearInterval(runTimer);
+      runTimer = setInterval(() => {
+        const seconds = Math.floor((Date.now() - startAt) / 1000);
+        setStatus(`正在生成综合卖Put决策... ${seconds}s`);
+        preview.innerHTML = `<div class="empty-state">正在生成综合卖Put决策...<span>正在拉取新闻 / 行情 / K线数据并调用AI分析</span></div>`;
+      }, 1000);
+      setStatus('正在生成综合卖Put决策...');
+      preview.innerHTML = '<div class="empty-state">正在生成综合卖Put决策...<span>请稍候（约30-60秒）</span></div>';
+
+      try {
+        const payload = {
+          market: form.elements.market.value,
+          symbol: form.elements.symbol.value.trim(),
+          notes: form.elements.notes.value.trim(),
+        };
+        if (hasMetrics) payload.optionMetrics = optionMetrics;
+        if (imageDataUrl) payload.imageDataUrl = imageDataUrl;
+
+        const res = await fetch(`${apiBase}/api/sell-put-decision`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.message || `生成失败（HTTP ${res.status}）`);
+
+        updateLatestBlob(json.html || '', json.filename || 'sell-put-decision.html');
+        rememberPayload(payload);
+        const meta = { ...json, generatedAt: json.generatedAt || new Date().toISOString(), savedAt: new Date().toISOString() };
+        renderLatestReport(meta, false);
+        saveLatestReportCache(meta);
+      } catch (error) {
+        resultHead.style.display = 'none';
+        renderEmptyActions();
+        preview.innerHTML = '<div class="empty-state">生成失败<span>请检查标的代码或网络后重试</span></div>';
+        setStatus(error.message || '生成失败。', true);
+      } finally {
+        clearInterval(runTimer);
+        runTimer = null;
+        btn.disabled = false;
+      }
+    });
+
+    renderEmptyActions();
+    restoreLatestReportCache();
+  </script>
+</body>
+</html>
