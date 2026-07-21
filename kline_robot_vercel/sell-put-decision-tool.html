@@ -224,6 +224,38 @@
       display: none;
       background: #fff;
     }
+    .thumb-wrap { position: relative; display: none; }
+    .thumb-wrap.visible { display: block; }
+    .thumb-loading {
+      position: absolute;
+      inset: 14px 0 0 0;
+      background: rgba(255,255,255,0.88);
+      border-radius: 14px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 2;
+    }
+    .thumb-loading.show { display: flex; }
+    .thumb-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #3467f0;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .thumb-loading-text {
+      font-size: 14px;
+      color: #3467f0;
+      font-weight: 600;
+    }
+    .thumb-loading-progress {
+      font-size: 12px;
+      color: #64748b;
+    }
     .primary-btn {
       width: 100%;
       margin-top: 16px;
@@ -459,10 +491,17 @@
         </div>
         <div class="upload-box">
           <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
-          <div class="upload-hint">
+          <div class="upload-hint" id="uploadHint">
             支持选择文件上传或 Ctrl+V 直接粘贴截图，上传后自动 OCR 填入字段。
           </div>
-          <img id="thumb" class="preview-thumb" alt="截图预览">
+          <div class="thumb-wrap" id="thumbWrap">
+            <img id="thumb" class="preview-thumb" alt="截图预览">
+            <div class="thumb-loading" id="thumbLoading">
+              <div class="thumb-spinner"></div>
+              <div class="thumb-loading-text" id="thumbLoadingText">正在读取图片数据…</div>
+              <div class="thumb-loading-progress" id="thumbLoadingProgress"></div>
+            </div>
+          </div>
         </div>
 
         <details class="metrics-panel" id="metricsPanel">
@@ -551,6 +590,11 @@
     const form = document.getElementById('toolForm');
     const btn = document.getElementById('submitBtn');
     const thumb = document.getElementById('thumb');
+    const thumbWrap = document.getElementById('thumbWrap');
+    const thumbLoading = document.getElementById('thumbLoading');
+    const thumbLoadingText = document.getElementById('thumbLoadingText');
+    const thumbLoadingProgress = document.getElementById('thumbLoadingProgress');
+    const uploadHint = document.getElementById('uploadHint');
     const statusEl = document.getElementById('status');
     const preview = document.getElementById('preview');
     const resultHead = document.getElementById('resultHead');
@@ -833,19 +877,37 @@
       });
     }
 
+    function showThumbLoading(text) {
+      thumbLoadingText.textContent = text;
+      thumbLoadingProgress.textContent = '';
+      thumbLoading.classList.add('show');
+    }
+
+    function hideThumbLoading() {
+      thumbLoading.classList.remove('show');
+      thumbLoadingProgress.textContent = '';
+    }
+
     async function parseUploadedImage({ silent = false, keepStatus = false } = {}) {
       if (!imageDataUrl) {
         if (!silent) setStatus('请先上传截图。', true);
+        hideThumbLoading();
         return false;
       }
-      if (!silent) setStatus('正在OCR识别截图中的期权字段...');
+      if (!silent) { setStatus('正在OCR识别截图中的期权字段...'); showThumbLoading('正在OCR识别…'); }
       try {
         if (!window.Tesseract) throw new Error('OCR组件加载失败，请刷新页面后重试。');
         const result = await window.Tesseract.recognize(imageDataUrl, 'eng', {
           logger: ({ status, progress }) => {
-            if (!silent && !keepStatus && status) {
+            if (!silent && !keepStatus) {
               const pct = typeof progress === 'number' ? ` ${Math.round(progress * 100)}%` : '';
               setStatus(`正在OCR识别截图中的期权字段...${pct}`);
+              if (status === 'recognizing text') {
+                thumbLoadingText.textContent = `正在识别文字…${pct}`;
+              } else {
+                thumbLoadingText.textContent = `正在加载OCR引擎…`;
+              }
+              thumbLoadingProgress.textContent = status || '';
             }
           },
         });
@@ -854,9 +916,13 @@
         metricsPanel.open = false;
         const hasAny = Object.values(metrics).some((v) => String(v || '').trim());
         if (!hasAny) { metricsPanel.open = true; throw new Error('OCR未识别到有效字段，请手动录入或换一张更清晰的截图。'); }
+        hideThumbLoading();
+        uploadHint.textContent = '已自动提取期权数据，请核对后点击生成。';
         if (!keepStatus) setStatus('已根据截图自动填入字段，请核对后再生成。');
         return true;
       } catch (error) {
+        hideThumbLoading();
+        uploadHint.textContent = 'OCR未能识别有效字段，请手动展开下方面板录入或重试。';
         metricsPanel.open = true;
         if (!silent && !keepStatus) setStatus(error?.message || '截图解析失败，请手动录入。', true);
         return false;
@@ -874,7 +940,10 @@
           imageDataUrl = await readFileAsDataUrl(file);
           thumb.src = imageDataUrl;
           thumb.style.display = 'block';
+          thumbWrap.classList.add('visible');
+          uploadHint.textContent = '正在解析截图，请稍候…';
           imageInput.files = null;
+          showThumbLoading('正在分析图片…');
           await parseUploadedImage({ silent: false });
           return;
         }
@@ -883,10 +952,13 @@
 
     imageInput.addEventListener('change', async () => {
       const file = imageInput.files && imageInput.files[0];
-      if (!file) { imageDataUrl = ''; thumb.style.display = 'none'; return; }
+      if (!file) { imageDataUrl = ''; thumb.style.display = 'none'; thumbWrap.classList.remove('visible'); hideThumbLoading(); uploadHint.textContent = '支持选择文件上传或 Ctrl+V 直接粘贴截图，上传后自动 OCR 填入字段。'; return; }
       imageDataUrl = await readFileAsDataUrl(file);
       thumb.src = imageDataUrl;
       thumb.style.display = 'block';
+      thumbWrap.classList.add('visible');
+      uploadHint.textContent = '正在解析截图，请稍候…';
+      showThumbLoading('正在分析图片…');
       await parseUploadedImage({ silent: false });
     });
 
