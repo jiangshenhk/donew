@@ -125,11 +125,11 @@ async function loadNews() {
   if (!res.ok) throw new Error(`News HTTP ${res.status}`);
   const meta = await res.json();
   const payload = JSON.parse(Buffer.from(String(meta.content || "").replace(/\n/g, ""), "base64").toString("utf8"));
-  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - 72 * 60 * 60 * 1000;
   const items = (Array.isArray(payload.items) ? payload.items : [])
     .filter((i) => Date.parse(i.time) >= cutoff)
     .sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
-  const data = { items: items.slice(0, 150), count: items.length };
+  const data = { items: items.slice(0, 200), count: items.length };
   newsCache = { fetchedAt: Date.now(), data };
   return data;
 }
@@ -143,6 +143,57 @@ function summarizeNews(items) {
     return `[${time}][${cats}] ${(i.content || "").slice(0, 200)}`;
   });
   return lines.join("\n");
+}
+
+const EVENT_PATTERNS = [
+  { re: /财报|业绩|earning|季报|年报|指引/i, label: "财报" },
+  { re: /FOMC|美联储|利率决议|加息|降息/i, label: "美联储" },
+  { re: /非农|NFP|就业报告|ADP/i, label: "就业数据" },
+  { re: /\bCPI\b|\bPPI\b|\bPCE\b|通胀数据/i, label: "通胀数据" },
+  { re: /\bGDP\b|经济增长/i, label: "GDP" },
+  { re: /OPEC|原油库存|EIA/i, label: "能源数据" },
+  { re: /杰克逊霍尔|Jackson Hole|央行年会/i, label: "央行会议" },
+];
+
+function scanEventRisks(items) {
+  if (!items || !items.length) return [];
+  const now = Date.now();
+  const results = [];
+  const seen = new Set();
+
+  for (const pat of EVENT_PATTERNS) {
+    const matches = items.filter((i) => pat.re.test(i.content || ""));
+    for (const m of matches) {
+      const key = `${pat.label}:${(m.content || "").slice(0, 60)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const time = Date.parse(m.time);
+      const hoursAgo = Math.round((now - time) / 3600000);
+      const timeLabel = hoursAgo <= 1 ? "刚刚" : hoursAgo <= 24 ? `${hoursAgo}小时前` : "近期";
+      results.push({
+        category: pat.label,
+        time: m.time,
+        timeLabel,
+        content: (m.content || "").slice(0, 180).trim(),
+      });
+    }
+  }
+
+  return results.slice(0, 12);
+}
+
+function formatEventRisks(events) {
+  if (!events || !events.length) return "";
+  const byCategory = {};
+  for (const e of events) {
+    (byCategory[e.category] ||= []).push(e);
+  }
+  const lines = [];
+  for (const [cat, items] of Object.entries(byCategory)) {
+    const summaries = items.map((e) => `[${e.timeLabel}] ${e.content}`);
+    lines.push(`**${cat}事件：**\n${summaries.join("\n")}`);
+  }
+  return `\n## 近期事件风险扫描结果\n以下为最近24小时内市场快讯中提到的事件风险，请结合标的到期日综合判断：\n\n${lines.join("\n\n")}`;
 }
 
 async function fetchKlineData(symbol) {
@@ -523,7 +574,7 @@ function stripCodeFenceAndExtract(html) {
   return text;
 }
 
-function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate, klineStats, risk, rawRisk }) {
+function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate, klineStats, risk, rawRisk, eventRisksText }) {
   const target = row(stockpriceSnapshot, symbol);
   const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
 
@@ -569,6 +620,7 @@ ${risk.summary}
 
 ## 最新24小时新闻要点
 ${newsText || "暂无新闻数据。"}
+${eventRisksText || ""}
 
 ## K线技术分析
 ${klineStatsFormatted || "暂无K线数据。"}
@@ -939,13 +991,15 @@ export default async function handler(req, res) {
     const risk = adjustedRisk(rawRisk, klineStats, symbol);
 
     const newsText = summarizeNews(newsData.items);
+    const eventRisks = scanEventRisks(newsData.items);
+    const eventRisksText = formatEventRisks(eventRisks);
 
     const prompt = buildPrompt({
       symbol, market, optionMetricsText,
       stockpriceSnapshot, newsText,
       klineStatsFormatted, notes,
       targetStrike, putPrice, expiryDate,
-      klineStats, risk, rawRisk,
+      klineStats, risk, rawRisk, eventRisksText,
     });
 
     const ai = await callAI(symbol, prompt);
