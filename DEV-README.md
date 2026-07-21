@@ -20,6 +20,7 @@
 4. 自动生成的市场早报 / 晚报
 5. 最新每日 / 每周市场情况分析工具
 6. 卖 Put 温度判断工具
+7. 综合卖Put决策工具（新闻+行情+K线+期权四合一）
 
 它们之间有共享的数据中心、共享的 AI 接口、共享的前端样式和共享的部署层。
 
@@ -166,6 +167,7 @@
 - 24小时新闻中心：`https://donew-beta.vercel.app/jin10-news.html`
 - 最新每日 / 每周市场情况分析：`https://donew-beta.vercel.app/market-analysis-tool.html`
 - 卖 Put 温度判断：`https://donew-beta.vercel.app/sell-put-tool.html`
+- 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
 - 最新行情管理页：`https://donew-beta.vercel.app/price-test.html`
 
 ### Docs / 公共阅读页
@@ -419,8 +421,9 @@ docs/tools/alpha-risk-tool/README.md
 | 日报周报自动生成器 | 无独立交互页，走 GitHub Actions | `.github/workflows/generate-market-daily-reports.yml`、`scripts/`、`lib/` | 定时生成器 |
 | 最新每日/每周市场情况分析 | `https://donew-beta.vercel.app/market-analysis-tool.html` | `market-analysis-tool.html`、`kline_robot_vercel/market-analysis-tool.html`、`kline_robot_vercel/api/market-report-v2.js` | 交互式网页工具 |
 | 卖 Put 温度判断 | `https://donew-beta.vercel.app/sell-put-tool.html` | `sell-put-tool.html`、`kline_robot_vercel/sell-put-tool.html`、`kline_robot_vercel/api/put-rating.js` | 交互式网页工具 |
+| 综合卖Put决策 | `https://donew-beta.vercel.app/sell-put-decision-tool.html` | `sell-put-decision-tool.html`、`kline_robot_vercel/sell-put-decision-tool.html`、`kline_robot_vercel/api/sell-put-decision.js` | 聚合决策层（交互式网页工具） |
 
-### 13.2 六个工具分别怎么看
+### 13.2 七个工具分别怎么看
 
 #### K线相识度
 
@@ -515,6 +518,29 @@ docs/tools/alpha-risk-tool/README.md
 
 这是“截图 OCR + 行情快照 + AI结论”的代表模板。
 
+#### 综合卖Put决策
+
+- 入口页：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
+- 前端页面：
+  - `sell-put-decision-tool.html`
+  - `kline_robot_vercel/sell-put-decision-tool.html`
+- 主要 API：
+  - `kline_robot_vercel/api/sell-put-decision.js`
+- 策略文档：
+  - `docs/SellPut/SellPut策略/sell-put-decision-tool.md`
+- 数据依赖：
+  - `stockprice/data/latest-price.json`（统一行情底座）
+  - `jin10news/data/latest-24h.json`（新闻缓存，用于事件风险扫描和 AI 上下文）
+  - Yahoo Finance chart API（K线数据，用于 ATR/SMA/形态检测/趋势判断）
+  - OpenAI Vision API（截图 OCR 识别 Barchart 期权字段）
+  - DeepSeek / OpenAI（AI 综合判断生成报告）
+- 核心逻辑：
+  - 双层评分：大盘环境（VIX/QQQ/10Y等） + 单票K线调整（ATR%/趋势/跌幅）
+  - 事件风险：代码扫描新闻缓存 + AI 利用训练知识判断财报/FOMC/非农日期
+  - 四维数据聚合后在一次 AI 调用中生成六节结构化报告
+
+这是“四维数据聚合 + 双层评分 + 单次AI综合”的代表模板，也是在现有工具之上的聚合决策层，不替换原有独立工具。
+
 ### 13.3 新增工具先判断类型
 
 #### 类型 A：交互式网页工具
@@ -524,6 +550,7 @@ docs/tools/alpha-risk-tool/README.md
 - K线相识度
 - 市场情况分析
 - 卖 Put 温度判断
+- 综合卖Put决策
 
 特征：
 
