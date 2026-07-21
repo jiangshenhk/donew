@@ -2,10 +2,10 @@ name: Generate Market Morning and Evening Reports
 
 on:
   schedule:
-    # 北京时间 7:30（周一至周五）→ UTC 周日-周四 23:30
-    - cron: '30 23 * * 0-4'
-    # 北京时间 20:30（周一至周五）→ UTC 周一至周五 12:30
-    - cron: '30 12 * * 1-5'
+    # 北京时间 7:28（周一至周五）→ UTC 周日-周四 23:28
+    - cron: '28 23 * * 0-4'
+    # 北京时间 20:28（周一至周五）→ UTC 周一至周五 12:28
+    - cron: '28 12 * * 1-5'
   workflow_dispatch:
     inputs:
       report_type:
@@ -43,7 +43,7 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "type=$INPUT_REPORT_TYPE" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT_SCHEDULE" = "30 23 * * 0-4" ]; then
+          elif [ "$EVENT_SCHEDULE" = "28 23 * * 0-4" ]; then
             echo "type=morning" >> "$GITHUB_OUTPUT"
           else
             echo "type=evening" >> "$GITHUB_OUTPUT"
