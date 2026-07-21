@@ -61,8 +61,14 @@ async function callAI() {
 
 function extractSection(text, names) {
   for (const name of names) {
-    const match = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}[\\s\\S]*?(?=\\n##|$)`));
-    if (match) return match[0].replace(/[#\n]/g, ' ').trim().slice(0, 180);
+    const boldMatch = text.match(new RegExp(`\\*\\*${name}[：:]\\s*(.+?)\\*\\*`));
+    if (boldMatch) return boldMatch[1].replace(/\|/g, '｜').trim().slice(0, 180);
+
+    const headingMatch = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}\\s*\\n([^\\n#|]+)`));
+    if (headingMatch) return headingMatch[1].replace(/\|/g, '｜').trim().slice(0, 180);
+
+    const paraMatch = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}[\\s\\S]*?\\n\\s*\\n`));
+    if (paraMatch) return paraMatch[0].replace(/[#\n]/g, ' ').replace(/\|/g, '｜').trim().slice(0, 120);
   }
   return '';
 }
