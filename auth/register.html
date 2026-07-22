@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>注册｜十方斋</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <a href="/" class="auth-logo">十方斋</a>
+      <p class="auth-sub">创建新账号</p>
+    </div>
+
+    <div id="auth-msg" class="auth-msg" style="display:none"></div>
+
+    <form id="register-form" class="auth-form">
+      <label class="auth-field">
+        <span>昵称</span>
+        <input type="text" name="name" placeholder="你的昵称" required autocomplete="name">
+      </label>
+      <label class="auth-field">
+        <span>邮箱</span>
+        <input type="email" name="email" placeholder="your@email.com" required autocomplete="email">
+      </label>
+      <label class="auth-field">
+        <span>密码</span>
+        <input type="password" name="password" placeholder="至少 6 位" required minlength="6" autocomplete="new-password">
+      </label>
+      <button type="submit" class="btn btn-primary">注册</button>
+    </form>
+
+    <p class="auth-foot">已有账号？<a href="/auth/">立即登录</a></p>
+  </div>
+</div>
+
+<script>
+const msg = document.getElementById('auth-msg');
+const form = document.getElementById('register-form');
+
+function showMsg(text, ok) {
+  msg.style.display = 'block';
+  msg.textContent = text;
+  msg.className = 'auth-msg ' + (ok ? 'auth-msg-ok' : 'auth-msg-err');
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(form);
+  if (fd.get('password').length < 6) {
+    showMsg('密码至少 6 位', false);
+    return;
+  }
+  try {
+    const r = await fetch('/api/auth-register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: fd.get('name'), email: fd.get('email'), password: fd.get('password') }),
+    });
+    const d = await r.json();
+    if (!d.ok) { showMsg(d.error, false); return; }
+    showMsg(d.message || '注册成功', true);
+  } catch (err) {
+    showMsg('网络错误，请重试', false);
+  }
+});
+</script>
+</body>
+</html>

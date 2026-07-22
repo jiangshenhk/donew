@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>控制台｜十方斋</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <a href="/" class="auth-logo">十方斋</a>
+      <p class="auth-sub">个人控制台</p>
+    </div>
+
+    <div id="auth-msg" class="auth-msg" style="display:none"></div>
+    <div id="loading" class="auth-loading">加载中...</div>
+
+    <div id="user-info" style="display:none">
+      <div class="dash-avatar" id="user-avatar"></div>
+      <div class="dash-name" id="user-name"></div>
+      <div class="dash-email" id="user-email"></div>
+      <div class="dash-meta" id="user-meta"></div>
+
+      <hr class="dash-hr">
+      <button id="logout-btn" class="btn btn-outline">退出登录</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const msg = document.getElementById('auth-msg');
+const loading = document.getElementById('loading');
+const userInfo = document.getElementById('user-info');
+const logoutBtn = document.getElementById('logout-btn');
+
+function showMsg(text, ok) {
+  msg.style.display = 'block';
+  msg.textContent = text;
+  msg.className = 'auth-msg ' + (ok ? 'auth-msg-ok' : 'auth-msg-err');
+}
+
+async function loadUser() {
+  const token = localStorage.getItem('auth_token');
+  if (!token) {
+    loading.style.display = 'none';
+    showMsg('未登录，正在跳转...', false);
+    setTimeout(() => { location.href = '/auth/'; }, 1200);
+    return;
+  }
+  try {
+    const r = await fetch('/api/auth-me', {
+      headers: { Authorization: 'Bearer ' + token },
+    });
+    const d = await r.json();
+    if (!d.ok || !d.user) {
+      localStorage.removeItem('auth_token');
+      loading.style.display = 'none';
+      showMsg('登录已过期，请重新登录', false);
+      setTimeout(() => { location.href = '/auth/'; }, 1200);
+      return;
+    }
+    loading.style.display = 'none';
+    userInfo.style.display = 'block';
+    document.getElementById('user-name').textContent = d.user.name || '未设置昵称';
+    document.getElementById('user-email').textContent = d.user.email;
+    document.getElementById('user-meta').textContent = '登录方式: ' + (d.user.method === 'google' ? 'Google' : '邮箱');
+    if (d.user.picture) {
+      const avatar = document.getElementById('user-avatar');
+      avatar.innerHTML = '<img src="' + d.user.picture + '" alt="avatar" class="dash-avatar-img">';
+    } else {
+      document.getElementById('user-avatar').textContent = (d.user.name || d.user.email).charAt(0).toUpperCase();
+    }
+  } catch (err) {
+    loading.style.display = 'none';
+    showMsg('网络错误，请刷新重试', false);
+  }
+}
+
+logoutBtn.addEventListener('click', () => {
+  localStorage.removeItem('auth_token');
+  location.href = '/auth/';
+});
+
+loadUser();
+</script>
+</body>
+</html>
