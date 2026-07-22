@@ -1,22 +1,12 @@
 {
-  "regions": [
-    "iad1"
-  ],
+  "regions": ["iad1"],
   "functions": {
-    "api/report.js": {
-      "maxDuration": 120
-    },
-    "api/put-rating.js": {
-      "maxDuration": 120
-    },
-    "api/news-summary.js": {
-      "maxDuration": 120
-    },
-    "api/market-report-v2.js": {
-      "maxDuration": 120
-    }
+    "api/report.js": { "maxDuration": 120 },
+    "api/put-rating.js": { "maxDuration": 120 },
+    "api/news-summary.js": { "maxDuration": 120 },
+    "api/market-report-v2.js": { "maxDuration": 120 },
+    "api/auth-google-callback.js": { "maxDuration": 30 },
+    "api/auth-register.js": { "maxDuration": 30 }
   },
-  "github": {
-    "silent": true
-  }
+  "github": { "silent": true }
 }
