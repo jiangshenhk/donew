@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI智能匹配K线形态&趋势判断｜十方斋</title>
+  <meta name="description" content="十方斋K线形态相似度AI工具，支持美股、港股、A股、指数和虚拟货币，按1-10根K线匹配经典蜡烛图形态，并结合历史曲线样本估算后续方向概率。">
+  <meta name="keywords" content="K线形态, 蜡烛图, K线相似度, 趋势判断, 股票技术分析, AI投资工具, 十方斋">
+  <meta name="author" content="十方斋">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <link rel="canonical" href="https://jiangshenhk.github.io/donew/kline-robot.html">
+  <meta property="og:title" content="AI智能匹配K线形态&趋势判断｜十方斋">
+  <meta property="og:description" content="选择市场、标的、周期和K线范围，自动生成K线形态相似度与历史曲线方向概率报告。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://jiangshenhk.github.io/donew/kline-robot.html">
+  <meta property="og:site_name" content="十方斋">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="AI智能匹配K线形态&趋势判断｜十方斋">
+  <meta name="twitter:description" content="K线形态相似度AI工具，结合经典蜡烛图规则与历史曲线样本辅助判断后续趋势。">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "AI智能匹配K线形态&趋势判断",
+    "alternateName": "K线形态相似度AI工具",
+    "url": "https://jiangshenhk.github.io/donew/kline-robot.html",
+    "applicationCategory": "FinanceApplication",
+    "operatingSystem": "Web",
+    "inLanguage": "zh-CN",
+    "description": "通过市场、标的、周期和K线范围选择，生成K线形态相似度、经典蜡烛图匹配和历史曲线方向概率报告。",
+    "creator": {
+      "@type": "Organization",
+      "name": "十方斋",
+      "url": "https://jiangshenhk.github.io/donew/"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --panel: #ffffff;
+      --text: #111827;
+      --muted: #64748b;
+      --line: #dfe5ef;
+      --blue: #2563eb;
+      --ink: #0f172a;
+      --red: #b42336;
+      --green: #067647;
+      --gold: #b7791f;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    .shell {
+      width: min(1220px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 18px 0 56px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 26px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .version {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: #61708f;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .home {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .visit-count {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .visit-count strong {
+      color: var(--ink);
+      font-weight: 900;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, .06);
+    }
+
+    form.panel {
+      padding: 14px;
+    }
+
+    .output.panel {
+      padding: 16px;
+      min-height: 420px;
+    }
+
+    label {
+      display: block;
+      margin: 9px 0 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: var(--text);
+      background: #fff;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 38px;
+      resize: none;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .label-help {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 9px 0 5px;
+    }
+
+    .label-help label {
+      margin: 0;
+    }
+
+    .help-tip {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      width: 18px;
+      height: 18px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: help;
+      user-select: none;
+    }
+
+    .help-tip::after {
+      content: attr(data-tip);
+      position: absolute;
+      z-index: 10;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      width: min(300px, 78vw);
+      transform: translateX(-50%);
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0f172a;
+      color: #fff;
+      box-shadow: 0 14px 32px rgba(15, 23, 42, .22);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.55;
+      text-align: left;
+      white-space: pre-line;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s ease;
+    }
+
+    .help-tip:hover::after,
+    .help-tip:focus::after {
+      opacity: 1;
+    }
+
+    .module-dropdown {
+      position: relative;
+      margin-top: 0;
+    }
+
+    .module-dropdown summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    .module-dropdown summary::-webkit-details-marker { display: none; }
+
+    .module-options {
+      position: absolute;
+      z-index: 5;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, .14);
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 7px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      margin: 0;
+    }
+
+    .check input { width: auto; }
+
+    .primary {
+      width: 100%;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 6px;
+      padding: 11px 14px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .primary:disabled {
+      opacity: .7;
+      cursor: wait;
+    }
+
+    .hint,
+    .status {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .warning {
+      margin-top: 14px;
+      padding: 11px 12px;
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #9a3412;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      background: #fbfcff;
+    }
+
+    .metric b {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric span {
+      color: var(--ink);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #334155;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .bear { background: #ecfdf3; color: var(--green); }
+    .bull { background: #fff1f3; color: var(--red); }
+    .flat { background: #f1f5f9; color: #475569; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 9px 13px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 800;
+      border: 0;
+      cursor: pointer;
+    }
+
+    .action.secondary {
+      background: #eef2ff;
+      color: #3730a3;
+    }
+
+    iframe {
+      width: 100%;
+      height: 680px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-top: 16px;
+      background: #fff;
+    }
+
+    @media (max-width: 900px) {
+      .topbar { display: block; }
+      .home { display: inline-block; margin-top: 10px; }
+      .layout { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr 1fr; }
+      .output.panel { min-height: 260px; }
+      iframe { height: 560px; }
+    }
+
+    @media (max-width: 560px) {
+      .shell { width: min(100vw - 12px, 1180px); padding: 10px 0 36px; }
+      .topbar { margin-bottom: 8px; }
+      .row,
+      .module-options,
+      .cards { grid-template-columns: 1fr; }
+      .brand h1 { gap: 7px; font-size: 22px; }
+      .version { padding: 5px 8px; font-size: 11px; }
+      .home { margin-top: 6px; font-size: 13px; }
+      .layout { gap: 10px; }
+      form.panel,
+      .output.panel { padding: 11px; }
+      label { margin: 7px 0 4px; }
+      input,
+      select,
+      textarea,
+      .module-dropdown summary { min-height: 40px; padding: 8px 9px; font-size: 16px; }
+      .module-dropdown[open] .module-options {
+        position: static;
+        margin-top: 6px;
+        box-shadow: none;
+      }
+      .primary { margin-top: 10px; padding: 11px 12px; }
+      .metric { padding: 10px; }
+      .metric span { font-size: 17px; }
+      th,
+      td { padding: 9px; font-size: 13px; }
+      .actions { gap: 8px; }
+      .action { flex: 1 1 140px; min-height: 38px; padding: 8px 10px; }
+      iframe { height: 520px; margin-top: 12px; }
+    }
+    .test-only[hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <h1>AI智能匹配K线形态&趋势判断 <span class="version" id="appVersion">版本加载中</span></h1>
+      </div>
+      <div class="top-actions">
+        <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
+        <a class="home" href="./#/">返回十方斋</a>
+      </div>
+    </div>
+
+    <div class="layout">
+      <form id="reportForm" class="panel">
+        <div class="row">
+          <div>
+            <label>AI 提供商</label>
+            <select name="provider">
+              <option value="deepseek" selected>DeepSeek</option>
+              <option value="openai">GPT</option>
+            </select>
+          </div>
+          <div>
+            <label>报告类型</label>
+            <select name="menu">
+              <option value="1">1 相似度</option>
+              <option value="9">9 测试模式</option>
+            </select>
+          </div>
+        </div>
+
+        <label>历史记录</label>
+        <select id="historySelect">
+          <option value="">选择历史标的</option>
+        </select>
+
+        <div class="row">
+          <div>
+            <label>市场</label>
+            <select name="market">
+              <option value="" selected>自动识别</option>
+              <option value="us">美股</option>
+              <option value="hk">港股</option>
+              <option value="cn">A股</option>
+              <option value="global">全球指数/宏观</option>
+              <option value="crypto">虚拟货币</option>
+            </select>
+          </div>
+          <div>
+            <div class="label-help">
+              <label for="symbolInput">标的</label>
+              <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="输入参考：&#10;A股：只支持数字，如 600570&#10;A股指数：上证指数 000001.SH，上证红利 000015.SH，科创50 000688.SH&#10;港股：只支持数字，如 00700&#10;港股指数：恒生指数 ^HSI，恒生科技 ^HSTECH，恒生科技ETF 03033&#10;美股：如 AAPL，QQQ&#10;美股指数：标普500 ^GSPC，纳斯达克 ^IXIC，道琼斯 ^DJI，罗素2000 ^RUT，费城半导体 ^SOX，VIX恐慌指数 ^VIX，纳指100 ^NDX，红利 SCHD，科技 XLK&#10;全球指数/宏观：美元指数 DX-Y.NYB，黄金 GC=F，原油 CL=F，欧元美元 EURUSD=X">?</button>
+            </div>
+            <input id="symbolInput" name="symbol" value="^IXIC" placeholder="MSTR / ^IXIC / 600570 / 00700" required>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>周期</label>
+            <select name="interval">
+              <option value="60m">60分钟</option>
+              <option value="30m">30分钟</option>
+              <option value="15m">15分钟</option>
+              <option value="1d" selected>日线</option>
+            </select>
+          </div>
+          <div>
+            <label>K线范围</label>
+            <select name="range">
+              <option value="5d">5日</option>
+              <option value="10d">10日</option>
+              <option value="1mo" selected>1个月</option>
+              <option value="3mo">3个月</option>
+              <option value="6mo">6个月</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="test-only" hidden>
+          <label>增强模块</label>
+          <details class="module-dropdown" id="moduleDropdown">
+            <summary><span id="moduleSummary">未选择增强模块</span><span>▾</span></summary>
+            <div class="module-options">
+              <label class="check"><input type="checkbox" name="modules" value="top5"> Top形态匹配</label>
+              <label class="check"><input type="checkbox" name="modules" value="momentum"> 动量</label>
+              <label class="check"><input type="checkbox" name="modules" value="volume"> 成交量</label>
+              <label class="check"><input type="checkbox" name="modules" value="sellput"> 卖Put</label>
+              <label class="check"><input type="checkbox" name="modules" value="options"> 期权</label>
+              <label class="check"><input type="checkbox" name="modules" value="hedge"> 保值</label>
+            </div>
+          </details>
+        </div>
+
+        <div class="test-only" hidden>
+          <label>额外要求</label>
+          <input name="extra" placeholder="例如：重点看确认位和失败位；更关注卖Put风险。">
+        </div>
+
+        <div>
+          <label>未来趋势历史数据范围</label>
+          <select name="trendSampleScope">
+            <option value="0" selected>0 自己历史K线</option>
+            <option value="1">1 同市场扩展样本</option>
+          </select>
+        </div>
+
+        <label>最大匹配条数</label>
+        <select name="maxMatchBars">
+          <option value="1">1根</option>
+          <option value="2">2根</option>
+          <option value="3">3根</option>
+          <option value="4">4根</option>
+          <option value="5">5根</option>
+          <option value="6">6根</option>
+          <option value="7">7根</option>
+          <option value="8">8根</option>
+          <option value="9">9根</option>
+          <option value="10" selected>10根</option>
+        </select>
+
+        <button class="primary" id="submitBtn" type="submit">生成最新 HTML 报告</button>
+      </form>
+
+      <main class="output panel">
+        <h2>生成结果</h2>
+        <div id="result" class="status">请先选择条件，然后点击生成报告。</div>
+        <div id="preview"></div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('reportForm');
+    const btn = document.getElementById('submitBtn');
+    const result = document.getElementById('result');
+    const preview = document.getElementById('preview');
+    const appVersion = document.getElementById('appVersion');
+    const moduleSummary = document.getElementById('moduleSummary');
+    const historySelect = document.getElementById('historySelect');
+
+    const query = new URLSearchParams(window.location.search);
+    const defaultApiBase = query.get('apiBase')
+      || (window.location.protocol === 'file:'
+        ? 'http://127.0.0.1:8794'
+        : (window.location.hostname.endsWith('github.io') ? 'https://donew-beta.vercel.app' : window.location.origin));
+    const appVersionText = '3.0.0.9｜2026-7-18｜标准化处理：图片分享';
+    appVersion.textContent = `版本 ${appVersionText}`;
+
+    const historyKey = 'klineRobotHistory.v1';
+    const latestReportKey = 'klineRobotLatestReport.v1';
+    let latestBlobUrl = '';
+    let latestHtml = '';
+    let latestName = 'kline-report.html';
+    let runTimer = null;
+
+    function directionClass(value) {
+      if (value === '偏空') return 'bear';
+      if (value === '偏多') return 'bull';
+      return 'flat';
+    }
+
+    function moduleLabels() {
+      return [...form.querySelectorAll('input[name="modules"]:checked')].map((el) => el.closest('label').textContent.trim());
+    }
+
+    function syncModuleSummary() {
+      const selected = moduleLabels();
+      moduleSummary.textContent = selected.length ? selected.join('、') : '未选择增强模块';
+    }
+
+    function syncTestOnlyFields() {
+      const isTestMode = form.elements.menu.value === '9';
+      form.querySelectorAll('.test-only').forEach((block) => {
+        block.hidden = !isTestMode;
+        block.querySelectorAll('input, select, textarea, button').forEach((field) => {
+          field.disabled = !isTestMode;
+          if (!isTestMode) {
+            if (field.type === 'checkbox' || field.type === 'radio') field.checked = false;
+            else if (field.name === 'extra') field.value = '';
+          }
+        });
+      });
+      if (!isTestMode) {
+        const dropdown = document.getElementById('moduleDropdown');
+        if (dropdown) dropdown.open = false;
+      }
+      syncModuleSummary();
+    }
+
+    function readHistory() {
+      try {
+        const items = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        return Array.isArray(items) ? items : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function writeHistory(items) {
+      localStorage.setItem(historyKey, JSON.stringify(items.slice(0, 12)));
+    }
+
+    function marketText(value) {
+      return ({ us: '美股', hk: '港股', cn: 'A股', global: '全球指数/宏观', crypto: '虚拟货币' })[value] || '自动';
+    }
+
+    function renderHistory() {
+      const items = readHistory();
+      historySelect.innerHTML = '<option value="">选择历史标的</option>';
+      items.forEach((item, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = `${item.symbol || '-'} · ${marketText(item.market)} · ${item.interval || ''} · ${item.range || ''}`;
+        historySelect.appendChild(option);
+      });
+    }
+
+    function applyHistory(item) {
+      if (!item) return;
+      form.elements.provider.value = item.provider || 'deepseek';
+      form.elements.menu.value = item.menu || '1';
+      form.elements.market.value = item.market || '';
+      form.elements.symbol.value = item.symbol || '';
+      form.elements.interval.value = item.interval || '1d';
+      form.elements.range.value = item.range || (item.interval === '1d' ? '1mo' : '5d');
+      form.elements.maxMatchBars.value = item.maxMatchBars || '10';
+      form.elements.trendSampleScope.value = item.trendSampleScope || '0';
+      form.elements.extra.value = item.extra || '';
+      const moduleValues = new Set(item.modules || []);
+      form.querySelectorAll('input[name="modules"]').forEach((input) => {
+        input.checked = moduleValues.has(input.value);
+      });
+      syncModuleSummary();
+      syncTestOnlyFields();
+    }
+
+    function rememberPayload(payload, displaySymbol) {
+      const clean = {
+        provider: payload.provider || 'deepseek',
+        menu: payload.menu || '1',
+        market: payload.market || '',
+        symbol: payload.symbol || '',
+        displaySymbol: displaySymbol || payload.symbol || '',
+        interval: payload.interval || '1d',
+        range: payload.range || '1mo',
+        maxMatchBars: payload.maxMatchBars || '10',
+        trendSampleScope: payload.trendSampleScope || '0',
+        modules: payload.modules || [],
+        extra: payload.extra || '',
+        updatedAt: Date.now()
+      };
+      const key = [clean.market, clean.symbol.toUpperCase(), clean.interval, clean.range, clean.maxMatchBars, clean.trendSampleScope].join('|');
+      const items = readHistory().filter((item) => [item.market, String(item.symbol || '').toUpperCase(), item.interval, item.range, item.maxMatchBars, item.trendSampleScope || '0'].join('|') !== key);
+      writeHistory([clean, ...items]);
+      renderHistory();
+    }
+
+    function syncRangeForInterval() {
+      const interval = form.elements.interval.value;
+      const range = form.elements.range;
+      if (interval === '1d') {
+        range.value = '1mo';
+      } else if (interval === '60m') {
+        range.value = '5d';
+      }
+    }
+
+    function localTimestamp() {
+      const date = new Date();
+      const pad = (value) => String(value).padStart(2, '0');
+      return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate())
+      ].join('') + '_' + [
+        pad(date.getHours()),
+        pad(date.getMinutes()),
+        pad(date.getSeconds())
+      ].join('');
+    }
+
+    function downloadFileName(extension) {
+      const cleanExt = String(extension || 'html').replace(/^\./, '');
+      const base = (latestName || 'kline-report.html')
+        .replace(/\.html?$/i, '')
+        .replace(/\.(png|svg)$/i, '')
+        .replace(/[\\/:*?"<>|]+/g, '_');
+      return `${base}_${localTimestamp()}.${cleanExt}`;
+    }
+
+    function formatSavedTime(value) {
+      if (!value) return '未知时间';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    }
+
+    function getReportGeneratedTime(meta) {
+      return meta?.generatedAt || meta?.savedAt || null;
+    }
+
+    function updateLatestBlob(html, fileName) {
+      latestHtml = html || '';
+      latestName = fileName || 'kline-report.html';
+      if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
+      latestBlobUrl = latestHtml ? URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' })) : '';
+    }
+
+    function bindLatestActions(meta) {
+      const downloadBtn = document.getElementById('downloadBtn');
+      const downloadImageBtn = document.getElementById('downloadImageBtn');
+      const shareImageBtn = document.getElementById('shareImageBtn');
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = latestBlobUrl;
+          a.download = downloadFileName('html');
+          a.click();
+        });
+      }
+      if (downloadImageBtn) {
+        downloadImageBtn.addEventListener('click', async () => {
+          try {
+            await downloadReportImage();
+          } catch (error) {
+            result.querySelector('.status')?.remove();
+            result.insertAdjacentHTML('beforeend', `<p class="status">${error.message}</p>`);
+          }
+        });
+      }
+      if (shareImageBtn) {
+        shareImageBtn.addEventListener('click', async () => {
+          try {
+            const blob = await downloadReportImage(true);
+            if (!blob) throw new Error('图片生成失败。');
+            const file = new File([blob], downloadFileName('jpg'), { type: 'image/jpeg' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: latestName.replace(/\.html$/i, ''), text: 'K线形态分析报告' });
+              result.querySelector('.status')?.remove();
+              result.insertAdjacentHTML('beforeend', '<p class="status">已打开系统分享。</p>');
+              return;
+            }
+            downloadBlob(blob, file.name);
+            result.querySelector('.status')?.remove();
+            result.insertAdjacentHTML('beforeend', '<p class="status">当前浏览器不支持直接分享，已改为保存图片。</p>');
+          } catch (error) {
+            result.querySelector('.status')?.remove();
+            result.insertAdjacentHTML('beforeend', `<p class="status">${error.message}</p>`);
+          }
+        });
+      }
+    }
+
+    function renderLatestReport(meta, restored = false) {
+      result.innerHTML = `
+        <div class="cards">
+          <div class="metric"><b>标的</b><span>${meta.symbol || '-'}</span></div>
+          <div class="metric"><b>周期</b><span>${meta.interval || '-'}</span></div>
+          <div class="metric"><b>AI</b><span>${meta.used_gpt ? '已调用' : '未调用'}</span></div>
+          <div class="metric"><b>状态</b><span>${meta.status || '-'}</span></div>
+        </div>
+        <div class="actions">
+          <a class="action" href="${latestBlobUrl}" target="_blank">新窗口打开报告</a>
+          <button class="action secondary" id="downloadBtn" type="button">下载 HTML</button>
+          <button class="action secondary" id="downloadImageBtn" type="button">下载图片</button>
+          <button class="action secondary" id="shareImageBtn" type="button">图片分享</button>
+        </div>
+        <p class="status">${restored
+          ? `浏览器上次报告｜原生成于 ${formatSavedTime(getReportGeneratedTime(meta))}${meta.savedAt && meta.savedAt !== getReportGeneratedTime(meta) ? `｜浏览器保存于 ${formatSavedTime(meta.savedAt)}` : ''}`
+          : (meta.message || '')}</p>
+      `;
+      bindLatestActions(meta);
+      preview.innerHTML = `<iframe title="K线报告预览" src="${latestBlobUrl}"></iframe>`;
+    }
+
+    function saveLatestReportCache(meta) {
+      localStorage.setItem(latestReportKey, JSON.stringify({
+        meta,
+        html: latestHtml,
+        fileName: latestName,
+      }));
+    }
+
+    function restoreLatestReportCache() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(latestReportKey) || 'null');
+        if (!saved || !saved.html || !saved.meta) return;
+        updateLatestBlob(saved.html, saved.fileName);
+        renderLatestReport(saved.meta, true);
+      } catch {
+        // ignore broken local cache
+      }
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 1000);
+    }
+
+    function dataUrlToBlob(dataUrl) {
+      const [meta, base64] = dataUrl.split(',');
+      const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+      const binary = atob(base64 || '');
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return new Blob([bytes], { type: mime });
+    }
+
+    async function downloadReportImage(returnBlob = false) {
+      const frame = preview.querySelector('iframe');
+      if (!frame) throw new Error('请先生成报告。');
+      if (!frame.contentDocument || frame.contentDocument.readyState !== 'complete') {
+        await new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
+      }
+      const doc = frame.contentDocument;
+      const width = Math.min(Math.max(doc.documentElement.scrollWidth, doc.body.scrollWidth, 960), 1800);
+      const height = Math.min(Math.max(doc.documentElement.scrollHeight, doc.body.scrollHeight, 600), 28000);
+      const html = doc.documentElement.cloneNode(true);
+      html.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+      html.querySelectorAll('script').forEach((node) => node.remove());
+      const serialized = new XMLSerializer().serializeToString(html);
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+          <foreignObject width="100%" height="100%">
+            ${serialized}
+          </foreignObject>
+        </svg>`;
+      const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      try {
+        const image = new Image();
+        const loadImage = (src) => new Promise((resolve) => {
+          image.onload = () => resolve(true);
+          image.onerror = () => resolve(false);
+          image.src = src;
+        });
+        const imageLoaded = await loadImage(svgUrl) || await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+        if (!imageLoaded) throw new Error('图片导出失败：SVG 无法渲染为 JPG。');
+        let jpgBlob = null;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#090f1f';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(image, 0, 0);
+          jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+          if (!jpgBlob) {
+            jpgBlob = dataUrlToBlob(canvas.toDataURL('image/jpeg', 0.92));
+          }
+        } catch {
+          jpgBlob = null;
+        }
+        if (!jpgBlob) throw new Error('图片导出失败：无法生成 JPG 文件。');
+        if (returnBlob) return jpgBlob;
+        downloadBlob(jpgBlob, downloadFileName('jpg'));
+        return jpgBlob;
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+    }
+
+    form.elements.interval.addEventListener('change', syncRangeForInterval);
+    form.elements.menu.addEventListener('change', syncTestOnlyFields);
+    form.querySelectorAll('input[name="modules"]').forEach((item) => {
+      item.addEventListener('change', syncModuleSummary);
+    });
+    historySelect.addEventListener('change', () => {
+      const item = readHistory()[Number(historySelect.value)];
+      applyHistory(item);
+    });
+    renderHistory();
+    syncTestOnlyFields();
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      btn.disabled = true;
+      preview.innerHTML = '';
+      const startAt = Date.now();
+      clearInterval(runTimer);
+      const updateRunning = () => {
+        const seconds = Math.floor((Date.now() - startAt) / 1000);
+        result.textContent = `正在运行 ${seconds} 秒：拉取最新行情、匹配形态并生成报告...`;
+        btn.textContent = `生成中 ${seconds}s`;
+      };
+      updateRunning();
+      runTimer = setInterval(updateRunning, 1000);
+
+      const data = new FormData(form);
+
+      const payload = {
+        menu: data.get('menu'),
+        provider: data.get('provider'),
+        market: data.get('market'),
+        symbol: data.get('symbol'),
+        interval: data.get('interval'),
+        range: data.get('range'),
+        maxMatchBars: data.get('maxMatchBars'),
+        trendSampleScope: data.get('trendSampleScope'),
+        extra: data.get('extra'),
+        modules: data.getAll('modules')
+      };
+
+      try {
+        const res = await fetch(defaultApiBase + '/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const rawText = await res.text();
+        let json = null;
+        try {
+          json = JSON.parse(rawText);
+        } catch {
+          const plain = (rawText || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          throw new Error(plain || `服务端返回了非 JSON 响应（HTTP ${res.status}）`);
+        }
+        if (!res.ok || !json.ok) throw new Error(json.error || json.message || `生成失败（HTTP ${res.status}）`);
+        rememberPayload(payload, json.symbol);
+
+        updateLatestBlob(json.html, json.filename || 'kline-report.html');
+        const meta = { ...json, generatedAt: json.generatedAt || new Date().toISOString(), savedAt: new Date().toISOString() };
+        renderLatestReport(meta, false);
+        saveLatestReportCache(meta);
+      } catch (error) {
+        result.textContent = error.message;
+      } finally {
+        clearInterval(runTimer);
+        runTimer = null;
+        btn.textContent = '生成最新 HTML 报告';
+        btn.disabled = false;
+      }
+    });
+
+    restoreLatestReportCache();
+  </script>
+</body>
+</html>
