@@ -144,6 +144,7 @@ async function fetchQuote(symbol){
 
   return {
     symbol,
+    name: meta.shortName ?? meta.longName ?? null,
     price,
     change: null,
     changePercent: change.value==null ? null : Number(change.value),

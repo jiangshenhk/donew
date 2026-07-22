@@ -38,7 +38,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
 
 /* ═══ Table ═══ */
 .table-wrap{overflow-x:auto;border:1px solid #30363d;border-radius:8px}
-table{width:100%;border-collapse:collapse;font-size:13px;min-width:1000px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:1200px}
 thead{position:sticky;top:0;z-index:10}
 th{padding:0;border-bottom:1px solid #30363d;user-select:none;white-space:nowrap;background:#161b22}
 .th-inner{display:flex;align-items:center;gap:3px;padding:7px 8px;cursor:pointer;font-size:11px;font-weight:600;text-transform:uppercase;color:#8b949e}
@@ -147,7 +147,8 @@ $('raw').href=PRICE_URL;
 
 const COLUMNS=[
   {key:'symbol',     w:85,  label:'代码'},
-  {key:'category',   w:90,  label:'分类'},
+  {key:'name',       w:140, label:'名称'},
+  {key:'category',   w:80,  label:'分类'},
   {key:'price',      w:85,  label:'价格'},
   {key:'change',     w:82,  label:'涨跌幅'},
   {key:'vs5',        w:75,  label:'VS5%'},
@@ -185,6 +186,7 @@ function pct(v){if(!isFinite(v))return'—';return(v>=0?'+':'')+v.toFixed(2)+'%'
 function transformItem(item){
   return {
     symbol:item.symbol||'—',
+    name:item.name||item.symbol||'—',
     category:item.category||'Other',
     price:Number(item.price)||0,
     change:parseFloat(item.changePercent)||0,
@@ -366,6 +368,7 @@ function render(){
     tbody.innerHTML=page.map(r=>{
       const fl=flashIds.has(r.symbol)?' row-flash':'';
       return `<tr class="${fl}"><td style="font-weight:600">${esc(r.symbol)}</td>
+        <td style="color:#8b949e;font-size:12px">${esc(r.name)}</td>
         <td>${esc(r.category)}</td><td>${num(r.price,2)}</td><td class="${r.change>=0?'pos':'neg'}">${pct(r.change)}</td>
         <td class="${r.vs5>=0?'pos':'neg'}">${pct(r.vs5)}</td><td class="${r.vs10>=0?'pos':'neg'}">${pct(r.vs10)}</td>
         <td>${num(r.prevClose,2)}</td><td>${num(r.sma5,2)}</td><td>${num(r.sma10,2)}</td>

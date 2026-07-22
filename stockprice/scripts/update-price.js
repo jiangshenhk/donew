@@ -152,6 +152,7 @@ async function fetchPrice(item,retry=2){
    return {
     symbol,
     category,
+    name: meta.shortName ?? meta.longName ?? null,
     price:price??null,
     previousClose:previousClose??null,
     changePercent:change.value==null?null:Number(change.value).toFixed(2),
