@@ -6,38 +6,82 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'demo-jwt-secret';
-const LOCAL_DB = path.join(__dirname, '..', '..', 'db', 'users.json');
-const TMP_DB = '/tmp/users.json';
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
+const BLOB_API = 'https://blob.vercel-storage.com';
+const BLOB_KEY = 'users.json';
 
-// 读：先从 /tmp 读，没有则回退到本地文件，都没有返回空数组
-function readUsers() {
-  try { return JSON.parse(fs.readFileSync(TMP_DB, 'utf8')); }
-  catch {
-    try { return JSON.parse(fs.readFileSync(LOCAL_DB, 'utf8')); }
-    catch { return []; }
+let userCache = null;
+let cacheTime = 0;
+const CACHE_TTL = 3000; // 3秒缓存
+
+async function readUsers() {
+  // 有 Blob token 就用 Blob
+  if (BLOB_TOKEN) {
+    const now = Date.now();
+    if (userCache && now - cacheTime < CACHE_TTL) return userCache;
+    try {
+      // 列出 Blob 获取最新 URL
+      const listRes = await fetch(`${BLOB_API}/?prefix=${BLOB_KEY}`, {
+        headers: { Authorization: `Bearer ${BLOB_TOKEN}` },
+      });
+      const list = await listRes.json();
+      if (list.blobs && list.blobs.length > 0) {
+        const fileRes = await fetch(list.blobs[0].url);
+        if (fileRes.ok) {
+          const data = await fileRes.json();
+          userCache = data;
+          cacheTime = now;
+          return data;
+        }
+      }
+    } catch (e) {
+      console.log('Blob read failed, using cache:', e.message);
+      if (userCache) return userCache;
+    }
+  }
+  // 回退本地
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'db', 'users.json'), 'utf8')); }
+  catch { return []; }
+}
+
+async function writeUsers(users) {
+  userCache = users;
+  cacheTime = Date.now();
+  if (BLOB_TOKEN) {
+    try {
+      const res = await fetch(`${BLOB_API}/${BLOB_KEY}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${BLOB_TOKEN}`,
+          'Content-Type': 'application/json',
+          'x-add-random-suffix': 'false',
+          'x-content-type': 'application/json',
+        },
+        body: JSON.stringify(users),
+      });
+      if (!res.ok) console.log('Blob write failed:', res.status);
+    } catch (e) {
+      console.log('Blob write error:', e.message);
+    }
   }
 }
 
-// 写：始终写 /tmp
-function writeUsers(users) {
-  try { fs.writeFileSync(TMP_DB, JSON.stringify(users, null, 2), 'utf8'); }
-  catch {}
+export async function findUser(predicate) {
+  return (await readUsers()).find(predicate);
 }
 
-export function findUser(predicate) { return readUsers().find(predicate); }
-
-export function addUser(user) {
-  const users = readUsers();
+export async function addUser(user) {
+  const users = await readUsers();
   users.push(user);
-  writeUsers(users);
+  await writeUsers(users);
 }
 
-export function updateUser(predicate, updater) {
-  const users = readUsers();
+export async function updateUser(predicate, updater) {
+  const users = await readUsers();
   const idx = users.findIndex(predicate);
   if (idx === -1) return false;
   updater(users[idx]);
-  writeUsers(users);
+  await writeUsers(users);
   return true;
 }
 
