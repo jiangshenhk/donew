@@ -23,5 +23,5 @@ export default async function handler(req, res) {
 <style>body{font-family:sans-serif;background:#0f1117;color:#e1e4e8;display:flex;align-items:center;justify-content:center;min-height:100vh}
 .card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:40px;text-align:center}
 h1{color:#3fb950}a{color:#58a6ff}</style></head><body>
-<div class="card"><h1>✅ 激活成功</h1><p>账号已激活，可以<a href="/auth/">登录</a>了。</p></div></body></html>`);
+<div class="card"><h1>✅ 激活成功</h1><p>账号已激活，可以<a href="/auth-login.html">登录</a>了。</p></div></body></html>`);
 }

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>控制台｜十方斋</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="auth-style.css">
 </head>
 <body>
 <div class="auth-shell">
@@ -46,7 +46,7 @@ async function loadUser() {
   if (!token) {
     loading.style.display = 'none';
     showMsg('未登录，正在跳转...', false);
-    setTimeout(() => { location.href = '/auth/'; }, 1200);
+    setTimeout(() => { location.href = '/auth-login.html'; }, 1200);
     return;
   }
   try {
@@ -58,7 +58,7 @@ async function loadUser() {
       localStorage.removeItem('auth_token');
       loading.style.display = 'none';
       showMsg('登录已过期，请重新登录', false);
-      setTimeout(() => { location.href = '/auth/'; }, 1200);
+      setTimeout(() => { location.href = '/auth-login.html'; }, 1200);
       return;
     }
     loading.style.display = 'none';
@@ -80,7 +80,7 @@ async function loadUser() {
 
 logoutBtn.addEventListener('click', () => {
   localStorage.removeItem('auth_token');
-  location.href = '/auth/';
+  location.href = '/auth-login.html';
 });
 
 loadUser();

@@ -38,7 +38,7 @@ export default async function handler(req, res) {
   const error = u.searchParams.get('error');
 
   if (error || !code) {
-    res.writeHead(302, { Location: `/auth/?error=${encodeURIComponent(error || 'no_code')}` });
+    res.writeHead(302, { Location: `/auth-login.html?error=${encodeURIComponent(error || 'no_code')}` });
     return res.end();
   }
 
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
-      res.writeHead(302, { Location: `/auth/?error=${encodeURIComponent('Google OAuth 未配置')}` });
+      res.writeHead(302, { Location: `/auth-login.html?error=${encodeURIComponent('Google OAuth 未配置')}` });
       return res.end();
     }
 
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     });
 
     if (tokenRes.status !== 200 || !tokenRes.body.access_token) {
-      res.writeHead(302, { Location: `/auth/?error=${encodeURIComponent('令牌交换失败')}` });
+      res.writeHead(302, { Location: `/auth-login.html?error=${encodeURIComponent('令牌交换失败')}` });
       return res.end();
     }
 
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     });
 
     if (!userInfo.body.email) {
-      res.writeHead(302, { Location: `/auth/?error=${encodeURIComponent('获取用户信息失败')}` });
+      res.writeHead(302, { Location: `/auth-login.html?error=${encodeURIComponent('获取用户信息失败')}` });
       return res.end();
     }
 
@@ -103,10 +103,10 @@ export default async function handler(req, res) {
     }
 
     const token = signToken(user);
-    res.writeHead(302, { Location: `/auth/?token=${encodeURIComponent(token)}` });
+    res.writeHead(302, { Location: `/auth-login.html?token=${encodeURIComponent(token)}` });
     res.end();
   } catch (e) {
-    res.writeHead(302, { Location: `/auth/?error=${encodeURIComponent(e.message)}` });
+    res.writeHead(302, { Location: `/auth-login.html?error=${encodeURIComponent(e.message)}` });
     res.end();
   }
 }

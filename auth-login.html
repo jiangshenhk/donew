@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>登录｜十方斋</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="auth-style.css">
 </head>
 <body>
 <div class="auth-shell">
@@ -40,7 +40,7 @@
       <button type="submit" class="btn btn-primary">登录</button>
     </form>
 
-    <p class="auth-foot">还没有账号？<a href="/auth/register.html">立即注册</a></p>
+    <p class="auth-foot">还没有账号？<a href="/auth-register.html">立即注册</a></p>
   </div>
 </div>
 
@@ -61,9 +61,9 @@ const error = params.get('error');
 
 if (token) {
   localStorage.setItem('auth_token', token);
-  history.replaceState(null, '', '/auth/');
+  history.replaceState(null, '', '/auth-login.html');
   showMsg('登录成功，正在跳转...', true);
-  setTimeout(() => { location.href = '/auth/dashboard.html'; }, 800);
+  setTimeout(() => { location.href = '/auth-dashboard.html'; }, 800);
 } else if (error) {
   showMsg(decodeURIComponent(error), false);
 }
@@ -85,7 +85,7 @@ form.addEventListener('submit', async (e) => {
     if (!d.ok) { showMsg(d.error, false); return; }
     localStorage.setItem('auth_token', d.token);
     showMsg('登录成功，正在跳转...', true);
-    setTimeout(() => { location.href = '/auth/dashboard.html'; }, 800);
+    setTimeout(() => { location.href = '/auth-dashboard.html'; }, 800);
   } catch (err) {
     showMsg('网络错误，请重试', false);
   }
