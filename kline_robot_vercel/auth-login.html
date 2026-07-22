@@ -69,14 +69,14 @@ if (token) {
 }
 
 googleBtn.addEventListener('click', () => {
-  location.href = '/api/auth-google';
+  location.href = '/api/auth/google';
 });
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(form);
   try {
-    const r = await fetch('/api/auth-login', {
+    const r = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }),
