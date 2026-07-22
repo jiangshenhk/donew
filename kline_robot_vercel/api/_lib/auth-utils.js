@@ -6,15 +6,22 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JWT_SECRET = process.env.JWT_SECRET || 'demo-jwt-secret';
-const DB_PATH = path.join(__dirname, '..', '..', 'db', 'users.json');
+const LOCAL_DB = path.join(__dirname, '..', '..', 'db', 'users.json');
+const TMP_DB = '/tmp/users.json';
 
+// 读：先从 /tmp 读，没有则回退到本地文件，都没有返回空数组
 function readUsers() {
-  try { return JSON.parse(fs.readFileSync(DB_PATH, 'utf8')); }
-  catch { return []; }
+  try { return JSON.parse(fs.readFileSync(TMP_DB, 'utf8')); }
+  catch {
+    try { return JSON.parse(fs.readFileSync(LOCAL_DB, 'utf8')); }
+    catch { return []; }
+  }
 }
 
+// 写：始终写 /tmp
 function writeUsers(users) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(users, null, 2), 'utf8');
+  try { fs.writeFileSync(TMP_DB, JSON.stringify(users, null, 2), 'utf8'); }
+  catch {}
 }
 
 export function findUser(predicate) { return readUsers().find(predicate); }
