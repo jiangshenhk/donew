@@ -114,7 +114,7 @@ async function callDeepSeek(payload, instructions, maxTokens = 7000) {
     method: "POST",
     headers: { Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+      model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
       messages: [{ role: "system", content: instructions }, { role: "user", content: typeof payload === "string" ? payload : JSON.stringify(payload) }],
       temperature: 0.2, max_tokens: maxTokens
     })
@@ -153,7 +153,7 @@ async function callDeepSeekSimple(prompt, maxTokens = 8000) {
   const resp = await timedFetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: { "Authorization": `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: process.env.DEEPSEEK_MODEL || "deepseek-chat", messages: [{ role: "system", content: "你是一个专业的内容总结助手。请用中文回复。" }, { role: "user", content: prompt }], max_tokens: maxTokens, temperature: 0.3 })
+    body: JSON.stringify({ model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash", messages: [{ role: "system", content: "你是一个专业的内容总结助手。请用中文回复。" }, { role: "user", content: prompt }], max_tokens: maxTokens, temperature: 0.3 })
   });
   if (!resp.ok) { const t = await resp.text(); throw new Error(`DeepSeek HTTP ${resp.status}: ${t.slice(0, 200)}`); }
   const json = await resp.json();
