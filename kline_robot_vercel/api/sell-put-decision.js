@@ -758,7 +758,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 async function callAI(symbol, prompt) {
   if (process.env.DEEPSEEK_API_KEY) {
     try {
-      const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+      const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
       const res = await timedFetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },

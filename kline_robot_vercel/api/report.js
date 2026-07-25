@@ -1608,7 +1608,7 @@ async function callDeepSeek(payload) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: process.env.DEEPSEEK_MODEL || "deepseek-v4-flash",
+      model: process.env.DEEPSEEK_MODEL || "deepseek-v4-pro",
       messages: [
         { role: "system", content: aiPrompt() },
         { role: "user", content: JSON.stringify(payload) },

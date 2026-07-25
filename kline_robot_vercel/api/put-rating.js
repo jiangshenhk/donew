@@ -710,7 +710,7 @@ async function callDeepSeek(payload, snapshot, risk) {
       message: "未配置 DEEPSEEK_API_KEY，返回规则版报告。",
     };
   }
-  const model = process.env.DEEPSEEK_VISION_MODEL || process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+  const model = process.env.DEEPSEEK_VISION_MODEL || process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
   const res = await timedFetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
