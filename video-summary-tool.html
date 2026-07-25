@@ -241,7 +241,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>内容总结分析工具 <span class="version">v0.4.0｜2026-07-25｜微信视频引导切换文章模式</span></h1>
+      <h1>内容总结分析工具 <span class="version">v0.5.0｜2026-07-25｜简化界面去除报告状态卡片</span></h1>
       <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </header>
 
@@ -277,10 +277,6 @@
       </form>
 
       <section class="panel">
-        <div class="tabs">
-          <button class="tab active" type="button">当前报告</button>
-        </div>
-        <div id="resultHead" class="cards" style="display:none;"></div>
         <div class="actions" id="actionsWrap">
           <div id="actions" class="actions" style="display:none;"></div>
           <div id="ttsBar" class="tts-bar" style="display:none;">
@@ -321,7 +317,6 @@
     const form = document.getElementById("toolForm");
     const submitBtn = document.getElementById("submitBtn");
     const statusEl = document.getElementById("status");
-    const resultHead = document.getElementById("resultHead");
     const actions = document.getElementById("actions");
     const ttsBar = document.getElementById("ttsBar");
     const preview = document.getElementById("preview");
@@ -500,13 +495,6 @@
     }
 
     function renderLatestReport(meta, restored = false) {
-      resultHead.style.display = "grid";
-      resultHead.innerHTML = `
-        <div class="metric"><b>类型</b><span>${meta.platform || "-"}</span></div>
-        <div class="metric"><b>AI</b><span>${meta.provider || "DeepSeek"}</span></div>
-        <div class="metric"><b>状态</b><span>${meta.status || "已生成"}</span></div>
-        <div class="metric"><b>时间</b><span style="font-size:14px;">${formatTime(meta.generatedAt)}</span></div>
-      `;
       actions.style.display = "flex";
       actions.innerHTML = `
         <button class="soft-btn" id="openBtn" type="button">新窗口打开报告</button>
