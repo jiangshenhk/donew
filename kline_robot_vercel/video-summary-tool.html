@@ -564,7 +564,7 @@
       submitBtn.textContent = "正在生成...";
       setStatus("正在获取内容并生成总结，最长可能约 90 秒...");
       try {
-        const response = await fetch(`${apiBase}/api/video-summary`, {
+        const response = await fetch(`${apiBase}/api/news-summary`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
