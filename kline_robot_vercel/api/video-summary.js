@@ -300,6 +300,76 @@ async function callAI(prompt) {
   throw new Error("未配置任何 AI API Key（DEEPSEEK_API_KEY 或 OPENAI_API_KEY）");
 }
 
+function renderMarkdown(text) {
+  let lines = text.split("\n");
+  let result = [];
+  let inList = false;
+
+  function colorNumbers(line) {
+    return line
+      .replace(/([+\u2191\u2b06]\s*\d+(?:\.\d+)?%?)/g, '<span class="num-pos">$1</span>')
+      .replace(/([-−\u2193\u2b07]\s*\d+(?:\.\d+)?%?)/g, '<span class="num-neg">$1</span>')
+      .replace(/(\d+(?:\.\d+)?%)/g, (m) => {
+        if (m.includes('-') || m.includes('负')) return `<span class="num-neg">${m}</span>`;
+        return `<span class="num-pos">${m}</span>`;
+      });
+  }
+
+  function wrapBold(line) {
+    return line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    let trimmed = line.trim();
+
+    if (!trimmed) {
+      if (inList) { result.push("</ul>"); inList = false; }
+      result.push("<br>");
+      continue;
+    }
+
+    // ###/#### sub-heading
+    if (/^#{3,4}\s/.test(trimmed)) {
+      if (inList) { result.push("</ul>"); inList = false; }
+      let content = colorNumbers(wrapBold(trimmed.replace(/^#{3,4}\s*/, "")));
+      result.push(`<h3>${content}</h3>`);
+      continue;
+    }
+
+    // ## main heading (used as gold section header)
+    if (/^##\s/.test(trimmed)) {
+      if (inList) { result.push("</ul>"); inList = false; }
+      let content = colorNumbers(wrapBold(trimmed.replace(/^##\s*/, "")));
+      result.push(`<h2>${content}</h2>`);
+      continue;
+    }
+
+    // bullet list
+    if (/^[-*]\s/.test(trimmed) || /^\d+[\.\、]\s/.test(trimmed)) {
+      if (!inList) { result.push("<ul>"); inList = true; }
+      let content = colorNumbers(wrapBold(trimmed.replace(/^[-*]\s/, "").replace(/^\d+[\.\、]\s/, "")));
+      result.push(`<li>${content}</li>`);
+      continue;
+    }
+
+    // separator
+    if (/^---+$/.test(trimmed)) {
+      if (inList) { result.push("</ul>"); inList = false; }
+      result.push("<hr>");
+      continue;
+    }
+
+    // regular paragraph
+    if (inList) { result.push("</ul>"); inList = false; }
+    let content = colorNumbers(wrapBold(trimmed));
+    result.push(`<p>${content}</p>`);
+  }
+
+  if (inList) result.push("</ul>");
+  return result.join("\n");
+}
+
 function buildReportHtml({
   title, mode, platform, sourceTitle, sourceAuthor, sourceUrl,
   sourceText, summary, generatedAt, provider
@@ -316,15 +386,6 @@ function buildReportHtml({
     analysisPart = summary.substring(sepIdx).trim();
   }
 
-  function renderMd(html) {
-    return html
-      .replace(/\n\n/g, "</p><p>")
-      .replace(/\n/g, "<br>")
-      .replace(/<p><\/p>/g, "")
-      .replace(/^<p>/, "<p>")
-      .replace(/<\/p>$/, "</p>");
-  }
-
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -332,27 +393,26 @@ function buildReportHtml({
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escapeHtml(title)}</title>
   <style>
-    body { margin: 0; background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; line-height: 1.75; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; line-height: 1.8; }
     main { max-width: 960px; margin: 0 auto; padding: 32px 20px 56px; }
-    h1 { margin: 0 0 8px; font-size: 32px; color: #f1f5f9; }
-    h2 { font-size: 22px; margin: 28px 0 12px; color: #e2e8f0; border-left: 4px solid #3b82f6; padding-left: 12px; }
-    h3 { font-size: 17px; margin: 20px 0 10px; color: #cbd5e1; }
+    h1 { margin: 0 0 8px; font-size: 30px; color: #fde047; font-weight: 800; }
+    h2 { font-size: 20px; margin: 28px 0 16px; color: #fde047; font-weight: 700; border-left: 4px solid #fde047; padding-left: 14px; }
+    h3 { font-size: 16px; margin: 20px 0 10px; color: #fde047; font-weight: 700; }
+    h4 { font-size: 15px; margin: 16px 0 8px; color: #fde047; font-weight: 700; }
     .meta { color: #94a3b8; font-size: 13px; margin-bottom: 20px; line-height: 1.8; }
     .meta a { color: #60a5fa; }
-    .card { background: #172554; border: 1px solid #334155; border-radius: 18px; padding: 20px 24px; margin-bottom: 18px; }
-    .card h3 { margin-top: 0; }
-    .highlight { color: #fde047; font-weight: 700; }
+    .card { background: #172554; border: 1px solid #334155; border-radius: 18px; padding: 22px 26px; margin-bottom: 18px; }
     .tag { display: inline-block; background: #1e3a5f; color: #93c5fd; border-radius: 8px; padding: 2px 10px; font-size: 12px; margin-right: 6px; }
-    .summary-box { color: #e2e8f0; }
-    .summary-box p { margin: 12px 0; }
-    .summary-box ul, .summary-box ol { padding-left: 20px; }
-    .summary-box li { margin: 6px 0; }
-    .summary-box strong { color: #fde047; }
-    .analysis-box { color: #e2e8f0; }
-    .analysis-box p { margin: 12px 0; }
-    .analysis-box ul, .analysis-box ol { padding-left: 20px; }
-    .analysis-box li { margin: 6px 0; }
-    .analysis-box strong { color: #fde047; }
+    .content-box p { margin: 12px 0; }
+    .content-box ul, .content-box ol { padding-left: 22px; margin: 10px 0; }
+    .content-box li { margin: 8px 0; }
+    .content-box strong { color: #fde047; font-weight: 700; }
+    .content-box hr { border: 0; border-top: 1px solid #334155; margin: 20px 0; }
+    .num-pos { color: #4ade80; font-weight: 700; }
+    .num-neg { color: #f87171; font-weight: 700; }
+    .highlight { color: #fde047; font-weight: 700; }
+    .note-box { background: #1e293b; border: 1px solid #475569; border-radius: 14px; padding: 16px 20px; margin: 16px 0; color: #94a3b8; font-size: 14px; }
     .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #334155; color: #64748b; font-size: 12px; }
   </style>
 </head>
@@ -369,13 +429,13 @@ function buildReportHtml({
     </div>
 
     <h2>内容总结</h2>
-    <div class="card summary-box">
-      ${renderMd(summaryPart)}
+    <div class="card content-box">
+      ${renderMarkdown(summaryPart)}
     </div>
     ${analysisPart ? `
     <h2>AI 深度分析</h2>
-    <div class="card analysis-box">
-      ${renderMd(analysisPart.replace(/^## AI 深度分析\s*/g, ""))}
+    <div class="card content-box">
+      ${renderMarkdown(analysisPart.replace(/^## AI 深度分析\s*/g, ""))}
     </div>` : ""}
 
     <div class="footer">
