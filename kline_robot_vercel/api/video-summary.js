@@ -406,26 +406,26 @@ function buildReportHtml({
   <title>${escapeHtml(title)}</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; background: #0f172a; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; line-height: 1.8; }
+    body { margin: 0; background: #0f172a; color: #cbd5e1; font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Helvetica Neue", "Heiti TC", "微軟正黑體", sans-serif; font-size: 16px; line-height: 1.75; font-weight: 400; }
     main { max-width: 960px; margin: 0 auto; padding: 32px 20px 56px; }
-    h1 { margin: 0 0 8px; font-size: 30px; color: #fde047; font-weight: 800; }
-    h2 { font-size: 20px; margin: 28px 0 16px; color: #fde047; font-weight: 700; border-left: 4px solid #fde047; padding-left: 14px; }
-    h3 { font-size: 16px; margin: 20px 0 10px; color: #fde047; font-weight: 700; }
-    h4 { font-size: 15px; margin: 16px 0 8px; color: #fde047; font-weight: 700; }
-    .meta { color: #94a3b8; font-size: 13px; margin-bottom: 20px; line-height: 1.8; }
+    h1 { margin: 0 0 0.6em; font-size: 2rem; color: #fde047; font-weight: 700; line-height: 1.4; }
+    h2 { font-size: 1.5rem; margin: 1.2em 0 0.6em; color: #fde047; font-weight: 700; border-left: 4px solid #fde047; padding-left: 14px; line-height: 1.4; }
+    h3 { font-size: 1.2rem; margin: 1em 0 0.5em; color: #fde047; font-weight: 700; line-height: 1.4; }
+    h4 { font-size: 1.05rem; margin: 0.8em 0 0.4em; color: #fde047; font-weight: 700; line-height: 1.4; }
+    .meta { color: #94a3b8; font-size: 13px; margin-bottom: 20px; line-height: 1.6; }
     .meta a { color: #60a5fa; }
-    .card { background: #172554; border: 1px solid #334155; border-radius: 18px; padding: 22px 26px; margin-bottom: 18px; }
+    .card { background: #172554; border: 1px solid #334155; border-radius: 18px; padding: 24px 28px; margin-bottom: 18px; }
     .tag { display: inline-block; background: #1e3a5f; color: #93c5fd; border-radius: 8px; padding: 2px 10px; font-size: 12px; margin-right: 6px; }
-    .content-box p { margin: 12px 0; }
-    .content-box ul, .content-box ol { padding-left: 22px; margin: 10px 0; }
-    .content-box li { margin: 8px 0; }
+    .content-box { font-size: 16px; line-height: 1.75; }
+    .content-box p { margin: 1em 0; }
+    .content-box ul, .content-box ol { padding-left: 24px; margin: 1em 0; }
+    .content-box li { margin: 0.5em 0; }
     .content-box strong { color: #fde047; font-weight: 700; }
-    .content-box hr { border: 0; border-top: 1px solid #334155; margin: 20px 0; }
+    .content-box hr { border: 0; border-top: 1px solid #334155; margin: 2em 0; }
     .num-pos { color: #4ade80; font-weight: 700; }
     .num-neg { color: #f87171; font-weight: 700; }
     .highlight { color: #fde047; font-weight: 700; }
-    .note-box { background: #1e293b; border: 1px solid #475569; border-radius: 14px; padding: 16px 20px; margin: 16px 0; color: #94a3b8; font-size: 14px; }
-    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #334155; color: #64748b; font-size: 12px; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #334155; color: #64748b; font-size: 13px; line-height: 1.6; }
   </style>
 </head>
 <body>

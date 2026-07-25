@@ -6,6 +6,7 @@
     "api/news-summary.js": { "maxDuration": 120 },
     "api/market-report-v2.js": { "maxDuration": 120 },
     "api/video-summary.js": { "maxDuration": 120 },
+    "api/bazi-analysis.js": { "maxDuration": 120 },
     "api/auth.js": { "maxDuration": 30 }
   },
   "rewrites": [
