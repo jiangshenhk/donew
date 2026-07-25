@@ -144,3 +144,17 @@ AI 工具 = 辅助标准化执行
 长期投资最重要的不是追求一次最高收益，而是建立一套自己能长期执行、能承受回撤、能持续复盘的投资框架。
 
 > 风险提示：本文和本站内容仅用于投资研究与学习，不构成任何投资建议。ETF、杠杆 ETF、期权和数字资产均存在本金亏损风险。
+
+---
+
+## AI 协作信息（给 AI Agent 看的）
+
+| 项目 | 内容 |
+|:---|:---|
+| **本地路径** | `/Volumes/Macintosh HD/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
+| **远程仓库** | `github.com:jiangshenhk/donew` |
+| **AI 协作规则** | 见 [`AI建议下.md`](./AI建议下.md)（核心规则：结论前置、主动反问、过滤废话、表格优先） |
+| **开发参考** | 见 [`DEV-README.md`](https://github.com/jiangshenhk/donew/blob/main/DEV-README.md) |
+| **AI 模型** | 默认 DeepSeek，备选 ChatGPT |
+| **部署** | GitHub Pages（`jiangshenhk.github.io/donew/`）+ Vercel（`donew-beta.vercel.app`） |
+| **openAI 配置** | `opencode.json`（上下文自动压缩 + 剪枝已开启） |
