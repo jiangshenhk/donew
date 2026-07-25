@@ -305,6 +305,10 @@ function renderMarkdown(text) {
   let result = [];
   let inList = false;
 
+  function isListItem(line) {
+    return /^[-*]\s/.test(line) || /^\d+[\.\、]\s/.test(line);
+  }
+
   function colorNumbers(line) {
     return line
       .replace(/([+\u2191\u2b06]\s*\d+(?:\.\d+)?%?)/g, '<span class="num-pos">$1</span>')
@@ -319,13 +323,21 @@ function renderMarkdown(text) {
     return line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }
 
+  function nextNonEmpty(idx) {
+    for (let j = idx + 1; j < lines.length; j++) {
+      if (lines[j].trim()) return lines[j].trim();
+    }
+    return null;
+  }
+
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
     let trimmed = line.trim();
 
+    // skip blank lines inside a list if next line is also a list item
     if (!trimmed) {
+      if (inList && isListItem(nextNonEmpty(i) || "")) continue;
       if (inList) { result.push("</ul>"); inList = false; }
-      result.push("<br>");
       continue;
     }
 
@@ -337,7 +349,7 @@ function renderMarkdown(text) {
       continue;
     }
 
-    // ## main heading (used as gold section header)
+    // ## main heading
     if (/^##\s/.test(trimmed)) {
       if (inList) { result.push("</ul>"); inList = false; }
       let content = colorNumbers(wrapBold(trimmed.replace(/^##\s*/, "")));
@@ -345,8 +357,8 @@ function renderMarkdown(text) {
       continue;
     }
 
-    // bullet list
-    if (/^[-*]\s/.test(trimmed) || /^\d+[\.\、]\s/.test(trimmed)) {
+    // bullet / numbered list
+    if (isListItem(trimmed)) {
       if (!inList) { result.push("<ul>"); inList = true; }
       let content = colorNumbers(wrapBold(trimmed.replace(/^[-*]\s/, "").replace(/^\d+[\.\、]\s/, "")));
       result.push(`<li>${content}</li>`);
