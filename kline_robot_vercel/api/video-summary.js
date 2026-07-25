@@ -306,11 +306,24 @@ function buildReportHtml({
 }) {
   const isArticle = mode === "article";
   const label = isArticle ? "文章" : "视频";
-  const sourceLabel = isArticle ? "原文" : "文字稿";
 
-  const sourcePreview = sourceText && sourceText.length > 2000
-    ? sourceText.substring(0, 2000) + "\n\n... (完整内容共 " + sourceText.length + " 字符)"
-    : (sourceText || "无法获取内容");
+  const separator = "## AI 深度分析";
+  const sepIdx = summary.indexOf(separator);
+  let summaryPart = summary;
+  let analysisPart = "";
+  if (sepIdx !== -1) {
+    summaryPart = summary.substring(0, sepIdx).trim();
+    analysisPart = summary.substring(sepIdx).trim();
+  }
+
+  function renderMd(html) {
+    return html
+      .replace(/\n\n/g, "</p><p>")
+      .replace(/\n/g, "<br>")
+      .replace(/<p><\/p>/g, "")
+      .replace(/^<p>/, "<p>")
+      .replace(/<\/p>$/, "</p>");
+  }
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -330,12 +343,16 @@ function buildReportHtml({
     .card h3 { margin-top: 0; }
     .highlight { color: #fde047; font-weight: 700; }
     .tag { display: inline-block; background: #1e3a5f; color: #93c5fd; border-radius: 8px; padding: 2px 10px; font-size: 12px; margin-right: 6px; }
-    .source-box { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px 20px; max-height: 500px; overflow-y: auto; font-size: 14px; color: #94a3b8; white-space: pre-wrap; word-break: break-word; }
     .summary-box { color: #e2e8f0; }
     .summary-box p { margin: 12px 0; }
     .summary-box ul, .summary-box ol { padding-left: 20px; }
     .summary-box li { margin: 6px 0; }
     .summary-box strong { color: #fde047; }
+    .analysis-box { color: #e2e8f0; }
+    .analysis-box p { margin: 12px 0; }
+    .analysis-box ul, .analysis-box ol { padding-left: 20px; }
+    .analysis-box li { margin: 6px 0; }
+    .analysis-box strong { color: #fde047; }
     .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #334155; color: #64748b; font-size: 12px; }
   </style>
 </head>
@@ -351,15 +368,15 @@ function buildReportHtml({
       ${sourceUrl ? `<br><a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener">查看原始${label}</a>` : ""}
     </div>
 
-    <h2>AI 总结分析</h2>
+    <h2>内容总结</h2>
     <div class="card summary-box">
-      ${summary.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>').replace(/<p><\/p>/g, '<p>').replace(/^/, '<p>').replace(/$/, '</p>')}
+      ${renderMd(summaryPart)}
     </div>
-
-    <h2>${escapeHtml(sourceLabel)}</h2>
-    <div class="card">
-      <div class="source-box">${escapeHtml(sourcePreview)}</div>
-    </div>
+    ${analysisPart ? `
+    <h2>AI 深度分析</h2>
+    <div class="card analysis-box">
+      ${renderMd(analysisPart.replace(/^## AI 深度分析\s*/g, ""))}
+    </div>` : ""}
 
     <div class="footer">
       由十方斋｜内容总结分析工具自动生成 · ${escapeHtml(provider)} 提供 AI 分析 · 仅供学习参考，不构成任何建议
@@ -466,7 +483,7 @@ export default async function handler(req, res) {
       : sourceText;
 
     const contentType = mode === "article" ? "文章内容" : "视频内容";
-    const aiPrompt = `请对以下${contentType}进行总结和分析。请用中文回复，结构如下：
+    const aiPrompt = `请对以下${contentType}进行总结和深度分析。请用中文回复，严格按以下结构输出：
 
 ## 内容概览
 简要说明该${mode === "article" ? "文章" : "视频"}的主题、类型和核心内容。
@@ -479,6 +496,13 @@ export default async function handler(req, res) {
 
 ## 补充观察
 如果有值得关注的细节、数据或案例，请在此补充。
+
+## AI 深度分析
+从以下角度对这个${mode === "article" ? "文章" : "视频"}进行更深层次的独立分析：
+- **逻辑审视**：内容的论证逻辑是否严密？有无明显漏洞或偏见？
+- **背景补充**：这个话题相关的背景知识、行业趋势或历史脉络。
+- **延伸思考**：这个内容可能引发的进一步思考或值得关注的问题。
+- **独特见解**：基于内容之外的知识，给出你独有的洞察或评价。
 
 标题：${escapeMarkdown(sourceTitle || "未知")}
 ${sourceAuthor ? "作者：" + escapeMarkdown(sourceAuthor) : ""}
@@ -514,7 +538,7 @@ ${noteText}`;
     });
 
     const typeLabel = mode === "article" ? "文章" : "视频";
-    const markdown = `# ${reportTitle}\n\n**平台**：${platform}\n**${typeLabel}**：${sourceTitle}\n**作者**：${sourceAuthor}\n**链接**：${sourceUrl}\n**AI**：${aiResult.provider}\n**生成时间**：${generatedAtLocal}\n\n---\n\n${aiResult.text}\n\n---\n\n## 原始内容\n\n${sourceText.substring(0, 5000)}${sourceText.length > 5000 ? "\n\n...(已截断)" : ""}`;
+    const markdown = `# ${reportTitle}\n\n**平台**：${platform}\n**${typeLabel}**：${sourceTitle}\n**作者**：${sourceAuthor}\n**链接**：${sourceUrl}\n**AI**：${aiResult.provider}\n**生成时间**：${generatedAtLocal}\n\n---\n\n${aiResult.text}`;
 
     return sendJson(res, 200, {
       ok: true,
