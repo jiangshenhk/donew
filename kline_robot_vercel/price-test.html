@@ -469,9 +469,9 @@ document.addEventListener('click',e=>{
    14. 事件绑定与启动
    ═══════════════════════════════════════ */
 $('refresh').onclick=()=>loadPrice();
-$('force').onclick=()=>callApi('/api/price-admin?action=refresh','立即更新');
-$('start').onclick=()=>callApi('/api/price-admin?action=start','启动');
-$('stop').onclick=()=>callApi('/api/price-admin?action=stop','停止');
+$('force').onclick=()=>callApi('/api/market-report-v2?action=refresh','立即更新');
+$('start').onclick=()=>callApi('/api/market-report-v2?action=start','启动');
+$('stop').onclick=()=>callApi('/api/market-report-v2?action=stop','停止');
 
 renderHeader();
 loadPrice().then(()=>{

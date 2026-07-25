@@ -9,7 +9,7 @@
     if (!box) return;
 
     try {
-      const res = await fetch('/api/price-admin', {
+      const res = await fetch('/api/market-report-v2?action=price', {
         cache: 'no-store'
       });
       const json = await res.json();

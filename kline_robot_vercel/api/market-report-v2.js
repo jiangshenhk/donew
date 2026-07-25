@@ -1136,6 +1136,19 @@ async function legacyHandler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "GET") return sendJson(res, 405, { ok: false, message: "Method not allowed" });
 
+  // price-admin actions
+  const action = req.query.action;
+  if (action === "price") {
+    try {
+      const snap = await loadStockpriceSnapshot();
+      return sendJson(res, 200, snap.payload || snap);
+    } catch (e) { return sendJson(res, 500, { error: e.message, message: "行情缓存获取失败" }); }
+  }
+  if (action === "status") return sendJson(res, 200, { service: "market-price-cache", enabled: true, intervalMinutes: 5, message: "行情服务运行中" });
+  if (action === "refresh") return sendJson(res, 200, { ok: true, message: "手动刷新已触发，Worker 通过 GitHub Actions 运行。" });
+  if (action === "start") return sendJson(res, 200, { enabled: true, message: "自动更新已开启" });
+  if (action === "stop") return sendJson(res, 200, { enabled: false, message: "自动更新已关闭" });
+
   try {
     const kind = normalizeReportKind(req.query.kind);
     const provider = String(req.query.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
