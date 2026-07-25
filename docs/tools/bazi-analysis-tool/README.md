@@ -1,52 +1,83 @@
-# 八字命理深度分析
+# 八字命理深度分析 (bazi-analysis-tool)
 
-这个目录是由 `scripts/create-tool-scaffold.mjs` 自动生成的示例 README。
+基于中国传统八字命理学，结合 DeepSeek AI 深度分析个人命运、婚姻、事业、健康与风水的综合工具。
 
-## 工具定位
+## 线上入口
 
-基于中国传统八字命理学，结合人工智能深度分析个人命运、婚姻、事业、健康、风水的综合工具。
+`https://donew-beta.vercel.app/bazi-analysis-tool.html`
 
-## 计划入口
+## 功能概述
 
-- 页面：`bazi-analysis-tool.html`
-- Vercel 页面：`kline_robot_vercel/bazi-analysis-tool.html`
-- API：`kline_robot_vercel/api/bazi-analysis.js`
+- **八字排盘**：年/月/日/时四柱，含天干、地支、藏干、十神、纳音、神煞、空亡
+- **五行旺衰**：用神/忌神判断，含姓名与工作补正
+- **姓名五行拆解**：逐字部首五行分析
+- **工作契合度**：职业五行与八字用神对比
+- **AI 深度解读**：命局总论、性格画像（DeepSeek）
+- **婚姻感情**：夫妻宫解析、配偶特质、桃花正缘
+- **健康分析**：五行脏腑对应、预警与养生
+- **大运排盘**：十年一步，含当前大运高亮
+- **流年详批**：逐年断语
+- **风水布局**：家居/办公/年度飞星
+- **开运方法**：吉利数字/方位/颜色/首饰/饮食
+- **贵人属相**：三合六合贵人
 
-## 当前脚手架已经包含
+## API
 
-- 统一页面布局
-- `apiBase` 参数兼容
-- 最近一次报告自动恢复
-- 新窗口打开 / 下载 HTML
-- API 的最小返回结构
+`POST /api/bazi-analysis`
 
-## 你接下来应该改哪里
+### 请求参数
 
-### 如果要接真实行情
+```json
+{
+  "name": "林海涛",
+  "gender": "男",
+  "year": 1990,
+  "month": 6,
+  "day": 15,
+  "hour": 10,
+  "minute": 0,
+  "location": "中国北京",
+  "work": "互联网产品经理"
+}
+```
 
-优先读取：
+### 响应
 
-- `stockprice/data/latest-price.json`
+```json
+{
+  "ok": true,
+  "filename": "bazi-report-19900615.html",
+  "generatedAt": "2026-07-25T12:00:00.000Z",
+  "html": "<!doctype html>...",
+  "provider": "deepseek",
+  "status": "已生成",
+  "message": "已生成 AI 增强版报告。",
+  "chart": {
+    "bazi": "庚午 壬午 甲申 己巳",
+    "riGan": "甲",
+    "riWx": "木",
+    "wxCount": { "金":3,"木":1,"水":2,"火":5,"土":3 },
+    "shengXiao": "马"
+  }
+}
+```
 
-### 如果要接真实新闻
+## 技术架构
 
-优先读取：
+- **排盘引擎**：纯 JavaScript 实现，包含 Julian Day 日柱计算公式
+- **节气计算**：基于寿星万年历公式，覆盖 1900-2100 年
+- **AI 增强**：DeepSeek API（可选，未配置时回退为规则版报告）
+- **前端**：青瓷雅韵（Celadon）风格，响应式支持桌面与移动端
 
-- `jin10news/data/latest-24h.json`
+## 数据范围
 
-### 如果要接 AI
+- 支持公历 1900-2100 年出生日期
+- 支持海外出生地点（自动真太阳时校准）
+- 时间精确到小时，支持自然语言输入（如"上午10点"）
 
-优先在：
+## 环境变量
 
-- `kline_robot_vercel/api/bazi-analysis.js`
-
-里完成，不要把密钥放到前端页面。
-
-## 建议扩展顺序
-
-1. 补输入校验
-2. 接统一缓存
-3. 接 AI / 规则逻辑
-4. 补下载图片
-5. 补历史记录
-6. 补 README 的真实处理流程
+| 变量 | 说明 | 必填 |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | DeepSeek API 密钥 | 否（无则降级规则版） |
+| `DEEPSEEK_MODEL` | DeepSeek 模型名 | 否（默认 deepseek-chat） |
