@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>内容总结分析工具</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #dbe4f0;
+      --primary: #1d4ed8;
+      --success: #16a34a;
+      --warn: #ca8a04;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+    }
+    .shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .version {
+      font-size: 12px;
+      color: var(--muted);
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-weight: 600;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      gap: 18px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    }
+    .mode-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 18px;
+      background: #f1f5f9;
+      border-radius: 12px;
+      padding: 4px;
+    }
+    .mode-tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px 8px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-tab.active {
+      background: #fff;
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font: inherit;
+      color: var(--text);
+      background: #fff;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    .hint {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .primary-btn, .soft-btn, .tab {
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+      background: #eef2ff;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .primary-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+    }
+    .primary-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .tabs, .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .tab.active {
+      background: #fff7db;
+      color: #9a6700;
+      border-color: #facc15;
+    }
+    .status {
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+    .metric b {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .metric span {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .preview-wrap {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      min-height: 560px;
+      background: #0f172a;
+    }
+    iframe {
+      border: 0;
+      width: 100%;
+      min-height: 560px;
+      background: #0f172a;
+    }
+    .empty-state {
+      min-height: 560px;
+      display: grid;
+      place-items: center;
+      color: #94a3b8;
+      padding: 24px;
+      text-align: center;
+    }
+    .home-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .tts-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      margin-top: 12px;
+    }
+    .tts-btn {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      background: #fff;
+      color: var(--text);
+    }
+    .tts-btn:hover { background: #f1f5f9; }
+    .tts-btn.playing { background: var(--success); color: #fff; border-color: var(--success); }
+    .tts-speed {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 12px;
+      background: #fff;
+      color: var(--text);
+    }
+    .tts-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-right: 4px;
+    }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <h1>内容总结分析工具 <span class="version">v0.2.0｜2026-07-25｜支持文章+TTS朗读</span></h1>
+      <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+    </header>
+
+    <div class="layout">
+      <form class="panel" id="toolForm">
+        <div class="mode-tabs" id="modeTabs">
+          <button class="mode-tab active" type="button" data-mode="video">视频总结</button>
+          <button class="mode-tab" type="button" data-mode="article">文章总结</button>
+        </div>
+
+        <div id="fieldUrl" class="field">
+          <label for="videoUrl" id="labelUrl">视频链接</label>
+          <input id="videoUrl" name="videoUrl" value="" placeholder="粘贴 YouTube / B站 视频链接">
+          <span class="hint" id="hintUrl">支持：YouTube、B站（Bilibili）</span>
+        </div>
+
+        <div id="fieldArticleText" class="field" style="display:none;">
+          <label for="articleText">直接粘贴文字</label>
+          <textarea id="articleText" name="articleText" placeholder="在此粘贴文章或任何文字内容，AI 会帮你总结分析。&#10;&#10;如果同时填写了链接和文字，优先使用粘贴的文字。"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="note">补充说明（可选）</label>
+          <textarea id="note" name="note" placeholder="例如：帮我总结第5-15分钟的内容，重点看财务数据部分。"></textarea>
+        </div>
+
+        <button class="primary-btn" id="submitBtn" type="submit">生成总结</button>
+        <div class="status" id="status">选择模式并输入内容后点击生成。</div>
+      </form>
+
+      <section class="panel">
+        <div class="tabs">
+          <button class="tab active" type="button">当前报告</button>
+        </div>
+        <div id="resultHead" class="cards" style="display:none;"></div>
+        <div class="actions" id="actionsWrap">
+          <div id="actions" class="actions" style="display:none;"></div>
+          <div id="ttsBar" class="tts-bar" style="display:none;">
+            <span class="tts-label">朗读</span>
+            <button class="tts-btn" id="ttsPlay" type="button" title="播放">▶ 播放</button>
+            <button class="tts-btn" id="ttsPause" type="button" title="暂停">⏸ 暂停</button>
+            <button class="tts-btn" id="ttsStop" type="button" title="停止">⏹ 停止</button>
+            <span class="tts-label" style="margin-left:8px;">语速</span>
+            <select class="tts-speed" id="ttsSpeed">
+              <option value="0.75">0.75x</option>
+              <option value="0.9">0.9x</option>
+              <option value="1" selected>1.0x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+            </select>
+          </div>
+        </div>
+        <div class="preview-wrap" id="previewWrap">
+          <div id="preview" class="empty-state">等待生成报告</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const apiBase = (() => {
+      const params = new URLSearchParams(location.search);
+      const override = params.get("apiBase");
+      const origin = String(location.origin || "").replace(/\/$/, "");
+      const fallback = "https://donew-beta.vercel.app";
+      if (override) return override.replace(/\/$/, "");
+      if (!origin || origin === "null" || location.protocol === "file:") return fallback;
+      return origin;
+    })();
+
+    const latestKey = "video-summary-toolLatestReport.v2";
+
+    const form = document.getElementById("toolForm");
+    const submitBtn = document.getElementById("submitBtn");
+    const statusEl = document.getElementById("status");
+    const resultHead = document.getElementById("resultHead");
+    const actions = document.getElementById("actions");
+    const ttsBar = document.getElementById("ttsBar");
+    const preview = document.getElementById("preview");
+    const labelUrl = document.getElementById("labelUrl");
+    const hintUrl = document.getElementById("hintUrl");
+    const inputUrl = document.getElementById("videoUrl");
+    const fieldArticle = document.getElementById("fieldArticleText");
+    const textareaArticle = document.getElementById("articleText");
+
+    const ttsPlay = document.getElementById("ttsPlay");
+    const ttsPause = document.getElementById("ttsPause");
+    const ttsStop = document.getElementById("ttsStop");
+    const ttsSpeed = document.getElementById("ttsSpeed");
+
+    let currentMode = "video";
+    let latestHtml = "";
+    let latestName = "summary-report.html";
+    let latestBlobUrl = "";
+    let latestSummaryText = "";
+
+    // --- Mode toggle ---
+    document.querySelectorAll(".mode-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".mode-tab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentMode = btn.dataset.mode;
+        if (currentMode === "article") {
+          labelUrl.textContent = "文章链接（可选）";
+          hintUrl.textContent = "粘贴网页文章链接，或直接在下方粘贴文字";
+          inputUrl.placeholder = "粘贴网页文章链接（微信公众号、博客等）";
+          fieldArticle.style.display = "grid";
+        } else {
+          labelUrl.textContent = "视频链接";
+          hintUrl.textContent = "支持：YouTube、B站（Bilibili）";
+          inputUrl.placeholder = "粘贴 YouTube / B站 视频链接";
+          fieldArticle.style.display = "none";
+        }
+      });
+    });
+
+    // --- TTS ---
+    let ttsUtterance = null;
+    let ttsPlaying = false;
+
+    function stopTts() {
+      window.speechSynthesis.cancel();
+      ttsPlaying = false;
+      ttsPlay.classList.remove("playing");
+      ttsPlay.textContent = "▶ 播放";
+    }
+
+    function getPlainText(html) {
+      const div = document.createElement("div");
+      div.innerHTML = html;
+      let text = div.textContent || "";
+      text = text.replace(/\n\s*\n/g, "\n").trim();
+      return text;
+    }
+
+    ttsPlay.addEventListener("click", () => {
+      if (ttsPlaying) { stopTts(); return; }
+      const text = latestSummaryText || getPlainText(latestHtml);
+      if (!text) { setStatus("没有可朗读的内容"); return; }
+      stopTts();
+      ttsUtterance = new SpeechSynthesisUtterance(text);
+      ttsUtterance.lang = "zh-CN";
+      ttsUtterance.rate = parseFloat(ttsSpeed.value) || 1;
+      ttsUtterance.onend = () => { ttsPlaying = false; ttsPlay.classList.remove("playing"); ttsPlay.textContent = "▶ 播放"; };
+      ttsUtterance.onerror = () => { ttsPlaying = false; ttsPlay.classList.remove("playing"); ttsPlay.textContent = "▶ 播放"; };
+      window.speechSynthesis.speak(ttsUtterance);
+      ttsPlaying = true;
+      ttsPlay.classList.add("playing");
+      ttsPlay.textContent = "⏸ 暂停";
+      setStatus("正在朗读总结...");
+    });
+
+    ttsPause.addEventListener("click", () => {
+      if (ttsPlaying) {
+        window.speechSynthesis.pause();
+        ttsPlaying = false;
+        ttsPlay.classList.remove("playing");
+        ttsPlay.textContent = "▶ 播放";
+        setStatus("朗读已暂停");
+      }
+    });
+
+    ttsStop.addEventListener("click", () => {
+      stopTts();
+      setStatus("朗读已停止");
+    });
+
+    ttsSpeed.addEventListener("change", () => {
+      if (ttsUtterance && ttsPlaying) {
+        stopTts();
+        ttsPlay.click();
+      }
+    });
+
+    function setStatus(text, isError = false) {
+      statusEl.textContent = text;
+      statusEl.style.color = isError ? "#dc2626" : "#64748b";
+    }
+
+    function updateLatestBlob(html, fileName) {
+      latestHtml = html || "";
+      latestName = fileName || "summary-report.html";
+      if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
+      latestBlobUrl = latestHtml
+        ? URL.createObjectURL(new Blob([latestHtml], { type: "text/html;charset=utf-8" }))
+        : "";
+    }
+
+    function formatTime(value) {
+      if (!value) return "未知时间";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return String(value);
+      return date.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false });
+    }
+
+    function bindActions() {
+      document.getElementById("openBtn")?.addEventListener("click", () => {
+        if (!latestBlobUrl) return;
+        window.open(latestBlobUrl, "_blank", "noopener");
+      });
+      document.getElementById("downloadBtn")?.addEventListener("click", () => {
+        if (!latestBlobUrl) return;
+        const a = document.createElement("a");
+        a.href = latestBlobUrl;
+        a.download = latestName;
+        a.click();
+      });
+      document.getElementById("shareBtn")?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          setStatus("链接已复制到剪贴板");
+        } catch (e) {
+          setStatus("复制失败，请手动复制地址栏链接");
+        }
+      });
+    }
+
+    function renderLatestReport(meta, restored = false) {
+      resultHead.style.display = "grid";
+      resultHead.innerHTML = `
+        <div class="metric"><b>类型</b><span>${meta.platform || "-"}</span></div>
+        <div class="metric"><b>AI</b><span>${meta.provider || "DeepSeek"}</span></div>
+        <div class="metric"><b>状态</b><span>${meta.status || "已生成"}</span></div>
+        <div class="metric"><b>时间</b><span style="font-size:14px;">${formatTime(meta.generatedAt)}</span></div>
+      `;
+      actions.style.display = "flex";
+      actions.innerHTML = `
+        <button class="soft-btn" id="openBtn" type="button">新窗口打开报告</button>
+        <button class="soft-btn" id="downloadBtn" type="button">下载 HTML</button>
+        <button class="soft-btn" id="shareBtn" type="button">复制链接</button>
+      `;
+      bindActions();
+      ttsBar.style.display = "flex";
+      preview.innerHTML = latestBlobUrl
+        ? `<iframe title="内容总结分析工具" src="${latestBlobUrl}"></iframe>`
+        : '<div class="empty-state">没有可展示的报告</div>';
+      const extra = restored && meta.savedAt && meta.savedAt !== meta.generatedAt
+        ? `｜浏览器保存于 ${formatTime(meta.savedAt)}`
+        : "";
+      setStatus(restored
+        ? `已恢复浏览器上次报告：原生成于 ${formatTime(meta.generatedAt || meta.savedAt)}${extra}`
+        : (meta.message || "已生成报告。"));
+    }
+
+    function saveLatest(meta) {
+      localStorage.setItem(latestKey, JSON.stringify({
+        meta,
+        html: latestHtml,
+        fileName: latestName,
+        summaryText: latestSummaryText
+      }));
+    }
+
+    function restoreLatest() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(latestKey) || "null");
+        if (!saved || !saved.html || !saved.meta) return;
+        updateLatestBlob(saved.html, saved.fileName);
+        latestSummaryText = saved.summaryText || "";
+        renderLatestReport(saved.meta, true);
+        ttsBar.style.display = "flex";
+      } catch (error) {
+        console.warn("restore latest report failed", error);
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const note = form.elements.note.value.trim();
+      const payload = { mode: currentMode, note };
+
+      if (currentMode === "article") {
+        const articleUrl = inputUrl.value.trim();
+        const articleText = textareaArticle.value.trim();
+        if (!articleUrl && !articleText) {
+          setStatus("请输入文章链接或粘贴文字内容", true);
+          return;
+        }
+        payload.articleUrl = articleUrl;
+        payload.articleText = articleText;
+      } else {
+        const videoUrl = inputUrl.value.trim();
+        if (!videoUrl) {
+          setStatus("请输入视频链接", true);
+          return;
+        }
+        payload.videoUrl = videoUrl;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "正在生成...";
+      setStatus("正在获取内容并生成总结，最长可能约 90 秒...");
+      try {
+        const response = await fetch(`${apiBase}/api/video-summary`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const json = await response.json();
+        if (!response.ok || !json.ok) throw new Error(json.message || `HTTP ${response.status}`);
+        updateLatestBlob(json.html || "", json.filename || "summary-report.html");
+        latestSummaryText = json.summaryText || "";
+        const meta = {
+          platform: json.meta?.platform || "-",
+          provider: json.provider || "DeepSeek",
+          status: json.status || "已生成",
+          message: json.message || "已生成报告。",
+          generatedAt: json.generatedAt || new Date().toISOString(),
+          savedAt: new Date().toISOString()
+        };
+        renderLatestReport(meta, false);
+        saveLatest(meta);
+        stopTts();
+      } catch (error) {
+        preview.innerHTML = `<div class="empty-state">${error.message || "生成失败"}</div>`;
+        setStatus(error.message || "生成失败", true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "生成总结";
+      }
+    });
+
+    restoreLatest();
+  </script>
+</body>
+</html>
