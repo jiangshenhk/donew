@@ -1,452 +1,115 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>墨尔本活动地图 🎯</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<title>Melbourne Events Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 #map{height:100%;width:100%}
-
-.sidebar{
-  position:absolute;top:20px;left:20px;z-index:1000;
-  width:340px;max-height:calc(100vh - 120px);
-  background:rgba(255,255,255,0.95);backdrop-filter:blur(12px);
-  border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.18);
-  display:flex;flex-direction:column;overflow:hidden;
-  pointer-events:auto
-}
-.sidebar-header{
-  padding:16px 18px 12px;border-bottom:1px solid #e9ecef;
-  display:flex;justify-content:space-between;align-items:center;
-  flex-shrink:0
-}
+.sidebar{position:absolute;top:20px;left:20px;z-index:1000;width:340px;max-height:calc(100vh - 120px);background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:16px 18px 12px;border-bottom:1px solid #e9ecef;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
 .sidebar-header h2{font-size:17px;font-weight:700;color:#1a1a2e}
 .sidebar-body{overflow-y:auto;flex:1;padding:12px 18px}
 .sidebar-footer{padding:12px 18px 16px;border-top:1px solid #e9ecef;flex-shrink:0}
-
-.search-btn{
-  width:100%;padding:11px;border:none;border-radius:12px;
-  background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;
-  font-size:15px;font-weight:700;cursor:pointer;
-  transition:opacity 0.2s
-}
-.search-btn:hover{opacity:0.9}
-.search-btn:disabled{opacity:0.5;cursor:not-allowed}
-
-.lang-btn{
-  flex:1;padding:7px;border:2px solid #dee2e6;border-radius:8px;
-  background:#fff;color:#495057;font-size:13px;font-weight:600;
-  cursor:pointer;transition:all 0.15s
-}
-.lang-btn.active{border-color:#2563eb;background:#eff6ff;color:#2563eb}
-.lang-btn:hover{border-color:#93c5fd}
-
-.area-btn{
-  flex:1;padding:7px;border:2px solid #dee2e6;border-radius:8px;
-  background:#fff;color:#495057;font-size:13px;font-weight:600;
-  cursor:pointer;transition:all 0.15s
-}
-.area-btn.active{border-color:#e65100;background:#fff3e0;color:#e65100}
-.area-btn:hover{border-color:#ffb74d}
-
-.date-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
-.date-row label{font-size:12px;color:#6c757d;white-space:nowrap}
-.date-row input[type=date]{
-  flex:1;padding:6px 8px;border:1px solid #dee2e6;border-radius:8px;
-  font-size:13px;font-family:inherit;background:#fff
-}
-
+.search-btn{width:100%;padding:11px;border:none;border-radius:12px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s}
+.search-btn:hover{opacity:.9}.search-btn:disabled{opacity:.5;cursor:not-allowed}
+.lang-btn,.area-btn{flex:1;padding:7px;border:2px solid #dee2e6;border-radius:8px;background:#fff;color:#495057;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.lang-btn.active{border-color:#2563eb;background:#eff6ff;color:#2563eb}.lang-btn:hover{border-color:#93c5fd}.area-btn.active{border-color:#e65100;background:#fff3e0;color:#e65100}.area-btn:hover{border-color:#ffb74d}
+.date-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}.date-row label{font-size:12px;color:#6c757d;white-space:nowrap}.date-row input[type=date]{flex:1;padding:6px 8px;border:1px solid #dee2e6;border-radius:8px;font-size:13px;font-family:inherit;background:#fff}
 .status-text{font-size:12px;color:#6c757d;margin-top:8px;line-height:1.5}
-
-.news-box{
-  background:#f0f4ff;border-radius:10px;padding:12px 14px;
-  font-size:13px;line-height:1.7;color:#1a1a2e;margin-bottom:14px
-}
-
-.events-list{display:grid;gap:8px}
-.event-card{
-  background:#f8f9fa;border-radius:10px;padding:10px 12px;
-  cursor:pointer;transition:background 0.15s;border-left:3px solid #6c757d
-}
-.event-card:hover{background:#e9ecef}
-.event-card .e-name{font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:2px}
-.event-card .e-meta{font-size:11px;color:#6c757d;display:flex;gap:8px;flex-wrap:wrap}
-.event-card .e-cat{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600}
-
-.cat-music{background:#e8f5e9;color:#2e7d32;border-left-color:#43a047}
-.cat-sports{background:#fff3e0;color:#e65100;border-left-color:#fb8c00}
-.cat-culture{background:#e3f2fd;color:#1565c0;border-left-color:#1e88e5}
-.cat-food{background:#fce4ec;color:#c62828;border-left-color:#e53935}
-.cat-festival{background:#f3e5f5;color:#6a1b9a;border-left-color:#8e24aa}
-.cat-art{background:#e0f7fa;color:#00695c;border-left-color:#00897b}
-.cat-family{background:#fff8e1;color:#f57f17;border-left-color:#fbc02d}
-.cat-market{background:#efebe9;color:#4e342e;border-left-color:#795548}
-.cat-other{background:#f5f5f5;color:#616161;border-left-color:#757575}
-
-.legend{
-  position:absolute;bottom:30px;right:20px;z-index:1000;
-  background:rgba(255,255,255,0.92);backdrop-filter:blur(8px);
-  border-radius:10px;padding:10px 14px;font-size:11px;
-  box-shadow:0 2px 12px rgba(0,0,0,0.1);line-height:1.8
-}
-.legend-item{display:flex;align-items:center;gap:6px}
-.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-
-.popup-event{font-size:13px;line-height:1.7;max-width:240px}
-.popup-event .p-name{font-size:15px;font-weight:700;color:#1565c0}
-.popup-event .p-detail{color:#555;margin:4px 0}
-.popup-event .p-date{color:#888;font-size:12px}
-.popup-event .p-venue{color:#888;font-size:12px}
-.popup-event .p-link{display:inline-block;margin-top:6px;padding:4px 10px;background:#e8f4fd;color:#1d4ed8;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none}
-.popup-event .p-link:hover{background:#d0e8f8}
-
-.e-link{color:#1d4ed8;font-size:11px;text-decoration:none;margin-left:4px}
-.e-link:hover{text-decoration:underline}
-
-.filter-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
-.filter-chip{
-  padding:4px 10px;border-radius:999px;border:1px solid #dee2e6;
-  background:#fff;font-size:11px;font-weight:600;cursor:pointer;
-  color:#495057;transition:all 0.15s
-}
-.filter-chip:hover{border-color:#93c5fd;background:#f0f4ff}
-.filter-chip.active{background:#2563eb;color:#fff;border-color:#2563eb}
-
-.empty-state{text-align:center;padding:30px 0;color:#adb5bd;font-size:14px}
-.empty-state .icon{font-size:36px;margin-bottom:8px}
-
-@media(max-width:768px){
-  .sidebar{width:calc(100vw - 40px);left:20px;max-height:50vh;top:auto;bottom:20px}
-  .legend{bottom:auto;top:20px;right:20px}
-}
+.news-box{background:#f0f4ff;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.7;color:#1a1a2e;margin-bottom:14px}
+.events-list{display:grid;gap:8px}.event-card{background:#f8f9fa;border-radius:10px;padding:10px 12px;cursor:pointer;transition:background .15s;border-left:3px solid #6c757d}.event-card:hover{background:#e9ecef}.event-card .e-name{font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:2px}.event-card .e-meta{font-size:11px;color:#6c757d;display:flex;gap:8px;flex-wrap:wrap}.event-card .e-cat{font-size:10px;padding:1px 6px;border-radius:4px;font-weight:600}
+.cat-music{border-left-color:#43a047}.cat-sports{border-left-color:#fb8c00}.cat-culture{border-left-color:#1e88e5}.cat-food{border-left-color:#e53935}.cat-festival{border-left-color:#8e24aa}.cat-art{border-left-color:#00897b}.cat-family{border-left-color:#fbc02d}.cat-market{border-left-color:#795548}.cat-other{border-left-color:#757575}
+.legend{position:absolute;bottom:30px;right:20px;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-radius:10px;padding:10px 14px;font-size:11px;box-shadow:0 2px 12px rgba(0,0,0,.1);line-height:1.8}.legend-item{display:flex;align-items:center;gap:6px}.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.popup-event{font-size:13px;line-height:1.7;max-width:240px}.popup-event .p-name{font-size:15px;font-weight:700;color:#1565c0}.popup-event .p-detail{color:#555;margin:4px 0}.popup-event .p-date,.popup-event .p-venue{color:#888;font-size:12px}.popup-event .p-link{display:inline-block;margin-top:6px;padding:4px 10px;background:#e8f4fd;color:#1d4ed8;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none}.popup-event .p-link:hover{background:#d0e8f8}
+.e-link{color:#1d4ed8;font-size:11px;text-decoration:none;margin-left:4px}.e-link:hover{text-decoration:underline}
+.filter-bar{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}.filter-chip{padding:4px 10px;border-radius:999px;border:1px solid #dee2e6;background:#fff;font-size:11px;font-weight:600;cursor:pointer;color:#495057;transition:all .15s}.filter-chip:hover{border-color:#93c5fd;background:#f0f4ff}.filter-chip.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.empty-state{text-align:center;padding:30px 0;color:#adb5bd;font-size:14px}.empty-state .icon{font-size:36px;margin-bottom:8px}
+@media(max-width:768px){.sidebar{width:calc(100vw - 40px);left:20px;max-height:50vh;top:auto;bottom:20px}.legend{bottom:auto;top:20px;right:20px}}
 </style>
 </head>
 <body>
-
 <div id="map"></div>
-
 <div class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <h2>🎯 墨尔本活动</h2>
-    <span style="font-size:12px;color:#adb5bd" id="countLabel">0 个活动</span>
+    <h2 id="titleText">Events in Melbourne</h2>
+    <span style="font-size:12px;color:#adb5bd" id="countLabel">0 events</span>
   </div>
-  <div class="sidebar-body" id="sidebarBody">
+  <div class="sidebar-body">
     <div id="newsBox" class="news-box" style="display:none"></div>
     <div id="filterBar" class="filter-bar" style="display:none"></div>
     <div id="eventsContainer">
-      <div class="empty-state" id="emptyState">
-        <div class="icon">🗺️</div>
-        <div>点击下方按钮<br>搜索墨尔本近期活动</div>
+      <div class="empty-state">
+        <div class="icon">o</div>
+        <div id="emptyPrompt">Click the button below to search upcoming events.</div>
       </div>
     </div>
   </div>
   <div class="sidebar-footer">
     <div class="date-row">
-      <label>📅</label>
+      <label>Date</label>
       <input type="date" id="startDate">
       <span style="color:#adb5bd">~</span>
       <input type="date" id="endDate">
     </div>
     <div style="display:flex;gap:8px;margin-bottom:8px">
-      <button class="search-btn" id="searchBtn" style="flex:1">🔍 搜索活动</button>
+      <button class="search-btn" id="searchBtn" style="flex:1">Search Melbourne</button>
     </div>
     <div style="display:flex;gap:6px">
-      <button class="lang-btn active" data-lang="zh" id="langZh" style="flex:1">中文</button>
-      <button class="lang-btn" data-lang="en" id="langEn" style="flex:1">English</button>
+      <button class="lang-btn active" data-lang="en" id="langEn">English</button>
+      <button class="lang-btn" data-lang="zh" id="langZh">Chinese</button>
     </div>
     <div style="display:flex;gap:6px;margin-top:6px">
-      <button class="area-btn active" data-area="all" id="areaAll" style="flex:1">全墨尔本</button>
-      <button class="area-btn" data-area="west" id="areaWest" style="flex:1">仅西区+Geelong</button>
+      <button class="area-btn active" data-area="all" id="areaAll">All Melbourne</button>
+      <button class="area-btn" data-area="west" id="areaWest">West + Geelong</button>
     </div>
-    <div class="status-text" id="statusText">点击搜索查找活动</div>
+    <div class="status-text" id="statusText">Ready to search for events.</div>
   </div>
 </div>
-
-<div class="legend">
-  <div class="legend-item"><span class="legend-dot" style="background:#43a047"></span> 音乐</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#fb8c00"></span> 体育</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#1e88e5"></span> 文化</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#e53935"></span> 美食</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#8e24aa"></span> 节日</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#00897b"></span> 艺术</div>
-  <div class="legend-item"><span class="legend-dot" style="background:#fbc02d"></span> 亲子</div>
-</div>
-
+<div class="legend" id="legend"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const CAT_COLORS = {
-  music: '#43a047', sports: '#fb8c00', culture: '#1e88e5',
-  food: '#e53935', festival: '#8e24aa', art: '#00897b',
-  family: '#fbc02d', market: '#795548', other: '#757575'
-}
-const CAT_LABELS = {
-  music: { zh: '音乐', en: 'Music' },
-  sports: { zh: '体育', en: 'Sports' },
-  culture: { zh: '文化', en: 'Culture' },
-  food: { zh: '美食', en: 'Food' },
-  festival: { zh: '节日', en: 'Festival' },
-  art: { zh: '艺术', en: 'Art' },
-  family: { zh: '亲子', en: 'Family' },
-  market: { zh: '市集', en: 'Market' },
-  other: { zh: '其他', en: 'Other' }
-}
-function tl(key) { return CAT_LABELS[key]?.[currentLang] || key }
-
-const map = L.map('map', {
-  center: [-37.82, 144.97],
-  zoom: 12,
-  zoomControl: true
-})
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap'
-}).addTo(map)
-
-let markers = {}
-let markerGroup = L.layerGroup().addTo(map)
-let events = []
-let isLoading = false
-let currentLang = 'zh'
-let currentArea = 'all'
-let activeFilter = 'all'
-
-function setDefaultDates() {
-  const today = new Date()
-  const end = new Date()
-  end.setDate(end.getDate() + 30)
-  document.getElementById('startDate').value = today.toISOString().split('T')[0]
-  document.getElementById('endDate').value = end.toISOString().split('T')[0]
-}
-setDefaultDates()
-
-function catClass(cat) { return 'cat-' + (cat || 'other') }
-
-function makeIcon(cat) {
-  const color = CAT_COLORS[cat] || '#757575'
-  return L.divIcon({
-    className: '',
-    html: `<svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="10" fill="${color}" opacity="0.85" stroke="#fff" stroke-width="2"/><text x="14" y="17" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">●</text></svg>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -14]
-  })
-}
-
-function renderEvents(data) {
-  events = data.events || []
-  const news = data.news || ''
-  const container = document.getElementById('eventsContainer')
-  const newsBox = document.getElementById('newsBox')
-  const countLabel = document.getElementById('countLabel')
-  const emptyMsg = currentLang === 'zh' ? '没有找到活动' : 'No events found'
-
-  if (events.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div>${emptyMsg}</div></div>`
-    countLabel.textContent = currentLang === 'zh' ? '0 个活动' : '0 events'
-    newsBox.style.display = 'none'
-    document.getElementById('filterBar').style.display = 'none'
-    return
-  }
-
-  if (news) {
-    newsBox.style.display = 'block'
-    newsBox.textContent = news
-  } else {
-    newsBox.style.display = 'none'
-  }
-
-  activeFilter = 'all'
-  renderFilterBar()
-  renderFilteredEvents()
-}
-
-function renderFilterBar() {
-  const bar = document.getElementById('filterBar')
-  const cats = [...new Set(events.map(e => e.category || 'other'))]
-  const allLabel = currentLang === 'zh' ? '全部' : 'All'
-  let html = `<button class="filter-chip${activeFilter === 'all' ? ' active' : ''}" data-cat="all">${allLabel}</button>`
-  cats.forEach(cat => {
-    html += `<button class="filter-chip${activeFilter === cat ? ' active' : ''}" data-cat="${cat}" style="border-color:${CAT_COLORS[cat] || '#999'}">${tl(cat)}</button>`
-  })
-  bar.innerHTML = html
-  bar.style.display = 'flex'
-
-  bar.querySelectorAll('.filter-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      setFilter(btn.dataset.cat)
-    })
-  })
-}
-
-function setFilter(cat) {
-  activeFilter = cat
-  renderFilterBar()
-  renderFilteredEvents()
-}
-
-function renderFilteredEvents() {
-  const container = document.getElementById('eventsContainer')
-  const countLabel = document.getElementById('countLabel')
-
-  markerGroup.clearLayers()
-  markers = {}
-
-  const filtered = activeFilter === 'all' ? events : events.filter(e => (e.category || 'other') === activeFilter)
-  const emptyMsg = currentLang === 'zh' ? '没有匹配的活动' : 'No matching events'
-
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div>${emptyMsg}</div></div>`
-    countLabel.textContent = filtered.length + (currentLang === 'zh' ? ' 个活动' : ' events')
-    return
-  }
-
-  countLabel.textContent = filtered.length + ' / ' + events.length + (currentLang === 'zh' ? ' 个活动' : ' events')
-
-  let html = '<div class="events-list">'
-  filtered.forEach((e, i) => {
-    const cat = e.category || 'other'
-    const cls = catClass(cat)
-    html += `
-      <div class="event-card ${cls}" data-idx="${i}">
-        <div class="e-name">${escape(e.name)}</div>
-        <div class="e-meta">
-          <span>${e.date || ''}</span>
-          ${e.venue ? `<span>📍 ${escape(e.venue)}</span>` : ''}
-          ${e.url ? `<a href="${escape(e.url)}" target="_blank" class="e-link">🔗</a>` : ''}
-          <span class="e-cat" style="background:${CAT_COLORS[cat] || '#999'};color:#fff">${tl(cat)}</span>
-        </div>
-      </div>`
-  })
-  html += '</div>'
-  container.innerHTML = html
-
-  filtered.forEach((e, i) => {
-    if (!e.lat || !e.lng) return
-    const m = L.marker([e.lat, e.lng], { icon: makeIcon(e.category) })
-    m.bindPopup(`
-      <div class="popup-event">
-        <div class="p-name">${escape(e.name)}</div>
-        <div class="p-detail">${escape(e.description || '')}</div>
-        <div class="p-date">📅 ${e.date || ''}</div>
-        ${e.venue ? `<div class="p-venue">📍 ${escape(e.venue)}</div>` : ''}
-        ${e.url ? `<a href="${escape(e.url)}" target="_blank" class="p-link">${currentLang === 'zh' ? '🔗 查看详情' : '🔗 Details'}</a>` : ''}
-        <div style="margin-top:4px"><span class="e-cat" style="background:${CAT_COLORS[e.category] || '#999'};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">${tl(e.category)}</span></div>
-      </div>
-    `)
-    markerGroup.addLayer(m)
-    markers[i] = m
-  })
-
-  container.querySelectorAll('.event-card').forEach(el => {
-    el.addEventListener('click', () => {
-      const idx = parseInt(el.dataset.idx)
-      const m = markers[idx]
-      if (m) {
-        map.setView(m.getLatLng(), 14)
-        m.openPopup()
-      }
-    })
-  })
-}
-
-function escape(s) {
-  const d = document.createElement('div')
-  d.textContent = s || ''
-  return d.innerHTML
-}
-
-function fitMapBounds() {
-  if (events.length === 0) return
-  const bounds = []
-  events.forEach(e => {
-    if (e.lat && e.lng) bounds.push([e.lat, e.lng])
-  })
-  if (bounds.length > 0) {
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
-  }
-}
-
-async function searchEvents() {
-  if (isLoading) return
-  isLoading = true
-  const btn = document.getElementById('searchBtn')
-  const status = document.getElementById('statusText')
-  btn.disabled = true
-
-  let seconds = 0
-  const timer = setInterval(() => {
-    seconds++
-    btn.textContent = currentLang === 'zh'
-      ? '⏳ 搜索中 ' + seconds + 's...'
-      : '⏳ Searching ' + seconds + 's...'
-  }, 1000)
-
-  const areaSearchLabel = currentArea === 'west'
-    ? (currentLang === 'zh' ? '墨尔本西区+Geelong' : 'Western Melbourne+Geelong')
-    : (currentLang === 'zh' ? '墨尔本都会区' : 'Greater Melbourne')
-  status.textContent = currentLang === 'zh'
-    ? '正在查找' + areaSearchLabel + '活动...'
-    : 'Searching ' + areaSearchLabel + ' events...'
-
-  try {
-    const apiBase = location.origin.includes('vercel') ? '' : 'https://donew-beta.vercel.app'
-    const resp = await fetch(apiBase + '/api/lucas-events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        lang: currentLang,
-        area: currentArea,
-        startDate: document.getElementById('startDate').value,
-        endDate: document.getElementById('endDate').value
-      })
-    })
-    const data = await resp.json()
-    if (!resp.ok || !data.ok) throw new Error(data.error || '请求失败')
-
-    renderEvents(data)
-    fitMapBounds()
-    clearInterval(timer)
-    const found = data.events?.length || 0
-    status.textContent = currentLang === 'zh' ? '✅ 找到 ' + found + ' 个活动' : '✅ Found ' + found + ' events'
-  } catch (err) {
-    clearInterval(timer)
-    status.textContent = '❌ ' + err.message
-  } finally {
-    isLoading = false
-    btn.disabled = false
-    const areaLabel = currentArea === 'west'
-      ? (currentLang === 'zh' ? '西区+Geelong' : 'Western+Geelong')
-      : (currentLang === 'zh' ? '墨尔本' : 'Melbourne')
-    btn.textContent = currentLang === 'zh' ? '🔍 搜索' + areaLabel : '🔍 Search ' + areaLabel
-  }
-}
-
-document.getElementById('searchBtn').addEventListener('click', searchEvents)
-
-document.querySelectorAll('.lang-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'))
-    btn.classList.add('active')
-    currentLang = btn.dataset.lang
-    if (events.length > 0) {
-      renderFilterBar()
-      renderFilteredEvents()
-    }
-  })
-})
-
-document.querySelectorAll('.area-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.area-btn').forEach(b => b.classList.remove('active'))
-    btn.classList.add('active')
-    currentArea = btn.dataset.area
-  })
-})
+const CAT_COLORS={music:"#43a047",sports:"#fb8c00",culture:"#1e88e5",food:"#e53935",festival:"#8e24aa",art:"#00897b",family:"#fbc02d",market:"#795548",other:"#757575"};
+const DEMO_EVENTS=[
+  {name:"Queen Victoria Market Winter Night Market",date:"2026-07-29",venue:"Queen Victoria Market",category:"market",lat:-37.8075,lng:144.9568,description:"Food stalls, live music, and winter shopping.",url:"https://qvm.com.au/"},
+  {name:"NGV Friday Nights",date:"2026-08-01",venue:"NGV International",category:"art",lat:-37.8226,lng:144.9689,description:"Late-night gallery access with talks and performances.",url:"https://www.ngv.vic.gov.au/"},
+  {name:"Live at the Bowl",date:"2026-08-03",venue:"Sidney Myer Music Bowl",category:"music",lat:-37.8236,lng:144.9737,description:"Open-air evening concert in the gardens precinct.",url:"https://www.artscentremelbourne.com.au/"},
+  {name:"Docklands Family Weekend",date:"2026-08-08",venue:"Docklands",category:"family",lat:-37.8142,lng:144.9473,description:"Family activities, pop-up games, and food trucks.",url:"https://whatson.melbourne.vic.gov.au/"},
+  {name:"Kardinia Park Match Day",date:"2026-08-10",venue:"GMHBA Stadium, Geelong",category:"sports",lat:-38.1581,lng:144.3547,description:"Big game atmosphere with pre-match fan events.",url:"https://www.kardiniapark.vic.gov.au/"},
+  {name:"Fed Square Cultural Weekend",date:"2026-08-15",venue:"Federation Square",category:"culture",lat:-37.81798,lng:144.96906,description:"Talks, workshops, and community performances in the city.",url:"https://fedsquare.com/"},
+  {name:"Yarra Food Trail",date:"2026-08-18",venue:"Southbank Promenade",category:"food",lat:-37.8206,lng:144.9652,description:"A self-guided tasting trail with local vendors.",url:"https://whatson.melbourne.vic.gov.au/"},
+  {name:"Westside Lantern Festival",date:"2026-08-22",venue:"Footscray Park",category:"festival",lat:-37.7981,lng:144.9014,description:"Night lights, performances, and community food stalls.",url:"https://maribyrnong.vic.gov.au/"}
+];
+const CAT_LABELS={music:{zh:"Music",en:"Music"},sports:{zh:"Sports",en:"Sports"},culture:{zh:"Culture",en:"Culture"},food:{zh:"Food",en:"Food"},festival:{zh:"Festival",en:"Festival"},art:{zh:"Art",en:"Art"},family:{zh:"Family",en:"Family"},market:{zh:"Market",en:"Market"},other:{zh:"Other",en:"Other"}};
+const UI_TEXT={en:{title:"Events in Melbourne",emptyPrompt:"Click the button below to search upcoming events.",ready:"Ready to search for events.",searchAreaAll:"Search Melbourne",searchAreaWest:"Search West + Geelong",found:"Found ",foundSuffix:" events",failed:"Request failed",noEvents:"No events found",noMatches:"No matching events",details:"Details",areaAll:"All Melbourne",areaWest:"West + Geelong",searchingArea:"Searching ",searchingAreaSuffix:" events...",loading:"Searching ",loadingSuffix:"s...",filterAll:"All",demoAll:"Showing built-in demo events because live search is unavailable from a local file.",demoWest:"Showing built-in demo events for western Melbourne and Geelong."},zh:{title:"Melbourne Events Map",emptyPrompt:"Click the button below to search upcoming events.",ready:"Ready to search for events.",searchAreaAll:"Search Melbourne",searchAreaWest:"Search West + Geelong",found:"Found ",foundSuffix:" events",failed:"Request failed",noEvents:"No events found",noMatches:"No matching events",details:"Details",areaAll:"All Melbourne",areaWest:"West + Geelong",searchingArea:"Searching ",searchingAreaSuffix:" events...",loading:"Searching ",loadingSuffix:"s...",filterAll:"All",demoAll:"Showing built-in demo events because live search is unavailable from a local file.",demoWest:"Showing built-in demo events for western Melbourne and Geelong."}};
+let markers={},events=[],isLoading=false,currentLang="en",currentArea="all",activeFilter="all";
+const map=L.map("map",{center:[-37.82,144.97],zoom:12,zoomControl:true});
+const markerGroup=L.layerGroup().addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+function t(key){return UI_TEXT[currentLang][key]}
+function tl(key){return CAT_LABELS[key]?.[currentLang]||key}
+function setDefaultDates(){const today=new Date();const end=new Date();end.setDate(end.getDate()+30);document.getElementById("startDate").value=today.toISOString().split("T")[0];document.getElementById("endDate").value=end.toISOString().split("T")[0]}
+function catClass(cat){return "cat-"+(cat||"other")}
+function escapeHtml(value){const div=document.createElement("div");div.textContent=value||"";return div.innerHTML}
+function makeIcon(cat){const color=CAT_COLORS[cat]||CAT_COLORS.other;return L.divIcon({className:"",html:`<svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="10" fill="${color}" opacity="0.85" stroke="#fff" stroke-width="2"></circle><text x="14" y="18" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">*</text></svg>`,iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-14]})}
+function formatCount(filtered,total){if(filtered===total){return `${filtered} events`}return `${filtered} / ${total} events`}
+function buildPopup(item){const dateLine=item.date?`<div class="p-date">Date: ${escapeHtml(item.date)}</div>`:"";const venueLine=item.venue?`<div class="p-venue">Venue: ${escapeHtml(item.venue)}</div>`:"";const desc=item.description?`<div class="p-detail">${escapeHtml(item.description)}</div>`:"";const link=item.url?`<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="p-link">${t("details")}</a>`:"";return `<div class="popup-event"><div class="p-name">${escapeHtml(item.name)}</div>${desc}${dateLine}${venueLine}${link}<div style="margin-top:4px"><span class="e-cat" style="background:${CAT_COLORS[item.category]||CAT_COLORS.other};color:#fff;padding:1px 6px;border-radius:4px;font-size:10px">${tl(item.category||"other")}</span></div></div>`}
+function renderLegend(){const order=["music","sports","culture","food","festival","art","family","market"];document.getElementById("legend").innerHTML=order.map(cat=>`<div class="legend-item"><span class="legend-dot" style="background:${CAT_COLORS[cat]}"></span> ${tl(cat)}</div>`).join("")}
+function renderFilterBar(){const bar=document.getElementById("filterBar");const cats=[...new Set(events.map(item=>item.category||"other"))];let html=`<button class="filter-chip${activeFilter==="all"?" active":""}" data-cat="all">${t("filterAll")}</button>`;cats.forEach(cat=>{html+=`<button class="filter-chip${activeFilter===cat?" active":""}" data-cat="${cat}" style="border-color:${CAT_COLORS[cat]||"#999"}">${tl(cat)}</button>`});bar.innerHTML=html;bar.style.display="flex";bar.querySelectorAll(".filter-chip").forEach(btn=>btn.addEventListener("click",()=>setFilter(btn.dataset.cat)))}
+function renderFilteredEvents(){const container=document.getElementById("eventsContainer");const countLabel=document.getElementById("countLabel");markerGroup.clearLayers();markers={};const filtered=activeFilter==="all"?events:events.filter(item=>(item.category||"other")===activeFilter);if(filtered.length===0){container.innerHTML=`<div class="empty-state"><div class="icon">!</div><div>${t("noMatches")}</div></div>`;countLabel.textContent=formatCount(0,events.length);return}countLabel.textContent=formatCount(filtered.length,events.length);let html='<div class="events-list">';filtered.forEach((item,index)=>{const cat=item.category||"other";html+=`<div class="event-card ${catClass(cat)}" data-idx="${index}"><div class="e-name">${escapeHtml(item.name)}</div><div class="e-meta"><span>${escapeHtml(item.date||"")}</span>${item.venue?`<span>${escapeHtml(item.venue)}</span>`:""}${item.url?`<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="e-link">Link</a>`:""}<span class="e-cat" style="background:${CAT_COLORS[cat]||"#999"};color:#fff">${tl(cat)}</span></div></div>`});html+="</div>";container.innerHTML=html;filtered.forEach((item,index)=>{if(typeof item.lat!=="number"||typeof item.lng!=="number")return;const marker=L.marker([item.lat,item.lng],{icon:makeIcon(item.category)});marker.bindPopup(buildPopup(item));markerGroup.addLayer(marker);markers[index]=marker});container.querySelectorAll(".event-card").forEach(el=>el.addEventListener("click",()=>{const marker=markers[Number.parseInt(el.dataset.idx,10)];if(marker){map.setView(marker.getLatLng(),14);marker.openPopup()}}))}
+function renderEvents(data){events=Array.isArray(data.events)?data.events:[];const newsBox=document.getElementById("newsBox");const filterBar=document.getElementById("filterBar");const container=document.getElementById("eventsContainer");const countLabel=document.getElementById("countLabel");if(events.length===0){container.innerHTML=`<div class="empty-state"><div class="icon">!</div><div>${t("noEvents")}</div></div>`;countLabel.textContent="0 events";newsBox.style.display="none";filterBar.style.display="none";markerGroup.clearLayers();markers={};return}if(data.news){newsBox.textContent=data.news;newsBox.style.display="block"}else{newsBox.style.display="none"}activeFilter="all";renderFilterBar();renderFilteredEvents()}
+function fitMapBounds(){const bounds=[];events.forEach(item=>{if(typeof item.lat==="number"&&typeof item.lng==="number"){bounds.push([item.lat,item.lng])}});if(bounds.length>0){map.fitBounds(bounds,{padding:[40,40],maxZoom:14})}}
+function setFilter(cat){activeFilter=cat;renderFilterBar();renderFilteredEvents()}
+function updateStaticText(){document.title=t("title");document.getElementById("titleText").textContent=t("title");document.getElementById("emptyPrompt").textContent=t("emptyPrompt");document.getElementById("areaAll").textContent=t("areaAll");document.getElementById("areaWest").textContent=t("areaWest");if(!isLoading){document.getElementById("searchBtn").textContent=currentArea==="west"?t("searchAreaWest"):t("searchAreaAll")}if(events.length===0){document.getElementById("statusText").textContent=t("ready")}renderLegend();if(events.length>0){renderFilterBar();renderFilteredEvents()}}
+function getDemoPayload(){const westOnly=currentArea==="west";const filtered=DEMO_EVENTS.filter(item=>!westOnly||item.lng<144.92||(item.venue||"").includes("Geelong"));return {ok:true,news:westOnly?t("demoWest"):t("demoAll"),events:filtered}}
+async function searchEvents(){if(isLoading)return;isLoading=true;const btn=document.getElementById("searchBtn");const status=document.getElementById("statusText");btn.disabled=true;let seconds=0;const timer=setInterval(()=>{seconds+=1;btn.textContent=`${t("loading")}${seconds}${t("loadingSuffix")}`},1000);const areaLabel=currentArea==="west"?t("areaWest"):t("areaAll");status.textContent=`${t("searchingArea")}${areaLabel}${t("searchingAreaSuffix")}`;try{const isLocalFile=location.protocol==="file:";if(isLocalFile){const data=getDemoPayload();renderEvents(data);fitMapBounds();status.textContent=`${t("found")}${data.events.length}${t("foundSuffix")}`;return}const apiBase=location.origin.includes("vercel")?"":"https://donew-beta.vercel.app";const response=await fetch(`${apiBase}/api/lucas-events`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({lang:currentLang,area:currentArea,startDate:document.getElementById("startDate").value,endDate:document.getElementById("endDate").value})});const data=await response.json();if(!response.ok||!data.ok){throw new Error(data.error||t("failed"))}renderEvents(data);fitMapBounds();status.textContent=`${t("found")}${data.events?.length||0}${t("foundSuffix")}`}catch(error){const data=getDemoPayload();renderEvents(data);fitMapBounds();status.textContent=`${t("failed")}: ${error.message}. Using built-in demo events instead.`}finally{clearInterval(timer);isLoading=false;btn.disabled=false;btn.textContent=currentArea==="west"?t("searchAreaWest"):t("searchAreaAll")}}
+document.getElementById("searchBtn").addEventListener("click",searchEvents);
+document.querySelectorAll(".lang-btn").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll(".lang-btn").forEach(item=>item.classList.remove("active"));btn.classList.add("active");currentLang=btn.dataset.lang;updateStaticText()}));
+document.querySelectorAll(".area-btn").forEach(btn=>btn.addEventListener("click",()=>{document.querySelectorAll(".area-btn").forEach(item=>item.classList.remove("active"));btn.classList.add("active");currentArea=btn.dataset.area;if(!isLoading){document.getElementById("searchBtn").textContent=currentArea==="west"?t("searchAreaWest"):t("searchAreaAll")}}));
+setDefaultDates();renderLegend();updateStaticText();
 </script>
 </body>
 </html>
