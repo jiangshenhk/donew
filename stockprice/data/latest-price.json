@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-25T12:10:33.472Z",
-  "checkedAt": "2026-07-25T12:10:33.472Z",
+  "updatedAt": "2026-07-25T13:59:11.850Z",
+  "checkedAt": "2026-07-25T13:59:11.850Z",
   "successCount": 24,
   "failCount": 1,
   "data": [
@@ -134,13 +134,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(618.92)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 573.30400390625,
-      "sma10": 582.3170043945313,
-      "vs5Pct": "-2.11",
-      "vs10Pct": "-3.63",
-      "barCount": 20
+      "sma5": 574.2359985351562,
+      "sma10": 577.3330017089844,
+      "vs5Pct": "-2.27",
+      "vs10Pct": "-2.80",
+      "barCount": 21
     },
     {
       "symbol": "SOXX",
@@ -157,13 +157,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(601.5)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 541.0800048828125,
-      "sma10": 549.40400390625,
-      "vs5Pct": "-2.60",
-      "vs10Pct": "-4.08",
-      "barCount": 20
+      "sma5": 542.1200073242187,
+      "sma10": 543.9710021972656,
+      "vs5Pct": "-2.79",
+      "vs10Pct": "-3.12",
+      "barCount": 21
     },
     {
       "symbol": "MAGS",
@@ -203,13 +203,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(67.25)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 64.35599899291992,
-      "sma10": 64.86099967956542,
-      "vs5Pct": "-1.59",
-      "vs10Pct": "-2.36",
-      "barCount": 20
+      "sma5": 64.36399917602539,
+      "sma10": 64.50399971008301,
+      "vs5Pct": "-1.61",
+      "vs10Pct": "-1.82",
+      "barCount": 21
     },
     {
       "symbol": "FXI",
@@ -330,10 +330,10 @@
       "symbol": "BTC-USD",
       "category": "Bitcoin",
       "name": "Bitcoin USD",
-      "price": 63994.73,
+      "price": 64088.65,
       "previousClose": 64098.49609375,
-      "changePercent": "-0.16",
-      "marketTime": "2026-07-25T12:10:13.000Z",
+      "changePercent": "-0.02",
+      "marketTime": "2026-07-25T13:58:51.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
@@ -343,10 +343,10 @@
       "previousCloseDate": "2026-07-24",
       "latestBarDate": "2026-07-25",
       "marketDate": "2026-07-25",
-      "sma5": 65148.7921875,
-      "sma10": 64815.013671875,
-      "vs5Pct": "-1.77",
-      "vs10Pct": "-1.27",
+      "sma5": 65167.57578125,
+      "sma10": 64824.40546875,
+      "vs5Pct": "-1.66",
+      "vs10Pct": "-1.13",
       "barCount": 21
     },
     {
