@@ -468,6 +468,12 @@ export default async function handler(req, res) {
           });
         }
         platform = "B站";
+      } else if (platform === "wechat") {
+        return sendJson(res, 400, {
+          ok: false,
+          message: "微信视频号内容暂不支持直接获取。请切换到「文章总结」模式，手动粘贴视频的文字描述/字幕/笔记即可。",
+          suggestMode: "article"
+        });
       } else {
         return sendJson(res, 400, {
           ok: false,

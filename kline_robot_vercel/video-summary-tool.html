@@ -241,7 +241,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>内容总结分析工具 <span class="version">v0.3.0｜2026-07-25｜去除原文+增加AI深度分析</span></h1>
+      <h1>内容总结分析工具 <span class="version">v0.4.0｜2026-07-25｜微信视频引导切换文章模式</span></h1>
       <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </header>
 
@@ -256,6 +256,10 @@
           <label for="videoUrl" id="labelUrl">视频链接</label>
           <input id="videoUrl" name="videoUrl" value="" placeholder="粘贴 YouTube / B站 视频链接">
           <span class="hint" id="hintUrl">支持：YouTube、B站（Bilibili）</span>
+          <div id="wechatHint" style="display:none; margin-top:6px; padding:8px 12px; background:#fefce8; border:1px solid #fde68a; border-radius:10px; font-size:12px; color:#92400e;">
+            微信视频号目前无法通过链接获取内容。请切换到<strong>「文章总结」</strong>模式，手动粘贴视频的文字描述/字幕/笔记，即可生成总结。
+            <button class="soft-btn" type="button" id="switchToArticleBtn" style="margin-left:8px; font-size:11px; padding:4px 10px;">切换并粘贴 →</button>
+          </div>
         </div>
 
         <div id="fieldArticleText" class="field" style="display:none;">
@@ -339,6 +343,40 @@
     let latestSummaryText = "";
 
     // --- Mode toggle ---
+    const wechatHint = document.getElementById("wechatHint");
+    const switchToArticleBtn = document.getElementById("switchToArticleBtn");
+
+    function detectIsWechat(url) {
+      const u = String(url || "").toLowerCase();
+      return u.includes("mp.weixin.qq.com") || u.includes("weixin.qq.com") || u.includes("channels.weixin");
+    }
+
+    function showWechatHint(show) {
+      wechatHint.style.display = show ? "block" : "none";
+    }
+
+    inputUrl.addEventListener("input", () => {
+      const show = currentMode === "video" && detectIsWechat(inputUrl.value);
+      showWechatHint(show);
+    });
+
+    switchToArticleBtn.addEventListener("click", () => {
+      const currentValue = inputUrl.value;
+      document.querySelectorAll(".mode-tab").forEach(b => b.classList.remove("active"));
+      document.querySelector('.mode-tab[data-mode="article"]').classList.add("active");
+      currentMode = "article";
+      labelUrl.textContent = "文章链接（可选）";
+      hintUrl.textContent = "粘贴网页文章链接，或直接在下方粘贴文字";
+      inputUrl.placeholder = "粘贴网页文章链接（微信公众号、博客等）";
+      fieldArticle.style.display = "grid";
+      wechatHint.style.display = "none";
+      if (currentValue) {
+        textareaArticle.value = "（请在此粘贴微信视频的文字描述、字幕或笔记内容）";
+        textareaArticle.focus();
+      }
+      setStatus("已切换到文章总结模式，请粘贴微信视频的文字内容。");
+    });
+
     document.querySelectorAll(".mode-tab").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".mode-tab").forEach(b => b.classList.remove("active"));
@@ -349,11 +387,13 @@
           hintUrl.textContent = "粘贴网页文章链接，或直接在下方粘贴文字";
           inputUrl.placeholder = "粘贴网页文章链接（微信公众号、博客等）";
           fieldArticle.style.display = "grid";
+          showWechatHint(false);
         } else {
           labelUrl.textContent = "视频链接";
           hintUrl.textContent = "支持：YouTube、B站（Bilibili）";
           inputUrl.placeholder = "粘贴 YouTube / B站 视频链接";
           fieldArticle.style.display = "none";
+          showWechatHint(detectIsWechat(inputUrl.value));
         }
       });
     });
@@ -542,7 +582,10 @@
           body: JSON.stringify(payload)
         });
         const json = await response.json();
-        if (!response.ok || !json.ok) throw new Error(json.message || `HTTP ${response.status}`);
+        if (!response.ok || !json.ok) {
+          if (json.suggestMode === "article") setTimeout(() => switchToArticleBtn.click(), 100);
+          throw new Error(json.message || `HTTP ${response.status}`);
+        }
         updateLatestBlob(json.html || "", json.filename || "summary-report.html");
         latestSummaryText = json.summaryText || "";
         const meta = {
