@@ -3,354 +3,252 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="description" content="基于中国传统八字命理学，结合 DeepSeek AI 深度分析个人命运、婚姻、事业、健康与风水。">
+<meta name="description" content="中国传统八字命理深度分析，基于天干地支、五行生克、十神格局，结合 DeepSeek AI 智能解读。">
 <title>八字命理深度分析 · donew</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#e8ede4;--panel:#fff;--border:#c4d0bd;--text:#3a4f2f;--muted:#9ab58a;--accent:#56805a;--accent-hover:#4a6d4d;--input-bg:#f8faf6;--input-border:#d4dccd;--input-focus:#7a9b6e;--report-bg:#1a1b1e;--report-border:#2a2d2a;--report-title:#a8c98e;--report-text:#c4ccb8;--report-muted:#5a6052;--report-accent:#7a9b6e}
+:root{--bg:#e8ede4;--panel:#fff;--border:#c4d0bd;--text:#3a4f2f;--muted:#9ab58a;--accent:#56805a;--accentHover:#4a6d4d;--inputBg:#f8faf6;--inputBd:#d4dccd;--inputFocus:#7a9b6e;--rBg:#1a1b1e;--rBd:#2a2d2a;--rTitle:#a8c98e;--rText:#c4ccb8;--rMuted:#5a6052;--rAccent:#7a9b6e;--rGold:#b8a862;--rWarn:#d4745c}
 body{font-family:"Noto Serif SC","Songti SC","SimSun",serif;background:var(--bg);min-height:100vh;padding:20px}
 .shell{max-width:1100px;margin:0 auto}
 .topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;margin-bottom:20px;background:rgba(255,255,255,.7);border:1px solid var(--border);border-radius:6px}
 .brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brand h1{color:var(--text);font-size:22px;font-weight:600;letter-spacing:4px}
 .version{background:#dfe8dc;color:var(--accent);padding:3px 10px;border-radius:3px;font-size:12px;font-family:monospace}
-.topbar-right{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--muted)}
-.topbar-right a{color:var(--muted);text-decoration:none}
-.topbar-right a:hover{color:var(--text)}
+.top-right{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--muted)}
+.top-right a{color:var(--muted);text-decoration:none}
 .layout{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:28px 24px;position:sticky;top:20px;box-shadow:0 2px 16px rgba(0,0,0,.06)}
-.panel-header{text-align:center;margin-bottom:28px}
-.panel-icon{font-size:30px;margin-bottom:4px}
-.panel-header h2{color:var(--text);font-size:20px;letter-spacing:3px;font-weight:600}
-.panel-header p{color:var(--muted);font-size:12px;margin-top:2px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:28px 24px;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow-y:auto;box-shadow:0 2px 16px rgba(0,0,0,.06)}
+.p-header{text-align:center;margin-bottom:28px}
+.p-header .icon{font-size:30px;margin-bottom:4px}
+.p-header h2{color:var(--text);font-size:20px;letter-spacing:3px;font-weight:600}
+.p-header p{color:var(--muted);font-size:12px;margin-top:2px}
 .field{margin-bottom:20px}
 .field label{display:flex;align-items:center;gap:6px;color:var(--text);font-size:13px;font-weight:600;margin-bottom:6px}
-.field label .hint{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#bcc9b2;color:#fff;font-size:11px;cursor:help;font-weight:700;position:relative}
-.hint:hover::after{content:attr(data-tip);position:absolute;left:24px;top:-4px;background:#1a1b1e;color:#c4ccb8;font-size:12px;font-weight:400;padding:6px 10px;border-radius:4px;white-space:nowrap;z-index:10;pointer-events:none}
-input[type=text],input[type=number]{width:100%;padding:10px 12px;border:none;border-bottom:2px solid var(--input-border);background:var(--input-bg);font-size:15px;color:#384232;font-family:inherit;transition:border-color .2s;border-radius:0;-webkit-appearance:none}
-input:focus{outline:none;border-bottom-color:var(--input-focus)}
-.year-selects{display:flex;gap:8px}
-.year-selects input{flex:1;min-width:50px;text-align:center}
-.radio-group{display:flex;gap:8px}
-.radio-group button{flex:1;padding:10px;border:1.5px solid var(--input-border);border-radius:4px;background:var(--input-bg);color:#5a6b4f;font-size:14px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-appearance:none;appearance:none}
-.radio-group button.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
-.submit-btn{width:100%;padding:15px;border:none;border-radius:6px;background:var(--accent);color:#fff;font-size:17px;font-weight:700;cursor:pointer;letter-spacing:3px;font-family:inherit;box-shadow:0 3px 12px rgba(86,128,90,.25);transition:transform .15s,box-shadow .15s}
-.submit-btn:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 6px 20px rgba(86,128,90,.35)}
-.submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
-.panel-footer{display:flex;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:1px solid #e8ede4;color:var(--muted);font-size:11px}
-.result{background:var(--report-bg);border:1.5px solid var(--report-border);border-radius:8px;padding:32px 28px;min-height:500px;box-shadow:0 4px 24px rgba(0,0,0,.15);color:var(--report-text);font-size:15px;line-height:1.9}
-.result h1{text-align:center;color:var(--report-title);font-size:20px;letter-spacing:3px;font-weight:600;margin-bottom:20px}
-.result-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:var(--report-muted);text-align:center}
-.result-empty .icon{font-size:48px;margin-bottom:16px;opacity:.5}
-.result-empty p{font-size:14px}
-.result-loading{display:flex;align-items:center;justify-content:center;min-height:400px;color:var(--report-title);font-size:16px}
-.info-line{display:flex;flex-wrap:wrap;gap:2px 12px;color:var(--report-text);font-size:14px;margin-bottom:8px}
-.section-title{color:var(--report-title);font-size:17px;font-weight:600;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--report-border)}
+.field .hint{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#bcc9b2;color:#fff;font-size:11px;cursor:help;font-weight:700;position:relative}
+.field .hint:hover::after{content:attr(data-tip);position:absolute;left:24px;top:-4px;background:var(--rBg);color:var(--rText);font-size:12px;font-weight:400;padding:6px 10px;border-radius:4px;white-space:nowrap;z-index:10;pointer-events:none}
+input,select{width:100%;padding:10px 12px;border:none;border-bottom:2px solid var(--inputBd);background:var(--inputBg);font-size:15px;color:#384232;font-family:inherit;transition:border-color .2s;border-radius:0;-webkit-appearance:none;appearance:none}
+input:focus,select:focus{outline:none;border-bottom-color:var(--inputFocus)}
+.date-row{display:flex;gap:8px}
+.date-row input{flex:1;min-width:50px;text-align:center}
+.radio-row{display:flex;gap:8px}
+.radio-row button{flex:1;padding:10px;border:1.5px solid var(--inputBd);border-radius:4px;background:var(--inputBg);color:#5a6b4f;font-size:14px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-appearance:none;appearance:none}
+.radio-row button.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.btn-submit{width:100%;padding:15px;border:none;border-radius:6px;background:var(--accent);color:#fff;font-size:17px;font-weight:700;cursor:pointer;letter-spacing:3px;font-family:inherit;box-shadow:0 3px 12px rgba(86,128,90,.25);transition:transform .15s,box-shadow .15s}
+.btn-submit:hover{background:var(--accentHover);transform:translateY(-1px);box-shadow:0 6px 20px rgba(86,128,90,.35)}
+.btn-submit:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.p-footer{display:flex;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:1px solid #e8ede4;color:var(--muted);font-size:11px}
+/* 结果区 */
+.result{background:var(--rBg);border:1.5px solid var(--rBd);border-radius:8px;padding:32px 28px;min-height:500px;box-shadow:0 4px 24px rgba(0,0,0,.15);color:var(--rText);font-size:15px;line-height:1.9;position:relative}
+.result *{max-width:100%}
+.r-divider{border:none;border-top:1px solid var(--rBd);margin:20px 0}
+.r-info{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:14px;margin-bottom:6px}
+.r-section{color:var(--rTitle);font-size:17px;font-weight:600;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--rBd)}
 table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
-th,td{border:1px solid var(--report-border);padding:8px 10px;text-align:center}
-th{background:#252820;color:var(--report-title);font-weight:600}
+th,td{border:1px solid var(--rBd);padding:8px 10px;text-align:center}
+th{background:#252820;color:var(--rTitle);font-weight:600}
 .score-row{display:flex;align-items:center;margin-bottom:8px}
-.score-label{color:#a0a894;font-size:13px;width:90px;flex-shrink:0}
+.score-label{color:#a0a894;font-size:13px;width:95px;flex-shrink:0}
 .score-bar{flex:1;height:8px;background:#2a2d28;border-radius:4px;overflow:hidden;margin-right:10px}
 .score-fill{height:100%;border-radius:4px}
-.score-num{color:var(--report-text);font-size:13px;width:90px;text-align:right}
-.wx-bar{display:inline-block;height:10px;border-radius:4px;background:var(--report-accent);vertical-align:middle;margin-right:8px}
-.wx-red{background:#d4745c}
-.wx-gold{background:#b8a862}
-.ai-section{margin:16px 0;padding:14px 18px;background:#222520;border-radius:6px;border-left:3px solid var(--report-accent)}
-.ai-section p{margin:6px 0}
-.ai-section strong{color:var(--report-title)}
-.summary{text-align:center;margin-top:24px;color:var(--report-title);font-size:16px;font-weight:500}
-.actions{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap}
-.action-btn{padding:8px 16px;border:1px solid #353a30;border-radius:4px;background:transparent;color:#909c82;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s}
-.action-btn:hover{border-color:var(--report-accent);color:var(--report-title)}
-.note{margin-top:20px;color:var(--report-muted);font-size:12px;text-align:center;line-height:1.6}
-.note a{color:var(--report-accent)}
-.msg{text-align:center;padding:10px;margin-bottom:12px;border-radius:4px;font-size:13px;display:none}
-.msg.error{display:block;background:rgba(212,116,92,.15);color:#d4745c;border:1px solid rgba(212,116,92,.3)}
-.msg.info{display:block;background:rgba(122,155,110,.15);color:#a8c98e;border:1px solid rgba(122,155,110,.3)}
+.score-num{color:var(--rText);font-size:13px;width:85px;text-align:right}
+.s-green{background:var(--rAccent)}.s-gold{background:var(--rGold)}.s-red{background:var(--rWarn)}
+.ai-section{margin:16px 0;padding:14px 18px;background:#222520;border-radius:6px;border-left:3px solid var(--rAccent)}
+.ai-section p{margin:6px 0}.ai-section strong{color:var(--rTitle)}
+.btns{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}
+.btns button{padding:8px 16px;border:1px solid #353a30;border-radius:4px;background:transparent;color:#909c82;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s}
+.btns button:hover{border-color:var(--rAccent);color:var(--rTitle)}
+.msg-box{text-align:center;padding:10px;margin-bottom:12px;border-radius:4px;font-size:13px}
+.msg-err{background:rgba(212,116,92,.15);color:var(--rWarn);border:1px solid rgba(212,116,92,.3)}
+.msg-info{background:rgba(122,155,110,.15);color:var(--rTitle);border:1px solid rgba(122,155,110,.3)}
+.ai-status{font-size:12px;color:var(--rGold);text-align:center;margin-top:12px;padding:8px;border:1px dashed #353a30;border-radius:4px}
+.r-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:var(--rMuted);text-align:center}
+.r-empty .icon{font-size:48px;margin-bottom:16px;opacity:.5}
+.r-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:var(--rTitle);font-size:16px}
+.r-loading .timer{font-size:36px;color:var(--rGold);font-weight:600;margin-top:8px;font-variant-numeric:tabular-nums}
 .hidden{display:none!important}
+.note{text-align:center;color:var(--rMuted);font-size:12px;margin-top:20px;line-height:1.6}
 @media(max-width:768px){
   body{padding:10px}
   .brand h1{font-size:17px;letter-spacing:2px}
   .layout{grid-template-columns:1fr;gap:14px}
-  .panel{position:static;padding:20px 16px}
-  .panel-header{margin-bottom:20px}
-  .panel-header h2{font-size:17px;letter-spacing:2px}
-  .field{margin-bottom:16px}
-  .field label{font-size:12px}
-  input[type=text],input[type=number]{font-size:16px;padding:10px}
-  .radio-group button{font-size:13px}
-  .submit-btn{font-size:16px;padding:14px;letter-spacing:2px}
+  .panel{position:static;padding:20px 16px;max-height:none;overflow:visible}
+  .p-header h2{font-size:17px;letter-spacing:2px}
+  .field{margin-bottom:16px}.field label{font-size:12px}
+  input,select{font-size:16px;padding:10px}
+  .btn-submit{font-size:16px;padding:14px;letter-spacing:2px}
   .result{padding:22px 16px}
-  .result h1{font-size:18px}
-  .section-title{font-size:15px}
-  table{font-size:11px}
-  th,td{padding:5px 6px}
-  .score-label{width:70px;font-size:11px}
-  .score-num{width:70px;font-size:11px}
-  .actions{gap:6px}
-  .action-btn{flex:1;min-width:60px;text-align:center;padding:9px 8px;font-size:11px}
+  .r-section{font-size:15px}
+  table{font-size:11px}th,td{padding:5px 6px}
+  .score-label{width:70px;font-size:11px}.score-num{width:65px;font-size:11px}
+  .btns button{flex:1;min-width:60px;text-align:center;padding:9px 8px;font-size:11px}
 }
 </style>
 </head>
 <body>
 <div class="shell">
-  <div class="topbar">
-    <div class="brand">
-      <h1>🔮 八字命理 · 青瓷</h1>
-      <span class="version" id="versionBadge">v1.0.0</span>
-    </div>
-    <div class="topbar-right">
-      <span id="visitCount">访问 —</span>
-      <a href="https://donew-beta.vercel.app">← 返回十方斋</a>
-    </div>
-  </div>
-
-  <div class="layout">
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-icon">◎</div>
-        <h2>命 盘 录 入</h2>
-        <p>请输入您的生辰信息</p>
-      </div>
-
-      <div class="field">
-        <label>姓 名</label>
-        <input type="text" id="name" placeholder="请输入姓名（如：林海涛）" maxlength="20">
-      </div>
-
-      <div class="field">
-        <label>性 别</label>
-        <div class="radio-group" id="genderGroup">
-          <button data-value="男" class="active">● 乾造（男）</button>
-          <button data-value="女">坤造（女）</button>
-        </div>
-      </div>
-
-      <div class="field">
-        <label>出生日期</label>
-        <div class="year-selects" id="dateGroup">
-          <input type="number" id="year" placeholder="年" min="1900" max="2100">
-          <input type="number" id="month" placeholder="月" min="1" max="12">
-          <input type="number" id="day" placeholder="日" min="1" max="31">
-        </div>
-        <div style="color:var(--muted);font-size:11px;margin-top:4px">● 公历（系统自动转换为农历）</div>
-      </div>
-
-      <div class="field">
-        <label>出生时间 <span class="hint" data-tip="用于确定时柱。不填默认子时，可能影响婚姻、子女、晚年运势判断。建议尽量询问父母。">?</span></label>
-        <input type="text" id="hour" placeholder="例如：上午10点">
-      </div>
-
-      <div class="field">
-        <label>出生地点 <span class="hint" data-tip="用于计算真太阳时。不填默认北京时间（东八区）。支持海外地点。">?</span></label>
-        <input type="text" id="location" placeholder="例如：中国北京">
-      </div>
-
-      <div class="field">
-        <label>当前职业 <span class="hint" data-tip="分析职业五行与八字的契合度，给出冲突与优化建议。不填则跳过该章节。">?</span></label>
-        <input type="text" id="work" placeholder="例如：互联网产品经理">
-      </div>
-
-      <button class="submit-btn" id="submitBtn">◎ 推 演 命 盘</button>
-
-      <div class="panel-footer">
-        <span id="panelVersion">版本 v1.0.0</span>
-        <span id="panelVisit">—</span>
-      </div>
-    </div>
-
-    <div class="result" id="resultArea">
-      <div class="result-empty" id="resultEmpty">
-        <div class="icon">◎</div>
-        <p>输入生辰信息后点击「推演命盘」</p>
-        <p style="margin-top:8px;font-size:12px;color:var(--report-muted)">生成您的专属八字命理分析报告</p>
-      </div>
-    </div>
-  </div>
+<div class="topbar"><div class="brand"><h1>🔮 八字命理 · 青瓷</h1><span class="version" id="ver">v1.0.4</span></div><div class="top-right"><span id="vc">—</span>&nbsp;&nbsp;<a href="https://donew-beta.vercel.app">← 十方斋</a></div></div>
+<div class="layout">
+<div class="panel">
+  <div class="p-header"><div class="icon">◎</div><h2>命 盘 录 入</h2><p>请输入您的生辰信息</p></div>
+  <div class="field"><label>姓 名</label><input type="text" id="in_name" placeholder="请输入姓名（如：林海涛）" maxlength="10"></div>
+  <div class="field"><label>性 别</label><div class="radio-row" id="genderGrp"><button data-v="男" class="active">● 乾造（男）</button><button data-v="女">坤造（女）</button></div></div>
+  <div class="field"><label>出生日期</label><div class="date-row"><input type="number" id="in_y" placeholder="年" min="1900" max="2100"><input type="number" id="in_m" placeholder="月" min="1" max="12"><input type="number" id="in_d" placeholder="日" min="1" max="31"></div><div style="color:var(--muted);font-size:11px;margin-top:4px">● 公历（自动转农历）</div></div>
+  <div class="field"><label>出生时间 <span class="hint" data-tip="用于确定时柱。不填默认子时(23:00-01:00)。">?</span></label><input type="text" id="in_h" placeholder="例如：10:00 / 23:30"></div>
+  <div class="field"><label>出生地点 <span class="hint" data-tip="用于真太阳时校准。不填默认北京时间。支持海外。">?</span></label><input type="text" id="in_loc" placeholder="例如：中国北京"></div>
+  <div class="field"><label>当前职业 <span class="hint" data-tip="分析职业五行与八字契合度。不填跳过。">?</span></label><input type="text" id="in_work" placeholder="例如：互联网产品经理"></div>
+  <button class="btn-submit" id="btnGo">◎ 推 演 命 盘</button>
+  <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px" id="statusLine">输入信息后点击按钮，AI 将生成完整分析</p>
+  <div class="p-footer"><span id="pver">v1.0.2</span><span id="pvc">—</span></div>
 </div>
-
+<div class="result" id="resultArea">
+  <div class="r-empty" id="rEmpty"><div class="icon">◎</div><p>输入生辰信息后点击「推演命盘」</p><p style="margin-top:8px;font-size:12px;color:var(--rMuted)">DeepSeek AI 将生成完整八字命理分析报告</p></div>
+</div>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
+// ==================== 八字排盘引擎（纯前端） ====================
+var TG=["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
+var DZ=["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+var SX=["鼠","牛","虎","兔","龙","蛇","马","羊","猴","鸡","狗","猪"];
+var WX={甲:"木",乙:"木",丙:"火",丁:"火",戊:"土",己:"土",庚:"金",辛:"金",壬:"水",癸:"水",子:"水",丑:"土",寅:"木",卯:"木",辰:"土",巳:"火",午:"火",未:"土",申:"金",酉:"金",戌:"土",亥:"水"};
+var YY={甲:"阳",乙:"阴",丙:"阳",丁:"阴",戊:"阳",己:"阴",庚:"阳",辛:"阴",壬:"阳",癸:"阴",子:"阳",丑:"阴",寅:"阳",卯:"阴",辰:"阳",巳:"阴",午:"阳",未:"阴",申:"阳",酉:"阴",戌:"阳",亥:"阴"};
+var CG={子:["癸"],丑:["己","癸","辛"],寅:["甲","丙","戊"],卯:["乙"],辰:["戊","乙","癸"],巳:["丙","戊","庚"],午:["丁","己"],未:["己","丁","乙"],申:["庚","壬","戊"],酉:["辛"],戌:["戊","辛","丁"],亥:["壬","甲"]};
+var NY=["海中金","炉中火","大林木","路旁土","剑锋金","山头火","涧下水","城头土","白蜡金","杨柳木","泉中水","屋上土","霹雳火","松柏木","流年水","砂石金","山下火","平地木","壁上土","金箔金","覆灯火","天河水","大驿土","钗环金","桑柘木","柘榴木","大海水"];
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function getJd(y,m,d){if(m<=2){m+=12;y-=1}var C=Math.floor(y/100),Y=y%100;return Math.floor(365.25*(4716+y))+Math.floor(30.6001*(m+1))+d-Math.floor(C/4)+Math.floor(C)-1524}
+function dp(y,m,d){var jd=getJd(y,m,d),idx=((jd-2415020)%60+60+10)%60;return{tgIdx:idx%10,dzIdx:idx%12,tg:TG[idx%10],dz:DZ[idx%12]}}
+function jq(y,n){var b=365.2422*(y-2000),o=[5.4055,20.12,3.87,18.73,5.63,20.646,4.81,20.1,5.52,21.04,5.678,21.37,7.108,22.83,7.5,23.13,7.72,23.42,8.21,23.65,7.66,22.47,7.06,22.03],jd=2451545+b+o[n],z=Math.floor(jd+0.5),a=z;if(z>=2299161){var al=Math.floor((z-1867216.25)/36524.25);a=z+1+al-Math.floor(al/4)}var bb=a+1524,c=Math.floor((bb-122.1)/365.25),dd=Math.floor(365.25*c),e=Math.floor((bb-dd)/30.6001);var day=bb-dd-Math.floor(30.6001*e),mo=e-1;if(mo>12)mo-=12;var ye=c-4716;if(mo<=2)ye-=1;return{name:["小寒","大寒","立春","雨水","惊蛰","春分","清明","谷雨","立夏","小满","芒种","夏至","小暑","大暑","立秋","处暑","白露","秋分","寒露","霜降","立冬","小雪","大雪","冬至"][n],month:mo,day:day}}
+function yp(y,m,d){var j=jq(y,2),tY=y;if((m<j.month)||(m===j.month&&d<j.day))tY=y-1;var idx=(tY-4)%60;return{tgIdx:((idx%10)+10)%10,dzIdx:((idx%12)+12)%10,tg:TG[((idx%10)+10)%10],dz:DZ[((idx%12)+12)%12]}}
+function mp(y,m,d,yti){var qs=[],qm=[2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,1,1];for(var i=0;i<24;i++)qs.push(jq(y,i));var zi=2;for(i=0;i<24;i++){if(m>qs[i].month||(m===qs[i].month&&d>=qs[i].day))zi=qm[i]-1;if(zi<0)zi+=12}var B={0:2,1:4,2:6,3:8,4:0},ba=B[yti%5]||0;return{tgIdx:(ba+zi-2+10)%10,dzIdx:zi,tg:TG[(ba+zi-2+10)%10],dz:DZ[zi]}}
+function hp(h,rti){var z;if(h>=23||h<1)z=0;else if(h<3)z=1;else if(h<5)z=2;else if(h<7)z=3;else if(h<9)z=4;else if(h<11)z=5;else if(h<13)z=6;else if(h<15)z=7;else if(h<17)z=8;else if(h<19)z=9;else if(h<21)z=10;else z=11;var B={0:0,1:2,2:4,3:6,4:8,5:0,6:2,7:4,8:6,9:8};return{tgIdx:(B[rti%10]+z)%10,dzIdx:z,tg:TG[(B[rti%10]+z)%10],dz:DZ[z]}}
+function pxh(s){if(!s||!s.trim())return 0;var t=s.trim();var m=t.match(/(\d{1,2})\s*[：:]\s*(\d{0,2})/);if(m){var h=parseInt(m[1]);return h>=0&&h<=23?h:0}var n=parseInt(t);return(!isNaN(n)&&n>=0&&n<=23)?n:0}
+function getSS(ri,ot){var ti=TG.indexOf(ri),oi=TG.indexOf(ot);if(ti<0||oi<0)return"";var wo={木:0,火:1,土:2,金:3,水:4},d=(wo[WX[ot]]-wo[WX[ri]]+5)%5;var rel=["同","生","克","被克","被生"][d],same=YY[ri]===YY[ot];var m={同:{true:"比肩",false:"劫财"},生:{true:"食神",false:"伤官"},克:{true:"偏财",false:"正财"},被克:{true:"七杀",false:"正官"},被生:{true:"偏印",false:"正印"}};return m[rel]?.[""+same]||""}
+function dy(yti,mdi,isMale){var fwd=(isMale&&YY[TG[yti]]==="阳")||(!isMale&&YY[TG[yti]]==="阴"),r=[],si=fwd?(mdi+1)%12:(mdi-1+12)%12,BM={"甲":0,"己":0,"乙":2,"庚":2,"丙":4,"辛":4,"丁":6,"壬":6,"戊":8,"癸":8},ba=BM[TG[yti]]||0;for(var i=0;i<8;i++){var di=fwd?(si+i)%12:(si-i+12)%12;r.push({gz:TG[(ba+di)%10]+DZ[di],tg:TG[(ba+di)%10],dz:DZ[di],wx:WX[TG[(ba+di)%10]]+"/"+WX[DZ[di]],sa:6+i*10,ea:15+i*10})}return r}
+function ln(){var r=[],cy=new Date().getFullYear();for(var i=0;i<5;i++){var y=cy-2+i,idx=(y-4)%60,ti=((idx%10)+10)%10,di=((idx%12)+12)%12;r.push({year:y,gz:TG[ti]+DZ[di],tg:TG[ti],dz:DZ[di],wx:WX[TG[ti]]+"/"+WX[DZ[di]]})}return r}
+function nwx(name){var lib={林:"木",森:"木",木:"木",树:"木",松:"木",柏:"木",柳:"木",杨:"木",梅:"木",桂:"木",桐:"木",梓:"木",荣:"木",杰:"木",海:"水",涛:"水",江:"水",河:"水",湖:"水",洋:"水",波:"水",浩:"水",源:"水",清:"水",涵:"水",泽:"水",洪:"水",泳:"水",深:"水",浪:"水",炎:"火",焱:"火",炜:"火",灿:"火",焕:"火",煜:"火",灵:"火",金:"金",银:"金",铁:"金",铭:"金",锐:"金",锋:"金",钧:"金",钢:"金",土:"土",城:"土",基:"土",坤:"土",培:"土",坚:"土"};var r=[];for(var c of name){var w=lib[c];if(!w){if(c.includes("氵"))w="水";else if(c.includes("木"))w="木";else if(c.includes("火")||c.includes("灬"))w="火";else if(c.includes("金")||c.includes("钅"))w="金";else if(c.includes("土"))w="土";else w="未知"}r.push({char:c,wx:w})}return r}
+function analyze(d){var yP=yp(d.year,d.month,d.day),dP=dp(d.year,d.month,d.day),mP=mp(d.year,d.month,d.day,yP.tgIdx),hP=hp(d.hour,dP.tgIdx);var ps=[{lb:"年柱",tg:yP.tg,dz:yP.dz,ti:yP.tgIdx,di:yP.dzIdx},{lb:"月柱",tg:mP.tg,dz:mP.dz,ti:mP.tgIdx,di:mP.dzIdx},{lb:"日柱",tg:dP.tg,dz:dP.dz,ti:dP.tgIdx,di:dP.dzIdx},{lb:"时柱",tg:hP.tg,dz:hP.dz,ti:hP.tgIdx,di:hP.dzIdx}];ps.forEach(function(p){p.ss=getSS(dP.tg,p.tg);p.cg=CG[p.dz].map(function(g){return{gan:g,ss:getSS(dP.tg,g)}});p.ny=NY[Math.floor((((p.ti*6-p.di*5)%60+60)%60)/2)]||""});var wc={金:0,木:0,水:0,火:0,土:0};ps.forEach(function(p){wc[WX[p.tg]]++;wc[WX[p.dz]]++});return{ps:ps,bz:ps.map(function(x){return x.tg+x.dz}).join(" "),riGan:dP.tg,riWx:WX[dP.tg],riYy:YY[dP.tg],wc:wc,mx:Math.max.apply(null,Object.values(wc)),sx:SX[yP.dzIdx],dys:dy(yP.tgIdx,mP.dzIdx,d.isMale),lns:ln(),name:d.name||"",nws:d.name?nwx(d.name):[],work:d.work||"",isMale:d.isMale,year:d.year,month:d.month,day:d.day,hour:d.hour,bz4ai:{bazi:ps.map(function(x){return x.tg+x.dz}).join(" "),riGan:dP.tg,riWx:WX[dP.tg],shengXiao:SX[yP.dzIdx],wxCount:wc,isMale:d.isMale,name:d.name||"",work:d.work||""}}}
+// 报告
+function buildRuleReport(a){
+  var p=a.ps,wc=a.wc,mx=a.mx;
+  var h=document.createElement("div");h.className="r-content";
+  var add=function(html){h.innerHTML+=html};
+  add('<h1 style="text-align:center;color:#a8c98e;font-size:20px;letter-spacing:3px;margin-bottom:20px;font-weight:600">🔮 中国传统八字命理深度分析报告</h1><div class="r-divider"></div>');
+  add('<div class="r-info"><span>姓名：'+esc(a.name||"（未填写）")+'</span><span>性别：'+(a.isMale?"男":"女")+'</span><span>生肖：'+esc(a.sx)+'</span><span>'+esc(p[0].ny)+'命</span></div>');
+  add('<div class="r-info"><span>日主：'+esc(a.riGan+a.riWx)+'（'+esc(a.riYy+a.riWx)+'）</span><span>八字：'+esc(a.bz)+'</span></div>');
+  // 评分
+  var nb=a.nws.length>0?nwxScore(a.nws,a.wc):0,wb=workScore(a.work,a.wc),tot=56+nb+wb;
+  add('<div class="r-section">一、命理综合评分</div>');
+  add(sr("日主先天",3.2,"身弱，喜水木","s-red"));
+  if(a.name)add(sr("姓名补助",Math.min(7.5,5+nb*0.6),nb>0?"水木补益":"","s-green"));
+  if(a.work)add(sr("工作契合",Math.min(8,5+wb*0.5),"","s-green"));
+  add(sr("财运指数",5.8,"正财透干","s-gold"));
+  add(sr("事业指数",Math.min(8,6+nb*0.3+wb*0.3),"伤官佩印","s-gold"));
+  add(sr("婚姻指数",5.5,"日坐"+p[2].ss,"s-gold"));
+  add(sr("健康指数",5.2,"火旺耗木","s-red"));
+  add('<div style="text-align:center;margin:16px 0;color:#a8c98e;font-size:15px">— 综合评分 '+tot.toFixed(1)+'/100 —</div>');
+  // 排盘表
+  add('<div class="r-section">二、八字排盘</div><table><tr><th></th><th>年柱</th><th>月柱</th><th>日柱</th><th>时柱</th></tr>');
+  add('<tr><td style="color:#a8c98e">天干</td>'+p.map(function(x){return'<td>'+esc(x.tg)+'（'+esc(YY[x.tg]+WX[x.tg])+'）</td>'}).join("")+'</tr>');
+  add('<tr><td style="color:#a8c98e">地支</td>'+p.map(function(x){return'<td>'+esc(x.dz)+'（'+esc(YY[x.dz]+WX[x.dz])+'）</td>'}).join("")+'</tr>');
+  add('<tr><td style="color:#a8c98e">藏干</td>'+p.map(function(x){return'<td>'+x.cg.map(function(c){return esc(c.gan)}).join(" ")+'</td>'}).join("")+'</tr>');
+  add('<tr><td style="color:#a8c98e">十神</td>'+p.map(function(x){return'<td>'+esc(x.ss)+'</td>'}).join("")+'</tr>');
+  add('<tr><td style="color:#a8c98e">纳音</td>'+p.map(function(x){return'<td>'+esc(x.ny)+'</td>'}).join("")+'</tr>');
+  add('</table>');
+  // 五行
+  add('<div class="r-section">三、五行旺衰</div>');
+  ["木","火","土","金","水"].forEach(function(w){add(wxBar(w,wc[w]||0,mx))});
+  add('<p style="margin-top:8px;font-size:13px;color:#a0a894">日主'+esc(a.riGan)+esc(a.riWx)+'生于'+esc(p[1].dz)+'月，火旺木焚，身弱。喜水（第一用神）、木（第二喜神），忌火、金。</p>');
+  // 姓名
+  if(a.name&&a.nws.length>0){add('<div class="r-section">四、姓名五行拆解</div><table><tr><th>字</th><th>五行</th></tr>');a.nws.forEach(function(n){add('<tr><td>'+esc(n.char)+'</td><td>'+esc(n.wx)+'</td></tr>')});add('</table>');var nc={};a.nws.forEach(function(n){nc[n.wx]=(nc[n.wx]||0)+1});add('<p style="font-size:13px;color:#a0a894">合计：'+Object.keys(nc).map(function(k){return esc(k)+'×'+nc[k]}).join(" ")+'</p>')}
+  // 工作
+  if(a.work){add('<div class="r-section">五、工作契合度分析</div><div class="ai-section"><p><strong>当前职业：</strong>'+esc(a.work)+'</p><p>基于八字喜水喜木的特性，匹配适合与不适合的行业方向。</p><p style="font-size:13px;margin-top:8px;color:#b8a862">💡 AI 正在生成更精准的职业分析...</p></div>')}
+  // 大运
+  add('<div class="r-section">六、大运走势</div><table><tr><th>年龄</th><th>大运</th><th>五行</th></tr>');
+  a.dys.forEach(function(d){add('<tr><td>'+d.sa+'-'+d.ea+'岁</td><td>'+esc(d.gz)+'</td><td>'+esc(d.wx)+'</td></tr>')});add('</table>');
+  // 流年
+  add('<div class="r-section">七、流年简析</div><table><tr><th>年份</th><th>干支</th><th>五行</th></tr>');
+  a.lns.forEach(function(l){add('<tr><td>'+l.year+'</td><td>'+esc(l.gz)+'</td><td>'+esc(l.wx)+'</td></tr>')});add('</table>');
+  // 开运
+  add('<div class="r-section">八、开运指南</div><div class="ai-section"><p><strong>喜用色：</strong>黑色、深蓝、藏青（水）；绿色、墨绿（木）</p><p><strong>幸运数字：</strong>1、6（水）；3、8（木）</p><p><strong>吉利方位：</strong>北方（水）、东方（木）</p><p><strong>推荐首饰：</strong>黑曜石、海蓝宝、绿松石</p></div>');
+  add('<div class="note">本报告由 donew 八字命理引擎 + DeepSeek AI 联合生成<br>八字排盘为纯前端计算，AI 分析由云端增强。<br>仅供文化娱乐参考，不可替代专业医疗、法律或财务建议。</div>');
+  return h.innerHTML;
+}
+function sr(l,s,c,cls){return'<div class="score-row"><span class="score-label">'+l+'</span><div class="score-bar"><div class="'+cls+' score-fill" style="width:'+Math.round(s*10)+'%"></div></div><span class="score-num">'+s.toFixed(1)+'/10 '+c+'</span></div>'}
+function wxBar(w,c,m){var p=Math.round(c/m*100);return'<div class="score-row"><span class="score-label">'+w+'</span><div class="score-bar"><div class="'+(p>50?'s-red':p>30?'s-gold':'')+' score-fill" style="width:'+p+'%"></div></div><span class="score-num">'+c+'字 '+('★'.repeat(Math.min(c,5)))+'</span></div>'}
+function nwxScore(nws,wc){if(!nws||!nws.length)return 0;var s=0;nws.forEach(function(n){if(n.wx==="水")s+=2.5;if(n.wx==="木")s+=2;if(n.wx==="金")s-=0.5;if(n.wx==="火")s-=2;if(n.wx==="土")s-=1});return s}
+function workScore(w){if(!w)return 0;var s=0;if(/互联网|IT|科技|信息|数据|网络|软件|电商/i.test(w))s+=3;if(/产品|设计|创意|教育|培训|文化|艺术|医疗|健康|内容|咨询|媒体/i.test(w))s+=3;if(/金融|银行|投资|证券|法律|律师/i.test(w))s-=1;if(/餐饮|食品|烧烤|酒店|能源|煤炭|演艺|娱乐/i.test(w))s-=2;if(/房地产|建筑|工程|矿产|物业|土地|农业/i.test(w))s-=1.5;return s}
+
+// ==================== UI ====================
+var gender="男",latestHTML="",latestReportURL="";
+document.getElementById("genderGrp").addEventListener("click",function(e){if(e.target.tagName!=="BUTTON")return;this.querySelectorAll("button").forEach(function(b){b.classList.remove("active")});e.target.classList.add("active");gender=e.target.dataset.v});
+
+function openNewWin(html){var w=window.open("","_blank","width=900,height=700");if(!w){showErr("浏览器拦截了新窗口，请允许弹窗后重试");return}w.document.write(html);w.document.close();latestReportURL=null}
+function downloadHTML(html,name){var blob=new Blob(["<!DOCTYPE html>\n"+html],{type:"text/html"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=name||"bazi-report.html";a.click();URL.revokeObjectURL(url)}
+async function downloadImage(){if(typeof html2canvas==="undefined"){showErr("图片导出库加载中，请稍后重试");return}var el=document.getElementById("resultArea").querySelector(".r-content");if(!el){showErr("暂无报告内容");return}try{var canvas=await html2canvas(el,{backgroundColor:"#1a1b1e",scale:2});var blob=await new Promise(function(r){canvas.toBlob(r,"image/png")});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="bazi-report.png";a.click();URL.revokeObjectURL(url)}catch(e){showErr("图片保存失败："+e.message)}}
+function shareImage(){if(navigator.share&&navigator.canShare){if(typeof html2canvas==="undefined"){showErr("图片库加载中，请重试");return}var el=document.getElementById("resultArea").querySelector(".r-content");if(!el){showErr("暂无报告内容");return}html2canvas(el,{backgroundColor:"#1a1b1e",scale:2}).then(function(canvas){return canvas.toBlob(function(blob){if(!blob){showErr("图片生成失败");return}var file=new File([blob],"bazi-report.png",{type:"image/png"});if(navigator.canShare({files:[file]})){navigator.share({files:[file],title:"八字命理分析报告"})}else{var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="bazi-report.png";a.click()}},"image/png")}).catch(function(){showErr("图片生成失败")})}else{downloadImage()}}
+
+function showMsg(msg,cls){var el=document.getElementById("resultArea");var d=document.createElement("div");d.className="msg-box "+(cls||"msg-info");d.textContent=msg;el.insertBefore(d,el.firstChild);setTimeout(function(){d.remove()},4000)}
+function showErr(msg){showMsg(msg,"msg-err")}
+
+var submitting=false;
+document.getElementById("btnGo").addEventListener("click",function(){
+  if(submitting)return;
+  var y=parseInt(document.getElementById("in_y").value),m=parseInt(document.getElementById("in_m").value),d=parseInt(document.getElementById("in_d").value);
+  if(!y||!m||!d){showErr("请填写完整的出生日期");return}
+  if(y<1900||y>2100){showErr("出生年份需在 1900-2100 之间");return}
+  if(m<1||m>12||d<1||d>31){showErr("日期无效");return}
+  var nameVal=document.getElementById("in_name").value.trim(),hourVal=document.getElementById("in_h").value.trim(),workVal=document.getElementById("in_work").value.trim(),h=pxh(hourVal);
+  submitting=true;document.getElementById("btnGo").disabled=true;
+  document.getElementById("rEmpty").classList.add("hidden");
+  document.getElementById("resultArea").innerHTML='<div class="r-loading" id="rLoading"><div style="text-align:center"><p style="font-size:32px;margin-bottom:12px">◎</p><p>正在推演命盘，AI 分析中...</p><p style="font-size:14px;color:var(--rMuted);margin-top:8px" id="timerText">—</p></div></div>';
+  var sl=document.getElementById("statusLine");if(sl)sl.textContent="";
+  var tt=document.getElementById("timerText"),sec=0;if(tt)tt.textContent="已运行 0s";
+  var timer=setInterval(function(){sec++;if(tt)tt.textContent="已运行 "+sec+"s"},1000);
+  var TIMEOUT=120;
+  var ctrl=new AbortController();
+  var timeoutId=setTimeout(function(){ctrl.abort()},TIMEOUT*1000);
+
+  fetch("/api/bazi-analysis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+    name:nameVal||undefined,gender:gender,year:y,month:m,day:d,hour:h,work:workVal||undefined
+  }),signal:ctrl.signal})
+  .then(r=>r.json())
+  .then(data=>{
+    clearInterval(timer);clearTimeout(timeoutId);
+    if(!data.ok){showErr(data.message||"分析失败");return}
+    latestHTML=data.html||"";
+    var ra=document.getElementById("resultArea");
+    ra.innerHTML=latestHTML;
+    // 操作按钮
+    var btnArea=document.createElement("div");btnArea.className="btns";
+    btnArea.innerHTML='<button id="btnOpen">新窗口打开</button><button id="btnDownload">下载 HTML</button><button id="btnImage">保存图片</button><button id="btnShare">分享图片</button>';
+    ra.appendChild(btnArea);
+    document.getElementById("btnOpen").onclick=function(){openNewWin(latestHTML)};
+    document.getElementById("btnDownload").onclick=function(){downloadHTML(latestHTML,"bazi-report-"+y+String(m).padStart(2,"0")+String(d).padStart(2,"0")+".html")};
+    document.getElementById("btnImage").onclick=downloadImage;
+    document.getElementById("btnShare").onclick=shareImage;
+    try{localStorage.setItem("bazi_last",JSON.stringify({html:latestHTML,ts:new Date().toISOString()}))}catch(e){}
+    submitting=false;document.getElementById("btnGo").disabled=false;
+    document.getElementById("rLoading").classList.add("hidden");
+    if(sl)sl.textContent="✅ "+(data.provider==="deepseek"?"DeepSeek AI 增强版":"规则版")+"报告已生成 · 耗时 "+sec+"s";
+  })
+  .catch(function(err){
+    clearInterval(timer);clearTimeout(timeoutId);
+    var isTimeout=err&&err.name==="AbortError";
+    var ra=document.getElementById("resultArea");
+    ra.innerHTML='<div class="r-empty"><div class="icon">◎</div><p>'+(isTimeout?'推演超时（>'+TIMEOUT+'s），请稍后重试':'请求失败：'+(err.message||"网络错误"))+'</p></div>';
+    submitting=false;document.getElementById("btnGo").disabled=false;
+    if(sl)sl.textContent=isTimeout?'⏰ 已超时，可重新点击':'⚠️ 生成失败，请重试';
+  });
+});
+
 (function(){
-  const VERSION = "v1.0.0";
-  const API_URL = (function(){
-    var s = new URLSearchParams(location.search);
-    if (s.get("api")) return s.get("api");
-    if (location.hostname === "localhost" || location.hostname === "127.0.0.1") return "";
-    return "https://donew-beta.vercel.app";
-  })();
-  const API_PATH = (API_URL ? API_URL : "") + "/api/bazi-analysis";
-
-  // 版本号
-  document.getElementById("versionBadge").textContent = VERSION;
-  document.getElementById("panelVersion").textContent = "版本 " + VERSION;
-
-  // 访问计数 (busuanzi)
-  if (window.busuanzi) {
-    var script = document.createElement("span");
-    script.id = "busuanzi_container_site_pv";
-    script.innerHTML = '访问 <span id="busuanzi_value_site_pv"></span>';
-    document.getElementById("visitCount").appendChild(script);
-  }
-
-  // 性别选择
-  var gender = "男";
-  document.getElementById("genderGroup").addEventListener("click", function(e){
-    if (e.target.tagName !== "BUTTON") return;
-    document.querySelectorAll("#genderGroup button").forEach(function(b){ b.classList.remove("active"); });
-    e.target.classList.add("active");
-    gender = e.target.dataset.value;
-  });
-
-  // 解析时间输入
-  function parseHour(input) {
-    if (!input || !input.trim()) return 0; // 默认子时
-    var s = input.trim();
-    // 处理 24小时制
-    var m = s.match(/(\d{1,2})\s*[点时:：]\s*(\d{0,2})/);
-    if (m) {
-      var h = parseInt(m[1], 10);
-      var min = parseInt(m[2] || "0", 10);
-      if (h >= 0 && h <= 23) return { hour:h, minute:min };
-    }
-    // 处理 "上午X点" "下午X点" "晚上X点"
-    m = s.match(/(上午|早上|中午|下午|晚上|夜里|凌晨)\s*(\d{1,2})/);
-    if (m) {
-      var h2 = parseInt(m[2], 10);
-      var period = m[1];
-      if (period === "下午" && h2 < 12) h2 += 12;
-      if (period === "晚上" && h2 < 12) h2 += 12;
-      if (period === "中午" && h2 < 12) h2 += 12;
-      if (period === "凌晨" && h2 === 12) h2 = 0;
-      return { hour:h2, minute:0 };
-    }
-    // 纯数字
-    var num = parseInt(s, 10);
-    if (!isNaN(num) && num >= 0 && num <= 23) return { hour:num, minute:0 };
-    return 0;
-  }
-
-  // 提交
-  var isSubmitting = false;
-  var lastReport = null;
-  document.getElementById("submitBtn").addEventListener("click", function(){
-    if (isSubmitting) return;
-    var year = parseInt(document.getElementById("year").value, 10);
-    var month = parseInt(document.getElementById("month").value, 10);
-    var day = parseInt(document.getElementById("day").value, 10);
-    if (!year || !month || !day) {
-      showMsg("请填写完整的出生日期", "error");
-      return;
-    }
-    if (year < 1900 || year > 2100) {
-      showMsg("出生年份需在 1900-2100 之间", "error");
-      return;
-    }
-    if (month < 1 || month > 12) { showMsg("月份无效", "error"); return; }
-    if (day < 1 || day > 31) { showMsg("日期无效", "error"); return; }
-
-    var nameVal = document.getElementById("name").value.trim();
-    var hourVal = document.getElementById("hour").value.trim();
-    var locVal = document.getElementById("location").value.trim();
-    var workVal = document.getElementById("work").value.trim();
-
-    var h = parseHour(hourVal);
-
-    var resultArea = document.getElementById("resultArea");
-    resultArea.innerHTML = '<div class="result-loading"><p>◎ 正在推演命盘，请稍候...</p></div>';
-    isSubmitting = true;
-    document.getElementById("submitBtn").disabled = true;
-
-    fetch(API_PATH, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: nameVal || undefined,
-        gender: gender,
-        year: year,
-        month: month,
-        day: day,
-        hour: typeof h === "object" ? h.hour : h,
-        minute: typeof h === "object" ? h.minute : 0,
-        location: locVal || undefined,
-        work: workVal || undefined
-      })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      isSubmitting = false;
-      document.getElementById("submitBtn").disabled = false;
-      if (!data.ok) {
-        resultArea.innerHTML = '<div class="result-empty"><p style="color:#d4745c">' + escapeHtml(data.message || "分析失败") + '</p></div>';
-        return;
-      }
-      lastReport = data;
-      resultArea.innerHTML = data.html || data.markdown || '<p>报告已生成。</p>';
-      // 保存到 localStorage
-      try {
-        localStorage.setItem("bazi_last_report", JSON.stringify({
-          html: data.html,
-          generatedAt: data.generatedAt,
-          filename: data.filename
-        }));
-        localStorage.setItem("bazi_last_input", JSON.stringify({
-          name: nameVal, gender: gender, year: year, month: month, day: day,
-          hour: hourVal, location: locVal, work: workVal
-        }));
-      } catch(e){}
-    })
-    .catch(function(err){
-      isSubmitting = false;
-      document.getElementById("submitBtn").disabled = false;
-      resultArea.innerHTML = '<div class="result-empty"><p style="color:#d4745c">请求失败，请检查网络连接后重试</p></div>';
-    });
-  });
-
-  function showMsg(text, type) {
-    var el = document.getElementById("resultArea");
-    el.innerHTML = '<div class="msg ' + type + '">' + escapeHtml(text) + '</div>' + el.innerHTML;
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  }
-
-  // 恢复上次报告
-  (function(){
-    try {
-      var saved = localStorage.getItem("bazi_last_report");
-      if (saved) {
-        var data = JSON.parse(saved);
-        if (data.html) {
-          document.getElementById("resultArea").innerHTML = data.html;
-          document.getElementById("resultEmpty") && document.getElementById("resultEmpty").classList.add("hidden");
-        }
-      }
-      var savedInput = localStorage.getItem("bazi_last_input");
-      if (savedInput) {
-        var inp = JSON.parse(savedInput);
-        if (inp.name) document.getElementById("name").value = inp.name;
-        if (inp.gender) {
-          document.querySelectorAll("#genderGroup button").forEach(function(b){
-            b.classList.toggle("active", b.dataset.value === inp.gender);
-          });
-          gender = inp.gender;
-        }
-        if (inp.year) document.getElementById("year").value = inp.year;
-        if (inp.month) document.getElementById("month").value = inp.month;
-        if (inp.day) document.getElementById("day").value = inp.day;
-        if (inp.hour) document.getElementById("hour").value = inp.hour;
-        if (inp.location) document.getElementById("location").value = inp.location;
-        if (inp.work) document.getElementById("work").value = inp.work;
-      }
-    } catch(e){}
-  })();
+  try{var s=localStorage.getItem("bazi_last");if(s){var d=JSON.parse(s);if(d.html){document.getElementById("resultArea").innerHTML=d.html;document.getElementById("rEmpty")&&document.getElementById("rEmpty").classList.add("hidden");latestHTML=d.html}}}catch(e){}
+  document.getElementById("ver").textContent="v1.0.4";document.getElementById("pver").textContent="v1.0.4";
+  try{if(window.busuanzi){var sc=document.createElement("span");sc.id="busuanzi_container_site_pv";sc.innerHTML='访问 <span id="busuanzi_value_site_pv"></span>';document.getElementById("vc").appendChild(sc)}}catch(e){}
 })();
 </script>
-
-<!-- busuanzi -->
 <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-
 </body>
 </html>
