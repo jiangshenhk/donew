@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-25T21:10:25.693Z",
-  "checkedAt": "2026-07-25T21:10:25.693Z",
+  "updatedAt": "2026-07-25T22:06:56.750Z",
+  "checkedAt": "2026-07-25T22:06:56.750Z",
   "successCount": 24,
   "failCount": 1,
   "data": [
@@ -19,13 +19,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(710.62)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 699.5339965820312,
-      "sma10": 707.8289978027344,
-      "vs5Pct": "-2.19",
-      "vs10Pct": "-3.33",
-      "barCount": 20
+      "sma5": 697.3139892578125,
+      "sma10": 703.7009948730469,
+      "vs5Pct": "-1.88",
+      "vs10Pct": "-2.77",
+      "barCount": 21
     },
     {
       "symbol": "SPY",
@@ -42,13 +42,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(733.24)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 743.85,
-      "sma10": 748.072998046875,
-      "vs5Pct": "-0.66",
-      "vs10Pct": "-1.22",
-      "barCount": 20
+      "sma5": 742.9780029296875,
+      "sma10": 746.47099609375,
+      "vs5Pct": "-0.54",
+      "vs10Pct": "-1.01",
+      "barCount": 21
     },
     {
       "symbol": "IWM",
@@ -65,13 +65,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(296.69)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 293.75400390625,
-      "sma10": 294.41100158691404,
-      "vs5Pct": "-0.88",
-      "vs10Pct": "-1.10",
-      "barCount": 20
+      "sma5": 293.1800048828125,
+      "sma10": 293.92900390625,
+      "vs5Pct": "-0.69",
+      "vs10Pct": "-0.94",
+      "barCount": 21
     },
     {
       "symbol": "QLD",
@@ -88,13 +88,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(90.37)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 86.89000091552734,
-      "sma10": 89.05899963378906,
-      "vs5Pct": "-4.48",
-      "vs10Pct": "-6.80",
-      "barCount": 20
+      "sma5": 86.30800018310546,
+      "sma10": 87.98899993896484,
+      "vs5Pct": "-3.83",
+      "vs10Pct": "-5.67",
+      "barCount": 21
     },
     {
       "symbol": "TQQQ",
@@ -111,13 +111,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(73.3)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 68.6260009765625,
-      "sma10": 71.3,
-      "vs5Pct": "-6.74",
-      "vs10Pct": "-10.24",
-      "barCount": 20
+      "sma5": 67.92000122070313,
+      "sma10": 69.99700012207032,
+      "vs5Pct": "-5.77",
+      "vs10Pct": "-8.57",
+      "barCount": 21
     },
     {
       "symbol": "SMH",
@@ -134,13 +134,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(618.92)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 573.30400390625,
-      "sma10": 582.3170043945313,
-      "vs5Pct": "-2.11",
-      "vs10Pct": "-3.63",
-      "barCount": 20
+      "sma5": 574.2359985351562,
+      "sma10": 577.3330017089844,
+      "vs5Pct": "-2.27",
+      "vs10Pct": "-2.80",
+      "barCount": 21
     },
     {
       "symbol": "SOXX",
@@ -157,13 +157,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(601.5)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 541.0800048828125,
-      "sma10": 549.40400390625,
-      "vs5Pct": "-2.60",
-      "vs10Pct": "-4.08",
-      "barCount": 20
+      "sma5": 542.1200073242187,
+      "sma10": 543.9710021972656,
+      "vs5Pct": "-2.79",
+      "vs10Pct": "-3.12",
+      "barCount": 21
     },
     {
       "symbol": "MAGS",
@@ -180,13 +180,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(62.68)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 66.06400070190429,
-      "sma10": 66.95700035095214,
-      "vs5Pct": "-4.41",
-      "vs10Pct": "-5.69",
-      "barCount": 20
+      "sma5": 65.3120002746582,
+      "sma10": 66.50400047302246,
+      "vs5Pct": "-3.31",
+      "vs10Pct": "-5.04",
+      "barCount": 21
     },
     {
       "symbol": "EEM",
@@ -203,13 +203,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(67.25)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 64.35599899291992,
-      "sma10": 64.86099967956542,
-      "vs5Pct": "-1.59",
-      "vs10Pct": "-2.36",
-      "barCount": 20
+      "sma5": 64.36399917602539,
+      "sma10": 64.50399971008301,
+      "vs5Pct": "-1.61",
+      "vs10Pct": "-1.82",
+      "barCount": 21
     },
     {
       "symbol": "FXI",
@@ -226,13 +226,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(32.36)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 34.53800048828125,
-      "sma10": 34.2189998626709,
-      "vs5Pct": "0.12",
-      "vs10Pct": "1.05",
-      "barCount": 20
+      "sma5": 34.62800064086914,
+      "sma10": 34.329000091552736,
+      "vs5Pct": "-0.14",
+      "vs10Pct": "0.73",
+      "barCount": 21
     },
     {
       "symbol": "KWEB",
@@ -249,13 +249,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(24.3)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 26.796000289916993,
-      "sma10": 26.725,
-      "vs5Pct": "-1.89",
-      "vs10Pct": "-1.63",
-      "barCount": 20
+      "sma5": 26.692000579833984,
+      "sma10": 26.716000175476076,
+      "vs5Pct": "-1.51",
+      "vs10Pct": "-1.59",
+      "barCount": 21
     },
     {
       "symbol": "^VIX",
@@ -272,13 +272,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(18.41)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 17.961999893188477,
-      "sma10": 17.089999866485595,
-      "vs5Pct": "3.44",
-      "vs10Pct": "8.72",
-      "barCount": 19
+      "sma5": 17.923999786376953,
+      "sma10": 17.44499988555908,
+      "vs5Pct": "3.66",
+      "vs10Pct": "6.51",
+      "barCount": 20
     },
     {
       "symbol": "VIXY",
@@ -295,13 +295,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(22.91)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 21.207999801635744,
-      "sma10": 20.867999839782716,
-      "vs5Pct": "1.09",
-      "vs10Pct": "2.74",
-      "barCount": 20
+      "sma5": 21.165999984741212,
+      "sma10": 20.977999877929687,
+      "vs5Pct": "1.29",
+      "vs10Pct": "2.20",
+      "barCount": 21
     },
     {
       "symbol": "IBIT",
@@ -318,22 +318,22 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(33.87)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
       "sma5": 36.97999954223633,
-      "sma10": 36.613000106811526,
+      "sma10": 36.625,
       "vs5Pct": "-1.70",
-      "vs10Pct": "-0.72",
-      "barCount": 20
+      "vs10Pct": "-0.75",
+      "barCount": 21
     },
     {
       "symbol": "BTC-USD",
       "category": "Bitcoin",
       "name": "Bitcoin USD",
-      "price": 64248.98,
+      "price": 64332.34,
       "previousClose": 64098.49609375,
-      "changePercent": "0.23",
-      "marketTime": "2026-07-25T21:10:06.000Z",
+      "changePercent": "0.36",
+      "marketTime": "2026-07-25T22:06:32.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
@@ -343,10 +343,10 @@
       "previousCloseDate": "2026-07-24",
       "latestBarDate": "2026-07-25",
       "marketDate": "2026-07-25",
-      "sma5": 65199.6421875,
-      "sma10": 64840.438671875,
-      "vs5Pct": "-1.46",
-      "vs10Pct": "-0.91",
+      "sma5": 65216.3140625,
+      "sma10": 64848.774609375,
+      "vs5Pct": "-1.36",
+      "vs10Pct": "-0.80",
       "barCount": 21
     },
     {
@@ -364,13 +364,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(94.13)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 97.6519989013672,
-      "sma10": 96.40799942016602,
-      "vs5Pct": "-6.13",
-      "vs10Pct": "-4.91",
-      "barCount": 20
+      "sma5": 97.01599884033203,
+      "sma10": 96.1109992980957,
+      "vs5Pct": "-5.51",
+      "vs10Pct": "-4.62",
+      "barCount": 21
     },
     {
       "symbol": "DX-Y.NYB",
@@ -387,13 +387,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(101.19)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 101.0979995727539,
-      "sma10": 100.99100036621094,
-      "vs5Pct": "0.36",
-      "vs10Pct": "0.47",
-      "barCount": 17
+      "sma5": 101.24199981689453,
+      "sma10": 101.04100036621094,
+      "vs5Pct": "0.22",
+      "vs10Pct": "0.42",
+      "barCount": 18
     },
     {
       "symbol": "^TNX",
@@ -410,13 +410,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(4.392)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 4.625399971008301,
-      "sma10": 4.600399971008301,
-      "vs5Pct": "1.16",
-      "vs10Pct": "1.71",
-      "barCount": 20
+      "sma5": 4.652999973297119,
+      "sma10": 4.611399984359741,
+      "vs5Pct": "0.56",
+      "vs10Pct": "1.47",
+      "barCount": 21
     },
     {
       "symbol": "^2YR",
@@ -453,7 +453,7 @@
       "price": 6.7617,
       "previousClose": 6.79,
       "changePercent": "-0.42",
-      "marketTime": "2026-07-25T16:04:52.000Z",
+      "marketTime": "2026-07-25T21:32:35.000Z",
       "currency": "CNY",
       "exchange": "CCY",
       "marketState": null,
@@ -530,13 +530,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(131.65)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 100.08000030517579,
-      "sma10": 102.10900039672852,
-      "vs5Pct": "-7.75",
-      "vs10Pct": "-9.59",
-      "barCount": 20
+      "sma5": 99.53600006103515,
+      "sma10": 100.35700073242188,
+      "vs5Pct": "-7.25",
+      "vs10Pct": "-8.01",
+      "barCount": 21
     },
     {
       "symbol": "HOOD",
@@ -553,13 +553,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(97.19)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-23",
+      "latestBarDate": "2026-07-24",
       "marketDate": "2026-07-24",
-      "sma5": 102.33200073242188,
-      "sma10": 106.85,
-      "vs5Pct": "-7.25",
-      "vs10Pct": "-11.17",
-      "barCount": 20
+      "sma5": 101.32200164794922,
+      "sma10": 105.14400024414063,
+      "vs5Pct": "-6.33",
+      "vs10Pct": "-9.73",
+      "barCount": 21
     }
   ]
 }
