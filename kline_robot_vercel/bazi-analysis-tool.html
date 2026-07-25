@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="基于中国传统八字命理学，结合 DeepSeek AI 深度分析个人命运、婚姻、事业、健康与风水。">
+<title>八字命理深度分析 · donew</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#e8ede4;--panel:#fff;--border:#c4d0bd;--text:#3a4f2f;--muted:#9ab58a;--accent:#56805a;--accent-hover:#4a6d4d;--input-bg:#f8faf6;--input-border:#d4dccd;--input-focus:#7a9b6e;--report-bg:#1a1b1e;--report-border:#2a2d2a;--report-title:#a8c98e;--report-text:#c4ccb8;--report-muted:#5a6052;--report-accent:#7a9b6e}
+body{font-family:"Noto Serif SC","Songti SC","SimSun",serif;background:var(--bg);min-height:100vh;padding:20px}
+.shell{max-width:1100px;margin:0 auto}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 24px;margin-bottom:20px;background:rgba(255,255,255,.7);border:1px solid var(--border);border-radius:6px}
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand h1{color:var(--text);font-size:22px;font-weight:600;letter-spacing:4px}
+.version{background:#dfe8dc;color:var(--accent);padding:3px 10px;border-radius:3px;font-size:12px;font-family:monospace}
+.topbar-right{display:flex;align-items:center;gap:16px;font-size:13px;color:var(--muted)}
+.topbar-right a{color:var(--muted);text-decoration:none}
+.topbar-right a:hover{color:var(--text)}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:28px 24px;position:sticky;top:20px;box-shadow:0 2px 16px rgba(0,0,0,.06)}
+.panel-header{text-align:center;margin-bottom:28px}
+.panel-icon{font-size:30px;margin-bottom:4px}
+.panel-header h2{color:var(--text);font-size:20px;letter-spacing:3px;font-weight:600}
+.panel-header p{color:var(--muted);font-size:12px;margin-top:2px}
+.field{margin-bottom:20px}
+.field label{display:flex;align-items:center;gap:6px;color:var(--text);font-size:13px;font-weight:600;margin-bottom:6px}
+.field label .hint{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#bcc9b2;color:#fff;font-size:11px;cursor:help;font-weight:700;position:relative}
+.hint:hover::after{content:attr(data-tip);position:absolute;left:24px;top:-4px;background:#1a1b1e;color:#c4ccb8;font-size:12px;font-weight:400;padding:6px 10px;border-radius:4px;white-space:nowrap;z-index:10;pointer-events:none}
+input[type=text],input[type=number]{width:100%;padding:10px 12px;border:none;border-bottom:2px solid var(--input-border);background:var(--input-bg);font-size:15px;color:#384232;font-family:inherit;transition:border-color .2s;border-radius:0;-webkit-appearance:none}
+input:focus{outline:none;border-bottom-color:var(--input-focus)}
+.year-selects{display:flex;gap:8px}
+.year-selects input{flex:1;min-width:50px;text-align:center}
+.radio-group{display:flex;gap:8px}
+.radio-group button{flex:1;padding:10px;border:1.5px solid var(--input-border);border-radius:4px;background:var(--input-bg);color:#5a6b4f;font-size:14px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-appearance:none;appearance:none}
+.radio-group button.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.submit-btn{width:100%;padding:15px;border:none;border-radius:6px;background:var(--accent);color:#fff;font-size:17px;font-weight:700;cursor:pointer;letter-spacing:3px;font-family:inherit;box-shadow:0 3px 12px rgba(86,128,90,.25);transition:transform .15s,box-shadow .15s}
+.submit-btn:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 6px 20px rgba(86,128,90,.35)}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.panel-footer{display:flex;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:1px solid #e8ede4;color:var(--muted);font-size:11px}
+.result{background:var(--report-bg);border:1.5px solid var(--report-border);border-radius:8px;padding:32px 28px;min-height:500px;box-shadow:0 4px 24px rgba(0,0,0,.15);color:var(--report-text);font-size:15px;line-height:1.9}
+.result h1{text-align:center;color:var(--report-title);font-size:20px;letter-spacing:3px;font-weight:600;margin-bottom:20px}
+.result-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:var(--report-muted);text-align:center}
+.result-empty .icon{font-size:48px;margin-bottom:16px;opacity:.5}
+.result-empty p{font-size:14px}
+.result-loading{display:flex;align-items:center;justify-content:center;min-height:400px;color:var(--report-title);font-size:16px}
+.info-line{display:flex;flex-wrap:wrap;gap:2px 12px;color:var(--report-text);font-size:14px;margin-bottom:8px}
+.section-title{color:var(--report-title);font-size:17px;font-weight:600;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--report-border)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th,td{border:1px solid var(--report-border);padding:8px 10px;text-align:center}
+th{background:#252820;color:var(--report-title);font-weight:600}
+.score-row{display:flex;align-items:center;margin-bottom:8px}
+.score-label{color:#a0a894;font-size:13px;width:90px;flex-shrink:0}
+.score-bar{flex:1;height:8px;background:#2a2d28;border-radius:4px;overflow:hidden;margin-right:10px}
+.score-fill{height:100%;border-radius:4px}
+.score-num{color:var(--report-text);font-size:13px;width:90px;text-align:right}
+.wx-bar{display:inline-block;height:10px;border-radius:4px;background:var(--report-accent);vertical-align:middle;margin-right:8px}
+.wx-red{background:#d4745c}
+.wx-gold{background:#b8a862}
+.ai-section{margin:16px 0;padding:14px 18px;background:#222520;border-radius:6px;border-left:3px solid var(--report-accent)}
+.ai-section p{margin:6px 0}
+.ai-section strong{color:var(--report-title)}
+.summary{text-align:center;margin-top:24px;color:var(--report-title);font-size:16px;font-weight:500}
+.actions{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap}
+.action-btn{padding:8px 16px;border:1px solid #353a30;border-radius:4px;background:transparent;color:#909c82;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s}
+.action-btn:hover{border-color:var(--report-accent);color:var(--report-title)}
+.note{margin-top:20px;color:var(--report-muted);font-size:12px;text-align:center;line-height:1.6}
+.note a{color:var(--report-accent)}
+.msg{text-align:center;padding:10px;margin-bottom:12px;border-radius:4px;font-size:13px;display:none}
+.msg.error{display:block;background:rgba(212,116,92,.15);color:#d4745c;border:1px solid rgba(212,116,92,.3)}
+.msg.info{display:block;background:rgba(122,155,110,.15);color:#a8c98e;border:1px solid rgba(122,155,110,.3)}
+.hidden{display:none!important}
+@media(max-width:768px){
+  body{padding:10px}
+  .brand h1{font-size:17px;letter-spacing:2px}
+  .layout{grid-template-columns:1fr;gap:14px}
+  .panel{position:static;padding:20px 16px}
+  .panel-header{margin-bottom:20px}
+  .panel-header h2{font-size:17px;letter-spacing:2px}
+  .field{margin-bottom:16px}
+  .field label{font-size:12px}
+  input[type=text],input[type=number]{font-size:16px;padding:10px}
+  .radio-group button{font-size:13px}
+  .submit-btn{font-size:16px;padding:14px;letter-spacing:2px}
+  .result{padding:22px 16px}
+  .result h1{font-size:18px}
+  .section-title{font-size:15px}
+  table{font-size:11px}
+  th,td{padding:5px 6px}
+  .score-label{width:70px;font-size:11px}
+  .score-num{width:70px;font-size:11px}
+  .actions{gap:6px}
+  .action-btn{flex:1;min-width:60px;text-align:center;padding:9px 8px;font-size:11px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <h1>🔮 八字命理 · 青瓷</h1>
+      <span class="version" id="versionBadge">v1.0.0</span>
+    </div>
+    <div class="topbar-right">
+      <span id="visitCount">访问 —</span>
+      <a href="https://donew-beta.vercel.app">← 返回十方斋</a>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon">◎</div>
+        <h2>命 盘 录 入</h2>
+        <p>请输入您的生辰信息</p>
+      </div>
+
+      <div class="field">
+        <label>姓 名</label>
+        <input type="text" id="name" placeholder="请输入姓名（如：林海涛）" maxlength="20">
+      </div>
+
+      <div class="field">
+        <label>性 别</label>
+        <div class="radio-group" id="genderGroup">
+          <button data-value="男" class="active">● 乾造（男）</button>
+          <button data-value="女">坤造（女）</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>出生日期</label>
+        <div class="year-selects" id="dateGroup">
+          <input type="number" id="year" placeholder="年" min="1900" max="2100">
+          <input type="number" id="month" placeholder="月" min="1" max="12">
+          <input type="number" id="day" placeholder="日" min="1" max="31">
+        </div>
+        <div style="color:var(--muted);font-size:11px;margin-top:4px">● 公历（系统自动转换为农历）</div>
+      </div>
+
+      <div class="field">
+        <label>出生时间 <span class="hint" data-tip="用于确定时柱。不填默认子时，可能影响婚姻、子女、晚年运势判断。建议尽量询问父母。">?</span></label>
+        <input type="text" id="hour" placeholder="例如：上午10点">
+      </div>
+
+      <div class="field">
+        <label>出生地点 <span class="hint" data-tip="用于计算真太阳时。不填默认北京时间（东八区）。支持海外地点。">?</span></label>
+        <input type="text" id="location" placeholder="例如：中国北京">
+      </div>
+
+      <div class="field">
+        <label>当前职业 <span class="hint" data-tip="分析职业五行与八字的契合度，给出冲突与优化建议。不填则跳过该章节。">?</span></label>
+        <input type="text" id="work" placeholder="例如：互联网产品经理">
+      </div>
+
+      <button class="submit-btn" id="submitBtn">◎ 推 演 命 盘</button>
+
+      <div class="panel-footer">
+        <span id="panelVersion">版本 v1.0.0</span>
+        <span id="panelVisit">—</span>
+      </div>
+    </div>
+
+    <div class="result" id="resultArea">
+      <div class="result-empty" id="resultEmpty">
+        <div class="icon">◎</div>
+        <p>输入生辰信息后点击「推演命盘」</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--report-muted)">生成您的专属八字命理分析报告</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const VERSION = "v1.0.0";
+  const API_URL = (function(){
+    var s = new URLSearchParams(location.search);
+    if (s.get("api")) return s.get("api");
+    if (location.hostname === "localhost" || location.hostname === "127.0.0.1") return "";
+    return "https://donew-beta.vercel.app";
+  })();
+  const API_PATH = (API_URL ? API_URL : "") + "/api/bazi-analysis";
+
+  // 版本号
+  document.getElementById("versionBadge").textContent = VERSION;
+  document.getElementById("panelVersion").textContent = "版本 " + VERSION;
+
+  // 访问计数 (busuanzi)
+  if (window.busuanzi) {
+    var script = document.createElement("span");
+    script.id = "busuanzi_container_site_pv";
+    script.innerHTML = '访问 <span id="busuanzi_value_site_pv"></span>';
+    document.getElementById("visitCount").appendChild(script);
+  }
+
+  // 性别选择
+  var gender = "男";
+  document.getElementById("genderGroup").addEventListener("click", function(e){
+    if (e.target.tagName !== "BUTTON") return;
+    document.querySelectorAll("#genderGroup button").forEach(function(b){ b.classList.remove("active"); });
+    e.target.classList.add("active");
+    gender = e.target.dataset.value;
+  });
+
+  // 解析时间输入
+  function parseHour(input) {
+    if (!input || !input.trim()) return 0; // 默认子时
+    var s = input.trim();
+    // 处理 24小时制
+    var m = s.match(/(\d{1,2})\s*[点时:：]\s*(\d{0,2})/);
+    if (m) {
+      var h = parseInt(m[1], 10);
+      var min = parseInt(m[2] || "0", 10);
+      if (h >= 0 && h <= 23) return { hour:h, minute:min };
+    }
+    // 处理 "上午X点" "下午X点" "晚上X点"
+    m = s.match(/(上午|早上|中午|下午|晚上|夜里|凌晨)\s*(\d{1,2})/);
+    if (m) {
+      var h2 = parseInt(m[2], 10);
+      var period = m[1];
+      if (period === "下午" && h2 < 12) h2 += 12;
+      if (period === "晚上" && h2 < 12) h2 += 12;
+      if (period === "中午" && h2 < 12) h2 += 12;
+      if (period === "凌晨" && h2 === 12) h2 = 0;
+      return { hour:h2, minute:0 };
+    }
+    // 纯数字
+    var num = parseInt(s, 10);
+    if (!isNaN(num) && num >= 0 && num <= 23) return { hour:num, minute:0 };
+    return 0;
+  }
+
+  // 提交
+  var isSubmitting = false;
+  var lastReport = null;
+  document.getElementById("submitBtn").addEventListener("click", function(){
+    if (isSubmitting) return;
+    var year = parseInt(document.getElementById("year").value, 10);
+    var month = parseInt(document.getElementById("month").value, 10);
+    var day = parseInt(document.getElementById("day").value, 10);
+    if (!year || !month || !day) {
+      showMsg("请填写完整的出生日期", "error");
+      return;
+    }
+    if (year < 1900 || year > 2100) {
+      showMsg("出生年份需在 1900-2100 之间", "error");
+      return;
+    }
+    if (month < 1 || month > 12) { showMsg("月份无效", "error"); return; }
+    if (day < 1 || day > 31) { showMsg("日期无效", "error"); return; }
+
+    var nameVal = document.getElementById("name").value.trim();
+    var hourVal = document.getElementById("hour").value.trim();
+    var locVal = document.getElementById("location").value.trim();
+    var workVal = document.getElementById("work").value.trim();
+
+    var h = parseHour(hourVal);
+
+    var resultArea = document.getElementById("resultArea");
+    resultArea.innerHTML = '<div class="result-loading"><p>◎ 正在推演命盘，请稍候...</p></div>';
+    isSubmitting = true;
+    document.getElementById("submitBtn").disabled = true;
+
+    fetch(API_PATH, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: nameVal || undefined,
+        gender: gender,
+        year: year,
+        month: month,
+        day: day,
+        hour: typeof h === "object" ? h.hour : h,
+        minute: typeof h === "object" ? h.minute : 0,
+        location: locVal || undefined,
+        work: workVal || undefined
+      })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      isSubmitting = false;
+      document.getElementById("submitBtn").disabled = false;
+      if (!data.ok) {
+        resultArea.innerHTML = '<div class="result-empty"><p style="color:#d4745c">' + escapeHtml(data.message || "分析失败") + '</p></div>';
+        return;
+      }
+      lastReport = data;
+      resultArea.innerHTML = data.html || data.markdown || '<p>报告已生成。</p>';
+      // 保存到 localStorage
+      try {
+        localStorage.setItem("bazi_last_report", JSON.stringify({
+          html: data.html,
+          generatedAt: data.generatedAt,
+          filename: data.filename
+        }));
+        localStorage.setItem("bazi_last_input", JSON.stringify({
+          name: nameVal, gender: gender, year: year, month: month, day: day,
+          hour: hourVal, location: locVal, work: workVal
+        }));
+      } catch(e){}
+    })
+    .catch(function(err){
+      isSubmitting = false;
+      document.getElementById("submitBtn").disabled = false;
+      resultArea.innerHTML = '<div class="result-empty"><p style="color:#d4745c">请求失败，请检查网络连接后重试</p></div>';
+    });
+  });
+
+  function showMsg(text, type) {
+    var el = document.getElementById("resultArea");
+    el.innerHTML = '<div class="msg ' + type + '">' + escapeHtml(text) + '</div>' + el.innerHTML;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // 恢复上次报告
+  (function(){
+    try {
+      var saved = localStorage.getItem("bazi_last_report");
+      if (saved) {
+        var data = JSON.parse(saved);
+        if (data.html) {
+          document.getElementById("resultArea").innerHTML = data.html;
+          document.getElementById("resultEmpty") && document.getElementById("resultEmpty").classList.add("hidden");
+        }
+      }
+      var savedInput = localStorage.getItem("bazi_last_input");
+      if (savedInput) {
+        var inp = JSON.parse(savedInput);
+        if (inp.name) document.getElementById("name").value = inp.name;
+        if (inp.gender) {
+          document.querySelectorAll("#genderGroup button").forEach(function(b){
+            b.classList.toggle("active", b.dataset.value === inp.gender);
+          });
+          gender = inp.gender;
+        }
+        if (inp.year) document.getElementById("year").value = inp.year;
+        if (inp.month) document.getElementById("month").value = inp.month;
+        if (inp.day) document.getElementById("day").value = inp.day;
+        if (inp.hour) document.getElementById("hour").value = inp.hour;
+        if (inp.location) document.getElementById("location").value = inp.location;
+        if (inp.work) document.getElementById("work").value = inp.work;
+      }
+    } catch(e){}
+  })();
+})();
+</script>
+
+<!-- busuanzi -->
+<script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+</body>
+</html>
