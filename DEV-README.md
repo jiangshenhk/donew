@@ -815,15 +815,47 @@ npm run deploy
 
 #### 14.2.2 环境变量（Vercel Dashboard 设置）
 
-Vercel 线上需要的环境变量（在 Vercel Dashboard → Project Settings → Environment Variables 设置）：
+Vercel 线上需要的所有环境变量（在 Vercel Dashboard → Project Settings → Environment Variables 设置）：
+
+**AI 接口（必选，至少配一组）：**
 
 | 变量名 | 用途 | 示例值 |
 |---|---|---|
-| `OPENAI_API_KEY` | OpenAI / DeepSeek API Key | `sk-xxx` |
-| `DEEPSEEK_API_KEY` | DeepSeek API Key（如用 DeepSeek 模型） | `sk-xxx` |
-| `NEWS_SUMMARY_API` | 新闻摘要 API 端点（日报/晚报生成时使用） | `https://donew-beta.vercel.app/api/news-summary` |
+| `OPENAI_API_KEY` | OpenAI API Key（GPT 模型调用） | `sk-xxx` |
+| `OPENAI_MODEL` | OpenAI 默认模型 | `gpt-5`（默认） |
+| `OPENAI_VISION_MODEL` | OpenAI 视觉模型（OCR / 截图识别），未设时回退 `OPENAI_MODEL` | `gpt-5` |
+| `DEEPSEEK_API_KEY` | DeepSeek API Key（DeepSeek 模型调用） | `sk-xxx` |
+| `DEEPSEEK_MODEL` | DeepSeek 默认模型 | `deepseek-chat` 或 `deepseek-v4-flash` |
 
-本地开发时可以用 `.env` 文件（不提交到 Git）。
+**AI 双路由说明**：所有 API 均支持 OpenAI + DeepSeek 双路由。各 API 的调用优先级不同：
+- `sell-put-decision.js`：报告生成优先 DeepSeek，OCR 截图固定用 OpenAI Vision
+- `put-rating.js`：优先 OpenAI GPT，失败回退 DeepSeek
+- `market-report-v2.js` / `report.js`：两路都尝试，任意一路可用即可
+- `news-summary.js`：优先 DeepSeek，失败回退 OpenAI
+
+**CORS 与域名：**
+
+| 变量名 | 用途 | 示例值 |
+|---|---|---|
+| `ALLOWED_ORIGIN` | CORS 允许的源 | `https://jiangshenhk.github.io` |
+
+**认证相关（可选）：**
+
+| 变量名 | 用途 | 示例值 |
+|---|---|---|
+| `JWT_SECRET` | JWT 签名密钥 | 自定义随机字符串 |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob 读写 Token | Vercel Dashboard 生成 |
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | Google Cloud Console 获取 |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret | Google Cloud Console 获取 |
+| `VERCEL_URL` | Vercel 自动注入，无需手动设置 | — |
+
+**GitHub Actions 专用（用于定时日报生成，在 Actions Secret 设置）：**
+
+| 变量名 | 用途 |
+|---|---|
+| `NEWS_SUMMARY_API` | 日报/晚报生成时调用的 AI 端点，指向 `https://donew-beta.vercel.app/api/news-summary` |
+
+本地开发时可以用 `.env` 文件（不提交到 Git），Vercel CLI 会自动加载。
 
 ### 14.3 Cloudflare Workers — K线代理
 
