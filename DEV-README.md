@@ -215,7 +215,32 @@ node scripts/create-tool-scaffold.mjs \
   --api your-tool
 ```
 
-### 约定 5：标的池体系
+### 约定 5：Vercel Hobby 上限 12 Functions，优先用 action 路由合并
+
+Vercel Hobby 计划每个 Deployment 最多 12 个 Serverless Functions（`api/` 目录下每个 .js 算一个，`_lib/` 不计入）。
+
+新增功能时优先评估是否可以挂到已有 JS 上，通过 `action` 或 `mode` 参数路由，而不是新建文件。
+
+**已合并案例**：
+
+| 文件 | 路由 | 承载功能 |
+|---|---|---|
+| `news-summary.js` | `mode=news-summary / daily-report / video / article` | 四种 AI 摘要 |
+| `market-report-v2.js` | `?action=price / status / refresh / start / stop` + 默认 | 行情管理 + 市场报告 |
+
+**模式**：在 handler 入口处判断 `req.query.action` 或 `req.body.mode`，分派到不同逻辑分支后提前 return。
+
+### 约定 6：部署时必须同时跑 `vercel --prod`
+
+推送代码到 GitHub 后，从仓库根目录执行：
+
+```bash
+vercel --prod --yes
+```
+
+Vercel 的 GitHub 自动集成有时不触发或延迟，手动部署确保代码立即上线。
+
+### 约定 7：标的池体系
 
 完整的标的分类体系在：
 
