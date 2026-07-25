@@ -50,13 +50,13 @@ th{background:#252820;color:var(--rTitle);font-weight:600}
 .score-label{color:#a0a894;font-size:13px;width:95px;flex-shrink:0}
 .score-bar{flex:1;height:8px;background:#2a2d28;border-radius:4px;overflow:hidden;margin-right:10px}
 .score-fill{height:100%;border-radius:4px}
-.score-num{color:var(--rText);font-size:13px;width:85px;text-align:right}
+.score-num{color:var(--rText);font-size:13px;width:105px;text-align:right;white-space:nowrap}
 .s-green{background:var(--rAccent)}.s-gold{background:var(--rGold)}.s-red{background:var(--rWarn)}
 .ai-section{margin:16px 0;padding:14px 18px;background:#222520;border-radius:6px;border-left:3px solid var(--rAccent)}
 .ai-section p{margin:6px 0}.ai-section strong{color:var(--rTitle)}
-.btns{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}
-.btns button{padding:8px 16px;border:1px solid #353a30;border-radius:4px;background:transparent;color:#909c82;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s}
-.btns button:hover{border-color:var(--rAccent);color:var(--rTitle)}
+.btns{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;align-items:center}
+.btns a,.btns button,.btn-open,.btn-dl,.btn-img,.btn-share{display:inline-block;padding:10px 18px;border:1px solid #5a6a4a;border-radius:4px;background:#2a3028;color:#c0d0a0;font-size:13px;cursor:pointer;font-family:inherit;text-decoration:none;transition:all .15s}
+.btns a:hover,.btns button:hover,.btn-open:hover,.btn-dl:hover,.btn-img:hover,.btn-share:hover{background:#3a4038;color:#e0f0c0;border-color:#7a9b6e}
 .msg-box{text-align:center;padding:10px;margin-bottom:12px;border-radius:4px;font-size:13px}
 .msg-err{background:rgba(212,116,92,.15);color:var(--rWarn);border:1px solid rgba(212,116,92,.3)}
 .msg-info{background:rgba(122,155,110,.15);color:var(--rTitle);border:1px solid rgba(122,155,110,.3)}
@@ -66,6 +66,9 @@ th{background:#252820;color:var(--rTitle);font-weight:600}
 .r-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:var(--rTitle);font-size:16px}
 .r-loading .timer{font-size:36px;color:var(--rGold);font-weight:600;margin-top:8px;font-variant-numeric:tabular-nums}
 .hidden{display:none!important}
+.r-toolbar{display:flex;gap:8px;margin-bottom:16px;padding:12px 0;flex-wrap:wrap;border-bottom:1px solid var(--rBd)}
+.r-toolbar a,.r-toolbar button,.btn-open,.btn-dl,.btn-img,.btn-share{display:inline-block;padding:8px 16px;border:1px solid #5a6a4a;border-radius:4px;background:#2a3028;color:#c0d0a0;font-size:13px;cursor:pointer;font-family:inherit;text-decoration:none;transition:all .15s}
+.r-toolbar a:hover,.r-toolbar button:hover,.btn-open:hover,.btn-dl:hover,.btn-img:hover,.btn-share:hover{background:#3a4038;color:#e0f0c0;border-color:#7a9b6e}
 .note{text-align:center;color:var(--rMuted);font-size:12px;margin-top:20px;line-height:1.6}
 @media(max-width:768px){
   body{padding:10px}
@@ -79,28 +82,34 @@ th{background:#252820;color:var(--rTitle);font-weight:600}
   .result{padding:22px 16px}
   .r-section{font-size:15px}
   table{font-size:11px}th,td{padding:5px 6px}
-  .score-label{width:70px;font-size:11px}.score-num{width:65px;font-size:11px}
-  .btns button{flex:1;min-width:60px;text-align:center;padding:9px 8px;font-size:11px}
+  .score-label{width:70px;font-size:11px}.score-num{width:90px;font-size:11px}
+  .btns button,.btn-open,.btn-dl,.btn-img,.btn-share{flex:1;min-width:60px;text-align:center;padding:9px 8px;font-size:11px}
 }
 </style>
 </head>
 <body>
 <div class="shell">
-<div class="topbar"><div class="brand"><h1>🔮 八字命理 · 青瓷</h1><span class="version" id="ver">v1.0.5</span></div><div class="top-right"><span id="vc">—</span>&nbsp;&nbsp;<a href="https://donew-beta.vercel.app">← 十方斋</a></div></div>
+<div class="topbar"><div class="brand"><h1>🔮 八字命理 · 青瓷</h1><span class="version" id="ver">v1.0.8</span></div><div class="top-right"><span id="vc">—</span>&nbsp;&nbsp;<a href="https://donew-beta.vercel.app">← 十方斋</a></div></div>
 <div class="layout">
 <div class="panel">
   <div class="p-header"><div class="icon">◎</div><h2>命 盘 录 入</h2><p>请输入您的生辰信息</p></div>
   <div class="field"><label>姓 名</label><input type="text" id="in_name" placeholder="请输入姓名（如：林海涛）" maxlength="10"></div>
   <div class="field"><label>性 别</label><div class="radio-row" id="genderGrp"><button data-v="男" class="active">● 乾造（男）</button><button data-v="女">坤造（女）</button></div></div>
   <div class="field"><label>出生日期</label><div class="date-row"><input type="number" id="in_y" placeholder="年" min="1900" max="2100"><input type="number" id="in_m" placeholder="月" min="1" max="12"><input type="number" id="in_d" placeholder="日" min="1" max="31"></div><div style="color:var(--muted);font-size:11px;margin-top:4px">● 公历（自动转农历）</div></div>
-  <div class="field"><label>出生时间 <span class="hint" data-tip="用于确定时柱。不填默认子时(23:00-01:00)。">?</span></label><input type="text" id="in_h" placeholder="例如：10:00 / 23:30"></div>
+  <div class="field"><label>出生时间 <span class="hint" data-tip="用于确定时柱。不填默认子时(23:00-01:00)。">?</span></label><input type="text" id="in_h" placeholder="直接输入小时数，如 10 或 23" inputmode="numeric"></div>
   <div class="field"><label>出生地点 <span class="hint" data-tip="用于真太阳时校准。不填默认北京时间。支持海外。">?</span></label><input type="text" id="in_loc" placeholder="例如：中国北京"></div>
   <div class="field"><label>当前职业 <span class="hint" data-tip="分析职业五行与八字契合度。不填跳过。">?</span></label><input type="text" id="in_work" placeholder="例如：互联网产品经理"></div>
   <button class="btn-submit" id="btnGo">◎ 推 演 命 盘</button>
   <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px" id="statusLine">输入信息后点击按钮，AI 将生成完整分析</p>
-  <div class="p-footer"><span id="pver">v1.0.2</span><span id="pvc">—</span></div>
+  <div class="p-footer"><span id="pver">v1.0.8</span><span id="pvc">—</span></div>
 </div>
 <div class="result" id="resultArea">
+  <div class="r-toolbar hidden" id="rToolbar">
+    <a class="btn-open" id="toolbarOpen" href="#" target="_blank">新窗口打开报告</a>
+    <button class="btn-dl" id="toolbarDl">下载 HTML</button>
+    <button class="btn-img" id="toolbarImg">下载图片</button>
+    <button class="btn-share" id="toolbarShare">图片分享</button>
+  </div>
   <div class="r-empty" id="rEmpty"><div class="icon">◎</div><p>输入生辰信息后点击「推演命盘」</p><p style="margin-top:8px;font-size:12px;color:var(--rMuted)">DeepSeek AI 将生成完整八字命理分析报告</p></div>
 </div>
 </div>
@@ -123,7 +132,7 @@ function jq(y,n){var b=365.2422*(y-2000),o=[5.4055,20.12,3.87,18.73,5.63,20.646,
 function yp(y,m,d){var j=jq(y,2),tY=y;if((m<j.month)||(m===j.month&&d<j.day))tY=y-1;var idx=(tY-4)%60;return{tgIdx:((idx%10)+10)%10,dzIdx:((idx%12)+12)%10,tg:TG[((idx%10)+10)%10],dz:DZ[((idx%12)+12)%12]}}
 function mp(y,m,d,yti){var qs=[],qm=[2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,1,1];for(var i=0;i<24;i++)qs.push(jq(y,i));var zi=2;for(i=0;i<24;i++){if(m>qs[i].month||(m===qs[i].month&&d>=qs[i].day))zi=qm[i]-1;if(zi<0)zi+=12}var B={0:2,1:4,2:6,3:8,4:0},ba=B[yti%5]||0;return{tgIdx:(ba+zi-2+10)%10,dzIdx:zi,tg:TG[(ba+zi-2+10)%10],dz:DZ[zi]}}
 function hp(h,rti){var z;if(h>=23||h<1)z=0;else if(h<3)z=1;else if(h<5)z=2;else if(h<7)z=3;else if(h<9)z=4;else if(h<11)z=5;else if(h<13)z=6;else if(h<15)z=7;else if(h<17)z=8;else if(h<19)z=9;else if(h<21)z=10;else z=11;var B={0:0,1:2,2:4,3:6,4:8,5:0,6:2,7:4,8:6,9:8};return{tgIdx:(B[rti%10]+z)%10,dzIdx:z,tg:TG[(B[rti%10]+z)%10],dz:DZ[z]}}
-function pxh(s){if(!s||!s.trim())return 0;var t=s.trim();var m=t.match(/(\d{1,2})\s*[：:]\s*(\d{0,2})/);if(m){var h=parseInt(m[1]);return h>=0&&h<=23?h:0}var n=parseInt(t);return(!isNaN(n)&&n>=0&&n<=23)?n:0}
+function pxh(s){if(!s||!s.trim())return 0;var n=parseInt(s.trim());return(!isNaN(n)&&n>=0&&n<=23)?n:0}
 function getSS(ri,ot){var ti=TG.indexOf(ri),oi=TG.indexOf(ot);if(ti<0||oi<0)return"";var wo={木:0,火:1,土:2,金:3,水:4},d=(wo[WX[ot]]-wo[WX[ri]]+5)%5;var rel=["同","生","克","被克","被生"][d],same=YY[ri]===YY[ot];var m={同:{true:"比肩",false:"劫财"},生:{true:"食神",false:"伤官"},克:{true:"偏财",false:"正财"},被克:{true:"七杀",false:"正官"},被生:{true:"偏印",false:"正印"}};return m[rel]?.[""+same]||""}
 function dy(yti,mdi,isMale){var fwd=(isMale&&YY[TG[yti]]==="阳")||(!isMale&&YY[TG[yti]]==="阴"),r=[],si=fwd?(mdi+1)%12:(mdi-1+12)%12,BM={"甲":0,"己":0,"乙":2,"庚":2,"丙":4,"辛":4,"丁":6,"壬":6,"戊":8,"癸":8},ba=BM[TG[yti]]||0;for(var i=0;i<8;i++){var di=fwd?(si+i)%12:(si-i+12)%12;r.push({gz:TG[(ba+di)%10]+DZ[di],tg:TG[(ba+di)%10],dz:DZ[di],wx:WX[TG[(ba+di)%10]]+"/"+WX[DZ[di]],sa:6+i*10,ea:15+i*10})}return r}
 function ln(){var r=[],cy=new Date().getFullYear();for(var i=0;i<5;i++){var y=cy-2+i,idx=(y-4)%60,ti=((idx%10)+10)%10,di=((idx%12)+12)%12;r.push({year:y,gz:TG[ti]+DZ[di],tg:TG[ti],dz:DZ[di],wx:WX[TG[ti]]+"/"+WX[DZ[di]]})}return r}
@@ -186,8 +195,8 @@ document.getElementById("genderGrp").addEventListener("click",function(e){if(e.t
 
 function openNewWin(html){var w=window.open("","_blank","width=900,height=700");if(!w){showErr("浏览器拦截了新窗口，请允许弹窗后重试");return}w.document.write(html);w.document.close();latestReportURL=null}
 function downloadHTML(html,name){var blob=new Blob(["<!DOCTYPE html>\n"+html],{type:"text/html"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=name||"bazi-report.html";a.click();URL.revokeObjectURL(url)}
-async function downloadImage(){if(typeof html2canvas==="undefined"){showErr("图片导出库加载中，请稍后重试");return}var el=document.getElementById("resultArea").querySelector(".r-content");if(!el){showErr("暂无报告内容");return}try{var canvas=await html2canvas(el,{backgroundColor:"#1a1b1e",scale:2});var blob=await new Promise(function(r){canvas.toBlob(r,"image/png")});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="bazi-report.png";a.click();URL.revokeObjectURL(url)}catch(e){showErr("图片保存失败："+e.message)}}
-function shareImage(){if(navigator.share&&navigator.canShare){if(typeof html2canvas==="undefined"){showErr("图片库加载中，请重试");return}var el=document.getElementById("resultArea").querySelector(".r-content");if(!el){showErr("暂无报告内容");return}html2canvas(el,{backgroundColor:"#1a1b1e",scale:2}).then(function(canvas){return canvas.toBlob(function(blob){if(!blob){showErr("图片生成失败");return}var file=new File([blob],"bazi-report.png",{type:"image/png"});if(navigator.canShare({files:[file]})){navigator.share({files:[file],title:"八字命理分析报告"})}else{var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="bazi-report.png";a.click()}},"image/png")}).catch(function(){showErr("图片生成失败")})}else{downloadImage()}}
+async function downloadImage(){if(typeof html2canvas==="undefined"){showErr("图片导出库加载中，请稍后重试");return}var el=document.getElementById("resultArea");if(!el){return}try{var canvas=await html2canvas(el,{backgroundColor:"#1a1b1e",scale:2});var blob=await new Promise(function(r){canvas.toBlob(r,"image/png")});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="bazi-report.png";a.click();URL.revokeObjectURL(url)}catch(e){showErr("图片保存失败："+e.message)}}
+function shareImage(){if(navigator.share&&navigator.canShare){if(typeof html2canvas==="undefined"){showErr("图片库加载中，请重试");return}var el=document.getElementById("resultArea");if(!el){return}html2canvas(el,{backgroundColor:"#1a1b1e",scale:2}).then(function(canvas){return canvas.toBlob(function(blob){if(!blob){return}var file=new File([blob],"bazi-report.png",{type:"image/png"});if(navigator.canShare({files:[file]})){navigator.share({files:[file],title:"八字命理分析报告"})}else{var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="bazi-report.png";a.click()}},"image/png")}).catch(function(){downloadImage()})}else{downloadImage()}}
 
 function showMsg(msg,cls){var el=document.getElementById("resultArea");var d=document.createElement("div");d.className="msg-box "+(cls||"msg-info");d.textContent=msg;el.insertBefore(d,el.firstChild);setTimeout(function(){d.remove()},4000)}
 function showErr(msg){showMsg(msg,"msg-err")}
@@ -200,52 +209,51 @@ document.getElementById("btnGo").addEventListener("click",function(){
   if(y<1900||y>2100){showErr("出生年份需在 1900-2100 之间");return}
   if(m<1||m>12||d<1||d>31){showErr("日期无效");return}
   var nameVal=document.getElementById("in_name").value.trim(),hourVal=document.getElementById("in_h").value.trim(),workVal=document.getElementById("in_work").value.trim(),h=pxh(hourVal);
-  submitting=true;document.getElementById("btnGo").disabled=true;
-  document.getElementById("rEmpty").classList.add("hidden");
-  document.getElementById("resultArea").innerHTML='<div class="r-loading" id="rLoading"><div style="text-align:center"><p style="font-size:32px;margin-bottom:12px">◎</p><p>正在推演命盘，AI 分析中...</p><p style="font-size:14px;color:var(--rMuted);margin-top:8px" id="timerText">—</p></div></div>';
+  document.getElementById("rEmpty")&&document.getElementById("rEmpty").classList.add("hidden");
+  document.getElementById("resultArea").innerHTML='<div class="r-loading"><div style="text-align:center"><p style="font-size:48px;margin-bottom:16px">◎</p><p style="font-size:18px">正在推演命盘</p><p style="font-size:13px;color:var(--rMuted);margin-top:6px">AI 深度分析中，请稍候...</p></div></div>';
+  document.getElementById("btnGo").disabled=true;document.getElementById("btnGo").textContent="⏳ "+"0s";
+  var st=0,timer=setInterval(function(){st++;document.getElementById("btnGo").textContent="⏳ "+st+"s"},1000);
   var sl=document.getElementById("statusLine");if(sl)sl.textContent="";
-  var tt=document.getElementById("timerText"),sec=0;if(tt)tt.textContent="已运行 0s";
-  var timer=setInterval(function(){sec++;if(tt)tt.textContent="已运行 "+sec+"s"},1000);
-  var TIMEOUT=120;
-  var ctrl=new AbortController();
-  var timeoutId=setTimeout(function(){ctrl.abort()},TIMEOUT*1000);
 
   fetch("/api/bazi-analysis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
     name:nameVal||undefined,gender:gender,year:y,month:m,day:d,hour:h,work:workVal||undefined
-  }),signal:ctrl.signal})
+  })})
   .then(r=>r.json())
   .then(data=>{
-    clearInterval(timer);clearTimeout(timeoutId);
+    clearInterval(timer);
+    document.getElementById("btnGo").disabled=false;document.getElementById("btnGo").textContent="◎ 推 演 命 盘";
     if(!data.ok){showErr(data.message||"分析失败");return}
     latestHTML=data.html||"";
-    var ra=document.getElementById("resultArea");
-    ra.innerHTML=latestHTML;
-    // 操作按钮
-    var btnArea=document.createElement("div");btnArea.className="btns";
-    btnArea.innerHTML='<button id="btnOpen">新窗口打开</button><button id="btnDownload">下载 HTML</button><button id="btnImage">保存图片</button><button id="btnShare">分享图片</button>';
-    ra.appendChild(btnArea);
-    document.getElementById("btnOpen").onclick=function(){openNewWin(latestHTML)};
-    document.getElementById("btnDownload").onclick=function(){downloadHTML(latestHTML,"bazi-report-"+y+String(m).padStart(2,"0")+String(d).padStart(2,"0")+".html")};
-    document.getElementById("btnImage").onclick=downloadImage;
+    var fn="bazi-report-"+y+String(m).padStart(2,"0")+String(d).padStart(2,"0");
+    var blobUrl=URL.createObjectURL(new Blob([latestHTML],{type:"text/html;charset=utf-8"}));
+    document.getElementById("resultArea").innerHTML='<div class="r-toolbar" id="rToolbar">'+'<a class="btn-open" href="'+blobUrl+'" target="_blank">新窗口打开报告</a>'+'<button class="btn-dl" id="btnDl">下载 HTML</button>'+'<button class="btn-img" id="btnImg">下载图片</button>'+'<button class="btn-share" id="btnShare">图片分享</button>'+'</div>'+latestHTML;
+    document.getElementById("btnDl").onclick=function(){var a=document.createElement("a");a.href=blobUrl;a.download=fn+".html";a.click()};
+    document.getElementById("btnImg").onclick=downloadImage;
     document.getElementById("btnShare").onclick=shareImage;
     try{localStorage.setItem("bazi_last",JSON.stringify({html:latestHTML,ts:new Date().toISOString()}))}catch(e){}
-    submitting=false;document.getElementById("btnGo").disabled=false;
-    document.getElementById("rLoading").classList.add("hidden");
-    if(sl)sl.textContent="✅ "+(data.provider==="deepseek"?"DeepSeek AI 增强版":"规则版")+"报告已生成 · 耗时 "+sec+"s";
+    document.getElementById("rEmpty")&&document.getElementById("rEmpty").classList.add("hidden");
+    submitting=false;
+    if(sl)sl.textContent="✅ "+(data.provider==="deepseek"?"DeepSeek AI":"规则")+" · "+st+"s";
   })
   .catch(function(err){
-    clearInterval(timer);clearTimeout(timeoutId);
-    var isTimeout=err&&err.name==="AbortError";
-    var ra=document.getElementById("resultArea");
-    ra.innerHTML='<div class="r-empty"><div class="icon">◎</div><p>'+(isTimeout?'推演超时（>'+TIMEOUT+'s），请稍后重试':'请求失败：'+(err.message||"网络错误"))+'</p></div>';
-    submitting=false;document.getElementById("btnGo").disabled=false;
-    if(sl)sl.textContent=isTimeout?'⏰ 已超时，可重新点击':'⚠️ 生成失败，请重试';
+    clearInterval(timer);
+    document.getElementById("btnGo").disabled=false;document.getElementById("btnGo").textContent="◎ 推 演 命 盘";
+    document.getElementById("resultArea").innerHTML='<div class="r-empty"><div class="icon">◎</div><p>请求失败：'+(err.message||"网络错误")+'，请重试</p></div>';
+    submitting=false;
+    if(sl)sl.textContent="⚠️ 生成失败";
   });
 });
 
 (function(){
-  try{var s=localStorage.getItem("bazi_last");if(s){var d=JSON.parse(s);if(d.html){document.getElementById("resultArea").innerHTML=d.html;document.getElementById("rEmpty")&&document.getElementById("rEmpty").classList.add("hidden");latestHTML=d.html}}}catch(e){}
-  document.getElementById("ver").textContent="v1.0.5";document.getElementById("pver").textContent="v1.0.5";
+  try{var s=localStorage.getItem("bazi_last");if(s){var d=JSON.parse(s);if(d.html){latestHTML=d.html;
+  var blobUrl=URL.createObjectURL(new Blob([d.html],{type:"text/html;charset=utf-8"}));
+  document.getElementById("resultArea").innerHTML='<div class="r-toolbar">'+'<a class="btn-open" href="'+blobUrl+'" target="_blank">新窗口打开报告</a>'+'<button class="btn-dl" id="btnDl">下载 HTML</button>'+'<button class="btn-img" id="btnImg">下载图片</button>'+'<button class="btn-share" id="btnShare">图片分享</button>'+'</div>'+d.html;
+  document.getElementById("btnDl").onclick=function(){var a=document.createElement("a");a.href=blobUrl;a.download="bazi-report.html";a.click()};
+  document.getElementById("btnImg").onclick=downloadImage;
+  document.getElementById("btnShare").onclick=shareImage;
+  document.getElementById("rEmpty")&&document.getElementById("rEmpty").classList.add("hidden");
+  }}}catch(e){}
+  document.getElementById("ver").textContent="v1.0.8";document.getElementById("pver").textContent="v1.0.8";
   try{if(window.busuanzi){var sc=document.createElement("span");sc.id="busuanzi_container_site_pv";sc.innerHTML='访问 <span id="busuanzi_value_site_pv"></span>';document.getElementById("vc").appendChild(sc)}}catch(e){}
 })();
 </script>

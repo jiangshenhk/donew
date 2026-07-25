@@ -150,9 +150,9 @@ AI 协作信息（不对外展示，仅 AI Agent 读取）
 
 本地路径: /Volumes/Macintosh HD/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew
 远程仓库: github.com:jiangshenhk/donew
-AI 协作规则: AI建议下.md（核心规则：结论前置、主动反问、过滤废话、表格优先）
+AI 协作规则: AGENTS.md（核心规则：结论前置、主动反问、过滤废话、表格优先）
+openAI 配置: opencode.json（上下文自动压缩 + 剪枝已开启 + AGENTS.md 已注册）
 开发参考: DEV-README.md
 AI 模型: 默认 DeepSeek，备选 ChatGPT
 部署: GitHub Pages（jiangshenhk.github.io/donew/）+ Vercel（donew-beta.vercel.app）
-openAI 配置: opencode.json（上下文自动压缩 + 剪枝已开启）
 -->
