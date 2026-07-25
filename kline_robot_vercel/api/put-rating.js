@@ -1,3 +1,5 @@
+import { securityCheck } from './_lib/security.js';
+
 const STOCKPRICE_SNAPSHOT_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
 const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
 const FOCUS_SYMBOLS = [
@@ -975,8 +977,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
 }
 
 export default async function handler(req, res) {
-  for (const [key, value] of Object.entries(corsHeaders())) res.setHeader(key, value);
-  if (req.method === "OPTIONS") return res.status(204).end();
+  if (!securityCheck(req, res)) return;
   if (req.method !== "POST") return sendJson(res, 405, { ok: false, message: "Method not allowed" });
 
   try {

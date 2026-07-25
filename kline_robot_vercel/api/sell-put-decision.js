@@ -1,3 +1,5 @@
+import { securityCheck } from './_lib/security.js';
+
 const STOCKPRICE_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
 const NEWS_URL = "https://api.github.com/repos/jiangshenhk/donew/contents/jin10news/data/latest-24h.json?ref=main";
 const NEWS_CACHE_TTL = 5 * 60 * 1000;
@@ -947,8 +949,7 @@ ${aiHtml}
 }
 
 export default async function handler(req, res) {
-  for (const [k, v] of Object.entries(corsHeaders())) res.setHeader(k, v);
-  if (req.method === "OPTIONS") return res.status(204).end();
+  if (!securityCheck(req, res)) return;
   if (req.method !== "POST") return sendJson(res, 405, { ok: false, message: "Method not allowed" });
 
   const startTime = Date.now();

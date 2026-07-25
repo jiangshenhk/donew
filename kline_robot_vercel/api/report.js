@@ -1,3 +1,5 @@
+import { securityCheck } from './_lib/security.js';
+
 const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
 const MIN_PATTERN_SCORE = 60;
 const PATTERN_CATALOG = [
@@ -3095,8 +3097,7 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
 }
 
 export default async function handler(req, res) {
-  for (const [key, value] of Object.entries(corsHeaders())) res.setHeader(key, value);
-  if (req.method === "OPTIONS") return res.status(204).end();
+  if (!securityCheck(req, res)) return;
   if (req.method !== "POST") return sendJson(res, 405, { ok: false, error: "Method not allowed" });
   try {
     const data = req.body || {};

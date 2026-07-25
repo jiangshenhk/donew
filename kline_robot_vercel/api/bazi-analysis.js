@@ -1,3 +1,5 @@
+import { securityCheck } from './_lib/security.js';
+
 // 八字命理分析 — 多线程 AI + 排盘
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -148,7 +150,7 @@ return'<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name=
 
 // ============ 主处理 ============
 export default async function handler(req,res){
-  if(req.method==="OPTIONS")return sendJson(res,204,{ok:true});
+  if (!securityCheck(req, res)) return;
   if(req.method!=="POST")return sendJson(res,405,{ok:false,message:"只支持 POST"});
   try{
     var b=req.body||{};var{name,gender,year,month,day,hour,minute,location,work}=b;

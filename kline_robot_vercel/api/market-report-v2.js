@@ -1,3 +1,5 @@
+import { securityCheck } from './_lib/security.js';
+
 const MARKET_SYMBOLS = [
   "QQQ", "SPY", "IWM", "QLD", "TQQQ", "SMH", "SOXX", "MAGS",
   "EEM", "FXI", "KWEB", "^VIX", "VIXY", "IBIT", "BTC-USD", "MSTR",
@@ -1193,5 +1195,6 @@ async function legacyHandler(req, res) {
 }
 
 export default async function handler(req, res) {
+  if (!securityCheck(req, res)) return;
   await legacyHandler(req, res);
 }

@@ -1,3 +1,5 @@
+import { securityCheck } from './_lib/security.js';
+
 const NEWS_API = "https://api.github.com/repos/jiangshenhk/donew/contents/jin10news/data/latest-24h.json?ref=main";
 
 function cors(res) {
@@ -371,8 +373,7 @@ async function handleVideoArticle(req, res) {
 /* ═══════════════════ 主处理 ═══════════════════ */
 
 export default async function handler(req, res) {
-  cors(res);
-  if (req.method === "OPTIONS") return res.status(204).end();
+  if (!securityCheck(req, res)) return;
   if (req.method !== "POST") return res.status(405).json({ ok: false, message: "Method not allowed" });
   try {
     const provider = String(req.body?.provider || "deepseek").toLowerCase() === "openai" ? "openai" : "deepseek";
