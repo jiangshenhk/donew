@@ -1,5 +1,8 @@
 # AI 工作建议与协作规则
 
+> 本地 Git 仓库：`/Volumes/Macintosh HD/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew`  
+> 远程仓库：`github.com:jiangshenhk/donew.git`
+
 > 这份文件是我（Jiang Shen）给 AI 的协作说明书。  
 > 目标：让 AI 成为真正的**技术合伙人**，而不是被动回答机器。  
 > 适用场景：日常工作、技术决策、交易辅助、知识整理等所有 AI 交互。
