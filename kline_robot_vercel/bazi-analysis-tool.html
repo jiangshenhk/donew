@@ -86,7 +86,7 @@ th{background:#252820;color:var(--rTitle);font-weight:600}
 </head>
 <body>
 <div class="shell">
-<div class="topbar"><div class="brand"><h1>🔮 八字命理 · 青瓷</h1><span class="version" id="ver">v1.0.4</span></div><div class="top-right"><span id="vc">—</span>&nbsp;&nbsp;<a href="https://donew-beta.vercel.app">← 十方斋</a></div></div>
+<div class="topbar"><div class="brand"><h1>🔮 八字命理 · 青瓷</h1><span class="version" id="ver">v1.0.5</span></div><div class="top-right"><span id="vc">—</span>&nbsp;&nbsp;<a href="https://donew-beta.vercel.app">← 十方斋</a></div></div>
 <div class="layout">
 <div class="panel">
   <div class="p-header"><div class="icon">◎</div><h2>命 盘 录 入</h2><p>请输入您的生辰信息</p></div>
@@ -245,7 +245,7 @@ document.getElementById("btnGo").addEventListener("click",function(){
 
 (function(){
   try{var s=localStorage.getItem("bazi_last");if(s){var d=JSON.parse(s);if(d.html){document.getElementById("resultArea").innerHTML=d.html;document.getElementById("rEmpty")&&document.getElementById("rEmpty").classList.add("hidden");latestHTML=d.html}}}catch(e){}
-  document.getElementById("ver").textContent="v1.0.4";document.getElementById("pver").textContent="v1.0.4";
+  document.getElementById("ver").textContent="v1.0.5";document.getElementById("pver").textContent="v1.0.5";
   try{if(window.busuanzi){var sc=document.createElement("span");sc.id="busuanzi_container_site_pv";sc.innerHTML='访问 <span id="busuanzi_value_site_pv"></span>';document.getElementById("vc").appendChild(sc)}}catch(e){}
 })();
 </script>
