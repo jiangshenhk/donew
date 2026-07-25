@@ -151,7 +151,8 @@
 | **技术栈** | 微服务架构、C++/Java/Go、高性能交易系统、FIX 协议 |
 | **业务线** | 中台系统、交易终端、场外衍生品、行情数据、清算风控 |
 | **交易风格** | 期权卖方，卖 put 策略，重点关注 QLD/MSTR |
-| **工具链** | Obsidian（知识管理）、Codex/Claude Code/openAI（AI 编程）、Cloudflare Workers |
+| **AI 平台** | DeepSeek（默认/default）、ChatGPT（备选）；两者均有 API Key |
+| **工具链** | Obsidian（知识管理）、Codex/Claude Code（AI 编程）、Cloudflare Workers、Vercel |
 | **团队** | 跨香港/内地，业务+研发+运维 |
 
 ---
