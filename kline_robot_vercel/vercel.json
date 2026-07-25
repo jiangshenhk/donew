@@ -5,6 +5,7 @@
     "api/put-rating.js": { "maxDuration": 120 },
     "api/news-summary.js": { "maxDuration": 120 },
     "api/market-report-v2.js": { "maxDuration": 120 },
+    "api/sell-put-decision.js": { "maxDuration": 120 },
     "api/bazi-analysis.js": { "maxDuration": 120 },
     "api/auth.js": { "maxDuration": 30 }
   },

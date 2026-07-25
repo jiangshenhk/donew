@@ -551,23 +551,30 @@ docs/tools/alpha-risk-tool/README.md
   - `kline_robot_vercel/sell-put-decision-tool.html`
 - 主要 API：
   - `kline_robot_vercel/api/sell-put-decision.js`
+  - `kline_robot_vercel/api/_lib/sell-put-decision-core.js`（完整性、期权温度、市场/K线风险、事件扫描）
+  - `kline_robot_vercel/api/report.js` 的 `analyzeKlineStructure()`（共享K线相似度、历史样本、ABC/2B结构）
+  - `kline_robot_vercel/api/put-rating.js` 的 `analyzePutRatingSnapshot()`（与独立卖Put温度工具共享市场和期权温度判断）
+  - `kline_robot_vercel/api/news-summary.js` 的 `loadRecentMarketNews()` / `analyzeDecisionNews()`（与新闻中心共享24小时读取、相关性筛选和事件扫描）
 - 策略文档：
   - `docs/SellPut/SellPut策略/sell-put-decision-tool.md`
 - 数据依赖：
   - `stockprice/data/latest-price.json`（统一行情底座）
   - `jin10news/data/latest-24h.json`（新闻缓存，用于事件风险扫描和 AI 上下文）
-  - Yahoo Finance chart API（K线数据，用于 ATR/SMA/形态检测/趋势判断）
+  - K线工具共享引擎（底层行情由 `report.js` 统一处理）
   - OpenAI Vision API（截图 OCR 识别 Barchart 期权字段）
   - DeepSeek / OpenAI（AI 综合判断生成报告）
 - 核心逻辑：
-  - 四维数据聚合：行情快照 + 新闻缓存 + Yahoo K线（ATR/SMA/形态检测） + 截图 OCR
-  - 双层评分：大盘环境（VIX/QQQ/10Y等） + 单票K线调整（ATR%/趋势/跌幅）
-  - 事件风险：代码扫描新闻缓存 + AI 利用训练知识判断财报/FOMC/非农日期
+  - 严格完整性门槛：关键行情、相关新闻、K线结构、期权温度、具体合约缺一项就只输出预检查；行权价和权利金必须为正数，到期日必须是未来有效日期
+  - 四维数据聚合：行情快照 + 24小时相关新闻 + K线相似度/历史样本/ABC结构 + 截图 OCR
+  - 三层风险：大盘环境 + ATR/趋势/跌幅 + K线历史偏空概率/高匹配偏空形态
+  - 事件风险：代码扫描24小时相关新闻；AI不得凭训练记忆补未来事件日期
+  - 结论一致性：AI只能比规则底线更谨慎，冲突或无标准结论时使用规则版
+  - 规则版完整输出：AI不可用或结论冲突时，仍展示共享K线相似度/历史样本、24小时相关新闻、期权温度和合约安全垫
   - 六节结构化报告：综合结论 → 市场环境 → 期权温度解读 → K线技术信号 → 综合卖Put建议 → 未来关注清单
   - 结论措辞固定为"可卖Put / 谨慎卖Put / 暂不卖Put"，不会输出股票买卖建议
   - 标准功能：新窗口打开、下载 HTML、保存图片（html2canvas）、图片分享、历史报告导入对比、最近报告自动恢复
 
-这是“四维数据聚合 + 双层评分 + 单次AI综合”的代表模板，也是在现有工具之上的聚合决策层，不替换原有独立工具。
+这是“四维数据聚合 + 共享子工具判断 + 单次AI综合”的代表模板，也是在现有工具之上的聚合决策层，不替换原有独立工具。聚合工具不得复制一套简化版子工具算法；应优先调用各独立工具导出的结构化函数。
 
 ### 13.3 新增工具先判断类型
 

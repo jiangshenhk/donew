@@ -1,8 +1,17 @@
 import { securityCheck } from './_lib/security.js';
+import { analyzeKlineStructure } from './report.js';
+import { analyzePutRatingSnapshot } from './put-rating.js';
+import {
+  analyzeDecisionNews,
+  loadRecentMarketNews,
+} from './news-summary.js';
+import {
+  adjustRiskWithKline,
+  assessDecisionReadiness,
+  calculateMarketRisk,
+} from './_lib/sell-put-decision-core.js';
 
 const STOCKPRICE_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
-const NEWS_URL = "https://api.github.com/repos/jiangshenhk/donew/contents/jin10news/data/latest-24h.json?ref=main";
-const NEWS_CACHE_TTL = 5 * 60 * 1000;
 const STOCKPRICE_CACHE_TTL = 5 * 60 * 1000;
 const FOCUS_SYMBOLS = [
   { symbol: "QQQ", market: "us" }, { symbol: "SPY", market: "us" }, { symbol: "IWM", market: "us" },
@@ -14,7 +23,6 @@ const FOCUS_SYMBOLS = [
 ];
 
 let stockpriceCache = null;
-let newsCache = null;
 
 function corsHeaders() {
   return {
@@ -62,6 +70,17 @@ function formatDateTime(value) {
 function symbolLabel(symbol) {
   const m = { "BTC-USD": "BTC", "^VIX": "VIX", "^TNX": "10Y", "DX-Y.NYB": "DXY" };
   return m[symbol] || symbol;
+}
+
+function detectMarket(symbol, requestedMarket) {
+  const requested = String(requestedMarket || "").trim().toLowerCase();
+  if (requested) return requested;
+  const value = String(symbol || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (["BTC", "BTCUSD", "BTC/USD", "BTC-USD", "ETH", "ETH-USD"].includes(value)) return "crypto";
+  if (/\.HK$/.test(value) || /^0?\d{4}$/.test(value)) return "hk";
+  if (/^(?:SH|SZ)?\d{6}(?:\.(?:SS|SZ|SH))?$/.test(value)) return "cn";
+  if (/\.NYB$/.test(value) || /=F$/.test(value) || ["^TNX", "^DXY"].includes(value)) return "global";
+  return "us";
 }
 
 function normalizeRow(item) {
@@ -119,71 +138,6 @@ function normalizeStockpriceRow(item, meta) {
   });
 }
 
-async function loadNews() {
-  if (newsCache && Date.now() - newsCache.fetchedAt < NEWS_CACHE_TTL) return newsCache.data;
-  const res = await timedFetch(NEWS_URL + "&t=" + Date.now(), {
-    headers: { Accept: "application/vnd.github+json", "User-Agent": "donew-sell-put-decision" },
-  }, 10000);
-  if (!res.ok) throw new Error(`News HTTP ${res.status}`);
-  const meta = await res.json();
-  const payload = JSON.parse(Buffer.from(String(meta.content || "").replace(/\n/g, ""), "base64").toString("utf8"));
-  const cutoff = Date.now() - 72 * 60 * 60 * 1000;
-  const items = (Array.isArray(payload.items) ? payload.items : [])
-    .filter((i) => Date.parse(i.time) >= cutoff)
-    .sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
-  const data = { items: items.slice(0, 200), count: items.length };
-  newsCache = { fetchedAt: Date.now(), data };
-  return data;
-}
-
-function summarizeNews(items) {
-  if (!items || !items.length) return "暂无最近24小时新闻。";
-  const top = items.slice(0, 30);
-  const lines = top.map((i) => {
-    const time = new Date(i.time).toLocaleString("zh-HK", { hour: "2-digit", minute: "2-digit", hour12: false });
-    const cats = (i.categories || []).join(",");
-    return `[${time}][${cats}] ${(i.content || "").slice(0, 200)}`;
-  });
-  return lines.join("\n");
-}
-
-const EVENT_PATTERNS = [
-  { re: /财报|业绩|earning|季报|年报|指引/i, label: "财报" },
-  { re: /FOMC|美联储|利率决议|加息|降息/i, label: "美联储" },
-  { re: /非农|NFP|就业报告|ADP/i, label: "就业数据" },
-  { re: /\bCPI\b|\bPPI\b|\bPCE\b|通胀数据/i, label: "通胀数据" },
-  { re: /\bGDP\b|经济增长/i, label: "GDP" },
-  { re: /OPEC|原油库存|EIA/i, label: "能源数据" },
-  { re: /杰克逊霍尔|Jackson Hole|央行年会/i, label: "央行会议" },
-];
-
-function scanEventRisks(items) {
-  if (!items || !items.length) return [];
-  const now = Date.now();
-  const results = [];
-  const seen = new Set();
-
-  for (const pat of EVENT_PATTERNS) {
-    const matches = items.filter((i) => pat.re.test(i.content || ""));
-    for (const m of matches) {
-      const key = `${pat.label}:${(m.content || "").slice(0, 60)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const time = Date.parse(m.time);
-      const hoursAgo = Math.round((now - time) / 3600000);
-      const timeLabel = hoursAgo <= 1 ? "刚刚" : hoursAgo <= 24 ? `${hoursAgo}小时前` : "近期";
-      results.push({
-        category: pat.label,
-        time: m.time,
-        timeLabel,
-        content: (m.content || "").slice(0, 180).trim(),
-      });
-    }
-  }
-
-  return results.slice(0, 12);
-}
-
 function formatEventRisks(events) {
   if (!events || !events.length) return "";
   const byCategory = {};
@@ -196,35 +150,6 @@ function formatEventRisks(events) {
     lines.push(`**${cat}事件：**\n${summaries.join("\n")}`);
   }
   return `\n## 近期事件风险扫描结果\n以下为最近24小时内市场快讯中提到的事件风险，请结合标的到期日综合判断：\n\n${lines.join("\n\n")}`;
-}
-
-async function fetchKlineData(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d&events=history&includePrePost=false`;
-  try {
-    const res = await timedFetch(url, { headers: { "User-Agent": "Mozilla/5.0 donew-sell-put-decision" } }, 10000);
-    if (!res.ok) throw new Error(`Yahoo HTTP ${res.status}`);
-    const json = await res.json();
-    const result = json?.chart?.result?.[0];
-    if (!result) throw new Error("No chart data");
-    const timestamps = result.timestamp || [];
-    const q = result.indicators?.quote?.[0] || {};
-    const a = result.indicators?.adjclose?.[0] || {};
-    const bars = [];
-    for (let i = 0; i < timestamps.length; i++) {
-      const ts = numberOrNull(timestamps[i]);
-      const open = numberOrNull(q.open?.[i]);
-      const high = numberOrNull(q.high?.[i]);
-      const low = numberOrNull(q.low?.[i]);
-      const close = numberOrNull(q.close?.[i]);
-      const volume = numberOrNull(q.volume?.[i]);
-      const adjclose = numberOrNull(a.adjclose?.[i]);
-      if (ts === null || close === null) continue;
-      bars.push({ ts, open: open ?? close, high: high ?? close, low: low ?? close, close, volume: volume ?? 0, adjclose: adjclose ?? close });
-    }
-    return bars;
-  } catch (e) {
-    return { error: e.message };
-  }
 }
 
 function computeKlineStats(bars) {
@@ -385,6 +310,22 @@ function formatKlineStats(stats) {
   return lines.join("\n");
 }
 
+function formatKlineStructure(structure) {
+  if (!structure?.analysisAngles) return "K线相似度引擎未返回有效结果。";
+  const similarity = structure.analysisAngles.similarity || {};
+  const trend = structure.historicalTrendStats || {};
+  const abc = structure.analysisAngles.abc || {};
+  const matches = (structure.top5 || []).map((item) => `${item.name} ${item.score}% ${item.bias}`).join("；") || "无超过阈值的经典形态";
+  return [
+    `最高形态匹配：${similarity.title || "未取到"} | 匹配度：${similarity.score ?? "未取到"}% | 方向：${similarity.bias || "中性"}`,
+    `前五匹配：${matches}`,
+    trend.valid >= 8
+      ? `历史相似样本：${trend.valid}个 | 后${trend.horizon}根K线 偏多${trend.bullProbability}% / 偏空${trend.bearProbability}% / 震荡${trend.flatProbability}%`
+      : "历史相似样本不足，不输出历史方向概率。",
+    `ABC/2B结构：${abc.stage || "未取到"} | ${abc.bias || "中性"} | ${abc.positionLabel || "待确认"}`,
+  ].join("\n");
+}
+
 function row(snapshot, symbol) {
   const item = (snapshot.data || []).find((e) => String(e?.symbol || "").toUpperCase() === String(symbol || "").toUpperCase());
   return normalizeRow(item || { symbol });
@@ -402,53 +343,15 @@ function marketRisk(snapshot, targetSymbol) {
   const dxy = row(snapshot, "DX-Y.NYB");
   const target = row(snapshot, targetSymbol);
 
-  let risk = 5.2;
-  if ((vix.changePct || 0) > 5) risk += 1.2;
-  if ((tnx.changePct || 0) > 1) risk += 0.7;
-  if ((dxy.changePct || 0) > 0.3) risk += 0.6;
-  if ((qqq.changePct || 0) < -1 || (spy.changePct || 0) < -1) risk += 0.9;
-  if ((smh.changePct || 0) < -1 || (soxx.changePct || 0) < -1) risk += 0.7;
-  if ((btc.changePct || 0) < -2.5) risk += 0.5;
-  if ((iwm.changePct || 0) > (spy.changePct || 0)) risk -= 0.2;
-  if ((target.changePct || 0) < -3) risk += 0.6;
-  risk = Math.max(1, Math.min(9.5, risk));
-
-  const putStance = risk >= 7.5 ? "不利" : risk >= 6.2 ? "谨慎" : "有利";
+  const result = calculateMarketRisk({ qqq, spy, iwm, smh, soxx, btc, vix, tnx, dxy, target });
   return {
-    riskScore: risk.toFixed(1),
-    putStance,
-    blackSwan: risk >= 7.5 ? "🔴 高警戒" : risk >= 6.2 ? "🟡 需防范" : "🟢 常规防守",
+    ...result,
     summary: `QQQ ${pct(qqq.changePct)} / SPY ${pct(spy.changePct)} / SMH ${pct(smh.changePct)} / VIX ${pct(vix.changePct)} / 10Y ${pct(tnx.changePct)} / DXY ${pct(dxy.changePct)} / BTC ${pct(btc.changePct)}`,
   };
 }
 
-function adjustedRisk(risk, klineStats, targetSymbol) {
-  let riskScore = parseFloat(risk.riskScore);
-  const atrPct = parseFloat(klineStats?.atrPct || "0");
-  const d20 = klineStats?.returns?.d20 != null ? parseFloat(klineStats.returns.d20) : 0;
-  const d5 = klineStats?.returns?.d5 != null ? parseFloat(klineStats.returns.d5) : 0;
-  let notes = [];
-
-  if (atrPct > 8) { riskScore += 1.0; notes.push("ATR极高(>8%)"); }
-  else if (atrPct > 6) { riskScore += 0.5; notes.push("ATR偏高(>6%)"); }
-
-  if (d20 < -20) { riskScore += 1.0; notes.push("20日暴跌>20%"); }
-  else if (d20 < -10) { riskScore += 0.5; notes.push("20日跌幅>10%"); }
-
-  if (d5 < -5) { riskScore += 0.3; notes.push("5日跌幅>5%"); }
-
-  riskScore = Math.max(1, Math.min(9.5, riskScore));
-  const putStance = riskScore >= 7.5 ? "不利" : riskScore >= 6.2 ? "谨慎" : "有利";
-  const blackSwan = riskScore >= 7.5 ? "🔴 高警戒" : riskScore >= 6.2 ? "🟡 需防范" : "🟢 常规防守";
-
-  return {
-    ...risk,
-    riskScore: riskScore.toFixed(1),
-    putStance,
-    blackSwan,
-    adjusted: notes.length > 0,
-    adjustmentNotes: notes,
-  };
+function adjustedRisk(risk, klineStats, klineStructure, targetSymbol) {
+  return adjustRiskWithKline(risk, klineStats, klineStructure);
 }
 
 function focusTable(snapshot, targetSymbol) {
@@ -481,6 +384,23 @@ function sanitizeOptionMetrics(raw = {}) {
     todayVolume: String(raw.todayVolume ?? "").trim(), volumeAvg30: String(raw.volumeAvg30 ?? "").trim(),
     todayOpenInterest: String(raw.todayOpenInterest ?? "").trim(), openInterest30: String(raw.openInterest30 ?? "").trim(),
   };
+}
+
+function needsOptionMetricBackfill(metrics = {}) {
+  const empty = (value) => String(value ?? "").trim() === "";
+  return empty(metrics.iv)
+    || empty(metrics.hv)
+    || (empty(metrics.ivRank) && empty(metrics.ivPercentile))
+    || (empty(metrics.expectedMove) && empty(metrics.expectedMovePct));
+}
+
+function mergeOptionMetrics(preferred = {}, fallback = {}) {
+  const merged = {};
+  for (const key of Object.keys(sanitizeOptionMetrics({}))) {
+    const preferredValue = String(preferred[key] ?? "").trim();
+    merged[key] = preferredValue || String(fallback[key] ?? "").trim();
+  }
+  return sanitizeOptionMetrics(merged);
 }
 
 function parseLooseJson(text) {
@@ -576,7 +496,66 @@ function stripCodeFenceAndExtract(html) {
   return text;
 }
 
-function buildPrompt({ symbol, market, optionMetricsText, stockpriceSnapshot, newsText, klineStatsFormatted, notes, targetStrike, putPrice, expiryDate, klineStats, risk, rawRisk, eventRisksText }) {
+function sanitizeAiHtml(html) {
+  let text = String(html || "");
+  text = text.replace(/<\/?(?:script|iframe|object|embed|form|input|button|textarea|select|option|link|meta|base|svg|math)[^>]*>/gi, "");
+  text = text.replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  text = text.replace(/\s+(?:href|src)\s*=\s*(["'])\s*(?:javascript:|data:text\/html)[\s\S]*?\1/gi, "");
+  text = text.replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (attribute, quote, value) => {
+    return /expression\s*\(|url\s*\(|@import/i.test(value) ? "" : attribute;
+  });
+  return text.trim();
+}
+
+function riskDecisionStatus(risk) {
+  if (risk?.putStance === "不利") return "暂不卖Put";
+  if (risk?.putStance === "谨慎") return "谨慎卖Put";
+  return "可卖Put";
+}
+
+function extractAiDecisionStatus(html) {
+  const source = String(html || "");
+  const badge = source.match(/<span[^>]*class=["'][^"']*judge-badge[^"']*["'][^>]*>\s*(可卖Put|谨慎卖Put|暂不卖Put)\s*<\/span>/i);
+  if (badge) return badge[1];
+  const text = source.replace(/<[^>]+>/g, " ");
+  return text.match(/暂不卖Put|谨慎卖Put|可卖Put/)?.[0] || "";
+}
+
+function decisionSeverity(status) {
+  return { "可卖Put": 0, "谨慎卖Put": 1, "暂不卖Put": 2 }[status] ?? -1;
+}
+
+function buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, snapshot) {
+  const componentRows = [
+    ["市场行情", readiness.components.market],
+    ["K线技术数据", readiness.components.kline],
+    ["近期新闻", readiness.components.news],
+    ["期权温度", readiness.components.optionTemperature],
+    ["期权合约", readiness.components.optionContract],
+  ].map(([label, ok]) => `<tr><td>${safeHtml(label)}</td><td class="${ok ? "good" : "warn"}">${ok ? "已具备" : "待补充"}</td></tr>`).join("");
+  const missingItems = readiness.missing.map((item) => `<li>${safeHtml(item)}</li>`).join("");
+
+  return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${safeHtml(symbol)} 卖Put预检查</title><style>
+:root{--bg:#0f172a;--panel:#17233a;--line:#314566;--text:#e8eefc;--muted:#94a3b8;--gold:#ffd54a;--green:#45d483}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+.page{max-width:1160px;margin:0 auto;padding:28px}.hero,.section{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:18px}
+h1{font-size:36px;margin:0 0 8px;color:var(--gold)}h2{font-size:24px;color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:8px}
+.meta{color:var(--muted)}.notice{border-left:5px solid var(--gold);background:#242b3a;padding:14px 16px}.good{color:var(--green);font-weight:700}.warn{color:var(--gold);font-weight:700}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}th,td{border:1px solid var(--line);padding:10px 12px;text-align:left}th{background:#22304d}
+.up{color:#ff6b7d;font-weight:700}.dn{color:#45d483;font-weight:700}ul{padding-left:22px}
+</style></head><body><div class="page">
+<section class="hero"><h1>${safeHtml(symbol)} 卖Put预检查</h1><p class="meta">${safeHtml(market.toUpperCase())} · 数据完整前不输出卖Put结论</p></section>
+<section class="section notice"><strong>当前仅完成预检查。</strong> 关键数据不完整，因此不会判断“可卖Put”、不会判断恐慌溢价，也不会给出具体合约建议。</section>
+<section class="section"><h2>数据完整性</h2><table><thead><tr><th>判断模块</th><th>状态</th></tr></thead><tbody>${componentRows}</tbody></table><p class="warn">仍需补充：</p><ul>${missingItems}</ul></section>
+<section class="section"><h2>已取得的市场观察</h2><p>${risk.summary}</p>${klineStats ? `<p>K线最新收盘 ${safeHtml(klineStats.lastClose)}，ATR占比 ${safeHtml(klineStats.atrPct)}%，近20日变化 ${safeHtml(klineStats.returns.d20?.toFixed(2) ?? "未取到")}%。</p>` : `<p class="meta">K线数据不足。</p>`}${optionMetricsText ? `<pre style="white-space:pre-wrap;color:#c8d4eb">${safeHtml(optionMetricsText)}</pre>` : `<p class="meta">期权温度数据不足。</p>`}</section>
+<section class="section"><h2>下一步</h2><p>补齐上述数据后，系统才会运行新闻、K线、期权温度和具体合约的综合判断。</p></section>
+<details><summary>行情快照</summary><table><thead><tr><th>标的</th><th>价格</th><th>变化</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></details>
+</div></body></html>`;
+}
+
+function buildPrompt({ symbol, market, optionMetricsText, optionTemperature, stockpriceSnapshot, newsText, klineStatsFormatted, klineStructureFormatted, notes, targetStrike, putPrice, expiryDate, klineStats, risk, rawRisk, eventRisksText }) {
   const target = row(stockpriceSnapshot, symbol);
   const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
 
@@ -613,7 +592,8 @@ ${atrAnalysis.strike ? `- 你选择的行权价：$${atrAnalysis.strike} | ${atr
 - 日变化：${pct(target?.changePct)}
 
 ## 期权温度数据
-${optionMetricsText || "用户未提供期权温度数据，请根据市场环境和技术面给出一般性建议。"}
+${optionMetricsText || "未取到（完整性门槛应已阻断完整报告）。"}
+独立卖Put温度引擎：${optionTemperature?.level || "数据不足"}${optionTemperature?.premiumSpread !== null && optionTemperature?.premiumSpread !== undefined ? ` | IV-HV ${optionTemperature.premiumSpread.toFixed(2)}个百分点` : ""}
 ${strikeSection}${atrSection}
 ## 市场行情快照
 ${risk.summary}
@@ -626,6 +606,9 @@ ${eventRisksText || ""}
 
 ## K线技术分析
 ${klineStatsFormatted || "暂无K线数据。"}
+
+## K线相似度、历史样本与ABC结构
+${klineStructureFormatted || "暂无K线结构判断。"}
 
 ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
@@ -649,13 +632,13 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - "权利金值不值得冒尾部风险？"必须回答并着色：值得=<span class="dn">值得</span>（绿色），不值得=<span class="up">不值得</span>（红色），谨慎=<span class="warn">谨慎</span>（黄色）
 - ATR% > 6% 或价格位于所有均线下方且20日跌幅>15%，自动倾向"谨慎卖Put"或"暂不卖Put"
 - IV Rank > 90% 是高溢价信号，但必须结合趋势方向综合判断，不能只看IV就给出"可卖Put"
-- **事件风险强制检查**：你必须利用自己的训练知识，主动检查以下风险：
-  · 该标的（${symbol}）在未来 14 个自然日内是否有财报/业绩发布？
-  · 未来 14 天内是否有 FOMC/美联储利率决议？
-  · 未来 7 天内是否有非农、CPI、PPI、GDP 等重大经济数据发布？
-  · 未来 7 天内是否有 OPEC、央行年会等重要事件？
-  · 如果用户提供了到期日（${expiryDate || "未提供"}），到期日前是否有上述任一事件？
-  对于你确认会发生的事件，必须在综合结论中用 <span class="highlight-red">⚠️ 事件风险：[事件名+日期]</span> 显眼标出；对于不确定的事件，说明你无法确认并提醒用户自查
+- **事件风险强制约束**：只能引用本次输入的“最新24小时新闻要点”和“近期事件风险扫描结果”。
+  · 不得利用训练记忆自行补充财报、FOMC、非农、CPI、PPI、GDP、OPEC等未来日期
+  · 只有新闻原文明确包含事件名称和日期时，才能写成已确认事件
+  · 新闻只提到事件但没有日期时，必须标注“日期未验证”
+  · 没有取得已验证未来事件时，必须明确写“未取得已验证事件日历”，不得猜测
+  · 如果用户提供了到期日（${expiryDate || "未提供"}），只能对已验证事件判断其是否落在到期日前
+  对于已验证事件，在综合结论中用 <span class="highlight-red">⚠️ 事件风险：[事件名+已验证日期]</span> 显眼标出
 - 语气务实，不写空话，面向卖Put交易者，明确区分事实和推测
 
 ### 第1节 · 综合结论 (<section class="section hero-judgement">)
@@ -739,7 +722,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ### 第6节 · 未来3-5个交易日关注清单 (<section class="section">)
 - 先输出 <h2>未来3-5个交易日关注清单</h2>
-- 先检查新闻中有无近期重大事件（财报/FOMC/非农/CPI），如果有，在此节开头用一行 <span class="highlight-red">📅 近期重要事件：[事件名+日期]</span> 显眼标出
+- 只检查本次新闻数据中明确出现的近期重大事件；有已验证日期时，用一行 <span class="highlight-red">📅 近期重要事件：[事件名+日期]</span> 显眼标出；没有已验证日期时不得自行补充
 - 分两列排版（flex 或 grid），每列列出 4-5 条需要监控的信号
 - 底部用标签行展示：改变判断的信号（绿色好转信号、红色恶化信号、黄色中性信号）
 
@@ -793,10 +776,17 @@ async function callAI(symbol, prompt) {
   return { provider: "规则版", html: "" };
 }
 
-function buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, snapshot, targetStrike, putPrice, expiryDate) {
+function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, snapshot, targetStrike, putPrice, expiryDate, decisionNewsItems, eventRisks) {
   const stanceClass = risk.putStance === "有利" ? "good" : risk.putStance === "谨慎" ? "warn" : "bad";
+  const decisionStatus = riskDecisionStatus(risk);
   const target = row(snapshot, symbol);
   const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
+  const klineStructureText = formatKlineStructure(klineStructure);
+  const newsRows = (decisionNewsItems || []).slice(0, 8).map((item) => {
+    const time = formatDateTime(item.time);
+    return `<li><strong>${safeHtml(time)}</strong> ${safeHtml(String(item.content || "").slice(0, 220))}</li>`;
+  }).join("");
+  const eventRows = (eventRisks || []).map((item) => `<li><strong>${safeHtml(item.category)}：</strong>${safeHtml(item.content)}</li>`).join("");
   return `<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(symbol)} 综合卖Put决策</title>
@@ -828,14 +818,15 @@ function buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, snap
   <p class="meta">${safeHtml(market.toUpperCase())} · 规则版报告（AI暂不可用）</p>
   <div class="chips">
     <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
-    <span class="chip">黑天鹅灯号：${safeHtml(risk.blackSwan)}</span>
+    <span class="chip">综合结论：${safeHtml(decisionStatus)}</span>
+    <span class="chip">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
     <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
   </div>
 </section>
 
 <section class="section">
   <h2>综合结论</h2>
-  <p><span class="highlight">当前卖Put：</span><span class="${stanceClass}">${safeHtml(risk.putStance)}</span></p>
+  <p><span class="highlight">当前卖Put：</span><span class="${stanceClass}">${safeHtml(decisionStatus)}</span></p>
   <p><span class="highlight">市场环境：</span>${risk.summary}</p>
   <p><span class="highlight">规则版说明：</span>AI暂不可用，以下基于规则引擎判断。建议结合截图期权数据综合评估。</p>
 </section>
@@ -848,14 +839,21 @@ function buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, snap
 
 ${klineStats ? `
 <section class="section">
-  <h2>K线技术信号（规则版）</h2>
+  <h2>K线相似度与技术信号（规则版）</h2>
+  <pre style="background:#0a0f1a;padding:14px;border-radius:10px;overflow-x:auto;white-space:pre-wrap;font-size:13px;color:#b0c4e8">${safeHtml(klineStructureText)}</pre>
   <p><span class="highlight">最新收盘：</span>${safeHtml(klineStats.lastClose)} | <span class="highlight">ATR(14)：</span>${safeHtml(klineStats.atr)} | <span class="highlight">ATR占比：</span>${safeHtml(klineStats.atrPct)}%</p>
   <p><span class="highlight">涨幅：</span>1日 ${safeHtml(klineStats.returns.d1?.toFixed(2) ?? "N/A")}% | 5日 ${safeHtml(klineStats.returns.d5?.toFixed(2) ?? "N/A")}% | 20日 ${safeHtml(klineStats.returns.d20?.toFixed(2) ?? "N/A")}%</p>
   <p><span class="highlight">支撑区间：</span>${safeHtml(klineStats.supportMin)} ~ ${safeHtml(klineStats.supportMax)}</p>
   <p><span class="highlight">阻力区间：</span>${safeHtml(klineStats.resistanceMin)} ~ ${safeHtml(klineStats.resistanceMax)}</p>
   ${klineStats.patterns.length ? `<p><span class="highlight">检测K线形态：</span>${safeHtml(klineStats.patterns.join("、"))}</p>` : ""}
-  <p><span class="highlight">规则说明：</span>基于最近3个月日线数据计算，仅作为辅助参考。完整分析需要AI支持。</p>
+  <p><span class="highlight">规则说明：</span>形态匹配、历史相似样本和 ABC/2B 结构直接来自 K 线相似度工具的共享引擎；历史方向概率是条件样本统计，不等于黑天鹅概率。</p>
 </section>` : ""}
+
+<section class="section">
+  <h2>最近24小时相关新闻（规则版）</h2>
+  <ul>${newsRows || "<li>未取得相关新闻；按完整性门槛不应进入完整报告。</li>"}</ul>
+  ${eventRows ? `<h3>新闻内事件风险</h3><ul>${eventRows}</ul>` : `<p class="meta">本次新闻未识别到带可靠日期的未来事件；不根据训练记忆补充事件日历。</p>`}
+</section>
 
 ${optionMetricsText ? `
 <section class="section">
@@ -884,7 +882,7 @@ ${atrAnalysis.hasData ? `
     <li><span class="highlight">${safeHtml(symbol)} 当前市场环境${safeHtml(risk.putStance)}：</span>${risk.putStance === "有利" ? "风险评分偏低，市场环境相对稳定，可考虑卖Put，但需结合期权IV/HV判断。" : risk.putStance === "谨慎" ? "风险评分中等，市场存在不确定性，建议减少仓位或选择更虚值行权价。" : "风险评分偏高，VIX/半导体/国债收益率等信号偏空，建议等待市场稳定。"}</li>
     <li>期权温度数据（如有截图录入）应重点观察：IV是否高于HV、IV Percentile是否处于高位、Expected Move是否提供足够安全垫。</li>
     <li>K线支撑位可作为行权价参考，ATR安全行权价 = 当前价 - 1.5 × ATR。</li>
-    <li>建议结合新闻事件日历判断未来3-5天的尾部风险。</li>
+    <li>未来事件只采用本次新闻中明确出现且日期可验证的内容；未取得时不猜测事件日历。</li>
   </ul>
 </section>
 
@@ -892,7 +890,7 @@ ${atrAnalysis.hasData ? `
 </div></body></html>`;
 }
 
-function buildAiReportWrapper(symbol, market, risk, aiHtml, snapshot) {
+function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snapshot) {
   return `<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(symbol)} 综合卖Put决策</title>
@@ -939,7 +937,8 @@ function buildAiReportWrapper(symbol, market, risk, aiHtml, snapshot) {
   <p class="meta">${safeHtml(market.toUpperCase())} · 综合新闻/行情/K线/期权数据</p>
   <div class="chips">
     <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
-    <span class="chip">黑天鹅灯号：${safeHtml(risk.blackSwan)}</span>
+    <span class="chip">综合结论：${safeHtml(decisionStatus)}</span>
+    <span class="chip">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
     <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
   </div>
 </section>
@@ -957,7 +956,7 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const symbol = String(body.symbol || "").trim().toUpperCase();
-    const market = String(body.market || "us").trim().toLowerCase();
+    const market = detectMarket(symbol, body.market);
     const imageDataUrl = String(body.imageDataUrl || "").trim();
     const notes = String(body.notes || "").trim();
     const targetStrike = String(body.targetStrike || body.optionMetrics?.targetStrike || "").trim();
@@ -968,59 +967,114 @@ export default async function handler(req, res) {
     if (!symbol) return sendJson(res, 400, { ok: false, message: "缺少标的代码。" });
 
     let optionMetrics = sanitizeOptionMetrics(rawMetrics);
-    const hasManualMetrics = Object.values(optionMetrics).some((v) => String(v ?? "").trim() !== "");
+    let ocrWarning = "";
 
-    if (!hasManualMetrics && imageDataUrl.startsWith("data:image/")) {
+    if (needsOptionMetricBackfill(optionMetrics) && imageDataUrl.startsWith("data:image/")) {
       try {
-        optionMetrics = await parseOptionMetricsFromImage(symbol, imageDataUrl);
+        const parsedMetrics = await parseOptionMetricsFromImage(symbol, imageDataUrl);
+        optionMetrics = mergeOptionMetrics(optionMetrics, parsedMetrics);
       } catch (ocrError) {
-        return sendJson(res, 400, { ok: false, message: ocrError.message || "截图解析失败，请手动录入。" });
+        ocrWarning = ocrError.message || "截图解析失败，未识别字段将保持缺失。";
       }
     }
 
     const optionMetricsText = formatOptionMetrics(optionMetrics);
 
-    const [stockpriceSnapshot, newsData, klineRaw] = await Promise.all([
+    const [stockpriceSnapshot, newsData, klineStructure] = await Promise.all([
       loadStockpriceSnapshot().catch(() => ({ data: [], checkedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })),
-      loadNews().catch(() => ({ items: [], count: 0 })),
-      fetchKlineData(symbol).catch(() => ({ error: "fetch failed" })),
+      loadRecentMarketNews().catch(() => ({ items: [], count: 0 })),
+      analyzeKlineStructure({ symbol, market, interval: "1d", range: "3mo", maxMatchBars: 10, trendSampleScope: "0" })
+        .catch((error) => ({ error: error.message || "K线结构分析失败" })),
     ]);
 
-    const klineStats = Array.isArray(klineRaw) ? computeKlineStats(klineRaw) : null;
+    const klineStats = Array.isArray(klineStructure?.bars) ? computeKlineStats(klineStructure.bars) : null;
     const klineStatsFormatted = formatKlineStats(klineStats);
+    const klineStructureFormatted = formatKlineStructure(klineStructure);
 
-    const rawRisk = marketRisk(stockpriceSnapshot, symbol);
-    const risk = adjustedRisk(rawRisk, klineStats, symbol);
+    const putRating = analyzePutRatingSnapshot(stockpriceSnapshot, symbol, optionMetrics);
+    const rawRisk = {
+      ...putRating.market,
+      summary: putRating.market.summary || marketRisk(stockpriceSnapshot, symbol).summary,
+    };
+    const risk = adjustedRisk(rawRisk, klineStats, klineStructure, symbol);
 
-    const newsText = summarizeNews(newsData.items);
-    const eventRisks = scanEventRisks(newsData.items);
+    const newsAnalysis = analyzeDecisionNews(newsData.items, symbol);
+    const decisionNewsItems = newsAnalysis.selected;
+    const newsText = newsAnalysis.summary;
+    const eventRisks = newsAnalysis.eventRisks;
     const eventRisksText = formatEventRisks(eventRisks);
+    const readiness = assessDecisionReadiness({
+      rows: {
+        target: row(stockpriceSnapshot, symbol),
+        qqq: row(stockpriceSnapshot, "QQQ"),
+        spy: row(stockpriceSnapshot, "SPY"),
+        vix: row(stockpriceSnapshot, "^VIX"),
+        tnx: row(stockpriceSnapshot, "^TNX"),
+        dxy: row(stockpriceSnapshot, "DX-Y.NYB"),
+      },
+      klineStats,
+      klineStructure,
+      newsItems: decisionNewsItems,
+      optionMetrics,
+      targetStrike,
+      putPrice,
+      expiryDate,
+    });
+
+    if (!readiness.canIssueDecision) {
+      return sendJson(res, 200, {
+        ok: true,
+        symbol,
+        market,
+        provider: "完整性门槛",
+        used_ai: false,
+        report_mode: "precheck",
+        status: "预检查",
+        risk_score: null,
+        missing: readiness.missing,
+        warnings: ocrWarning ? [ocrWarning] : [],
+        message: "关键数据尚未齐全，已生成卖Put预检查，不输出完整决策。",
+        filename: `${symbol}-sell-put-precheck.html`,
+        html: buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, stockpriceSnapshot),
+        generatedAt: new Date().toISOString(),
+        elapsedMs: Date.now() - startTime,
+      });
+    }
 
     const prompt = buildPrompt({
       symbol, market, optionMetricsText,
+      optionTemperature: putRating.temperature,
       stockpriceSnapshot, newsText,
-      klineStatsFormatted, notes,
+      klineStatsFormatted, klineStructureFormatted, notes,
       targetStrike, putPrice, expiryDate,
       klineStats, risk, rawRisk, eventRisksText,
     });
 
     const ai = await callAI(symbol, prompt);
-    const cleanHtml = stripCodeFenceAndExtract(ai.html);
+    const cleanHtml = sanitizeAiHtml(stripCodeFenceAndExtract(ai.html));
+    const ruleDecision = riskDecisionStatus(risk);
+    const aiDecision = extractAiDecisionStatus(cleanHtml);
+    const aiAccepted = !!cleanHtml
+      && decisionSeverity(aiDecision) >= decisionSeverity(ruleDecision);
+    const finalDecision = aiAccepted ? aiDecision : ruleDecision;
 
-    const finalHtml = cleanHtml
-      ? buildAiReportWrapper(symbol, market, risk, cleanHtml, stockpriceSnapshot)
-      : buildRuleHtml(symbol, market, risk, klineStats, optionMetricsText, stockpriceSnapshot, targetStrike, putPrice, expiryDate);
+    const finalHtml = aiAccepted
+      ? buildAiReportWrapper(symbol, market, risk, finalDecision, cleanHtml, stockpriceSnapshot)
+      : buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, stockpriceSnapshot, targetStrike, putPrice, expiryDate, decisionNewsItems, eventRisks);
 
     return sendJson(res, 200, {
       ok: true,
       symbol, market,
-      provider: ai.provider,
-      used_ai: !!cleanHtml,
-      status: risk.putStance,
+      provider: aiAccepted ? ai.provider : "规则版",
+      used_ai: aiAccepted,
+      report_mode: "full",
+      status: finalDecision,
       risk_score: risk.riskScore,
-      message: ai.html
+      message: aiAccepted
         ? `综合报告已生成（${ai.provider}）`
-        : "AI暂不可用，已生成规则版报告（含K线技术指标）。",
+        : cleanHtml
+          ? "AI结论未通过一致性检查，已生成规则版报告。"
+          : "AI暂不可用，已生成规则版报告（含K线技术指标）。",
       filename: `${symbol}-sell-put-decision.html`,
       html: finalHtml,
       generatedAt: new Date().toISOString(),

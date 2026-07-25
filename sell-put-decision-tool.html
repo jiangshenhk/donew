@@ -448,7 +448,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v1.2.0｜2026-07-21｜补行权价/期权价/到期日+年化收益率计算</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v1.6.1｜2026-07-26｜统一判断引擎与完整规则版报告</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -751,7 +751,7 @@
       resultHead.innerHTML = `
         <div class="metric"><b>标的</b><span>${meta.symbol || '-'}</span></div>
         <div class="metric"><b>市场</b><span>${(meta.market || '-').toUpperCase()}</span></div>
-        <div class="metric"><b>AI</b><span>${meta.used_ai ? (meta.provider || '已调用') : '规则版'}</span></div>
+        <div class="metric"><b>AI</b><span>${meta.report_mode === 'precheck' ? '未调用' : (meta.used_ai ? (meta.provider || '已调用') : '规则版')}</span></div>
         <div class="metric"><b>结论</b><span>${meta.status || '-'}</span></div>
       `;
 
@@ -1086,7 +1086,7 @@
         preview.innerHTML = `<div class="empty-state">正在生成综合卖Put决策...<span>正在拉取新闻 / 行情 / K线数据并调用AI分析</span></div>`;
       }, 1000);
       setStatus('正在生成综合卖Put决策...');
-      preview.innerHTML = '<div class="empty-state">正在生成综合卖Put决策...<span>请稍候（约30-60秒）</span></div>';
+      preview.innerHTML = '<div class="empty-state">正在生成综合卖Put决策...<span>请稍候（最长约120秒）</span></div>';
 
       try {
         const payload = {

@@ -3096,6 +3096,67 @@ function buildReport({ displaySymbol, interval, range, bars, cards, gptHtml, opt
 </html>`;
 }
 
+export async function analyzeKlineStructure({
+  symbol,
+  market = "",
+  interval = "1d",
+  range = "3mo",
+  maxMatchBars = 10,
+  trendSampleScope = "0",
+} = {}) {
+  const inputSymbol = String(symbol || "").trim();
+  if (!inputSymbol) throw new Error("缺少K线分析标的代码。");
+  const normalizedRange = normalizeRangeForInterval(range, interval);
+  const normalizedMaxBars = Math.max(1, Math.min(10, Number(maxMatchBars) || 10));
+  const resolved = await resolveMarketBars(inputSymbol, market, normalizedRange, interval);
+  const { yahoo, display, displayName, bars, timeLabel, timezone } = resolved;
+  const cards = patternCards(bars, normalizedMaxBars);
+  const last = bars.at(-1);
+  const closes = bars.map((bar) => bar.close);
+  const support = Math.min(...bars.slice(-10).map((bar) => bar.low));
+  const pressure1 = Math.max(...bars.slice(-4).map((bar) => bar.high));
+  const pressure2 = Math.max(...bars.slice(-10).map((bar) => bar.high));
+  const e20 = ema(closes, 20).at(-1);
+  const e60 = ema(closes, 60).at(-1);
+  const rsi14 = rsi(closes);
+  const mom10 = momentum(closes);
+  const historicalSampleSets = await fetchHistoricalSampleSets({
+    yahoo,
+    market: resolved.market,
+    interval,
+    scope: String(trendSampleScope) === "1" ? "1" : "0",
+  });
+  const historicalTrendStats = scanHistoricalTrendStats(historicalSampleSets, cards, normalizedMaxBars, 5);
+  const analysisAngles = buildAnalysisAngles({
+    bars,
+    cards,
+    last,
+    support,
+    pressure1,
+    pressure2,
+    e20,
+    e60,
+    mom10,
+    rsi14,
+    historicalTrendStats,
+  });
+  return {
+    symbol: displayName,
+    code: display,
+    yahoo,
+    market: resolved.market,
+    interval,
+    range: normalizedRange,
+    timeLabel,
+    timezone,
+    bars,
+    latestBar: last,
+    top5: cards.slice(0, 5).map((card, index) => ({ rank: index + 1, ...card })),
+    historicalTrendStats,
+    analysisAngles,
+  };
+}
+
 export default async function handler(req, res) {
   if (!securityCheck(req, res)) return;
   if (req.method !== "POST") return sendJson(res, 405, { ok: false, error: "Method not allowed" });

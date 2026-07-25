@@ -1,4 +1,5 @@
 import { securityCheck } from './_lib/security.js';
+import { scanDecisionEventRisks } from './_lib/sell-put-decision-core.js';
 
 const NEWS_API = "https://api.github.com/repos/jiangshenhk/donew/contents/jin10news/data/latest-24h.json?ref=main";
 
@@ -17,7 +18,7 @@ async function timedFetch(url, options = {}, timeoutMs = 90000) {
 
 /* ═══════════════════ 新闻摘要 ═══════════════════ */
 
-async function loadNews() {
+export async function loadRecentMarketNews() {
   const response = await timedFetch(NEWS_API + "&t=" + Date.now(), {
     headers: { Accept: "application/vnd.github+json", "User-Agent": "donew-news-summary" }
   }, 12000);
@@ -54,6 +55,49 @@ function selectForAI(items, maxItems = 360) {
 
 function compactItems(items) {
   return items.map(item => ({ time: item.time, categories: item.categories || ["其他"], content: String(item.content || "").slice(0, 320) }));
+}
+
+const DECISION_ALIASES = {
+  QLD: ["QLD", "QQQ", "纳指", "纳斯达克", "科技股"],
+  QQQ: ["QQQ", "纳指", "纳斯达克", "科技股"],
+  MSTR: ["MSTR", "MICROSTRATEGY", "STRATEGY", "比特币", "BTC"],
+  INTC: ["INTC", "INTEL", "英特尔", "半导体", "芯片"],
+  HOOD: ["HOOD", "ROBINHOOD", "券商", "加密货币"],
+};
+const DECISION_MACRO = /美联储|FOMC|利率|美债|非农|就业|CPI|PPI|PCE|GDP|通胀|关税|制裁|战争|冲突|原油|OPEC|美元|美股|纳指|标普|科技|半导体|芯片|比特币|加密|流动性|波动率|VIX/i;
+
+export function selectDecisionNews(items, symbol, maxItems = 80) {
+  if (!Array.isArray(items)) return [];
+  const upper = String(symbol || "").trim().toUpperCase();
+  const terms = [upper.replace(/-USD$/, ""), ...(DECISION_ALIASES[upper] || [])].filter(Boolean);
+  return items
+    .filter((item) => {
+      const content = String(item?.content || "");
+      const normalized = content.toUpperCase();
+      return DECISION_MACRO.test(content) || terms.some((term) => normalized.includes(String(term).toUpperCase()));
+    })
+    .slice(0, maxItems);
+}
+
+export function summarizeDecisionNews(items, maxItems = 30) {
+  if (!Array.isArray(items) || !items.length) return "";
+  return items.slice(0, maxItems).map((item) => {
+    const parsed = new Date(item.time);
+    const time = Number.isNaN(parsed.getTime())
+      ? "时间未取到"
+      : parsed.toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong", hour: "2-digit", minute: "2-digit", hour12: false });
+    const categories = (item.categories || []).join(",");
+    return `[${time}][${categories}] ${String(item.content || "").slice(0, 200)}`;
+  }).join("\n");
+}
+
+export function analyzeDecisionNews(items, symbol) {
+  const selected = selectDecisionNews(items, symbol);
+  return {
+    selected,
+    summary: summarizeDecisionNews(selected),
+    eventRisks: scanDecisionEventRisks(selected),
+  };
 }
 
 function newsSystemPrompt() {
@@ -395,7 +439,7 @@ export default async function handler(req, res) {
     }
 
     // 新闻摘要（默认）
-    const news = await loadNews();
+    const news = await loadRecentMarketNews();
     const selected = selectForAI(news.items);
     const payload = { window: "最近24小时", generatedAt: new Date().toISOString(), source: news.sourceLabel || news.source, totalItems: news.items.length, analyzedItems: selected.length, categoryStats: news.categoryStats || {}, items: compactItems(selected) };
     const rawMarkdown = provider === "openai" ? await callOpenAI(payload, newsSystemPrompt()) : await callDeepSeek(payload, newsSystemPrompt());

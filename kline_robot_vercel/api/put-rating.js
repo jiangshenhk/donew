@@ -1,4 +1,8 @@
 import { securityCheck } from './_lib/security.js';
+import {
+  analyzeOptionTemperature,
+  calculateMarketRisk,
+} from './_lib/sell-put-decision-core.js';
 
 const STOCKPRICE_SNAPSHOT_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
 const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -320,21 +324,13 @@ function marketRisk(snapshot, targetSymbol) {
   const dxy = row(snapshot, "DX-Y.NYB");
   const target = row(snapshot, targetSymbol);
 
-  let risk = 5.2;
-  if ((vix.changePct || 0) > 5) risk += 1.2;
-  if ((tnx.changePct || 0) > 1) risk += 0.7;
-  if ((dxy.changePct || 0) > 0.3) risk += 0.6;
-  if ((qqq.changePct || 0) < -1 || (spy.changePct || 0) < -1) risk += 0.9;
-  if ((smh.changePct || 0) < -1 || (soxx.changePct || 0) < -1) risk += 0.7;
-  if ((btc.changePct || 0) < -2.5) risk += 0.5;
-  if ((iwm.changePct || 0) > (spy.changePct || 0)) risk -= 0.2;
-  if ((target.changePct || 0) < -3) risk += 0.6;
-  risk = Math.max(1, Math.min(9.5, risk));
+  const shared = calculateMarketRisk({ qqq, spy, iwm, smh, soxx, btc, vix, tnx, dxy, target });
+  const risk = Number(shared.riskScore);
 
   const downside = risk >= 7.5 ? `<span class="up">高</span>（偏向再定价 / 跳空风险）` : risk >= 6.2 ? `<span class="warn">中</span>（仍需防突然转弱）` : `<span class="dn">低</span>（但不是无风险）`;
-  const putStance = risk >= 7.5 ? "不利" : risk >= 6.2 ? "谨慎" : "有利";
+  const putStance = shared.putStance;
   const panicPremium = risk >= 7.5 ? `<span class="up">不是</span>。更像风险预警，不是舒服的恐慌溢价` : risk >= 6.2 ? `<span class="warn">不确定</span>。可能有一点溢价，但要防权利金陷阱` : `<span class="dn">是</span>。如果 IV 端配合，高概率是真溢价窗口`;
-  const blackSwan = risk >= 7.5 ? "🔴 高警戒" : risk >= 6.2 ? "🟡 需防范" : "🟢 常规防守";
+  const blackSwan = shared.blackSwan;
 
   return {
     riskScore: risk.toFixed(1),
@@ -342,7 +338,15 @@ function marketRisk(snapshot, targetSymbol) {
     putStance,
     panicPremium,
     blackSwan,
+    notes: shared.notes,
     summary: `QQQ ${pct(qqq.changePct)} / SPY ${pct(spy.changePct)} / SMH ${pct(smh.changePct)} / VIX ${pct(vix.changePct)} / 10Y ${pct(tnx.changePct)} / DXY ${pct(dxy.changePct)} / BTC ${pct(btc.changePct)}`,
+  };
+}
+
+export function analyzePutRatingSnapshot(snapshot, targetSymbol, optionMetrics = {}) {
+  return {
+    market: marketRisk(snapshot, targetSymbol),
+    temperature: analyzeOptionTemperature(optionMetrics),
   };
 }
 
