@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   // latest-price
   if (!action) {
     try {
-      const file = path.join(process.cwd(), "kline_robot_vercel", "data", "latest-price.json");
+      const file = path.join(process.cwd(), "stockprice", "data", "latest-price.json");
       const content = await fs.readFile(file, "utf8");
       return send(res, 200, JSON.parse(content));
     } catch (error) {
