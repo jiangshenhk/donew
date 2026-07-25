@@ -1,12 +1,16 @@
 # AI 工作建议与协作规则
 
 > 本地 Git 仓库：`/Volumes/Macintosh HD/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew`  
-> 远程仓库：`github.com:jiangshenhk/donew.git`  
-> 开发参考：`DEV-README.md`（https://github.com/jiangshenhk/donew/blob/main/DEV-README.md）
+> 远程仓库：`github.com:jiangshenhk/donew.git`
 
 > 这份文件是我（Jiang Shen）给 AI 的协作说明书。  
 > 目标：让 AI 成为真正的**技术合伙人**，而不是被动回答机器。  
 > 适用场景：日常工作、技术决策、交易辅助、知识整理等所有 AI 交互。
+
+> **⚠️ 接手任何开发任务前，必须先读 `DEV-README.md`**：  
+> 本地路径：`DEV-README.md`（同仓库根目录）  
+> 线上地址：https://github.com/jiangshenhk/donew/blob/main/DEV-README.md  
+> DEV-README.md 包含项目全部开发规则：四层结构、7 个工具全景、脚手架、部署方式、开发约定等。不先读 DEV-README 就直接改代码 = 大概率改错。
 
 ---
 
