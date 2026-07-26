@@ -751,7 +751,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v1.7.15｜2026-07-26｜折叠手工期权参数入口</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v2.0.0.1｜2026-07-27｜增加合约执行硬门槛</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -845,8 +845,11 @@
         <p class="section-title" style="margin-top:14px;">具体期权合约</p>
         <div class="field-grid">
           <div class="field"><label for="targetStrike">行权价格</label><input id="targetStrike" name="targetStrike" type="text" inputmode="decimal" placeholder="85.00"></div>
-          <div class="field"><label for="putPrice">中间价（期权价格）</label><input id="putPrice" name="putPrice" type="text" inputmode="decimal" placeholder="2.00"></div>
-          <div class="field full"><label for="expiryDate">到期日</label><input id="expiryDate" name="expiryDate" type="date"></div>
+          <div class="field"><label for="delta">Delta</label><input id="delta" name="delta" type="text" inputmode="decimal" placeholder="-0.15"></div>
+          <div class="field"><label for="bid">Bid</label><input id="bid" name="bid" type="text" inputmode="decimal" placeholder="1.35"></div>
+          <div class="field"><label for="ask">Ask</label><input id="ask" name="ask" type="text" inputmode="decimal" placeholder="1.47"></div>
+          <div class="field"><label for="putPrice">Mid（自动计算）</label><input id="putPrice" name="putPrice" type="text" inputmode="decimal" placeholder="1.41" readonly></div>
+          <div class="field"><label for="expiryDate">到期日</label><input id="expiryDate" name="expiryDate" type="date"></div>
         </div>
 
         <div class="field full">
@@ -1552,6 +1555,7 @@
       Object.entries(item.optionMetrics || {}).forEach(([key, value]) => {
         if (form.elements[key]) form.elements[key].value = value || '';
       });
+      updateContractMid();
       updateBarchartLink();
     }
 
@@ -1954,6 +1958,16 @@
     renderHistory();
     updateBarchartLink();
 
+    function updateContractMid() {
+      const bid = Number(form.elements.bid?.value);
+      const ask = Number(form.elements.ask?.value);
+      const valid = Number.isFinite(bid) && bid > 0 && Number.isFinite(ask) && ask >= bid;
+      form.elements.putPrice.value = valid ? ((bid + ask) / 2).toFixed(2) : '';
+    }
+
+    form.elements.bid.addEventListener('input', updateContractMid);
+    form.elements.ask.addEventListener('input', updateContractMid);
+
     function collectOptionMetrics() {
       const fields = ['iv', 'ivChange', 'hv', 'ivPercentile', 'ivRank', 'ivHigh', 'ivHighDate', 'ivLow', 'ivLowDate',
         'expectedMove', 'expectedMovePct', 'expectedMoveDte',
@@ -1963,11 +1977,19 @@
       fields.forEach((f) => { metrics[f] = String(form.elements[f]?.value || '').trim(); });
       const noteContract = extractContractFromNotes(form.elements.notes?.value || '');
       metrics.targetStrike = String(form.elements.targetStrike?.value || noteContract.targetStrike || '').trim();
-      metrics.putPrice = String(form.elements.putPrice?.value || noteContract.putPrice || '').trim();
+      metrics.delta = String(form.elements.delta?.value || noteContract.delta || '').trim();
+      metrics.bid = String(form.elements.bid?.value || noteContract.bid || '').trim();
+      metrics.ask = String(form.elements.ask?.value || noteContract.ask || '').trim();
+      updateContractMid();
+      metrics.putPrice = String(form.elements.putPrice?.value || '').trim();
       metrics.expiryDate = String(form.elements.expiryDate?.value || noteContract.expiryDate || '').trim();
       if (!form.elements.targetStrike.value && metrics.targetStrike) form.elements.targetStrike.value = metrics.targetStrike;
-      if (!form.elements.putPrice.value && metrics.putPrice) form.elements.putPrice.value = metrics.putPrice;
+      if (!form.elements.delta.value && metrics.delta) form.elements.delta.value = metrics.delta;
+      if (!form.elements.bid.value && metrics.bid) form.elements.bid.value = metrics.bid;
+      if (!form.elements.ask.value && metrics.ask) form.elements.ask.value = metrics.ask;
       if (!form.elements.expiryDate.value && metrics.expiryDate) form.elements.expiryDate.value = metrics.expiryDate;
+      updateContractMid();
+      metrics.putPrice = String(form.elements.putPrice?.value || '').trim();
       return metrics;
     }
 
@@ -1983,9 +2005,11 @@
     function extractContractFromNotes(notes) {
       const text = String(notes || '');
       const strike = text.match(/(?:行权价(?:格)?|strike)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
-      const premium = text.match(/(?:中间价|期权价格|权利金|premium|mid(?:dle)?\s*price)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
+      const delta = text.match(/(?:delta)\s*[:：为=]?\s*(-?[0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
+      const bid = text.match(/(?:bid|买价)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
+      const ask = text.match(/(?:ask|卖价)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
       const date = text.match(/(?:到期日|到期日期|expiry(?:\s*date)?)\s*[:：为=]?\s*((?:\d{4}[-/]\d{1,2}[-/]\d{1,2})|(?:\d{4}年\d{1,2}月\d{1,2}日))/i)?.[1] || '';
-      return { targetStrike: strike, putPrice: premium, expiryDate: normalizeContractDate(date) };
+      return { targetStrike: strike, delta, bid, ask, expiryDate: normalizeContractDate(date) };
     }
 
     function hasAnyMetrics(metrics) {

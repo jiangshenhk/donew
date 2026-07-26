@@ -100,7 +100,111 @@ export function adjustRiskWithKline(risk, klineStats, klineStructure = null) {
   };
 }
 
-export function assessDecisionReadiness({ rows = {}, klineStats, klineStructure, newsItems = [], optionMetrics = {}, targetStrike, putPrice, expiryDate } = {}) {
+export function evaluateOptionContract({
+  spot,
+  atr,
+  expectedRangeLow,
+  targetStrike,
+  delta,
+  bid,
+  ask,
+  expiryDate,
+  putStance = "有利",
+} = {}) {
+  const price = finite(spot);
+  const dailyAtr = finite(atr);
+  const expectedLow = finite(expectedRangeLow);
+  const strike = finite(targetStrike);
+  const deltaValue = finite(delta);
+  const deltaAbs = deltaValue === null ? null : Math.abs(deltaValue);
+  const bidValue = finite(bid);
+  const askValue = finite(ask);
+  const quoteValid = bidValue !== null && bidValue > 0
+    && askValue !== null && askValue >= bidValue;
+  const mid = quoteValid ? (bidValue + askValue) / 2 : null;
+  const spread = quoteValid ? askValue - bidValue : null;
+  const spreadPct = mid !== null && mid > 0 ? spread / mid * 100 : null;
+  const maxSpread = mid !== null ? Math.max(0.10, mid * 0.15) : null;
+  const spreadPass = spread !== null && maxSpread !== null && spread <= maxSpread;
+  const atrSafeStrike = price !== null && dailyAtr !== null && dailyAtr > 0
+    ? price - 1.5 * dailyAtr
+    : null;
+  const safetyReferences = [atrSafeStrike, expectedLow].filter((value) => value !== null && value > 0);
+  const strictSafeStrike = safetyReferences.length ? Math.min(...safetyReferences) : null;
+  const strikePass = strike !== null && strictSafeStrike !== null && strike <= strictSafeStrike;
+  const otmPct = price !== null && price > 0 && strike !== null
+    ? (price - strike) / price * 100
+    : null;
+  const expiryTimestamp = Date.parse(String(expiryDate || ""));
+  const dte = Number.isFinite(expiryTimestamp)
+    ? Math.ceil((expiryTimestamp - Date.now()) / 86400000)
+    : null;
+  const collateralAnnualized = mid !== null && strike !== null && strike > 0 && dte !== null && dte > 0
+    ? mid / strike * 365 / dte * 100
+    : null;
+  const netCost = mid !== null && strike !== null ? strike - mid : null;
+  const netCostAnnualized = mid !== null && netCost !== null && netCost > 0 && dte !== null && dte > 0
+    ? mid / netCost * 365 / dte * 100
+    : null;
+  const deltaRange = putStance === "谨慎"
+    ? { min: 0.08, max: 0.15 }
+    : { min: 0.10, max: 0.25 };
+  const deltaTooHigh = deltaAbs !== null && deltaAbs > deltaRange.max;
+  const deltaTooLow = deltaAbs !== null && deltaAbs < deltaRange.min;
+  const deltaPass = deltaAbs !== null && !deltaTooHigh;
+  const blockers = [];
+  const warnings = [];
+
+  if (putStance === "不利") blockers.push("市场风险规则判定为不利");
+  if (!quoteValid) blockers.push("Bid/Ask报价无效");
+  else if (!spreadPass) blockers.push("Bid/Ask价差过宽");
+  if (deltaAbs === null) blockers.push("Delta缺失");
+  else if (deltaTooHigh) blockers.push(`Delta ${deltaAbs.toFixed(3)}高于${deltaRange.max.toFixed(2)}上限`);
+  else if (deltaTooLow) warnings.push(`Delta ${deltaAbs.toFixed(3)}低于${deltaRange.min.toFixed(2)}，收益效率偏低`);
+  if (strictSafeStrike === null) blockers.push("无法计算严格安全行权价");
+  else if (!strikePass) blockers.push(`行权价高于严格安全价${strictSafeStrike.toFixed(2)}`);
+  if (dte === null || dte <= 0) blockers.push("到期日无效");
+
+  return {
+    approved: blockers.length === 0,
+    status: blockers.length ? "暂不卖Put" : warnings.length ? "谨慎卖Put" : "可卖Put",
+    blockers,
+    warnings,
+    delta: deltaAbs,
+    deltaRange,
+    bid: bidValue,
+    ask: askValue,
+    mid,
+    spread,
+    spreadPct,
+    maxSpread,
+    spreadPass,
+    strike,
+    spot: price,
+    otmPct,
+    atrSafeStrike,
+    expectedRangeLow: expectedLow,
+    strictSafeStrike,
+    strikePass,
+    dte,
+    collateralAnnualized,
+    netCostAnnualized,
+    netCost,
+  };
+}
+
+export function assessDecisionReadiness({
+  rows = {},
+  klineStats,
+  klineStructure,
+  newsItems = [],
+  optionMetrics = {},
+  targetStrike,
+  delta,
+  bid,
+  ask,
+  expiryDate,
+} = {}) {
   const missing = [];
   const quoteKeys = ["target", "qqq", "spy", "vix", "tnx", "dxy"];
   const missingQuotes = quoteKeys.filter((key) => finite(rows[key]?.last) === null || finite(rows[key]?.changePct) === null);
@@ -114,12 +218,18 @@ export function assessDecisionReadiness({ rows = {}, klineStats, klineStructure,
   if (temperature.ivRank === null && temperature.ivPercentile === null) missing.push("IV Rank或IV Percentile");
   const expectedMove = finite(optionMetrics.expectedMove);
   if ((temperature.expectedMovePct === null || temperature.expectedMovePct <= 0) && (expectedMove === null || expectedMove <= 0)) missing.push("Expected Move");
+  const expectedRangeLow = finite(optionMetrics.expectedRangeLow);
+  if (expectedRangeLow === null || expectedRangeLow <= 0) missing.push("Expected Range Low");
   const strike = finite(targetStrike);
-  const premium = finite(putPrice);
+  const deltaValue = finite(delta);
+  const bidValue = finite(bid);
+  const askValue = finite(ask);
   const expiryTimestamp = Date.parse(String(expiryDate || ""));
   const expiryValid = Number.isFinite(expiryTimestamp) && expiryTimestamp > Date.now();
   if (strike === null || strike <= 0) missing.push("有效行权价");
-  if (premium === null || premium <= 0) missing.push("有效期权价格");
+  if (deltaValue === null || Math.abs(deltaValue) <= 0 || Math.abs(deltaValue) >= 1) missing.push("有效Delta");
+  if (bidValue === null || bidValue <= 0) missing.push("有效Bid");
+  if (askValue === null || askValue <= 0 || (bidValue !== null && askValue < bidValue)) missing.push("有效Ask");
   if (!expiryValid) missing.push("有效未来到期日");
   return {
     mode: missing.length ? "precheck" : "full",
@@ -133,8 +243,13 @@ export function assessDecisionReadiness({ rows = {}, klineStats, klineStructure,
       optionTemperature: temperature.iv !== null && temperature.iv > 0
         && temperature.hv !== null && temperature.hv > 0
         && (temperature.ivRank !== null || temperature.ivPercentile !== null)
-        && ((temperature.expectedMovePct !== null && temperature.expectedMovePct > 0) || (expectedMove !== null && expectedMove > 0)),
-      optionContract: strike !== null && strike > 0 && premium !== null && premium > 0 && expiryValid,
+        && ((temperature.expectedMovePct !== null && temperature.expectedMovePct > 0) || (expectedMove !== null && expectedMove > 0))
+        && expectedRangeLow !== null && expectedRangeLow > 0,
+      optionContract: strike !== null && strike > 0
+        && deltaValue !== null && Math.abs(deltaValue) > 0 && Math.abs(deltaValue) < 1
+        && bidValue !== null && bidValue > 0
+        && askValue !== null && askValue >= bidValue
+        && expiryValid,
     },
   };
 }

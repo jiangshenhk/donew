@@ -9,6 +9,7 @@ import {
   adjustRiskWithKline,
   assessDecisionReadiness,
   calculateMarketRisk,
+  evaluateOptionContract,
 } from './_lib/sell-put-decision-core.js';
 
 const STOCKPRICE_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
@@ -477,7 +478,7 @@ async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
   return sanitizeOptionMetrics(parseLooseJson(extractTextFromResponse(json)));
 }
 
-function analyzeAtrVsPut(targetRow, klineStats, targetStrike, putPrice, expiryDate) {
+function analyzeAtrVsPut(targetRow, klineStats, targetStrike, expiryDate) {
   const price = targetRow?.last;
   const dailyAtr = numberOrNull(klineStats?.atr);
   if (price == null || dailyAtr == null || price <= 0 || dailyAtr <= 0) {
@@ -492,9 +493,7 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, putPrice, expiryDa
   else atrSuitability = "波动过高，需卖更低行权价或减少仓位";
   let marginNote = "";
   const strike = numberOrNull(targetStrike);
-  const pPrice = numberOrNull(putPrice);
   let daysToExpiry = null;
-  let annualizedReturn = null;
   if (strike != null && strike > 0) {
     const strikeGapPct = ((strike - safeStrike) / safeStrike * 100);
     if (strike > safeStrike) {
@@ -503,14 +502,10 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, putPrice, expiryDa
       marginNote = `你选择的行权价($${strike.toFixed(2)})低于ATR安全行权价($${safeStrike.toFixed(2)})，ATR提供额外${Math.abs(strikeGapPct.toFixed(2))}%安全垫`;
     }
   }
-  if (expiryDate && pPrice != null && strike != null && strike > 0 && pPrice > 0) {
+  if (expiryDate) {
     const now = new Date();
     const expiry = new Date(expiryDate);
     daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
-    if (daysToExpiry > 0) {
-      const returnPerPeriod = pPrice / strike;
-      annualizedReturn = (returnPerPeriod * 365 / daysToExpiry * 100).toFixed(2);
-    }
   }
   return {
     hasData: true,
@@ -519,10 +514,8 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, putPrice, expiryDa
     marginNote,
     atrSuitability,
     strike: strike?.toFixed(2) || null,
-    putPrice: pPrice?.toFixed(2) || null,
     expiryDate: expiryDate || null,
     daysToExpiry,
-    annualizedReturn,
   };
 }
 
@@ -538,9 +531,11 @@ function normalizeContractDate(value) {
 function extractContractFromNotes(notes) {
   const text = String(notes || "");
   const targetStrike = text.match(/(?:行权价(?:格)?|strike)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || "";
-  const putPrice = text.match(/(?:中间价|期权价格|权利金|premium|mid(?:dle)?\s*price)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || "";
+  const delta = text.match(/(?:delta)\s*[:：为=]?\s*(-?[0-9]+(?:\.[0-9]+)?)/i)?.[1] || "";
+  const bid = text.match(/(?:bid|买价)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || "";
+  const ask = text.match(/(?:ask|卖价)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || "";
   const rawDate = text.match(/(?:到期日|到期日期|expiry(?:\s*date)?)\s*[:：为=]?\s*((?:\d{4}[-/]\d{1,2}[-/]\d{1,2})|(?:\d{4}年\d{1,2}月\d{1,2}日))/i)?.[1] || "";
-  return { targetStrike, putPrice, expiryDate: normalizeContractDate(rawDate) };
+  return { targetStrike, delta, bid, ask, expiryDate: normalizeContractDate(rawDate) };
 }
 
 function stripCodeFenceAndExtract(html) {
@@ -619,6 +614,34 @@ function decisionSeverity(status) {
   return { "可卖Put": 0, "谨慎卖Put": 1, "暂不卖Put": 2 }[status] ?? -1;
 }
 
+function contractGateHtml(contractDecision) {
+  if (!contractDecision) return "";
+  const tone = contractDecision.approved ? "good" : "bad";
+  const blockers = contractDecision.blockers?.length
+    ? `<ul>${contractDecision.blockers.map((item) => `<li class="bad">${safeHtml(item)}</li>`).join("")}</ul>`
+    : `<p class="good">未触发硬阻断条件。</p>`;
+  const warnings = contractDecision.warnings?.length
+    ? `<ul>${contractDecision.warnings.map((item) => `<li class="warn">${safeHtml(item)}</li>`).join("")}</ul>`
+    : "";
+  return `
+<section class="section contract-gate">
+  <h2>具体合约执行门槛</h2>
+  <p><span class="highlight">代码结论：</span><span class="${tone}">${contractDecision.approved ? "通过，可进入下单前复核" : "不通过，禁止自动下单"}</span></p>
+  <table>
+    <thead><tr><th>项目</th><th>数值</th><th>规则</th><th>结果</th></tr></thead>
+    <tbody>
+      <tr><td>Delta</td><td>${safeHtml(contractDecision.delta?.toFixed(3) ?? "-")}</td><td>${safeHtml(`${contractDecision.deltaRange.min.toFixed(2)}-${contractDecision.deltaRange.max.toFixed(2)}`)}</td><td class="${contractDecision.delta !== null && contractDecision.delta <= contractDecision.deltaRange.max ? "good" : "bad"}">${contractDecision.delta !== null && contractDecision.delta <= contractDecision.deltaRange.max ? "通过" : "阻断"}</td></tr>
+      <tr><td>Bid / Ask / Mid</td><td>${safeHtml(`${contractDecision.bid?.toFixed(2) ?? "-"} / ${contractDecision.ask?.toFixed(2) ?? "-"} / ${contractDecision.mid?.toFixed(2) ?? "-"}`)}</td><td>价差 ≤ max($0.10, Mid×15%)</td><td class="${contractDecision.spreadPass ? "good" : "bad"}">${contractDecision.spreadPass ? "通过" : "阻断"}</td></tr>
+      <tr><td>价差</td><td>${safeHtml(`${contractDecision.spread?.toFixed(2) ?? "-"}（${contractDecision.spreadPct?.toFixed(2) ?? "-"}%）`)}</td><td>流动性硬门槛</td><td class="${contractDecision.spreadPass ? "good" : "bad"}">${contractDecision.spreadPass ? "合格" : "过宽"}</td></tr>
+      <tr><td>行权价安全</td><td>${safeHtml(`Strike ${contractDecision.strike?.toFixed(2) ?? "-"} / 安全价 ${contractDecision.strictSafeStrike?.toFixed(2) ?? "-"}`)}</td><td>Strike ≤ min(现价-1.5×ATR, Expected Range Low)</td><td class="${contractDecision.strikePass ? "good" : "bad"}">${contractDecision.strikePass ? "通过" : "阻断"}</td></tr>
+      <tr><td>OTM安全垫</td><td>${safeHtml(`${contractDecision.otmPct?.toFixed(2) ?? "-"}%`)}</td><td>信息项</td><td>-</td></tr>
+      <tr><td>年化收益</td><td>${safeHtml(`现金担保 ${contractDecision.collateralAnnualized?.toFixed(2) ?? "-"}% / 净接货成本 ${contractDecision.netCostAnnualized?.toFixed(2) ?? "-"}%`)}</td><td>不含手续费</td><td>-</td></tr>
+    </tbody>
+  </table>
+  ${blockers}${warnings}
+</section>`;
+}
+
 function buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, snapshot, generatedAt) {
   const componentRows = [
     ["市场行情", readiness.components.market],
@@ -649,21 +672,29 @@ table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}th,td{bor
 </div></body></html>`;
 }
 
-function buildPrompt({ symbol, market, optionMetricsText, optionTemperature, stockpriceSnapshot, newsText, klineStatsFormatted, klineStructureFormatted, notes, targetStrike, putPrice, expiryDate, klineStats, risk, rawRisk, eventRisksText }) {
+function buildPrompt({ symbol, market, optionMetricsText, optionTemperature, stockpriceSnapshot, newsText, klineStatsFormatted, klineStructureFormatted, notes, targetStrike, expiryDate, klineStats, risk, rawRisk, eventRisksText, contractDecision }) {
   const target = row(stockpriceSnapshot, symbol);
-  const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
+  const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, expiryDate);
 
   let strikeSection = "";
   let atrSection = "";
-  if (targetStrike || putPrice || expiryDate) {
+  if (targetStrike || contractDecision?.mid || expiryDate) {
     const strike = numberOrNull(targetStrike);
-    const price = numberOrNull(putPrice);
-    let ann = atrAnalysis.annualizedReturn;
+    const price = numberOrNull(contractDecision?.mid);
     let dte = atrAnalysis.daysToExpiry;
-    strikeSection = `\n## 期权链数据${ann ? `（年化收益率: ${ann}%）` : ""}
+    strikeSection = `\n## 具体期权合约与代码硬门槛
 - 行权价格：${strike != null ? `$${strike}` : "未提供"}
-- 中间价（期权价格）：${price != null ? `$${price}` : "未提供"}
-- 到期日：${expiryDate || "未提供"}${dte != null ? `（距离到期${dte}天）` : ""}${ann ? `\n- 预估年化收益率：${ann}%` : ""}
+- Delta：${contractDecision?.delta?.toFixed(3) ?? "未提供"}（规则区间 ${contractDecision?.deltaRange?.min?.toFixed(2) ?? "-"}-${contractDecision?.deltaRange?.max?.toFixed(2) ?? "-"}）
+- Bid / Ask / Mid：${contractDecision?.bid?.toFixed(2) ?? "-"} / ${contractDecision?.ask?.toFixed(2) ?? "-"} / ${price != null ? price.toFixed(2) : "-"}
+- 价差：${contractDecision?.spread?.toFixed(2) ?? "-"}（${contractDecision?.spreadPct?.toFixed(2) ?? "-"}%）
+- 到期日：${expiryDate || "未提供"}${dte != null ? `（距离到期${dte}天）` : ""}
+- OTM安全垫：${contractDecision?.otmPct?.toFixed(2) ?? "-"}%
+- 严格安全行权价：${contractDecision?.strictSafeStrike?.toFixed(2) ?? "-"}（ATR安全价与Expected Range Low取更低值）
+- 现金担保年化：${contractDecision?.collateralAnnualized?.toFixed(2) ?? "-"}%
+- 净接货成本年化：${contractDecision?.netCostAnnualized?.toFixed(2) ?? "-"}%
+- 合约执行门槛：${contractDecision?.approved ? "通过" : "不通过"}
+- 硬阻断：${contractDecision?.blockers?.length ? contractDecision.blockers.join("；") : "无"}
+- 提醒：${contractDecision?.warnings?.length ? contractDecision.warnings.join("；") : "无"}
 `;
   }
   if (atrAnalysis.hasData) {
@@ -714,6 +745,8 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 绝对不要输出"买入/卖出/做多/做空"等股票交易建议。你只判断期权卖方策略（Sell Put）的利弊
 - 你的三个结论选项固定为：可卖Put、谨慎卖Put、暂不卖Put（不是买/卖/持有）
 - 所有行动建议的措辞必须以"卖Put"为落脚点，例如"当前适合卖Put"而非"当前适合买入"
+- “合约执行门槛”是代码硬约束。门槛不通过时必须输出“暂不卖Put”，不得因高IV或高年化改成更激进结论
+- Delta、Bid、Ask、Mid、价差和收益率只能引用上方代码计算结果，不得猜测或补造
 
 **重要：严格输出规则**
 - 不要输出 \`\`\`html 或 \`\`\` 代码块，不要输出 DOCTYPE、<html>、<head>、<body> 等外层标签
@@ -808,8 +841,8 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
     <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
       <span style="font-size:1.5rem;font-weight:700;">动作建议</span>
       <span class="badge-red" style="font-size:1.2rem;padding:4px 28px;">暂不卖Put</span>
-      <span class="tag">到期日24日 d=0.14</span>
-      <span class="tag">行权价83 中间价1.41</span>
+      <span class="tag">到期日${expiryDate || "未提供"} Delta ${contractDecision?.delta?.toFixed(3) ?? "未提供"}</span>
+      <span class="tag">行权价${targetStrike || "未提供"} Bid/Ask ${contractDecision?.bid?.toFixed(2) ?? "-"}/${contractDecision?.ask?.toFixed(2) ?? "-"}</span>
     </div>
   </div>
   （徽章类名：可卖Put→badge-green，谨慎卖Put→badge-yellow，暂不卖Put→badge-red）
@@ -878,13 +911,17 @@ async function callAI(symbol, prompt) {
   return { provider: "规则版", html: "" };
 }
 
-function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, snapshot, targetStrike, putPrice, expiryDate, decisionNewsItems, eventRisks, generatedAt) {
+function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, snapshot, targetStrike, expiryDate, decisionNewsItems, eventRisks, generatedAt, contractDecision) {
   const stanceClass = risk.putStance === "有利" ? "good" : risk.putStance === "谨慎" ? "warn" : "bad";
-  const decisionStatus = riskDecisionStatus(risk);
+  const marketDecision = riskDecisionStatus(risk);
+  const decisionStatus = decisionSeverity(contractDecision?.status) > decisionSeverity(marketDecision)
+    ? contractDecision.status
+    : marketDecision;
+  const decisionClass = decisionStatus === "可卖Put" ? "good" : decisionStatus === "谨慎卖Put" ? "warn" : "bad";
   const riskTone = riskToneClass(risk);
   const decisionTone = decisionToneClass(decisionStatus);
   const target = row(snapshot, symbol);
-  const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
+  const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, expiryDate);
   const klineStructureText = formatKlineStructure(klineStructure);
   const newsRows = (decisionNewsItems || []).slice(0, 8).map((item) => {
     const time = formatDateTime(item.time);
@@ -928,6 +965,7 @@ function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionM
   <div class="chips">
     <span class="chip ${riskTone}">卖Put环境：${safeHtml(risk.putStance)}</span>
     <span class="chip ${decisionTone}">综合结论：${safeHtml(decisionStatus)}</span>
+    <span class="chip ${contractDecision?.approved ? "chip-good" : "chip-bad"}">合约执行门槛：${contractDecision?.approved ? "通过" : "阻断"}</span>
     <span class="chip ${riskTone}">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
     <span class="chip ${riskTone}">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip chip-warn">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
   </div>
@@ -935,10 +973,12 @@ function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionM
 
 <section class="section">
   <h2>综合结论</h2>
-  <p><span class="highlight">当前卖Put：</span><span class="${stanceClass}">${safeHtml(decisionStatus)}</span></p>
+  <p><span class="highlight">当前卖Put：</span><span class="${decisionClass}">${safeHtml(decisionStatus)}</span></p>
   <p><span class="highlight">市场环境：</span>${risk.summary}</p>
   <p><span class="highlight">规则版说明：</span>AI暂不可用，以下基于规则引擎判断。建议结合截图期权数据综合评估。</p>
 </section>
+
+${contractGateHtml(contractDecision)}
 
 <section class="section">
   <h2>市场环境过滤</h2>
@@ -976,7 +1016,7 @@ ${atrAnalysis.hasData ? `
   <p><span class="highlight">ATR(14)：</span>${safeHtml(numberOrNull(klineStats?.atr)?.toFixed(4))} | <span class="highlight">ATR占价格比例：</span>${safeHtml(atrAnalysis.atrPct)}% | <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
   <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span>$${safeHtml(atrAnalysis.safeStrike)}</p>
   ${atrAnalysis.strike ? `
-  <p><span class="highlight">你选择的行权价：</span>$${safeHtml(atrAnalysis.strike)} ${atrAnalysis.putPrice ? `｜ 期权价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""} ${atrAnalysis.annualizedReturn ? `｜ <span class="good">预估年化：${safeHtml(atrAnalysis.annualizedReturn)}%</span>` : ""}</p>
+  <p><span class="highlight">你选择的行权价：</span>$${safeHtml(atrAnalysis.strike)} ｜ Delta ${safeHtml(contractDecision?.delta?.toFixed(3) ?? "-")} ｜ Bid/Ask/Mid ${safeHtml(`${contractDecision?.bid?.toFixed(2) ?? "-"} / ${contractDecision?.ask?.toFixed(2) ?? "-"} / ${contractDecision?.mid?.toFixed(2) ?? "-"}`)} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>
   <p><span class="highlight">安全垫对比：</span>${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
   <ul class="atr-tips">
     <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
@@ -999,7 +1039,7 @@ ${atrAnalysis.hasData ? `
 </div></body></html>`;
 }
 
-function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snapshot, generatedAt) {
+function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snapshot, generatedAt, contractDecision) {
   const riskTone = riskToneClass(risk);
   const decisionTone = decisionToneClass(decisionStatus);
   return `<!doctype html>
@@ -1055,10 +1095,12 @@ function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snap
   <div class="chips">
     <span class="chip ${riskTone}">卖Put环境：${safeHtml(risk.putStance)}</span>
     <span class="chip ${decisionTone}">综合结论：${safeHtml(decisionStatus)}</span>
+    <span class="chip ${contractDecision?.approved ? "chip-good" : "chip-bad"}">合约执行门槛：${contractDecision?.approved ? "通过" : "阻断"}</span>
     <span class="chip ${riskTone}">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
     <span class="chip ${riskTone}">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip chip-warn">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
   </div>
 </section>
+${contractGateHtml(contractDecision)}
 ${aiHtml}
 <details><summary>实时行情快照</summary><div class="section"><table><thead><tr><th>标的</th><th>最新价</th><th>日变化</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></div></details>
 </div></body></html>`;
@@ -1078,7 +1120,9 @@ export default async function handler(req, res) {
     const notes = String(body.notes || "").trim();
     const noteContract = extractContractFromNotes(notes);
     const targetStrike = String(body.targetStrike || body.optionMetrics?.targetStrike || noteContract.targetStrike || "").trim();
-    const putPrice = String(body.putPrice || body.optionMetrics?.putPrice || noteContract.putPrice || "").trim();
+    const delta = String(body.delta || body.optionMetrics?.delta || noteContract.delta || "").trim();
+    const bid = String(body.bid || body.optionMetrics?.bid || noteContract.bid || "").trim();
+    const ask = String(body.ask || body.optionMetrics?.ask || noteContract.ask || "").trim();
     const expiryDate = String(body.expiryDate || body.optionMetrics?.expiryDate || noteContract.expiryDate || "").trim();
     const rawMetrics = (body.optionMetrics && typeof body.optionMetrics === "object") ? body.optionMetrics : {};
 
@@ -1128,6 +1172,17 @@ export default async function handler(req, res) {
       summary: putRating.market.summary || marketRisk(stockpriceSnapshot, symbol).summary,
     };
     const risk = adjustedRisk(rawRisk, klineStats, klineStructure, symbol);
+    const contractDecision = evaluateOptionContract({
+      spot: row(stockpriceSnapshot, symbol).last,
+      atr: klineStats?.atr,
+      expectedRangeLow: optionMetrics.expectedRangeLow,
+      targetStrike,
+      delta,
+      bid,
+      ask,
+      expiryDate,
+      putStance: risk.putStance,
+    });
 
     const newsAnalysis = analyzeDecisionNews(newsData.items, symbol);
     const decisionNewsItems = newsAnalysis.selected;
@@ -1148,7 +1203,9 @@ export default async function handler(req, res) {
       newsItems: decisionNewsItems,
       optionMetrics,
       targetStrike,
-      putPrice,
+      delta,
+      bid,
+      ask,
       expiryDate,
     });
 
@@ -1178,8 +1235,8 @@ export default async function handler(req, res) {
       optionTemperature: putRating.temperature,
       stockpriceSnapshot, newsText,
       klineStatsFormatted, klineStructureFormatted, notes,
-      targetStrike, putPrice, expiryDate,
-      klineStats, risk, rawRisk, eventRisksText,
+      targetStrike, expiryDate,
+      klineStats, risk, rawRisk, eventRisksText, contractDecision,
     });
 
     const ai = await callAI(symbol, prompt);
@@ -1187,7 +1244,10 @@ export default async function handler(req, res) {
       sanitizeAiHtml(stripCodeFenceAndExtract(ai.html)),
       klineStructure,
     );
-    const ruleDecision = riskDecisionStatus(risk);
+    const marketRuleDecision = riskDecisionStatus(risk);
+    const ruleDecision = decisionSeverity(contractDecision.status) > decisionSeverity(marketRuleDecision)
+      ? contractDecision.status
+      : marketRuleDecision;
     const aiDecision = extractAiDecisionStatus(cleanHtml);
     const aiAccepted = !!cleanHtml
       && decisionSeverity(aiDecision) >= decisionSeverity(ruleDecision);
@@ -1195,8 +1255,8 @@ export default async function handler(req, res) {
     const generatedAt = new Date().toISOString();
 
     const finalHtml = aiAccepted
-      ? buildAiReportWrapper(symbol, market, risk, finalDecision, cleanHtml, stockpriceSnapshot, generatedAt)
-      : buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, stockpriceSnapshot, targetStrike, putPrice, expiryDate, decisionNewsItems, eventRisks, generatedAt);
+      ? buildAiReportWrapper(symbol, market, risk, finalDecision, cleanHtml, stockpriceSnapshot, generatedAt, contractDecision)
+      : buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, stockpriceSnapshot, targetStrike, expiryDate, decisionNewsItems, eventRisks, generatedAt, contractDecision);
 
     return sendJson(res, 200, {
       ok: true,
@@ -1206,6 +1266,12 @@ export default async function handler(req, res) {
       report_mode: "full",
       status: finalDecision,
       risk_score: risk.riskScore,
+      execution_gate: {
+        approved: contractDecision.approved,
+        status: contractDecision.status,
+        blockers: contractDecision.blockers,
+        warnings: contractDecision.warnings,
+      },
       message: aiAccepted
         ? `综合报告已生成（${ai.provider}）`
         : cleanHtml
