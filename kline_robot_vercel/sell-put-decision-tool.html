@@ -178,6 +178,18 @@
     .help-tip:focus::after {
       opacity: 1;
     }
+    .ranking-trigger {
+      margin-left: auto;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .ranking-trigger:hover { text-decoration: underline; }
     .label-row {
       display: flex;
       align-items: center;
@@ -430,6 +442,185 @@
       font-size: 18px;
       color: #94a3b8;
     }
+    .run-state {
+      flex-direction: column;
+      gap: 10px;
+      padding: 36px;
+      font-size: 18px;
+    }
+    .run-state .run-time {
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 850;
+    }
+    .run-state .run-stage {
+      color: var(--text);
+      font-size: 26px;
+      font-weight: 850;
+    }
+    .run-state .run-detail,
+    .run-state .run-next {
+      display: block;
+      max-width: 640px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .run-state .run-next {
+      color: #7c8ba7;
+      font-size: 13px;
+    }
+    .ranking-dialog {
+      width: min(1120px, calc(100vw - 32px));
+      max-height: min(820px, calc(100vh - 32px));
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      color: var(--text);
+      box-shadow: 0 24px 80px rgba(15, 23, 42, .24);
+    }
+    .ranking-dialog::backdrop { background: rgba(15, 23, 42, .48); }
+    .ranking-head {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    .ranking-title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .ranking-title-row h2 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+    .ranking-meta {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .dialog-close {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .ranking-kinds {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .ranking-kind {
+      min-height: 34px;
+      padding: 7px 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .ranking-kind.active {
+      border-color: #e5b928;
+      background: #fff6d9;
+      color: #9a6700;
+    }
+    .ranking-controls {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 220px 110px;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .ranking-controls input,
+    .ranking-controls select {
+      padding: 9px 11px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .ranking-refresh {
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #eef3ff;
+      color: #2f44a9;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .ranking-table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 220px);
+    }
+    .ranking-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 13px;
+    }
+    .ranking-table th,
+    .ranking-table td {
+      padding: 11px 10px;
+      border-bottom: 1px solid #e7ebf2;
+      text-align: right;
+      vertical-align: middle;
+    }
+    .ranking-table th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f4f7fc;
+      color: #475569;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .ranking-table th:nth-child(1),
+    .ranking-table td:nth-child(1) { width: 54px; text-align: center; }
+    .ranking-table th:nth-child(2),
+    .ranking-table td:nth-child(2) { width: 240px; text-align: left; }
+    .ranking-symbol {
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .ranking-symbol:hover { text-decoration: underline; }
+    .ranking-name {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ranking-up { color: #0b8f55; font-weight: 800; }
+    .ranking-down { color: #d33b56; font-weight: 800; }
+    .ranking-hot { color: #b77900; font-weight: 850; }
+    .ranking-empty {
+      padding: 56px 20px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 15px;
+    }
     @media (max-width: 1100px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar { position: static; }
@@ -441,6 +632,10 @@
       h1 { font-size: 22px; }
       .version { display: block; margin: 10px 0 0; width: fit-content; }
       .topbar { flex-direction: column; align-items: flex-start; }
+      .ranking-controls { grid-template-columns: 1fr; }
+      .ranking-table { min-width: 820px; }
+      .ranking-dialog { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
+      .ranking-head { padding: 14px; }
     }
   </style>
 </head>
@@ -448,7 +643,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v1.7.5｜2026-07-26｜标的实时行情优先</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v1.7.9｜2026-07-26｜自动读取Barchart期权概览</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -480,6 +675,7 @@
             <div class="label-help">
               <label for="symbol">标的代码</label>
               <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="输入参考：&#10;美股：QLD / MSTR / INTC / HOOD&#10;美股指数：^VIX&#10;宏观：^TNX（10年美债）、DX-Y.NYB（美元指数）&#10;港股：00700 / 09988&#10;A股：600570 / 000001&#10;加密：BTC / BTC-USD">?</button>
+              <button class="ranking-trigger" id="openRankingBtn" type="button">热门期权榜</button>
             </div>
             <input id="symbol" name="symbol" value="QLD" placeholder="QLD / MSTR / INTC / HOOD" required>
           </div>
@@ -492,7 +688,7 @@
         <div class="upload-box">
           <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
           <div class="upload-hint" id="uploadHint">
-            支持选择文件上传或 Ctrl+V 直接粘贴截图，上传后自动 OCR 填入字段。
+            生成时会按标的自动读取 Barchart 期权概览；截图仅作备用，也可 Ctrl+V 粘贴。
           </div>
           <div class="thumb-wrap" id="thumbWrap">
             <img id="thumb" class="preview-thumb" alt="截图预览">
@@ -583,6 +779,52 @@
     </div>
   </div>
 
+  <dialog class="ranking-dialog" id="rankingDialog" aria-labelledby="rankingTitle">
+    <div class="ranking-head">
+      <div class="ranking-title-row">
+        <div>
+          <h2 id="rankingTitle">美股热门期权标的</h2>
+          <p class="ranking-meta" id="rankingMeta">正在读取公开榜单…</p>
+        </div>
+        <button class="dialog-close" id="closeRankingBtn" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="ranking-kinds" aria-label="期权榜单类型">
+        <button class="ranking-kind active" type="button" data-ranking-kind="volume">成交量 Top 100</button>
+        <button class="ranking-kind" type="button" data-ranking-kind="iv-change">IV 异动</button>
+        <button class="ranking-kind" type="button" data-ranking-kind="unusual-volume">异常成交</button>
+      </div>
+      <div class="ranking-controls">
+        <input id="rankingSearch" type="search" placeholder="搜索代码或名称">
+        <select id="rankingSort" aria-label="榜单排序">
+          <option value="volume">按期权总成交量</option>
+          <option value="callShare">按 Call 占比</option>
+          <option value="openInterest">按未平仓量</option>
+          <option value="changeUp">按标的涨幅</option>
+          <option value="changeDown">按标的跌幅</option>
+        </select>
+        <button class="ranking-refresh" id="refreshRankingBtn" type="button">刷新榜单</button>
+      </div>
+    </div>
+    <div class="ranking-table-wrap">
+      <table class="ranking-table">
+        <thead>
+          <tr id="rankingTableHead">
+            <th>排名</th>
+            <th>标的</th>
+            <th>总成交量</th>
+            <th>Call占比</th>
+            <th>Call/Put</th>
+            <th>未平仓量</th>
+            <th>Call/Put OI</th>
+            <th>标的涨跌</th>
+          </tr>
+        </thead>
+        <tbody id="rankingTableBody"></tbody>
+      </table>
+      <div class="ranking-empty" id="rankingEmpty">正在获取榜单…</div>
+    </div>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script>
@@ -613,12 +855,27 @@
     const symbolInput = document.getElementById('symbol');
     const historySelect = document.getElementById('historySelect');
     const metricsPanel = document.getElementById('metricsPanel');
+    const rankingDialog = document.getElementById('rankingDialog');
+    const openRankingBtn = document.getElementById('openRankingBtn');
+    const closeRankingBtn = document.getElementById('closeRankingBtn');
+    const refreshRankingBtn = document.getElementById('refreshRankingBtn');
+    const rankingSearch = document.getElementById('rankingSearch');
+    const rankingSort = document.getElementById('rankingSort');
+    const rankingMeta = document.getElementById('rankingMeta');
+    const rankingTitle = document.getElementById('rankingTitle');
+    const rankingTableHead = document.getElementById('rankingTableHead');
+    const rankingTableBody = document.getElementById('rankingTableBody');
+    const rankingEmpty = document.getElementById('rankingEmpty');
 
     let imageDataUrl = '';
     let latestHtml = '';
     let latestBlobUrl = '';
     let latestName = 'sell-put-decision.html';
     let runTimer = null;
+    let rankingRows = [];
+    let rankingMode = 'volume';
+    let optionOverviewMeta = null;
+    const rankingCache = {};
     const historyKey = 'sellPutDecisionHistory.v1';
     const latestReportKey = 'sellPutDecisionLatestReport.v1';
 
@@ -627,6 +884,240 @@
     let compareHtml = '';
     let compareBlobUrl = '';
     let currentView = 'current';
+
+    function rankingNumber(value) {
+      if (value === null || value === undefined || value === '') return null;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    }
+
+    function formatRankingNumber(value) {
+      const number = rankingNumber(value);
+      return number === null ? '—' : number.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    function formatRankingPct(value) {
+      const number = rankingNumber(value);
+      if (number === null) return '—';
+      return `${number >= 0 ? '+' : ''}${number.toFixed(2)}%`;
+    }
+
+    function setRankingModeUi() {
+      const configs = {
+        volume: {
+          title: '美股热门期权标的',
+          sort: [
+            ['volume', '按期权总成交量'],
+            ['callShare', '按 Call 占比'],
+            ['openInterest', '按未平仓量'],
+            ['changeUp', '按标的涨幅'],
+            ['changeDown', '按标的跌幅'],
+          ],
+          headers: ['排名', '标的', '总成交量', 'Call占比', 'Call/Put', '未平仓量', 'Call/Put OI', '标的涨跌'],
+        },
+        'iv-change': {
+          title: 'IV 异动合约',
+          sort: [
+            ['ivChange', '按 IV 升幅'],
+            ['iv', '按当前 IV'],
+            ['volume', '按合约成交量'],
+            ['dte', '按到期天数'],
+          ],
+          headers: ['排名', '标的/合约', '类型', '到期日', '行权价', '当前IV', 'IV变化', '成交量', 'Delta'],
+        },
+        'unusual-volume': {
+          title: '异常期权成交标的',
+          sort: [
+            ['volumeVsMonthly', '按月均放大幅度'],
+            ['volume', '按期权总成交量'],
+            ['putCall', '按 Put/Call 比率'],
+            ['ivRank', '按 IV Rank'],
+          ],
+          headers: ['排名', '标的', '总成交量', '较月均变化', 'Put成交量', 'Call成交量', 'Put/Call', 'IV Rank', '标的涨跌'],
+        },
+      };
+      const config = configs[rankingMode];
+      rankingTitle.textContent = config.title;
+      rankingSort.replaceChildren(...config.sort.map(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        return option;
+      }));
+      rankingTableHead.replaceChildren(...config.headers.map((label) => {
+        const th = document.createElement('th');
+        th.textContent = label;
+        return th;
+      }));
+      document.querySelectorAll('.ranking-kind').forEach((button) => {
+        button.classList.toggle('active', button.dataset.rankingKind === rankingMode);
+      });
+    }
+
+    function rankingSortKey() {
+      const keys = {
+        volume: {
+          volume: 'totalVolume', callShare: 'callSharePct', openInterest: 'openInterest',
+          changeUp: 'underlyingChangePct', changeDown: 'underlyingChangePct',
+        },
+        'iv-change': {
+          ivChange: 'ivChangePct', iv: 'impliedVolatilityPct', volume: 'volume',
+          dte: 'daysToExpiration',
+        },
+        'unusual-volume': {
+          volumeVsMonthly: 'volumeVsMonthlyPct', volume: 'totalVolume',
+          putCall: 'putCallVolumeRatio', ivRank: 'ivRankPct',
+        },
+      };
+      return keys[rankingMode]?.[rankingSort.value] || Object.values(keys[rankingMode] || {})[0];
+    }
+
+    function appendCell(row, text, className = '') {
+      const cell = document.createElement('td');
+      cell.textContent = text;
+      if (className) cell.className = className;
+      row.appendChild(cell);
+    }
+
+    function appendSymbolCell(row, item) {
+      const symbolCell = document.createElement('td');
+      const symbolButton = document.createElement('button');
+      symbolButton.type = 'button';
+      symbolButton.className = 'ranking-symbol';
+      symbolButton.textContent = item.symbol || '—';
+      symbolButton.addEventListener('click', () => {
+        symbolInput.value = item.symbol || '';
+        form.elements.market.value = 'us';
+        updateBarchartLink();
+        rankingDialog.close();
+        symbolInput.focus();
+        setStatus(`已选择 ${item.symbol}，可继续补充期权截图或直接生成。`);
+      });
+      const name = document.createElement('span');
+      name.className = 'ranking-name';
+      name.textContent = item.name || item.contractSymbol || '';
+      name.title = name.textContent;
+      symbolCell.append(symbolButton, name);
+      row.appendChild(symbolCell);
+    }
+
+    function renderOptionsRanking() {
+      const keyword = String(rankingSearch.value || '').trim().toUpperCase();
+      const rows = rankingRows.filter((item) => {
+        if (!keyword) return true;
+        return String(item.symbol || '').toUpperCase().includes(keyword)
+          || String(item.name || '').toUpperCase().includes(keyword)
+          || String(item.contractSymbol || '').toUpperCase().includes(keyword);
+      });
+      const key = rankingSortKey();
+      rows.sort((a, b) => {
+        const av = rankingNumber(a[key]);
+        const bv = rankingNumber(b[key]);
+        const safeA = av === null ? Number.NEGATIVE_INFINITY : av;
+        const safeB = bv === null ? Number.NEGATIVE_INFINITY : bv;
+        const ascending = rankingSort.value === 'changeDown' || rankingSort.value === 'dte';
+        return ascending ? safeA - safeB : safeB - safeA;
+      });
+
+      rankingTableBody.replaceChildren();
+      rows.forEach((item) => {
+        const tr = document.createElement('tr');
+        appendCell(tr, String(item.rank || '—'));
+        appendSymbolCell(tr, item);
+        if (rankingMode === 'volume') {
+          appendCell(tr, formatRankingNumber(item.totalVolume));
+          appendCell(tr, rankingNumber(item.callSharePct) === null ? '—' : `${rankingNumber(item.callSharePct).toFixed(1)}%`);
+          appendCell(tr, rankingNumber(item.callPutVolumeRatio) === null ? '—' : rankingNumber(item.callPutVolumeRatio).toFixed(2));
+          appendCell(tr, formatRankingNumber(item.openInterest));
+          appendCell(tr, rankingNumber(item.callPutOiRatio) === null ? '—' : rankingNumber(item.callPutOiRatio).toFixed(2));
+          appendCell(tr, formatRankingPct(item.underlyingChangePct), rankingNumber(item.underlyingChangePct) > 0 ? 'ranking-up' : rankingNumber(item.underlyingChangePct) < 0 ? 'ranking-down' : '');
+        } else if (rankingMode === 'iv-change') {
+          appendCell(tr, item.optionType || '—');
+          appendCell(tr, `${item.expirationDate || '—'}${rankingNumber(item.daysToExpiration) === null ? '' : ` (${item.daysToExpiration}天)`}`);
+          appendCell(tr, rankingNumber(item.strikePrice) === null ? '—' : Number(item.strikePrice).toFixed(2));
+          appendCell(tr, rankingNumber(item.impliedVolatilityPct) === null ? '—' : `${Number(item.impliedVolatilityPct).toFixed(2)}%`);
+          appendCell(tr, formatRankingPct(item.ivChangePct), 'ranking-hot');
+          appendCell(tr, formatRankingNumber(item.volume));
+          appendCell(tr, rankingNumber(item.delta) === null ? '—' : Number(item.delta).toFixed(3));
+        } else {
+          appendCell(tr, formatRankingNumber(item.totalVolume));
+          appendCell(tr, formatRankingPct(item.volumeVsMonthlyPct), 'ranking-hot');
+          appendCell(tr, formatRankingNumber(item.putVolume));
+          appendCell(tr, formatRankingNumber(item.callVolume));
+          appendCell(tr, rankingNumber(item.putCallVolumeRatio) === null ? '—' : Number(item.putCallVolumeRatio).toFixed(2));
+          appendCell(tr, rankingNumber(item.ivRankPct) === null ? '—' : `${Number(item.ivRankPct).toFixed(1)}%`);
+          appendCell(tr, formatRankingPct(item.underlyingChangePct), rankingNumber(item.underlyingChangePct) > 0 ? 'ranking-up' : rankingNumber(item.underlyingChangePct) < 0 ? 'ranking-down' : '');
+        }
+        rankingTableBody.appendChild(tr);
+      });
+      rankingEmpty.style.display = rows.length ? 'none' : 'block';
+      rankingEmpty.textContent = rankingRows.length ? '没有匹配的标的。' : '榜单暂无数据。';
+    }
+
+    async function loadOptionsRanking(force = false) {
+      rankingEmpty.style.display = 'block';
+      rankingEmpty.textContent = '正在获取榜单…';
+      refreshRankingBtn.disabled = true;
+      try {
+        const endpoint = rankingMode === 'volume'
+          ? '/api/options-ranking?limit=100'
+          : `/api/options-signals?type=${encodeURIComponent(rankingMode)}`;
+        const url = `${apiBase}${endpoint}${force ? `${endpoint.includes('?') ? '&' : '?'}force=1&_=${Date.now()}` : ''}`;
+        const response = await fetch(url, { cache: force ? 'no-store' : 'default' });
+        const json = await response.json();
+        if (!response.ok || !json.ok) throw new Error(json.message || `获取失败（HTTP ${response.status}）`);
+        rankingRows = Array.isArray(json.data) ? json.data : [];
+        rankingCache[rankingMode] = rankingRows;
+        const retrievedAt = json.retrievedAt
+          ? new Date(json.retrievedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })
+          : '未知时间';
+        const countNote = json.publicSourceLimit
+          ? `公开源当前返回 ${json.count} 名（目标最多100名）`
+          : `共 ${json.count} 名${json.totalAvailable > json.count ? `（免费显示前${json.count}，源内共${json.totalAvailable}）` : ''}`;
+        rankingMeta.innerHTML = '';
+        const delayNote = json.delayed ? ' · 延迟约25至30分钟' : '';
+        rankingMeta.append(document.createTextNode(`${countNote} · ${json.fetchMode === 'cache' ? '缓存' : '新读取'}${delayNote} · ${retrievedAt} · 数据源：`));
+        const sourceLink = document.createElement('a');
+        sourceLink.href = json.sourceUrl || 'https://www.webull.com/quote/us/options';
+        sourceLink.target = '_blank';
+        sourceLink.rel = 'noopener noreferrer';
+        sourceLink.textContent = rankingMode === 'volume' ? 'Webull' : 'Barchart';
+        rankingMeta.appendChild(sourceLink);
+        renderOptionsRanking();
+      } catch (error) {
+        rankingRows = [];
+        rankingTableBody.replaceChildren();
+        rankingMeta.textContent = '期权榜单暂时不可用';
+        rankingEmpty.style.display = 'block';
+        rankingEmpty.textContent = error.message || '请稍后重试。';
+      } finally {
+        refreshRankingBtn.disabled = false;
+      }
+    }
+
+    openRankingBtn.addEventListener('click', async () => {
+      if (typeof rankingDialog.showModal === 'function') rankingDialog.showModal();
+      else rankingDialog.setAttribute('open', '');
+      setRankingModeUi();
+      if (!rankingRows.length) await loadOptionsRanking();
+    });
+    closeRankingBtn.addEventListener('click', () => rankingDialog.close());
+    rankingDialog.addEventListener('click', (event) => {
+      if (event.target === rankingDialog) rankingDialog.close();
+    });
+    refreshRankingBtn.addEventListener('click', () => loadOptionsRanking(true));
+    rankingSearch.addEventListener('input', renderOptionsRanking);
+    rankingSort.addEventListener('change', renderOptionsRanking);
+    document.querySelectorAll('.ranking-kind').forEach((button) => {
+      button.addEventListener('click', async () => {
+        rankingMode = button.dataset.rankingKind || 'volume';
+        rankingRows = rankingCache[rankingMode] || [];
+        rankingSearch.value = '';
+        setRankingModeUi();
+        if (rankingRows.length) renderOptionsRanking();
+        else await loadOptionsRanking();
+      });
+    });
 
     function readHistory() {
       try {
@@ -806,6 +1297,57 @@
       statusEl.style.color = isError ? '#dc2626' : '#64748b';
     }
 
+    function generationStage(seconds) {
+      if (seconds < 6) {
+        return {
+          title: '正在读取Barchart期权概览',
+          detail: '按标的读取 IV、HV、IV Rank、Expected Move 和 Put/Call 数据。',
+          next: '后续：获取行情与新闻 → K线结构分析 → 风险计算 → AI报告',
+        };
+      }
+      if (seconds < 32) {
+        return {
+          title: '正在获取行情、新闻与K线数据',
+          detail: '市场行情、最近新闻和标的K线结构正在并行处理。',
+          next: '后续：风险与期权温度计算 → AI综合报告',
+        };
+      }
+      if (seconds < 48) {
+        return {
+          title: '正在计算风险与期权温度',
+          detail: '组合市场环境、K线信号、IV/HV、Expected Move 与具体合约安全垫。',
+          next: '后续：AI整理综合结论与报告版式',
+        };
+      }
+      if (seconds < 90) {
+        return {
+          title: '正在生成AI综合报告',
+          detail: '正在组织结论、风险灯号、卖Put建议和未来关注清单。',
+          next: '报告返回后将自动显示并保存在当前浏览器。',
+        };
+      }
+      return {
+        title: '分析仍在运行，请继续等待',
+        detail: '数据源或AI服务响应较慢，页面仍在等待本次请求返回。',
+        next: '请保持页面打开，完成后会自动显示报告。',
+      };
+    }
+
+    function renderGenerationProgress(startAt) {
+      const seconds = Math.floor((Date.now() - startAt) / 1000);
+      const stage = generationStage(seconds);
+      btn.textContent = `生成中 ${seconds}s`;
+      setStatus(`正在生成报告｜已用 ${seconds} 秒｜当前预计阶段：${stage.title}`);
+      preview.innerHTML = `
+        <div class="empty-state run-state">
+          <div class="run-time">已用 ${seconds} 秒 · 当前预计阶段</div>
+          <div class="run-stage">${stage.title}</div>
+          <span class="run-detail">${stage.detail}</span>
+          <span class="run-next">${stage.next}</span>
+        </div>
+      `;
+    }
+
     function dataUrlToBlob(dataUrl) {
       const [meta, base64] = dataUrl.split(',');
       const mime = (meta.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
@@ -881,10 +1423,39 @@
       };
     }
 
-    function fillOptionMetrics(metrics) {
+    function fillOptionMetrics(metrics, onlyEmpty = false) {
       Object.entries(metrics || {}).forEach(([key, value]) => {
-        if (form.elements[key] && value) form.elements[key].value = value;
+        if (!form.elements[key] || !value) return;
+        if (onlyEmpty && String(form.elements[key].value || '').trim()) return;
+        form.elements[key].value = value;
       });
+    }
+
+    async function loadBarchartOverview() {
+      const market = String(form.elements.market.value || '');
+      if (market && market !== 'us') return null;
+      const symbol = String(symbolInput.value || '').trim().toUpperCase();
+      if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) return null;
+
+      try {
+        const response = await fetch(`${apiBase}/api/barchart-overview?symbol=${encodeURIComponent(symbol)}`);
+        const json = await response.json();
+        if (!response.ok || !json.ok) throw new Error(json.message || 'Barchart期权概览读取失败');
+        fillOptionMetrics(json.metrics, true);
+        optionOverviewMeta = {
+          source: json.source || 'Barchart Options Overview',
+          sourceUrl: json.sourceUrl || '',
+          retrievedAt: json.retrievedAt || new Date().toISOString(),
+          delayed: Boolean(json.delayed),
+          delayNote: json.delayNote || '',
+          fetchMode: json.fetchMode || 'realtime',
+        };
+        metricsPanel.open = false;
+        return json;
+      } catch {
+        optionOverviewMeta = null;
+        return null;
+      }
     }
 
     function showThumbLoading(text) {
@@ -962,7 +1533,7 @@
 
     imageInput.addEventListener('change', async () => {
       const file = imageInput.files && imageInput.files[0];
-      if (!file) { imageDataUrl = ''; thumb.style.display = 'none'; thumbWrap.classList.remove('visible'); hideThumbLoading(); uploadHint.textContent = '支持选择文件上传或 Ctrl+V 直接粘贴截图，上传后自动 OCR 填入字段。'; return; }
+      if (!file) { imageDataUrl = ''; thumb.style.display = 'none'; thumbWrap.classList.remove('visible'); hideThumbLoading(); uploadHint.textContent = '生成时会按标的自动读取 Barchart 期权概览；截图仅作备用，也可 Ctrl+V 粘贴。'; return; }
       imageDataUrl = await readFileAsDataUrl(file);
       thumb.src = imageDataUrl;
       thumb.style.display = 'block';
@@ -972,7 +1543,10 @@
       await parseUploadedImage({ silent: false });
     });
 
-    symbolInput.addEventListener('input', updateBarchartLink);
+    symbolInput.addEventListener('input', () => {
+      optionOverviewMeta = null;
+      updateBarchartLink();
+    });
     historySelect.addEventListener('change', () => {
       const item = readHistory()[Number(historySelect.value)];
       applyHistory(item);
@@ -1107,27 +1681,23 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
 
-      const optionMetrics = collectOptionMetrics();
-      const hasMetrics = hasAnyMetrics(optionMetrics);
-
       btn.disabled = true;
       const startAt = Date.now();
       clearInterval(runTimer);
-      runTimer = setInterval(() => {
-        const seconds = Math.floor((Date.now() - startAt) / 1000);
-        setStatus(`正在生成综合卖Put决策... ${seconds}s`);
-        preview.innerHTML = `<div class="empty-state">正在生成综合卖Put决策...<span>正在拉取新闻 / 行情 / K线数据并调用AI分析</span></div>`;
-      }, 1000);
-      setStatus('正在生成综合卖Put决策...');
-      preview.innerHTML = '<div class="empty-state">正在生成综合卖Put决策...<span>请稍候（最长约120秒）</span></div>';
+      renderGenerationProgress(startAt);
+      runTimer = setInterval(() => renderGenerationProgress(startAt), 1000);
 
       try {
+        await loadBarchartOverview();
+        const optionMetrics = collectOptionMetrics();
+        const hasMetrics = hasAnyMetrics(optionMetrics);
         const payload = {
           market: form.elements.market.value,
           symbol: form.elements.symbol.value.trim(),
           notes: form.elements.notes.value.trim(),
         };
         if (hasMetrics) payload.optionMetrics = optionMetrics;
+        if (optionOverviewMeta) payload.optionMetricsMeta = optionOverviewMeta;
         if (imageDataUrl) payload.imageDataUrl = imageDataUrl;
 
         const res = await fetch(`${apiBase}/api/sell-put-decision`, {
@@ -1152,6 +1722,7 @@
         clearInterval(runTimer);
         runTimer = null;
         btn.disabled = false;
+        btn.textContent = '生成综合卖Put决策';
       }
     });
 

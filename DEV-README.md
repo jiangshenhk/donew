@@ -555,19 +555,26 @@ docs/tools/alpha-risk-tool/README.md
   - `kline_robot_vercel/api/report.js` 的 `analyzeKlineStructure()`（共享K线相似度、历史样本、ABC/2B结构）
   - `kline_robot_vercel/api/put-rating.js` 的 `analyzePutRatingSnapshot()`（与独立卖Put温度工具共享市场和期权温度判断）
   - `kline_robot_vercel/api/news-summary.js` 的 `loadRecentMarketNews()` / `analyzeDecisionNews()`（与新闻中心共享24小时读取、相关性筛选和事件扫描）
+  - `kline_robot_vercel/api/options-ranking.js`（美股热门期权标的榜，辅助选择输入代码）
+  - `kline_robot_vercel/api/options-signals.js`（Barchart延迟IV异动与异常成交榜）
+  - `kline_robot_vercel/api/barchart-overview.js`（按单一美股代码读取Barchart期权概览）
 - 策略文档：
   - `docs/SellPut/SellPut策略/sell-put-decision-tool.md`
 - 数据依赖：
   - `stockprice/data/latest-price.json`（统一行情底座）
   - `jin10news/data/latest-24h.json`（新闻缓存，用于事件风险扫描和 AI 上下文）
   - K线工具共享引擎（底层行情由 `report.js` 统一处理）
-  - OpenAI Vision API（截图 OCR 识别 Barchart 期权字段）
+  - Barchart Options Overview 免费网页（优先按标的读取期权概览，通常延迟约25至30分钟）
+  - OpenAI Vision API（Barchart网页读取失败时，截图 OCR 作为备用）
   - DeepSeek / OpenAI（AI 综合判断生成报告）
+  - Webull Options Total Volume Ranking 公开页（热门期权标的候选榜）
 - 核心逻辑：
   - 严格完整性门槛：关键行情、相关新闻、K线结构、期权温度、具体合约缺一项就只输出预检查；行权价和权利金必须为正数，到期日必须是未来有效日期
   - Barchart字段映射：支持 IV/IV变化/HV/Percentile/Rank/IV高低点及日期/Expected Move与DTE和Range/Put-Call比率/成交量/持仓量
+  - 期权概览优先级：生成时先调用 `/api/barchart-overview?symbol=QLD`，只补齐尚未手工填写的字段；读取失败后保留截图 OCR 和手工录入路径，不把缺失值伪装成 0
+  - 期权数据溯源：报告的期权温度数据块记录 Barchart 来源、数据获取时间和延迟说明；10分钟内成功结果可由服务实例缓存复用
   - 旧输入兼容：具体合约字段留空时，可从补充说明中的“行权价、中间价、到期日”自动提取
-  - 四维数据聚合：行情快照 + 24小时相关新闻 + K线相似度/历史样本/ABC结构 + 截图 OCR
+  - 四维数据聚合：行情快照 + 24小时相关新闻 + K线相似度/历史样本/ABC结构 + Barchart标的级概览（截图 OCR 备用）
   - 三层风险：大盘环境 + ATR/趋势/跌幅 + K线历史偏空概率/高匹配偏空形态
   - 事件风险：代码扫描24小时相关新闻；AI不得凭训练记忆补未来事件日期
   - 结论一致性：AI只能比规则底线更谨慎，冲突或无标准结论时使用规则版
@@ -577,6 +584,38 @@ docs/tools/alpha-risk-tool/README.md
   - 六节结构化报告：综合结论 → 市场环境 → 期权温度解读 → K线技术信号 → 综合卖Put建议 → 未来关注清单
   - 结论措辞固定为"可卖Put / 谨慎卖Put / 暂不卖Put"，不会输出股票买卖建议
   - 标准功能：新窗口打开、下载 HTML、保存图片（html2canvas）、图片分享、历史报告导入对比、最近报告自动恢复
+  - 生成等待提示：前端显示已用时间和当前预计阶段；由于后端是单次 HTTP 请求，不把时间推测表述为服务端真实进度
+  - 热门期权榜：标的输入框旁可打开候选榜，点击代码直接填入；支持按期权总成交量、Call占比、未平仓量和标的涨跌排序
+  - IV与异常成交：同一弹窗分为“成交量Top 100 / IV异动 / 异常成交”三个标签，避免把不同信号混为一个排名
+
+##### 热门期权标的榜数据约定
+
+- 接口：`GET /api/options-ranking?limit=100`
+- 主数据源：`https://www.webull.com/quote/us/options`
+- 排名粒度：按股票/ETF标的汇总，不是单张期权合约排名
+- Webull 页面使用的 `totalVolume` 分页接口每页返回50名；后端并行读取前两页，合并为真实Top 100
+- 如果外部接口实际返回不足100名，接口会返回真实 `count` 并设置 `publicSourceLimit: true`，前端必须如实显示实际数量，不得补齐、复制或伪称100名
+- 原始字段：期权总成交量、未平仓量、Call/Put成交量比、Call/Put OI比、标的价格与涨跌
+- Call占比是推算值：`Call/Put ÷ (1 + Call/Put) × 100%`，界面必须同时保留原始 Call/Put 比率
+- Webull公开榜不提供IV异动字段。没有第二个可靠数据源前，不增加或推测“IV异动排行”
+- 服务端内存缓存10分钟，并设置 CDN 缓存头；`force=1` 只用于用户主动刷新
+- 外部页面结构变化或限流时，接口应明确返回失败，不使用旧值冒充实时榜单
+
+##### IV异动与异常成交榜数据约定
+
+- 接口：
+  - `GET /api/options-signals?type=iv-change`
+  - `GET /api/options-signals?type=unusual-volume`
+- 数据源：
+  - `https://www.barchart.com/options/volatility-percent-change/increase`
+  - `https://www.barchart.com/options/volume-change/stocks`
+- 后端先访问公开页面建立免费会话，再携带Cookie与XSRF凭证读取页面自身的数据接口；不保存用户账号、密码或长期会话
+- 免费榜单当前返回前20条，并返回源内 `totalAvailable`。前端必须显示“免费显示前20”，不能伪称完整榜单
+- Barchart公开期权数据通常延迟约25至30分钟；前端必须明确显示延迟说明和本次抓取时间
+- IV异动字段：标的、期权合约、Call/Put、到期日、DTE、行权价、当前IV、IV变化、成交量、Delta
+- 异常成交字段：标的、期权总成交量、相对月均成交量变化、Put/Call成交量、Put/Call比率、IV Rank、标的涨跌
+- IV升高不等于看涨，也不等于适合卖Put；异常成交可能来自保护性Put、事件对冲或投机。这里只提供候选筛选，最终仍由卖Put决策流程判断
+- 服务端内存缓存10分钟；外部会话建立失败或接口返回401时明确报错，不回填猜测值
 
 这是“四维数据聚合 + 共享子工具判断 + 单次AI综合”的代表模板，也是在现有工具之上的聚合决策层，不替换原有独立工具。聚合工具不得复制一套简化版子工具算法；应优先调用各独立工具导出的结构化函数。
 

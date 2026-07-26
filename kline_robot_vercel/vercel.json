@@ -6,6 +6,9 @@
     "api/news-summary.js": { "maxDuration": 120 },
     "api/market-report-v2.js": { "maxDuration": 120 },
     "api/sell-put-decision.js": { "maxDuration": 120 },
+    "api/options-ranking.js": { "maxDuration": 30 },
+    "api/options-signals.js": { "maxDuration": 30 },
+    "api/barchart-overview.js": { "maxDuration": 30 },
     "api/bazi-analysis.js": { "maxDuration": 120 },
     "api/auth.js": { "maxDuration": 30 }
   },

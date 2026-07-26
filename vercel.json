@@ -3,6 +3,9 @@
   "functions": {
     "api/report.js": { "maxDuration": 120 },
     "api/put-rating.js": { "maxDuration": 120 },
-    "api/market-report.js": { "maxDuration": 120 }
+    "api/market-report.js": { "maxDuration": 120 },
+    "api/options-ranking.js": { "maxDuration": 30 },
+    "api/options-signals.js": { "maxDuration": 30 },
+    "api/barchart-overview.js": { "maxDuration": 30 }
   }
 }

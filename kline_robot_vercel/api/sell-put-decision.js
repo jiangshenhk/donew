@@ -1070,7 +1070,19 @@ export default async function handler(req, res) {
       }
     }
 
-    const optionMetricsText = formatOptionMetrics(optionMetrics);
+    const optionMetricsMeta = (body.optionMetricsMeta && typeof body.optionMetricsMeta === "object")
+      ? body.optionMetricsMeta
+      : {};
+    const optionSource = String(optionMetricsMeta.source || "").trim();
+    const optionRetrievedAt = String(optionMetricsMeta.retrievedAt || "").trim();
+    const optionDelayNote = String(optionMetricsMeta.delayNote || "").trim();
+    const optionMetricsBaseText = formatOptionMetrics(optionMetrics);
+    const optionMetricsText = [
+      optionMetricsBaseText,
+      optionSource ? `Data Source: ${optionSource}` : "",
+      optionRetrievedAt ? `Data Retrieved At: ${formatDateTime(optionRetrievedAt)}` : "",
+      optionDelayNote ? `Data Delay: ${optionDelayNote}` : "",
+    ].filter(Boolean).join("\n");
 
     const [stockpriceBaseSnapshot, newsData, klineStructure] = await Promise.all([
       loadStockpriceSnapshot().catch(() => ({ data: [], checkedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })),
