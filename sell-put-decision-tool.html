@@ -448,7 +448,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v1.7.0｜2026-07-26｜完整对应Barchart截图字段</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v1.7.4｜2026-07-26｜分析小节与判断分层着色</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -459,7 +459,7 @@
     <div class="layout">
       <form class="panel sidebar" id="toolForm">
         <div class="field-grid">
-          <div class="field full history-select">
+          <div class="field full history-select" hidden>
             <label for="historySelect">历史记录</label>
             <select id="historySelect">
               <option value="">选择历史标的</option>
@@ -561,9 +561,8 @@
       </form>
 
       <section class="panel result">
-        <div class="result-top">
+        <div class="result-top" id="resultTabs" style="display:none;">
           <div class="tabs">
-            <button class="tab active" data-view="current" type="button">当前报告</button>
             <button class="tab" data-view="compare" id="compareTab" type="button" style="display:none;">历史对比</button>
           </div>
         </div>
@@ -757,13 +756,8 @@
     }
 
     function renderLatestReport(meta, restored = false) {
-      resultHead.style.display = 'grid';
-      resultHead.innerHTML = `
-        <div class="metric"><b>标的</b><span>${meta.symbol || '-'}</span></div>
-        <div class="metric"><b>市场</b><span>${(meta.market || '-').toUpperCase()}</span></div>
-        <div class="metric"><b>AI</b><span>${meta.report_mode === 'precheck' ? '未调用' : (meta.used_ai ? (meta.provider || '已调用') : '规则版')}</span></div>
-        <div class="metric"><b>结论</b><span>${meta.status || '-'}</span></div>
-      `;
+      resultHead.style.display = 'none';
+      resultHead.innerHTML = '';
 
       actions.style.display = 'flex';
       actions.innerHTML = `
@@ -933,8 +927,8 @@
         const hasAny = Object.values(metrics).some((v) => String(v || '').trim());
         if (!hasAny) { metricsPanel.open = true; throw new Error('OCR未识别到有效字段，请手动录入或换一张更清晰的截图。'); }
         hideThumbLoading();
-        uploadHint.textContent = '已自动提取期权数据，请核对后点击生成。';
-        if (!keepStatus) setStatus('已根据截图自动填入字段，请核对后再生成。');
+        uploadHint.textContent = '';
+        if (!keepStatus) setStatus('');
         return true;
       } catch (error) {
         hideThumbLoading();
@@ -1086,6 +1080,7 @@
         if (compareBlobUrl) URL.revokeObjectURL(compareBlobUrl);
         compareBlobUrl = URL.createObjectURL(new Blob([compareHtml], { type: 'text/html;charset=utf-8' }));
         compareTab.style.display = '';
+        document.getElementById('resultTabs').style.display = 'flex';
         compareTab.classList.add('active');
         document.querySelectorAll('.tab').forEach((t) => { if (t !== compareTab) t.classList.remove('active'); });
         currentView = 'compare';

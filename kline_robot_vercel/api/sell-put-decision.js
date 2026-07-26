@@ -536,6 +536,18 @@ function riskDecisionStatus(risk) {
   return "可卖Put";
 }
 
+function riskToneClass(risk) {
+  if (risk?.putStance === "不利") return "chip-bad";
+  if (risk?.putStance === "谨慎") return "chip-warn";
+  return "chip-good";
+}
+
+function decisionToneClass(status) {
+  if (status === "暂不卖Put") return "chip-bad";
+  if (status === "谨慎卖Put") return "chip-warn";
+  return "chip-good";
+}
+
 function extractAiDecisionStatus(html) {
   const source = String(html || "");
   const badge = source.match(/<span[^>]*class=["'][^"']*judge-badge[^"']*["'][^>]*>\s*(可卖Put|谨慎卖Put|暂不卖Put)\s*<\/span>/i);
@@ -548,7 +560,7 @@ function decisionSeverity(status) {
   return { "可卖Put": 0, "谨慎卖Put": 1, "暂不卖Put": 2 }[status] ?? -1;
 }
 
-function buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, snapshot) {
+function buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, snapshot, generatedAt) {
   const componentRows = [
     ["市场行情", readiness.components.market],
     ["K线技术数据", readiness.components.kline],
@@ -569,7 +581,7 @@ h1{font-size:36px;margin:0 0 8px;color:var(--gold)}h2{font-size:24px;color:var(-
 table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}th,td{border:1px solid var(--line);padding:10px 12px;text-align:left}th{background:#22304d}
 .up{color:#ff6b7d;font-weight:700}.dn{color:#45d483;font-weight:700}ul{padding-left:22px}
 </style></head><body><div class="page">
-<section class="hero"><h1>${safeHtml(symbol)} 卖Put预检查</h1><p class="meta">${safeHtml(market.toUpperCase())} · 数据完整前不输出卖Put结论</p></section>
+<section class="hero"><h1>${safeHtml(symbol)} 卖Put预检查</h1><p class="meta">报告生成时间：${safeHtml(formatDateTime(generatedAt))}</p><p class="meta">${safeHtml(market.toUpperCase())} · 数据完整前不输出卖Put结论</p></section>
 <section class="section notice"><strong>当前仅完成预检查。</strong> 关键数据不完整，因此不会判断“可卖Put”、不会判断恐慌溢价，也不会给出具体合约建议。</section>
 <section class="section"><h2>数据完整性</h2><table><thead><tr><th>判断模块</th><th>状态</th></tr></thead><tbody>${componentRows}</tbody></table><p class="warn">仍需补充：</p><ul>${missingItems}</ul></section>
 <section class="section"><h2>已取得的市场观察</h2><p>${risk.summary}</p>${klineStats ? `<p>K线最新收盘 ${safeHtml(klineStats.lastClose)}，ATR占比 ${safeHtml(klineStats.atrPct)}%，近20日变化 ${safeHtml(klineStats.returns.d20?.toFixed(2) ?? "未取到")}%。</p>` : `<p class="meta">K线数据不足。</p>`}${optionMetricsText ? `<pre style="white-space:pre-wrap;color:#c8d4eb">${safeHtml(optionMetricsText)}</pre>` : `<p class="meta">期权温度数据不足。</p>`}</section>
@@ -648,6 +660,9 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 不要输出 \`\`\`html 或 \`\`\` 代码块，不要输出 DOCTYPE、<html>、<head>、<body> 等外层标签
 - 不要输出任何前言/后记/解释文字（如"以下是您所需的"）
 - 直接从第一个 <section> 标签开始输出，到最后一个 </section> 结束
+- 报告层级必须清晰：每个大节使用 h2；节内判断项名称使用 <strong class="signal-label">判断项：</strong>；普通解释保持正文颜色
+- 只有方向性结论使用红绿黄：偏多/有利/低风险用 highlight-green，偏空/不利/高风险用 highlight-red，中性/谨慎/待确认用 highlight-yellow
+- 不要把整段正文染色；每个判断只着色最短的结论词或关键短语
 
 **风险判断铁律（必须在报告中体现）：**
 - "这是不是恐慌溢价？"必须回答并着色：是=<span class="dn">是</span>（绿色），不是=<span class="up">不是</span>（红色），不确定=<span class="warn">不确定</span>（黄色）
@@ -679,6 +694,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 先输出 <h2>市场环境</h2>
 - 然后用一排 class="data-item" 标签展示关键行情：<span class="data-item">QQQ <span style="color:#45d483;">+0.68%</span></span>
 - 然后用 <ul class="bullet-list"> 列出 3-5 条要点，涵盖：宏观/地缘、半导体/科技情绪、利率与美元、近期事件风险、综合判断
+- 每条必须以蓝色粗体判断项开头，例如：<li><strong class="signal-label">科技情绪：</strong>半导体呈现 <span class="highlight-red">偏弱</span>，随后用普通正文解释原因。</li>
 
 ### 第3节 · 期权温度解读 (<section class="section">)
 - 先输出 <h2>期权温度解读</h2>
@@ -697,6 +713,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
   · Put/Call Ratio 信号解读（成交量 PCR vs 持仓量 PCR，分别说明）
   · Expected Move 安全垫评估（与行权价的距离比较）
   · 恐慌溢价判断（是不是真正的恐慌溢价，还是风险预警）
+- 每条必须以蓝色粗体判断项开头，例如：<li><strong class="signal-label">IV 与 HV：</strong>当前溢价处于 <span class="highlight-yellow">中性</span>，随后用普通正文解释。</li>
 
 ### 第4节 · K线技术信号 (<section class="section">)
 - 先输出 <h2>K线技术信号</h2>
@@ -721,6 +738,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
   · 支撑/阻力位（引用支撑区间和阻力区间的具体数值）
   · ATR波动分析+行权价安全垫（ATR占比、ATR安全行权价、用户选择的行权价是否低于安全价）
   · 量价配合（成交量是否配合趋势，放量涨还是放量跌，缩量反弹等）
+- 每条必须以蓝色粗体判断项开头，例如：<li><strong class="signal-label">趋势结构：</strong>均线排列为 <span class="highlight-red">空头</span>，随后用普通正文解释。</li>
 
 ### 第5节 · 综合卖Put建议 (<section class="section">)
 - 先输出 <h2>综合卖Put建议</h2>
@@ -799,9 +817,11 @@ async function callAI(symbol, prompt) {
   return { provider: "规则版", html: "" };
 }
 
-function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, snapshot, targetStrike, putPrice, expiryDate, decisionNewsItems, eventRisks) {
+function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, snapshot, targetStrike, putPrice, expiryDate, decisionNewsItems, eventRisks, generatedAt) {
   const stanceClass = risk.putStance === "有利" ? "good" : risk.putStance === "谨慎" ? "warn" : "bad";
   const decisionStatus = riskDecisionStatus(risk);
+  const riskTone = riskToneClass(risk);
+  const decisionTone = decisionToneClass(decisionStatus);
   const target = row(snapshot, symbol);
   const atrAnalysis = analyzeAtrVsPut(target, klineStats, targetStrike, putPrice, expiryDate);
   const klineStructureText = formatKlineStructure(klineStructure);
@@ -826,9 +846,13 @@ function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionM
   .up{color:var(--red);font-weight:700} .dn{color:var(--green);font-weight:700} .warn{color:var(--gold);font-weight:700}
   .good{color:var(--green);font-weight:800} .bad{color:var(--red);font-weight:800}
   .highlight{color:var(--blue);font-weight:800}
+  .signal-label,.section li>strong,.section p>strong:first-child{color:#86b7ff;font-weight:800}
   .meta{color:var(--muted);font-size:14px}
   .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
   .chip{border:1px solid #334155;background:#1d2943;color:#dce7fb;border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
+  .chip-good{border-color:rgba(69,212,131,.48);background:rgba(69,212,131,.14);color:#45d483}
+  .chip-warn{border-color:rgba(255,213,74,.5);background:rgba(255,213,74,.14);color:#ffd54a}
+  .chip-bad{border-color:rgba(255,107,125,.52);background:rgba(255,107,125,.14);color:#ff6b7d}
   table{width:100%;border-collapse:collapse;margin:12px 0;border-radius:12px;overflow:hidden;font-size:14px}
   th,td{border:1px solid var(--line);padding:10px 12px;text-align:left}
   th{background:#22304d}
@@ -838,12 +862,13 @@ function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionM
 <body><div class="page">
 <section class="hero">
   <h1>${safeHtml(symbol)} 综合卖Put决策</h1>
+  <p class="meta">报告生成时间：${safeHtml(formatDateTime(generatedAt))}</p>
   <p class="meta">${safeHtml(market.toUpperCase())} · 规则版报告（AI暂不可用）</p>
   <div class="chips">
-    <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
-    <span class="chip">综合结论：${safeHtml(decisionStatus)}</span>
-    <span class="chip">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
-    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
+    <span class="chip ${riskTone}">卖Put环境：${safeHtml(risk.putStance)}</span>
+    <span class="chip ${decisionTone}">综合结论：${safeHtml(decisionStatus)}</span>
+    <span class="chip ${riskTone}">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
+    <span class="chip ${riskTone}">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip chip-warn">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
   </div>
 </section>
 
@@ -913,7 +938,9 @@ ${atrAnalysis.hasData ? `
 </div></body></html>`;
 }
 
-function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snapshot) {
+function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snapshot, generatedAt) {
+  const riskTone = riskToneClass(risk);
+  const decisionTone = decisionToneClass(decisionStatus);
   return `<!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeHtml(symbol)} 综合卖Put决策</title>
@@ -923,6 +950,7 @@ function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snap
   .page{max-width:1160px;margin:0 auto;padding:28px}
   h1{font-size:38px;line-height:1.1;margin:0 0 12px;color:var(--gold)}
   h2{font-size:24px;margin:24px 0 14px;color:var(--gold);padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:18px;margin:18px 0 8px;padding-left:10px;border-left:3px solid var(--blue);color:#86b7ff;font-weight:800}
   p{margin:0 0 10px;line-height:1.7}
   .meta{color:var(--muted);font-size:14px}
   .hero{background:linear-gradient(180deg,#17233a 0%,#131d31 100%);border:1px solid var(--line);border-radius:24px;padding:28px;margin-bottom:20px}
@@ -931,6 +959,7 @@ function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snap
   .up{color:var(--up);font-weight:700} .dn{color:var(--dn);font-weight:700} .warn{color:var(--gold);font-weight:700}
   .good{color:var(--dn);font-weight:800} .bad{color:var(--up);font-weight:800}
   .highlight{color:var(--blue);font-weight:800}
+  .signal-label,.section li>strong,.section p>strong:first-child{color:#86b7ff;font-weight:800}
   .highlight-green{color:var(--dn);font-weight:600} .highlight-red{color:var(--up);font-weight:600} .highlight-yellow{color:var(--gold);font-weight:600}
   .badge-green{background:#1b3a2a;color:var(--dn);padding:2px 12px;border-radius:30px;display:inline-block}
   .badge-red{background:#3d1e2a;color:var(--up);padding:2px 12px;border-radius:30px;display:inline-block}
@@ -947,6 +976,9 @@ function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snap
   .inline-icon{margin-right:6px}
   .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
   .chip{border:1px solid #334155;background:#1d2943;color:#dce7fb;border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
+  .chip-good{border-color:rgba(69,212,131,.48);background:rgba(69,212,131,.14);color:#45d483}
+  .chip-warn{border-color:rgba(255,213,74,.5);background:rgba(255,213,74,.14);color:#ffd54a}
+  .chip-bad{border-color:rgba(255,107,125,.52);background:rgba(255,107,125,.14);color:#ff6b7d}
   table{width:100%;border-collapse:collapse;margin:12px 0;border-radius:12px;overflow:hidden;font-size:14px}
   th,td{border:1px solid var(--line);padding:10px 12px;text-align:left}
   th{background:#22304d}
@@ -957,12 +989,13 @@ function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snap
 <body><div class="page">
 <section class="hero">
   <h1>${safeHtml(symbol)} 综合卖Put决策</h1>
+  <p class="meta">报告生成时间：${safeHtml(formatDateTime(generatedAt))}</p>
   <p class="meta">${safeHtml(market.toUpperCase())} · 综合新闻/行情/K线/期权数据</p>
   <div class="chips">
-    <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
-    <span class="chip">综合结论：${safeHtml(decisionStatus)}</span>
-    <span class="chip">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
-    <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip" style="background:#3d3520;color:#ffd54a;">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
+    <span class="chip ${riskTone}">卖Put环境：${safeHtml(risk.putStance)}</span>
+    <span class="chip ${decisionTone}">综合结论：${safeHtml(decisionStatus)}</span>
+    <span class="chip ${riskTone}">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
+    <span class="chip ${riskTone}">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip chip-warn">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
   </div>
 </section>
 ${aiHtml}
@@ -1046,6 +1079,7 @@ export default async function handler(req, res) {
     });
 
     if (!readiness.canIssueDecision) {
+      const generatedAt = new Date().toISOString();
       return sendJson(res, 200, {
         ok: true,
         symbol,
@@ -1059,8 +1093,8 @@ export default async function handler(req, res) {
         warnings: ocrWarning ? [ocrWarning] : [],
         message: "关键数据尚未齐全，已生成卖Put预检查，不输出完整决策。",
         filename: `${symbol}-sell-put-precheck.html`,
-        html: buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, stockpriceSnapshot),
-        generatedAt: new Date().toISOString(),
+        html: buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, stockpriceSnapshot, generatedAt),
+        generatedAt,
         elapsedMs: Date.now() - startTime,
       });
     }
@@ -1081,10 +1115,11 @@ export default async function handler(req, res) {
     const aiAccepted = !!cleanHtml
       && decisionSeverity(aiDecision) >= decisionSeverity(ruleDecision);
     const finalDecision = aiAccepted ? aiDecision : ruleDecision;
+    const generatedAt = new Date().toISOString();
 
     const finalHtml = aiAccepted
-      ? buildAiReportWrapper(symbol, market, risk, finalDecision, cleanHtml, stockpriceSnapshot)
-      : buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, stockpriceSnapshot, targetStrike, putPrice, expiryDate, decisionNewsItems, eventRisks);
+      ? buildAiReportWrapper(symbol, market, risk, finalDecision, cleanHtml, stockpriceSnapshot, generatedAt)
+      : buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, stockpriceSnapshot, targetStrike, putPrice, expiryDate, decisionNewsItems, eventRisks, generatedAt);
 
     return sendJson(res, 200, {
       ok: true,
@@ -1101,7 +1136,7 @@ export default async function handler(req, res) {
           : "AI暂不可用，已生成规则版报告（含K线技术指标）。",
       filename: `${symbol}-sell-put-decision.html`,
       html: finalHtml,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
       elapsedMs: Date.now() - startTime,
     });
   } catch (error) {
