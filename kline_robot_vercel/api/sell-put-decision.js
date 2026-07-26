@@ -364,9 +364,12 @@ function focusTable(snapshot, targetSymbol) {
 
 function formatOptionMetrics(metrics = {}) {
   const entries = [
-    ["IV", metrics.iv, "%"], ["HV", metrics.hv, "%"],
+    ["IV", metrics.iv, "%"], ["IV Change", metrics.ivChange, "%"], ["HV", metrics.hv, "%"],
     ["IV Percentile", metrics.ivPercentile, "%"], ["IV Rank", metrics.ivRank, "%"],
-    ["Expected Move", metrics.expectedMove, ""], ["Expected Move %", metrics.expectedMovePct, "%"],
+    ["IV High", metrics.ivHigh, "%"], ["IV High Date", metrics.ivHighDate, ""],
+    ["IV Low", metrics.ivLow, "%"], ["IV Low Date", metrics.ivLowDate, ""],
+    ["Expected Move", metrics.expectedMove, ""], ["Expected Move %", metrics.expectedMovePct, "%"], ["Expected Move DTE", metrics.expectedMoveDte, ""],
+    ["Expected Range Low", metrics.expectedRangeLow, ""], ["Expected Range High", metrics.expectedRangeHigh, ""],
     ["Put/Call Vol Ratio", metrics.putCallVolRatio, ""], ["Put/Call OI Ratio", metrics.putCallOiRatio, ""],
     ["Today's Volume", metrics.todayVolume, ""], ["Volume Avg 30D", metrics.volumeAvg30, ""],
     ["Today's Open Interest", metrics.todayOpenInterest, ""], ["Open Int 30D", metrics.openInterest30, ""],
@@ -376,9 +379,12 @@ function formatOptionMetrics(metrics = {}) {
 
 function sanitizeOptionMetrics(raw = {}) {
   return {
-    iv: String(raw.iv ?? "").trim(), hv: String(raw.hv ?? "").trim(),
+    iv: String(raw.iv ?? "").trim(), ivChange: String(raw.ivChange ?? "").trim(), hv: String(raw.hv ?? "").trim(),
     ivPercentile: String(raw.ivPercentile ?? "").trim(), ivRank: String(raw.ivRank ?? "").trim(),
+    ivHigh: String(raw.ivHigh ?? "").trim(), ivHighDate: String(raw.ivHighDate ?? "").trim(),
+    ivLow: String(raw.ivLow ?? "").trim(), ivLowDate: String(raw.ivLowDate ?? "").trim(),
     expectedMove: String(raw.expectedMove ?? "").trim(), expectedMovePct: String(raw.expectedMovePct ?? "").trim(),
+    expectedMoveDte: String(raw.expectedMoveDte ?? "").trim(),
     expectedRangeLow: String(raw.expectedRangeLow ?? "").trim(), expectedRangeHigh: String(raw.expectedRangeHigh ?? "").trim(),
     putCallVolRatio: String(raw.putCallVolRatio ?? "").trim(), putCallOiRatio: String(raw.putCallOiRatio ?? "").trim(),
     todayVolume: String(raw.todayVolume ?? "").trim(), volumeAvg30: String(raw.volumeAvg30 ?? "").trim(),
@@ -423,7 +429,7 @@ async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
     body: JSON.stringify({
       model: process.env.OPENAI_VISION_MODEL || process.env.OPENAI_MODEL || "gpt-5",
       input: [
-        { role: "system", content: [{ type: "input_text", text: "你是一个严格的截图字段提取器。请从用户上传的 Barchart Options Overview 截图中，尽量提取以下字段，返回 JSON，不要任何解释：iv,hv,ivPercentile,ivRank,expectedMove,expectedMovePct,expectedRangeLow,expectedRangeHigh,putCallVolRatio,putCallOiRatio,todayVolume,volumeAvg30,todayOpenInterest,openInterest30。无法识别的字段返回空字符串。" }] },
+        { role: "system", content: [{ type: "input_text", text: "你是一个严格的截图字段提取器。请从用户上传的 Barchart Options Overview 截图中逐项提取字段，返回 JSON，不要任何解释：iv,ivChange,hv,ivPercentile,ivRank,ivHigh,ivHighDate,ivLow,ivLowDate,expectedMove,expectedMovePct,expectedMoveDte,expectedRangeLow,expectedRangeHigh,putCallVolRatio,putCallOiRatio,todayVolume,volumeAvg30,todayOpenInterest,openInterest30。百分比字段只返回数字；日期保留截图格式；Expected Move 标题中的 DTE 单独放入 expectedMoveDte；无法识别的字段返回空字符串。" }] },
         { role: "user", content: [{ type: "input_text", text: `标的：${symbol || "未提供"}` }, { type: "input_image", image_url: imageDataUrl, detail: "low" }] },
       ],
     }),
@@ -483,6 +489,23 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, putPrice, expiryDa
     daysToExpiry,
     annualizedReturn,
   };
+}
+
+function normalizeContractDate(value) {
+  const text = String(value || "").trim();
+  const iso = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
+  const chinese = text.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+  if (chinese) return `${chinese[1]}-${chinese[2].padStart(2, "0")}-${chinese[3].padStart(2, "0")}`;
+  return "";
+}
+
+function extractContractFromNotes(notes) {
+  const text = String(notes || "");
+  const targetStrike = text.match(/(?:行权价(?:格)?|strike)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || "";
+  const putPrice = text.match(/(?:中间价|期权价格|权利金|premium|mid(?:dle)?\s*price)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || "";
+  const rawDate = text.match(/(?:到期日|到期日期|expiry(?:\s*date)?)\s*[:：为=]?\s*((?:\d{4}[-/]\d{1,2}[-/]\d{1,2})|(?:\d{4}年\d{1,2}月\d{1,2}日))/i)?.[1] || "";
+  return { targetStrike, putPrice, expiryDate: normalizeContractDate(rawDate) };
 }
 
 function stripCodeFenceAndExtract(html) {
@@ -959,9 +982,10 @@ export default async function handler(req, res) {
     const market = detectMarket(symbol, body.market);
     const imageDataUrl = String(body.imageDataUrl || "").trim();
     const notes = String(body.notes || "").trim();
-    const targetStrike = String(body.targetStrike || body.optionMetrics?.targetStrike || "").trim();
-    const putPrice = String(body.putPrice || body.optionMetrics?.putPrice || "").trim();
-    const expiryDate = String(body.expiryDate || body.optionMetrics?.expiryDate || "").trim();
+    const noteContract = extractContractFromNotes(notes);
+    const targetStrike = String(body.targetStrike || body.optionMetrics?.targetStrike || noteContract.targetStrike || "").trim();
+    const putPrice = String(body.putPrice || body.optionMetrics?.putPrice || noteContract.putPrice || "").trim();
+    const expiryDate = String(body.expiryDate || body.optionMetrics?.expiryDate || noteContract.expiryDate || "").trim();
     const rawMetrics = (body.optionMetrics && typeof body.optionMetrics === "object") ? body.optionMetrics : {};
 
     if (!symbol) return sendJson(res, 400, { ok: false, message: "缺少标的代码。" });
