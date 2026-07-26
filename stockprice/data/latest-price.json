@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-26T16:17:51.141Z",
-  "checkedAt": "2026-07-26T16:17:51.141Z",
+  "updatedAt": "2026-07-26T17:18:14.141Z",
+  "checkedAt": "2026-07-26T17:18:14.141Z",
   "successCount": 24,
   "failCount": 1,
   "data": [
@@ -134,13 +134,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(618.92)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-24",
+      "latestBarDate": "2026-07-23",
       "marketDate": "2026-07-24",
-      "sma5": 574.2359985351562,
-      "sma10": 577.3330017089844,
-      "vs5Pct": "-2.27",
-      "vs10Pct": "-2.80",
-      "barCount": 21
+      "sma5": 573.30400390625,
+      "sma10": 582.3170043945313,
+      "vs5Pct": "-2.11",
+      "vs10Pct": "-3.63",
+      "barCount": 20
     },
     {
       "symbol": "SOXX",
@@ -157,13 +157,13 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(601.5)",
       "previousCloseDate": "2026-07-23",
-      "latestBarDate": "2026-07-24",
+      "latestBarDate": "2026-07-23",
       "marketDate": "2026-07-24",
-      "sma5": 542.1200073242187,
-      "sma10": 543.9710021972656,
-      "vs5Pct": "-2.79",
-      "vs10Pct": "-3.12",
-      "barCount": 21
+      "sma5": 541.0800048828125,
+      "sma10": 549.40400390625,
+      "vs5Pct": "-2.60",
+      "vs10Pct": "-4.08",
+      "barCount": 20
     },
     {
       "symbol": "MAGS",
@@ -330,10 +330,10 @@
       "symbol": "BTC-USD",
       "category": "Bitcoin",
       "name": "Bitcoin USD",
-      "price": 64731.98,
+      "price": 64718.01,
       "previousClose": 64311.8125,
-      "changePercent": "0.65",
-      "marketTime": "2026-07-26T16:17:30.000Z",
+      "changePercent": "0.63",
+      "marketTime": "2026-07-26T17:17:52.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
@@ -343,10 +343,10 @@
       "previousCloseDate": "2026-07-25",
       "latestBarDate": "2026-07-26",
       "marketDate": "2026-07-26",
-      "sma5": 64857.5796875,
-      "sma10": 64940.991796875,
-      "vs5Pct": "-0.19",
-      "vs10Pct": "-0.32",
+      "sma5": 64854.7859375,
+      "sma10": 64939.594921875,
+      "vs5Pct": "-0.21",
+      "vs10Pct": "-0.34",
       "barCount": 21
     },
     {
