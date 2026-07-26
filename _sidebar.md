@@ -98,6 +98,8 @@
   - [大佬偏爱卖Put](/docs/SellPut/how-to-sell-put.md)
   - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
+  - <a href="https://donew-beta.vercel.app/sell-put-pool-tool.html">卖Put标的池扫描</a>
+  - <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html">综合卖Put决策</a>
 
 - **[🤖 AI市场趋势判断](/docs/sections/market-ai.md)**
   - <a href="https://jiangshenhk.github.io/donew/market-analysis-tool.html">每日/周度市场分析工具</a>

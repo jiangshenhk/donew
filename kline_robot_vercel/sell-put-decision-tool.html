@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>AI综合卖Put决策｜十方斋</title>
-  <meta name="description" content="综合新闻/行情/K线形态/期权温度，一次生成完整卖Put决策报告。上传Barchart截图，自动整合所有分析维度。">
+  <link rel="icon" type="image/svg+xml" href="./ai-icon.svg">
+  <link rel="shortcut icon" href="./ai-icon.svg">
+  <meta name="description" content="综合新闻、行情、K线形态和期权温度，一次生成完整卖Put决策报告。自动读取Barchart期权参数，也支持截图补充和手工校正。">
   <meta name="keywords" content="Sell Put, 卖Put, 综合决策, 期权分析, 十方斋">
   <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
   <style>
@@ -588,6 +590,28 @@
       font-weight: 850;
       white-space: nowrap;
     }
+    .ranking-th-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 3px;
+    }
+    .ranking-table th:nth-child(1) .ranking-th-wrap { justify-content: center; }
+    .ranking-table th:nth-child(2) .ranking-th-wrap { justify-content: flex-start; }
+    .ranking-sort-button,
+    .ranking-filter-button {
+      border: 0;
+      padding: 2px 3px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .ranking-sort-button { display: inline-flex; align-items: center; gap: 3px; }
+    .ranking-sort-arrow { min-width: 9px; color: #94a3b8; font-size: 10px; }
+    .ranking-filter-button { color: #94a3b8; font-size: 11px; }
+    .ranking-filter-button.active { color: #b77900; }
     .ranking-table th:nth-child(1),
     .ranking-table td:nth-child(1) { width: 54px; text-align: center; }
     .ranking-table th:nth-child(2),
@@ -615,11 +639,94 @@
     .ranking-up { color: #0b8f55; font-weight: 800; }
     .ranking-down { color: #d33b56; font-weight: 800; }
     .ranking-hot { color: #b77900; font-weight: 850; }
+    .ranking-actions-cell { width: 150px; text-align: left !important; }
+    .ranking-row-actions { display: flex; gap: 8px; white-space: nowrap; }
+    .ranking-row-link {
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+    .ranking-row-link.external { color: #64748b; }
+    .ranking-row-link:hover { text-decoration: underline; }
     .ranking-empty {
       padding: 56px 20px;
       color: var(--muted);
       text-align: center;
       font-size: 15px;
+    }
+    .ranking-pagination {
+      position: sticky;
+      bottom: 0;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .ranking-page-controls { display: flex; align-items: center; gap: 8px; }
+    .ranking-page-controls button,
+    .ranking-page-controls select {
+      min-height: 32px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      padding: 5px 9px;
+    }
+    .ranking-page-controls button { cursor: pointer; font-weight: 750; }
+    .ranking-page-controls button:disabled { opacity: .4; cursor: not-allowed; }
+    .ranking-filter-dropdown {
+      position: fixed;
+      z-index: 20;
+      width: min(280px, calc(100vw - 24px));
+      max-height: 360px;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, .2);
+    }
+    .ranking-filter-search {
+      width: calc(100% - 20px);
+      margin: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+    .ranking-filter-list {
+      max-height: 240px;
+      overflow: auto;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 6px 10px;
+    }
+    .ranking-filter-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      color: #475569;
+      font-size: 13px;
+    }
+    .ranking-filter-option small { margin-left: auto; color: #94a3b8; }
+    .ranking-filter-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+    }
+    .ranking-filter-actions button {
+      border: 0;
+      background: transparent;
+      color: var(--primary);
+      font-weight: 750;
+      cursor: pointer;
     }
     @media (max-width: 1100px) {
       .layout { grid-template-columns: 1fr; }
@@ -636,6 +743,7 @@
       .ranking-table { min-width: 820px; }
       .ranking-dialog { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
       .ranking-head { padding: 14px; }
+      .ranking-pagination { align-items: flex-start; flex-direction: column; }
     }
   </style>
 </head>
@@ -643,7 +751,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v1.7.9｜2026-07-26｜自动读取Barchart期权概览</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v1.7.14｜2026-07-26｜说明期权参数获取方式</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -682,13 +790,15 @@
         </div>
 
         <div class="label-row">
-          <p class="section-title" style="margin-bottom:0;">上传 Barchart 截图</p>
-          <a id="barchartLink" class="quick-link" href="https://www.barchart.com/stocks/quotes/QLD/overview" target="_blank" rel="noopener noreferrer">打开 Barchart</a>
+          <p class="section-title" style="margin-bottom:0;">自动获取期权参数（Barchart）</p>
+          <a id="barchartLink" class="quick-link" href="https://www.barchart.com/stocks/quotes/QLD/overview" target="_blank" rel="noopener noreferrer">打开 Barchart 参数页</a>
         </div>
         <div class="upload-box">
+          <div class="upload-hint"><strong>自动方式：</strong>点击生成报告后，系统会按当前标的读取 Barchart 期权参数。</div>
+          <label for="imageFile" style="display:block;margin:10px 0 6px;font-size:13px;font-weight:800;color:#475569;">截图补充（可选）</label>
           <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
           <div class="upload-hint" id="uploadHint">
-            生成时会按标的自动读取 Barchart 期权概览；截图仅作备用，也可 Ctrl+V 粘贴。
+            如自动读取不完整，可上传或 Ctrl+V 粘贴 Barchart 截图补充识别。
           </div>
           <div class="thumb-wrap" id="thumbWrap">
             <img id="thumb" class="preview-thumb" alt="截图预览">
@@ -702,8 +812,8 @@
 
         <details class="metrics-panel" id="metricsPanel">
           <summary>
-            <span>手动校对 / 录入数据</span>
-            <span>展开 / 收起</span>
+            <span>手工录入期权参数（补充 / 校正）</span>
+            <span>展开输入</span>
           </summary>
           <div class="panel-body">
             <div class="field-grid" style="margin-bottom:0;">
@@ -752,7 +862,7 @@
 
         <div class="note">
           一次生成涵盖：新闻摘要 · 市场环境 · K线技术信号 · 期权温度 · 综合卖Put建议<br>
-          <strong>截图非必需 — 有更好，没有也能基于行情+K线生成判断</strong>
+          <strong>期权参数默认自动读取；截图识别和手工录入均用于补充或校正。</strong>
         </div>
       </form>
 
@@ -769,7 +879,7 @@
           <button class="action soft disabled" type="button" disabled>保存为图片</button>
           <button class="action soft disabled" type="button" disabled>图片分享</button>
         </div>
-        <div id="status" class="status">请选择标的，可选上传截图或录入期权数据。</div>
+        <div id="status" class="status">请选择标的；系统会自动读取期权参数，也可使用截图或手工录入补充。</div>
         <div class="preview-wrap">
           <div id="preview">
             <div class="empty-state">等待生成综合卖Put决策报告<span>新闻 · 行情 · K线 · 期权 四维一体分析</span></div>
@@ -823,6 +933,29 @@
       </table>
       <div class="ranking-empty" id="rankingEmpty">正在获取榜单…</div>
     </div>
+    <div class="ranking-pagination">
+      <span id="rankingRowCount">显示 0 / 0 条</span>
+      <div class="ranking-page-controls">
+        <label for="rankingPageSize">每页</label>
+        <select id="rankingPageSize">
+          <option value="10">10</option>
+          <option value="20" selected>20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <button id="rankingPrevBtn" type="button">上一页</button>
+        <span id="rankingPageInfo">1 / 1 页</span>
+        <button id="rankingNextBtn" type="button">下一页</button>
+      </div>
+    </div>
+    <div class="ranking-filter-dropdown" id="rankingFilterDropdown" hidden>
+      <input class="ranking-filter-search" id="rankingFilterSearch" type="search" placeholder="搜索筛选值">
+      <div class="ranking-filter-list" id="rankingFilterList"></div>
+      <div class="ranking-filter-actions">
+        <button id="rankingFilterAllBtn" type="button">全选</button>
+        <button id="rankingFilterClearBtn" type="button">全不选</button>
+      </div>
+    </div>
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -866,6 +999,18 @@
     const rankingTableHead = document.getElementById('rankingTableHead');
     const rankingTableBody = document.getElementById('rankingTableBody');
     const rankingEmpty = document.getElementById('rankingEmpty');
+    const rankingRowCount = document.getElementById('rankingRowCount');
+    const rankingPageSize = document.getElementById('rankingPageSize');
+    const rankingPrevBtn = document.getElementById('rankingPrevBtn');
+    const rankingNextBtn = document.getElementById('rankingNextBtn');
+    const rankingPageInfo = document.getElementById('rankingPageInfo');
+    const rankingFilterDropdown = document.getElementById('rankingFilterDropdown');
+    const rankingFilterSearch = document.getElementById('rankingFilterSearch');
+    const rankingFilterList = document.getElementById('rankingFilterList');
+    const rankingFilterAllBtn = document.getElementById('rankingFilterAllBtn');
+    const rankingFilterClearBtn = document.getElementById('rankingFilterClearBtn');
+    const initialSymbol = String(new URLSearchParams(location.search).get('symbol') || '').trim().toUpperCase();
+    if (/^[A-Z][A-Z0-9.-]{0,14}$/.test(initialSymbol)) symbolInput.value = initialSymbol;
 
     let imageDataUrl = '';
     let latestHtml = '';
@@ -874,6 +1019,12 @@
     let runTimer = null;
     let rankingRows = [];
     let rankingMode = 'volume';
+    let rankingFilteredRows = [];
+    let rankingSortColumn = 'totalVolume';
+    let rankingSortAsc = false;
+    let rankingCurrentPage = 1;
+    let rankingOpenFilterKey = '';
+    let rankingFilterState = {};
     let optionOverviewMeta = null;
     const rankingCache = {};
     const historyKey = 'sellPutDecisionHistory.v1';
@@ -902,41 +1053,141 @@
       return `${number >= 0 ? '+' : ''}${number.toFixed(2)}%`;
     }
 
+    const RANKING_CONFIGS = {
+      volume: {
+        title: '美股热门期权标的',
+        defaultSort: 'totalVolume',
+        sort: [
+          ['totalVolume', '按期权总成交量'], ['callSharePct', '按 Call 占比'],
+          ['openInterest', '按未平仓量'], ['underlyingChangePct', '按标的涨跌'],
+        ],
+        columns: [
+          { key: 'rank', label: '排名', filterable: false },
+          { key: 'symbol', label: '标的' },
+          { key: 'totalVolume', label: '总成交量' },
+          { key: 'callSharePct', label: 'Call占比' },
+          { key: 'callPutVolumeRatio', label: 'Call/Put' },
+          { key: 'openInterest', label: '未平仓量' },
+          { key: 'callPutOiRatio', label: 'Call/Put OI' },
+          { key: 'underlyingChangePct', label: '标的涨跌' },
+          { key: 'actions', label: '操作', sortable: false, filterable: false },
+        ],
+      },
+      'iv-change': {
+        title: 'IV 异动合约',
+        defaultSort: 'ivChangePct',
+        sort: [
+          ['ivChangePct', '按 IV 升幅'], ['impliedVolatilityPct', '按当前 IV'],
+          ['volume', '按合约成交量'], ['daysToExpiration', '按到期天数'],
+        ],
+        columns: [
+          { key: 'rank', label: '排名', filterable: false },
+          { key: 'symbol', label: '标的/合约' },
+          { key: 'optionType', label: '类型' },
+          { key: 'expirationDate', label: '到期日' },
+          { key: 'strikePrice', label: '行权价' },
+          { key: 'impliedVolatilityPct', label: '当前IV' },
+          { key: 'ivChangePct', label: 'IV变化' },
+          { key: 'volume', label: '成交量' },
+          { key: 'delta', label: 'Delta' },
+          { key: 'actions', label: '操作', sortable: false, filterable: false },
+        ],
+      },
+      'unusual-volume': {
+        title: '异常期权成交标的',
+        defaultSort: 'volumeVsMonthlyPct',
+        sort: [
+          ['volumeVsMonthlyPct', '按月均放大幅度'], ['totalVolume', '按期权总成交量'],
+          ['putCallVolumeRatio', '按 Put/Call 比率'], ['ivRankPct', '按 IV Rank'],
+        ],
+        columns: [
+          { key: 'rank', label: '排名', filterable: false },
+          { key: 'symbol', label: '标的' },
+          { key: 'totalVolume', label: '总成交量' },
+          { key: 'volumeVsMonthlyPct', label: '较月均变化' },
+          { key: 'putVolume', label: 'Put成交量' },
+          { key: 'callVolume', label: 'Call成交量' },
+          { key: 'putCallVolumeRatio', label: 'Put/Call' },
+          { key: 'ivRankPct', label: 'IV Rank' },
+          { key: 'underlyingChangePct', label: '标的涨跌' },
+          { key: 'actions', label: '操作', sortable: false, filterable: false },
+        ],
+      },
+    };
+
+    function rankingConfig() {
+      return RANKING_CONFIGS[rankingMode];
+    }
+
+    function filterKey(columnKey) {
+      return `${rankingMode}:${columnKey}`;
+    }
+
+    function rankingValue(item, key) {
+      if (key === 'symbol') return String(item.symbol || '').toUpperCase();
+      if (key === 'expirationDate') return String(item.expirationDate || '未取到');
+      if (key === 'optionType') return String(item.optionType || '未取到');
+      const value = item[key];
+      return value === null || value === undefined || value === '' ? '未取到' : value;
+    }
+
+    function rankingFilterLabel(item, key) {
+      const value = rankingValue(item, key);
+      if (typeof value !== 'number') return String(value);
+      if (/Pct$/.test(key) || key === 'callSharePct' || key === 'underlyingChangePct') return `${value.toFixed(2)}%`;
+      if (['callPutVolumeRatio', 'callPutOiRatio', 'putCallVolumeRatio', 'delta'].includes(key)) return value.toFixed(3);
+      return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+
+    function renderRankingHeader() {
+      rankingTableHead.replaceChildren();
+      rankingConfig().columns.forEach((column) => {
+        const th = document.createElement('th');
+        if (column.key === 'actions') th.className = 'ranking-actions-cell';
+        const wrap = document.createElement('div');
+        wrap.className = 'ranking-th-wrap';
+        const sortButton = document.createElement('button');
+        sortButton.type = 'button';
+        sortButton.className = 'ranking-sort-button';
+        sortButton.disabled = column.sortable === false;
+        const label = document.createElement('span');
+        label.textContent = column.label;
+        const arrow = document.createElement('span');
+        arrow.className = 'ranking-sort-arrow';
+        arrow.textContent = rankingSortColumn === column.key ? (rankingSortAsc ? '▲' : '▼') : '';
+        sortButton.append(label, arrow);
+        if (column.sortable !== false) {
+          sortButton.addEventListener('click', () => {
+            if (rankingSortColumn === column.key) rankingSortAsc = !rankingSortAsc;
+            else { rankingSortColumn = column.key; rankingSortAsc = true; }
+            rankingCurrentPage = 1;
+            renderOptionsRanking();
+          });
+        }
+        wrap.appendChild(sortButton);
+        if (column.filterable !== false) {
+          const filterButton = document.createElement('button');
+          filterButton.type = 'button';
+          filterButton.className = 'ranking-filter-button';
+          filterButton.classList.toggle(
+            'active',
+            Object.prototype.hasOwnProperty.call(rankingFilterState, filterKey(column.key)),
+          );
+          filterButton.textContent = '▽';
+          filterButton.title = `筛选${column.label}`;
+          filterButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openRankingFilter(column.key, filterButton);
+          });
+          wrap.appendChild(filterButton);
+        }
+        th.appendChild(wrap);
+        rankingTableHead.appendChild(th);
+      });
+    }
+
     function setRankingModeUi() {
-      const configs = {
-        volume: {
-          title: '美股热门期权标的',
-          sort: [
-            ['volume', '按期权总成交量'],
-            ['callShare', '按 Call 占比'],
-            ['openInterest', '按未平仓量'],
-            ['changeUp', '按标的涨幅'],
-            ['changeDown', '按标的跌幅'],
-          ],
-          headers: ['排名', '标的', '总成交量', 'Call占比', 'Call/Put', '未平仓量', 'Call/Put OI', '标的涨跌'],
-        },
-        'iv-change': {
-          title: 'IV 异动合约',
-          sort: [
-            ['ivChange', '按 IV 升幅'],
-            ['iv', '按当前 IV'],
-            ['volume', '按合约成交量'],
-            ['dte', '按到期天数'],
-          ],
-          headers: ['排名', '标的/合约', '类型', '到期日', '行权价', '当前IV', 'IV变化', '成交量', 'Delta'],
-        },
-        'unusual-volume': {
-          title: '异常期权成交标的',
-          sort: [
-            ['volumeVsMonthly', '按月均放大幅度'],
-            ['volume', '按期权总成交量'],
-            ['putCall', '按 Put/Call 比率'],
-            ['ivRank', '按 IV Rank'],
-          ],
-          headers: ['排名', '标的', '总成交量', '较月均变化', 'Put成交量', 'Call成交量', 'Put/Call', 'IV Rank', '标的涨跌'],
-        },
-      };
-      const config = configs[rankingMode];
+      const config = rankingConfig();
       rankingTitle.textContent = config.title;
       rankingSort.replaceChildren(...config.sort.map(([value, label]) => {
         const option = document.createElement('option');
@@ -944,32 +1195,14 @@
         option.textContent = label;
         return option;
       }));
-      rankingTableHead.replaceChildren(...config.headers.map((label) => {
-        const th = document.createElement('th');
-        th.textContent = label;
-        return th;
-      }));
+      rankingSortColumn = config.defaultSort;
+      rankingSortAsc = false;
+      rankingCurrentPage = 1;
+      closeRankingFilter();
+      renderRankingHeader();
       document.querySelectorAll('.ranking-kind').forEach((button) => {
         button.classList.toggle('active', button.dataset.rankingKind === rankingMode);
       });
-    }
-
-    function rankingSortKey() {
-      const keys = {
-        volume: {
-          volume: 'totalVolume', callShare: 'callSharePct', openInterest: 'openInterest',
-          changeUp: 'underlyingChangePct', changeDown: 'underlyingChangePct',
-        },
-        'iv-change': {
-          ivChange: 'ivChangePct', iv: 'impliedVolatilityPct', volume: 'volume',
-          dte: 'daysToExpiration',
-        },
-        'unusual-volume': {
-          volumeVsMonthly: 'volumeVsMonthlyPct', volume: 'totalVolume',
-          putCall: 'putCallVolumeRatio', ivRank: 'ivRankPct',
-        },
-      };
-      return keys[rankingMode]?.[rankingSort.value] || Object.values(keys[rankingMode] || {})[0];
     }
 
     function appendCell(row, text, className = '') {
@@ -991,7 +1224,7 @@
         updateBarchartLink();
         rankingDialog.close();
         symbolInput.focus();
-        setStatus(`已选择 ${item.symbol}，可继续补充期权截图或直接生成。`);
+        setStatus(`已选择 ${item.symbol}；系统会自动读取期权参数，也可补充截图或手工校正。`);
       });
       const name = document.createElement('span');
       name.className = 'ranking-name';
@@ -1001,26 +1234,138 @@
       row.appendChild(symbolCell);
     }
 
+    function appendRankingActions(row, item) {
+      const cell = document.createElement('td');
+      cell.className = 'ranking-actions-cell';
+      const wrap = document.createElement('div');
+      wrap.className = 'ranking-row-actions';
+      const local = document.createElement('a');
+      const localUrl = new URL('sell-put-decision-tool.html', location.href);
+      localUrl.searchParams.set('symbol', item.symbol || '');
+      local.className = 'ranking-row-link';
+      local.href = localUrl.href;
+      local.target = '_blank';
+      local.rel = 'noopener noreferrer';
+      local.textContent = '本站分析';
+      const external = document.createElement('a');
+      external.className = 'ranking-row-link external';
+      external.href = `https://finance.yahoo.com/quote/${encodeURIComponent(item.symbol || '')}`;
+      external.target = '_blank';
+      external.rel = 'noopener noreferrer';
+      external.textContent = '网上行情';
+      wrap.append(local, external);
+      cell.appendChild(wrap);
+      row.appendChild(cell);
+    }
+
+    function rankingUniqueValues(key) {
+      const values = new Map();
+      rankingRows.forEach((item) => {
+        const label = rankingFilterLabel(item, key);
+        values.set(label, (values.get(label) || 0) + 1);
+      });
+      return [...values.entries()].sort(([a], [b]) => a.localeCompare(b, 'zh-CN', {
+        numeric: true,
+        sensitivity: 'base',
+      }));
+    }
+
+    function closeRankingFilter() {
+      rankingOpenFilterKey = '';
+      rankingFilterDropdown.hidden = true;
+    }
+
+    function renderRankingFilterOptions() {
+      if (!rankingOpenFilterKey) return;
+      const stateKey = filterKey(rankingOpenFilterKey);
+      const hasFilter = Object.prototype.hasOwnProperty.call(rankingFilterState, stateKey);
+      const selected = rankingFilterState[stateKey];
+      const search = String(rankingFilterSearch.value || '').trim().toUpperCase();
+      rankingFilterList.replaceChildren();
+      rankingUniqueValues(rankingOpenFilterKey)
+        .filter(([label]) => !search || label.toUpperCase().includes(search))
+        .forEach(([label, count]) => {
+          const option = document.createElement('label');
+          option.className = 'ranking-filter-option';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = !hasFilter || selected.has(label);
+          checkbox.addEventListener('change', () => {
+            const allValues = rankingUniqueValues(rankingOpenFilterKey).map(([value]) => value);
+            const next = Object.prototype.hasOwnProperty.call(rankingFilterState, stateKey)
+              ? new Set(rankingFilterState[stateKey])
+              : new Set(allValues);
+            if (checkbox.checked) next.add(label);
+            else next.delete(label);
+            if (next.size === allValues.length) delete rankingFilterState[stateKey];
+            else rankingFilterState[stateKey] = next;
+            rankingCurrentPage = 1;
+            renderOptionsRanking();
+            renderRankingFilterOptions();
+          });
+          const text = document.createElement('span');
+          text.textContent = label;
+          const amount = document.createElement('small');
+          amount.textContent = String(count);
+          option.append(checkbox, text, amount);
+          rankingFilterList.appendChild(option);
+        });
+    }
+
+    function openRankingFilter(key, button) {
+      if (rankingOpenFilterKey === key && !rankingFilterDropdown.hidden) {
+        closeRankingFilter();
+        return;
+      }
+      rankingOpenFilterKey = key;
+      rankingFilterSearch.value = '';
+      rankingFilterDropdown.hidden = false;
+      const rect = button.getBoundingClientRect();
+      const dropdownWidth = Math.min(280, window.innerWidth - 24);
+      rankingFilterDropdown.style.width = `${dropdownWidth}px`;
+      rankingFilterDropdown.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - dropdownWidth - 12))}px`;
+      rankingFilterDropdown.style.top = `${Math.min(rect.bottom + 6, window.innerHeight - 340)}px`;
+      renderRankingFilterOptions();
+    }
+
     function renderOptionsRanking() {
       const keyword = String(rankingSearch.value || '').trim().toUpperCase();
       const rows = rankingRows.filter((item) => {
-        if (!keyword) return true;
-        return String(item.symbol || '').toUpperCase().includes(keyword)
+        const matchesKeyword = !keyword
+          || String(item.symbol || '').toUpperCase().includes(keyword)
           || String(item.name || '').toUpperCase().includes(keyword)
           || String(item.contractSymbol || '').toUpperCase().includes(keyword);
-      });
-      const key = rankingSortKey();
-      rows.sort((a, b) => {
-        const av = rankingNumber(a[key]);
-        const bv = rankingNumber(b[key]);
-        const safeA = av === null ? Number.NEGATIVE_INFINITY : av;
-        const safeB = bv === null ? Number.NEGATIVE_INFINITY : bv;
-        const ascending = rankingSort.value === 'changeDown' || rankingSort.value === 'dte';
-        return ascending ? safeA - safeB : safeB - safeA;
+        if (!matchesKeyword) return false;
+        return rankingConfig().columns.every((column) => {
+          if (column.filterable === false) return true;
+          const stateKey = filterKey(column.key);
+          if (!Object.prototype.hasOwnProperty.call(rankingFilterState, stateKey)) return true;
+          return rankingFilterState[stateKey].has(rankingFilterLabel(item, column.key));
+        });
       });
 
+      rows.sort((a, b) => {
+        const av = rankingValue(a, rankingSortColumn);
+        const bv = rankingValue(b, rankingSortColumn);
+        const an = rankingNumber(av);
+        const bn = rankingNumber(bv);
+        let compared;
+        if (an === null && bn !== null) return 1;
+        if (an !== null && bn === null) return -1;
+        if (an !== null && bn !== null) compared = an - bn;
+        else compared = String(av).localeCompare(String(bv), 'zh-CN', { numeric: true, sensitivity: 'base' });
+        return rankingSortAsc ? compared : -compared;
+      });
+
+      rankingFilteredRows = rows;
+      const pageSize = Number(rankingPageSize.value || 20);
+      const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+      rankingCurrentPage = Math.min(Math.max(1, rankingCurrentPage), totalPages);
+      const startIndex = (rankingCurrentPage - 1) * pageSize;
+      const pageRows = rows.slice(startIndex, startIndex + pageSize);
+
       rankingTableBody.replaceChildren();
-      rows.forEach((item) => {
+      pageRows.forEach((item) => {
         const tr = document.createElement('tr');
         appendCell(tr, String(item.rank || '—'));
         appendSymbolCell(tr, item);
@@ -1048,8 +1393,16 @@
           appendCell(tr, rankingNumber(item.ivRankPct) === null ? '—' : `${Number(item.ivRankPct).toFixed(1)}%`);
           appendCell(tr, formatRankingPct(item.underlyingChangePct), rankingNumber(item.underlyingChangePct) > 0 ? 'ranking-up' : rankingNumber(item.underlyingChangePct) < 0 ? 'ranking-down' : '');
         }
+        appendRankingActions(tr, item);
         rankingTableBody.appendChild(tr);
       });
+      const visibleStart = rows.length ? startIndex + 1 : 0;
+      const visibleEnd = Math.min(startIndex + pageRows.length, rows.length);
+      rankingRowCount.textContent = `显示 ${visibleStart}-${visibleEnd} / ${rows.length} 条（原始 ${rankingRows.length} 条）`;
+      rankingPageInfo.textContent = `${rankingCurrentPage} / ${totalPages} 页`;
+      rankingPrevBtn.disabled = rankingCurrentPage <= 1;
+      rankingNextBtn.disabled = rankingCurrentPage >= totalPages;
+      renderRankingHeader();
       rankingEmpty.style.display = rows.length ? 'none' : 'block';
       rankingEmpty.textContent = rankingRows.length ? '没有匹配的标的。' : '榜单暂无数据。';
     }
@@ -1106,13 +1459,59 @@
       if (event.target === rankingDialog) rankingDialog.close();
     });
     refreshRankingBtn.addEventListener('click', () => loadOptionsRanking(true));
-    rankingSearch.addEventListener('input', renderOptionsRanking);
-    rankingSort.addEventListener('change', renderOptionsRanking);
+    rankingSearch.addEventListener('input', () => {
+      rankingCurrentPage = 1;
+      renderOptionsRanking();
+    });
+    rankingSort.addEventListener('change', () => {
+      rankingSortColumn = rankingSort.value;
+      rankingSortAsc = rankingSortColumn === 'daysToExpiration';
+      rankingCurrentPage = 1;
+      renderOptionsRanking();
+    });
+    rankingPageSize.addEventListener('change', () => {
+      rankingCurrentPage = 1;
+      renderOptionsRanking();
+    });
+    rankingPrevBtn.addEventListener('click', () => {
+      if (rankingCurrentPage <= 1) return;
+      rankingCurrentPage -= 1;
+      renderOptionsRanking();
+    });
+    rankingNextBtn.addEventListener('click', () => {
+      const pageSize = Number(rankingPageSize.value || 20);
+      const totalPages = Math.max(1, Math.ceil(rankingFilteredRows.length / pageSize));
+      if (rankingCurrentPage >= totalPages) return;
+      rankingCurrentPage += 1;
+      renderOptionsRanking();
+    });
+    rankingFilterSearch.addEventListener('input', renderRankingFilterOptions);
+    rankingFilterAllBtn.addEventListener('click', () => {
+      if (!rankingOpenFilterKey) return;
+      delete rankingFilterState[filterKey(rankingOpenFilterKey)];
+      rankingCurrentPage = 1;
+      renderOptionsRanking();
+      renderRankingFilterOptions();
+    });
+    rankingFilterClearBtn.addEventListener('click', () => {
+      if (!rankingOpenFilterKey) return;
+      rankingFilterState[filterKey(rankingOpenFilterKey)] = new Set();
+      rankingCurrentPage = 1;
+      renderOptionsRanking();
+      renderRankingFilterOptions();
+    });
+    document.addEventListener('click', (event) => {
+      if (rankingFilterDropdown.hidden) return;
+      if (!rankingFilterDropdown.contains(event.target) && !event.target.closest('.ranking-filter-button')) {
+        closeRankingFilter();
+      }
+    });
     document.querySelectorAll('.ranking-kind').forEach((button) => {
       button.addEventListener('click', async () => {
         rankingMode = button.dataset.rankingKind || 'volume';
         rankingRows = rankingCache[rankingMode] || [];
         rankingSearch.value = '';
+        rankingFilterState = {};
         setRankingModeUi();
         if (rankingRows.length) renderOptionsRanking();
         else await loadOptionsRanking();
@@ -1249,6 +1648,7 @@
     function renderLatestReport(meta, restored = false) {
       resultHead.style.display = 'none';
       resultHead.innerHTML = '';
+      statusEl.style.display = '';
 
       actions.style.display = 'flex';
       actions.innerHTML = `
@@ -1337,7 +1737,6 @@
       const seconds = Math.floor((Date.now() - startAt) / 1000);
       const stage = generationStage(seconds);
       btn.textContent = `生成中 ${seconds}s`;
-      setStatus(`正在生成报告｜已用 ${seconds} 秒｜当前预计阶段：${stage.title}`);
       preview.innerHTML = `
         <div class="empty-state run-state">
           <div class="run-time">已用 ${seconds} 秒 · 当前预计阶段</div>
@@ -1533,7 +1932,7 @@
 
     imageInput.addEventListener('change', async () => {
       const file = imageInput.files && imageInput.files[0];
-      if (!file) { imageDataUrl = ''; thumb.style.display = 'none'; thumbWrap.classList.remove('visible'); hideThumbLoading(); uploadHint.textContent = '生成时会按标的自动读取 Barchart 期权概览；截图仅作备用，也可 Ctrl+V 粘贴。'; return; }
+      if (!file) { imageDataUrl = ''; thumb.style.display = 'none'; thumbWrap.classList.remove('visible'); hideThumbLoading(); uploadHint.textContent = '如自动读取不完整，可上传或 Ctrl+V 粘贴 Barchart 截图补充识别。'; return; }
       imageDataUrl = await readFileAsDataUrl(file);
       thumb.src = imageDataUrl;
       thumb.style.display = 'block';
@@ -1683,6 +2082,7 @@
 
       btn.disabled = true;
       const startAt = Date.now();
+      statusEl.style.display = 'none';
       clearInterval(runTimer);
       renderGenerationProgress(startAt);
       runTimer = setInterval(() => renderGenerationProgress(startAt), 1000);
@@ -1715,6 +2115,7 @@
         saveLatestReportCache(meta);
       } catch (error) {
         resultHead.style.display = 'none';
+        statusEl.style.display = '';
         renderEmptyActions();
         preview.innerHTML = '<div class="empty-state">生成失败<span>请检查标的代码或网络后重试</span></div>';
         setStatus(error.message || '生成失败。', true);

@@ -21,6 +21,7 @@
 5. 最新每日 / 每周市场情况分析工具
 6. 卖 Put 温度判断工具
 7. 综合卖Put决策工具（新闻+行情+K线+期权四合一）
+8. 卖Put标的池扫描工具（Barchart期权溢价批量初筛）
 
 它们之间有共享的数据中心、共享的 AI 接口、共享的前端样式和共享的部署层。
 
@@ -168,6 +169,7 @@
 - 最新每日 / 每周市场情况分析：`https://donew-beta.vercel.app/market-analysis-tool.html`
 - 卖 Put 温度判断：`https://donew-beta.vercel.app/sell-put-tool.html`
 - 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
+- 卖Put标的池扫描：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
 - 最新行情管理页：`https://donew-beta.vercel.app/price-test.html`
 
 ### Docs / 公共阅读页
@@ -447,8 +449,9 @@ docs/tools/alpha-risk-tool/README.md
 | 最新每日/每周市场情况分析 | `https://donew-beta.vercel.app/market-analysis-tool.html` | `market-analysis-tool.html`、`kline_robot_vercel/market-analysis-tool.html`、`kline_robot_vercel/api/market-report-v2.js` | 交互式网页工具 |
 | 卖 Put 温度判断 | `https://donew-beta.vercel.app/sell-put-tool.html` | `sell-put-tool.html`、`kline_robot_vercel/sell-put-tool.html`、`kline_robot_vercel/api/put-rating.js` | 交互式网页工具 |
 | 综合卖Put决策 | `https://donew-beta.vercel.app/sell-put-decision-tool.html` | `sell-put-decision-tool.html`、`kline_robot_vercel/sell-put-decision-tool.html`、`kline_robot_vercel/api/sell-put-decision.js` | 聚合决策层（交互式网页工具） |
+| 卖Put标的池扫描 | `https://donew-beta.vercel.app/sell-put-pool-tool.html` | `sell-put-pool-tool.html`、`kline_robot_vercel/sell-put-pool-tool.html`、`kline_robot_vercel/api/barchart-overview.js` | 批量候选初筛工具 |
 
-### 13.2 七个工具分别怎么看
+### 13.2 八个工具分别怎么看
 
 #### K线相识度
 
@@ -582,11 +585,14 @@ docs/tools/alpha-risk-tool/README.md
   - 报告时间：预检查、规则版和AI版标题下均显示精确到秒的香港时间
   - 行情优先级：当前输入标的优先复用K线分析链路取得的最新行情；取不到完整价格、昨收和涨跌幅时，回退到 `stockprice/data/latest-price.json`。其余市场背景代码统一读取行情中心
   - 六节结构化报告：综合结论 → 市场环境 → 期权温度解读 → K线技术信号 → 综合卖Put建议 → 未来关注清单
+  - K线技术信号固定前两行：第一行以“趋势：”展示均线和强弱，第二行以“典型K线匹配：”展示共享K线引擎返回的形态、匹配度和方向；服务端会补齐AI遗漏的第二行
   - 结论措辞固定为"可卖Put / 谨慎卖Put / 暂不卖Put"，不会输出股票买卖建议
   - 标准功能：新窗口打开、下载 HTML、保存图片（html2canvas）、图片分享、历史报告导入对比、最近报告自动恢复
-  - 生成等待提示：前端显示已用时间和当前预计阶段；由于后端是单次 HTTP 请求，不把时间推测表述为服务端真实进度
-  - 热门期权榜：标的输入框旁可打开候选榜，点击代码直接填入；支持按期权总成交量、Call占比、未平仓量和标的涨跌排序
-  - IV与异常成交：同一弹窗分为“成交量Top 100 / IV异动 / 异常成交”三个标签，避免把不同信号混为一个排名
+  - 期权参数入口分为两种方式：生成时按标的自动读取 Barchart 参数（截图仅用于补充识别），以及展开面板手工补充或校正同一组参数
+  - 生成等待提示：报告预览区显示已用时间和当前预计阶段，工具栏下方不重复显示同一行状态；由于后端是单次 HTTP 请求，不把时间推测表述为服务端真实进度
+  - 热门期权榜：标的输入框旁可打开候选榜，点击代码直接填入；三个榜单统一采用“原始数据 → 搜索/按列多选筛选 → 排序 → 分页 → 渲染”的本地处理管线
+  - IV与异常成交：同一弹窗分为“成交量Top 100 / IV异动 / 异常成交”三个标签，支持列头升降序、逐列筛选、每页数量和翻页，避免把不同信号混为一个排名
+  - 榜单后续操作：每行提供“本站分析”（携带 `symbol` 打开综合卖Put决策页）和“网上行情”（打开 Yahoo Finance）两个独立链接
 
 ##### 热门期权标的榜数据约定
 
@@ -618,6 +624,27 @@ docs/tools/alpha-risk-tool/README.md
 - 服务端内存缓存10分钟；外部会话建立失败或接口返回401时明确报错，不回填猜测值
 
 这是“四维数据聚合 + 共享子工具判断 + 单次AI综合”的代表模板，也是在现有工具之上的聚合决策层，不替换原有独立工具。聚合工具不得复制一套简化版子工具算法；应优先调用各独立工具导出的结构化函数。
+
+#### 卖Put标的池扫描
+
+- 入口页：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
+- 前端页面：
+  - `sell-put-pool-tool.html`
+  - `kline_robot_vercel/sell-put-pool-tool.html`
+- 复用 API：
+  - `GET /api/barchart-overview?symbols=QLD,MSTR,INTC`
+- 详细说明：
+  - `docs/tools/sell-put-pool-tool/README.md`
+
+这是卖Put流程的第一层批量候选筛选：
+
+- 只使用Barchart标的级期权概览进行溢价排序，不在这一层混入新闻、K线或具体合约结论。
+- 排序维度包括IV-HV、IV Rank、IV Percentile、Expected Move、Put/Call结构、成交量和Open Interest。
+- 高IV若同时伴随极端Expected Move或Put成交拥挤，标记为“高风险恐慌溢价”，不能当作普通卖方优势。
+- 点击候选后跳转到 `sell-put-decision-tool.html?symbol=XXX`，再进行新闻、行情、K线、期权和具体合约的完整判断。
+- 批量接口最多接收12个去重后的美股代码，并逐个读取；单个失败只进入错误列表，不把缺失值写成0。
+- Barchart页面未直接渲染完整概览时，接口复用该页面建立的Cookie/XSRF会话读取同源Quotes数据；仍缺少的字段保持为空并在评分中降级。
+- 页面保存最近一次扫描报告，并提供新窗口、HTML、JPG和图片分享。
 
 ### 13.3 新增工具先判断类型
 

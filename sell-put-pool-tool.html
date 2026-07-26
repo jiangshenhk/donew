@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI卖Put标的池扫描</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7fb;
+      --panel: #fff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #d9e2ef;
+      --primary: #2f63e9;
+      --soft: #eef3ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    .shell { max-width: 1440px; margin: 0 auto; padding: 18px 20px 36px; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; margin-bottom: 16px;
+    }
+    h1 { margin: 0; font-size: 28px; line-height: 1.25; }
+    .version {
+      display: inline-block; margin-left: 10px; padding: 4px 10px;
+      border: 1px solid #d5deec; border-radius: 999px;
+      color: #60708d; font-size: 12px; vertical-align: middle;
+    }
+    .home-link { color: #2563eb; text-decoration: none; font-weight: 700; }
+    .layout { display: grid; grid-template-columns: 350px minmax(0, 1fr); gap: 16px; }
+    .panel {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 8px; padding: 16px;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, .05);
+    }
+    .sidebar { align-self: start; position: sticky; top: 12px; }
+    .section-title { margin: 0 0 12px; font-size: 17px; }
+    .field { display: grid; gap: 7px; margin-bottom: 13px; }
+    label { font-size: 13px; color: var(--muted); font-weight: 700; }
+    select, textarea {
+      width: 100%; border: 1px solid #cbd6e6; border-radius: 6px;
+      color: var(--text); background: #fff; padding: 10px 12px;
+    }
+    textarea { min-height: 128px; resize: vertical; line-height: 1.5; }
+    .primary-btn {
+      width: 100%; border: 0; border-radius: 6px; padding: 11px 14px;
+      color: #fff; background: var(--primary); font-weight: 800; cursor: pointer;
+    }
+    .primary-btn:disabled { opacity: .65; cursor: wait; }
+    .hint, .status { color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .hint { margin: 12px 0 0; }
+    .status { margin-top: 12px; min-height: 21px; }
+    .result-top, .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tab, .action {
+      border: 1px solid #d5deec; border-radius: 6px; padding: 8px 12px;
+      font-weight: 750; cursor: pointer; background: #fff; color: #53627c;
+    }
+    .tab.active { color: #a66b00; background: #fff8dd; border-color: #f3c44e; }
+    .action.primary { color: #fff; background: #0f172a; border-color: #0f172a; }
+    .action.soft { color: #2d50c7; background: var(--soft); border-color: #dbe4ff; }
+    .action.disabled { opacity: .45; cursor: not-allowed; }
+    .actions { margin-top: 9px; }
+    .preview-wrap {
+      margin-top: 12px; border: 1px solid var(--line); border-radius: 8px;
+      overflow: hidden; min-height: 660px; background: #0f172a;
+    }
+    iframe { width: 100%; min-height: 760px; border: 0; display: block; background: #0f172a; }
+    .empty {
+      min-height: 660px; display: grid; place-items: center;
+      text-align: center; color: #94a3b8; padding: 30px;
+    }
+    .empty strong { display: block; margin-bottom: 8px; color: #dbe6f8; font-size: 20px; }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      h1 { font-size: 23px; }
+      .version { display: block; width: fit-content; margin: 8px 0 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <h1>AI卖Put标的池扫描 <span class="version">v0.1.0｜2026-07-26｜Barchart溢价初筛</span></h1>
+      <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+    </header>
+
+    <div class="layout">
+      <form class="panel sidebar" id="toolForm">
+        <h2 class="section-title">选择标的池</h2>
+        <div class="field">
+          <label for="poolPreset">预设标的池</label>
+          <select id="poolPreset">
+            <option value="focus">当前关注池</option>
+            <option value="core">核心标的池</option>
+            <option value="custom">自定义</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="symbols">美股代码（逗号、空格或换行分隔，最多12个）</label>
+          <textarea id="symbols" name="symbols">QLD, MSTR, INTC</textarea>
+        </div>
+        <button class="primary-btn" id="submitBtn" type="submit">扫描Barchart期权溢价</button>
+        <div class="status" id="status">读取标的级期权概览并按溢价机会排序。</div>
+        <p class="hint">本页只做第一层初筛，不选择具体行权价、到期日或合约。候选标的需进入综合卖Put决策继续判断。</p>
+      </form>
+
+      <section class="panel">
+        <div class="result-top"><button class="tab active" type="button">当前报告</button></div>
+        <div class="actions" id="actions">
+          <button class="action primary disabled" disabled type="button">新窗口打开报告</button>
+          <button class="action soft disabled" disabled type="button">下载 HTML</button>
+          <button class="action soft disabled" disabled type="button">下载图片</button>
+          <button class="action soft disabled" disabled type="button">图片分享</button>
+        </div>
+        <div class="preview-wrap">
+          <div id="preview" class="empty"><div><strong>等待扫描标的池</strong>Barchart期权温度 · 风险溢价 · 流动性 · 恐慌风险</div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script>
+    const apiBase = (() => {
+      const params = new URLSearchParams(location.search);
+      const override = params.get('apiBase');
+      const origin = String(location.origin || '').replace(/\/$/, '');
+      if (override) return override.replace(/\/$/, '');
+      if (!origin || origin === 'null' || location.protocol === 'file:') return 'https://donew-beta.vercel.app';
+      return origin;
+    })();
+
+    const PRESETS = {
+      focus: ['QLD', 'MSTR', 'INTC'],
+      core: ['QLD', 'EEM', 'MSTR', 'INTC', 'IBIT', 'TQQQ', 'GDX', 'ARKK'],
+    };
+    const latestKey = 'sellPutPoolLatestReport.v1';
+    const form = document.getElementById('toolForm');
+    const preset = document.getElementById('poolPreset');
+    const symbolsInput = document.getElementById('symbols');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusEl = document.getElementById('status');
+    const actions = document.getElementById('actions');
+    const preview = document.getElementById('preview');
+    let latestHtml = '';
+    let latestBlobUrl = '';
+    let latestName = 'sell-put-pool-report.html';
+
+    function safe(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function number(value) {
+      const parsed = Number(String(value ?? '').replace(/[,%+]/g, ''));
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function fmt(value, digits = 1, suffix = '') {
+      const parsed = number(value);
+      return parsed === null ? '未取到' : parsed.toFixed(digits) + suffix;
+    }
+
+    function parseSymbols(value) {
+      return Array.from(new Set(String(value || '').toUpperCase().split(/[\s,，;；]+/)
+        .map((item) => item.trim()).filter((item) => /^[A-Z][A-Z0-9.-]{0,14}$/.test(item)))).slice(0, 12);
+    }
+
+    function evaluate(item) {
+      const metrics = item.metrics || {};
+      const iv = number(metrics.iv);
+      const hv = number(metrics.hv);
+      const rank = number(metrics.ivRank);
+      const percentile = number(metrics.ivPercentile);
+      const expected = number(metrics.expectedMovePct);
+      const volume = number(metrics.todayVolume);
+      const openInterest = number(metrics.todayOpenInterest);
+      const putCall = number(metrics.putCallVolRatio);
+      const premium = iv !== null && hv !== null ? iv - hv : null;
+      const missing = [iv, hv, rank, percentile].filter((value) => value === null).length;
+      let score = 12;
+      const positives = [];
+      const risks = [];
+
+      if (premium === null) risks.push('IV/HV缺失');
+      else if (premium >= 8) { score += 25; positives.push('IV明显高于HV'); }
+      else if (premium >= 3) { score += 18; positives.push('存在波动率溢价'); }
+      else if (premium >= 0) { score += 8; positives.push('轻微溢价'); }
+      else { score -= 15; risks.push('IV低于HV'); }
+
+      if (rank !== null && rank >= 70) { score += 18; positives.push('IV Rank高'); }
+      else if (rank !== null && rank >= 50) score += 12;
+      else if (rank !== null && rank >= 30) score += 6;
+      else risks.push('IV Rank偏低');
+
+      if (percentile !== null && percentile >= 80) { score += 15; positives.push('IV Percentile高'); }
+      else if (percentile !== null && percentile >= 60) score += 10;
+      else if (percentile !== null && percentile >= 40) score += 5;
+
+      if (volume !== null && volume >= 1000) { score += 8; positives.push('成交活跃'); }
+      else if (volume !== null && volume >= 300) score += 4;
+      else { score -= 6; risks.push('成交量偏低'); }
+
+      if (openInterest !== null && openInterest >= 10000) { score += 8; positives.push('持仓量充足'); }
+      else if (openInterest !== null && openInterest >= 1000) score += 4;
+      else { score -= 6; risks.push('持仓量偏低'); }
+
+      if (expected !== null && expected > 15) { score -= 16; risks.push('Expected Move极高'); }
+      else if (expected !== null && expected > 10) { score -= 7; risks.push('Expected Move偏高'); }
+      else if (expected !== null && expected >= 4) score += 5;
+
+      if (putCall !== null && putCall >= 2) { score -= 12; risks.push('Put成交显著拥挤'); }
+      else if (putCall !== null && putCall >= 1.3) { score -= 6; risks.push('保护性Put偏多'); }
+      else if (putCall !== null && putCall >= 0.25) score += 4;
+
+      if (missing >= 2) score = Math.min(score, 35);
+      score = Math.max(0, Math.min(100, Math.round(score)));
+
+      const panic = (expected !== null && expected > 15) || (putCall !== null && putCall >= 2);
+      const truePremium = premium !== null && premium >= 3 && rank !== null && rank >= 50 && percentile !== null && percentile >= 60;
+      let tone = 'red';
+      let state = '普通波动';
+      let action = '暂不优先';
+      if (missing >= 2) {
+        state = '数据不足';
+      } else if (panic && truePremium) {
+        state = '高风险恐慌溢价';
+        action = '仅观察';
+      } else if (score >= 70 && truePremium && volume >= 300 && openInterest >= 1000) {
+        tone = 'green';
+        state = '风险溢价候选';
+        action = '优先深入研究';
+      } else if (score >= 50) {
+        tone = 'yellow';
+        state = truePremium ? '溢价存在但需确认' : '观察候选';
+        action = '进入综合判断';
+      }
+
+      return {
+        ...item, score, tone, state, action, premium,
+        positives, risks,
+      };
+    }
+
+    function toneLabel(tone, text) {
+      return '<span class="signal ' + tone + '">' + (tone === 'green' ? '● ' : tone === 'yellow' ? '● ' : '● ') + safe(text) + '</span>';
+    }
+
+    function buildReport(rows, errors, requested, generatedAt, delayNote) {
+      const sorted = rows.map(evaluate).sort((a, b) => b.score - a.score);
+      const green = sorted.filter((item) => item.tone === 'green').length;
+      const yellow = sorted.filter((item) => item.tone === 'yellow').length;
+      const red = sorted.length - green - yellow;
+      const bodyRows = sorted.map((item, index) => {
+        const m = item.metrics || {};
+        const reasons = [...item.positives.slice(0, 2), ...item.risks.slice(0, 2)];
+        const decisionUrl = '/sell-put-decision-tool.html?symbol=' + encodeURIComponent(item.symbol);
+        return '<tr>' +
+          '<td>' + (index + 1) + '</td>' +
+          '<td><strong>' + safe(item.symbol) + '</strong></td>' +
+          '<td>' + toneLabel(item.tone, item.state) + '</td>' +
+          '<td><strong class="score">' + item.score + '</strong></td>' +
+          '<td>' + fmt(m.iv, 1, '%') + ' / ' + fmt(m.hv, 1, '%') + '</td>' +
+          '<td class="' + (item.premium !== null && item.premium >= 0 ? 'up' : 'down') + '">' + fmt(item.premium, 1, '%') + '</td>' +
+          '<td>' + fmt(m.ivRank, 1, '%') + ' / ' + fmt(m.ivPercentile, 0, '%') + '</td>' +
+          '<td>' + fmt(m.expectedMovePct, 1, '%') + '</td>' +
+          '<td>' + fmt(m.todayVolume, 0) + ' / ' + fmt(m.todayOpenInterest, 0) + '</td>' +
+          '<td>' + fmt(m.putCallVolRatio, 2) + ' / ' + fmt(m.putCallOiRatio, 2) + '</td>' +
+          '<td>' + safe(reasons.join('；') || '无可用判断') + '</td>' +
+          '<td><a class="deep-link" target="_blank" rel="noopener" href="' + decisionUrl + '">' + safe(item.action) + '</a></td>' +
+        '</tr>';
+      }).join('');
+      const errorRows = errors.length
+        ? '<section><h2>未取到的标的</h2><ul>' + errors.map((item) => '<li><strong>' + safe(item.symbol) + '</strong>：' + safe(item.message) + '</li>').join('') + '</ul></section>'
+        : '';
+      const sourceRows = sorted.map((item) => '<tr><td>' + safe(item.symbol) + '</td><td>' + safe(item.source || 'Barchart Options Overview') + '</td><td>' + safe(formatTime(item.retrievedAt)) + '</td><td>' + safe(item.fetchMode === 'cache' ? '10分钟缓存' : '本次读取') + '</td></tr>').join('');
+
+      return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>卖Put标的池溢价扫描</title><style>' +
+      ':root{--bg:#0f172a;--panel:#17233a;--line:#304362;--text:#e5edf9;--muted:#99a9c1;--gold:#ffd54a;--green:#45d483;--red:#ff6b7d;--yellow:#f6c94c}' +
+      '*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;line-height:1.65}' +
+      '.page{max-width:1500px;margin:0 auto;padding:24px}.hero{margin-bottom:20px}h1{margin:0 0 6px;font-size:30px}h2{margin:24px 0 10px;font-size:21px;color:#fff}.meta{color:var(--muted);font-size:14px}' +
+      '.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}.summary div{background:var(--panel);border:1px solid var(--line);padding:12px}.summary b{display:block;color:var(--muted);font-size:12px}.summary strong{font-size:23px}' +
+      '.lead{border-left:4px solid var(--gold);background:#263044;padding:12px 14px;color:#f7f0cf}.table-wrap{overflow:auto;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;min-width:1280px}th,td{padding:10px 11px;border:1px solid var(--line);vertical-align:top;text-align:left}th{background:#20304c;color:#dbe6f7;font-size:13px}td{font-size:13px}.score{color:var(--gold);font-size:18px}' +
+      '.signal{font-weight:800}.signal.green,.up{color:var(--green)}.signal.yellow{color:var(--yellow)}.signal.red,.down{color:var(--red)}.deep-link{display:inline-block;color:#9bb8ff;text-decoration:none;font-weight:800}.deep-link:hover{text-decoration:underline}' +
+      'details{margin-top:18px}summary{cursor:pointer;color:var(--muted);font-weight:750}.note{color:var(--muted);font-size:13px}@media(max-width:760px){.page{padding:16px}.summary{grid-template-columns:1fr 1fr}h1{font-size:24px}}' +
+      '</style></head><body><main class="page"><header class="hero"><h1>卖Put标的池溢价扫描</h1><div class="meta">生成时间：' + safe(formatTime(generatedAt)) + '｜请求 ' + requested + ' 个标的｜成功 ' + sorted.length + ' 个</div></header>' +
+      '<div class="lead"><strong>用途：</strong>本报告只依据Barchart标的级期权概览做第一层排序。绿灯表示值得进入综合判断，不代表具体Put合约可以直接交易；高IV若伴随极端Expected Move或Put拥挤，会被识别为高风险恐慌溢价。</div>' +
+      '<div class="summary"><div><b>风险溢价候选</b><strong style="color:var(--green)">' + green + '</strong></div><div><b>观察候选</b><strong style="color:var(--yellow)">' + yellow + '</strong></div><div><b>暂不优先/数据不足</b><strong style="color:var(--red)">' + red + '</strong></div><div><b>读取失败</b><strong>' + errors.length + '</strong></div></div>' +
+      '<section><h2>溢价机会排序</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>标的</th><th>溢价状态</th><th>机会分</th><th>IV / HV</th><th>IV-HV</th><th>Rank / Percentile</th><th>Expected Move</th><th>Volume / OI</th><th>P/C Vol / OI</th><th>主要依据</th><th>下一步</th></tr></thead><tbody>' + bodyRows + '</tbody></table></div></section>' +
+      errorRows +
+      '<details><summary>评分口径与数据来源</summary><p class="note">机会分由IV-HV溢价、IV Rank、IV Percentile、期权总成交量、Open Interest、Expected Move和Put/Call结构组成。缺失关键字段、Expected Move极端或Put成交过度拥挤会降级。该分数只用于排序，不是收益率或成功概率。</p><p class="note">' + safe(delayNote || 'Barchart公开期权数据通常延迟约25至30分钟') + '</p><div class="table-wrap"><table><thead><tr><th>标的</th><th>来源</th><th>获取时间</th><th>方式</th></tr></thead><tbody>' + sourceRows + '</tbody></table></div></details>' +
+      '</main></body></html>';
+    }
+
+    function formatTime(value) {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value || '未知';
+      return date.toLocaleString('zh-CN', { timeZone: 'Asia/Hong_Kong', hour12: false });
+    }
+
+    function updateBlob(html) {
+      latestHtml = html || '';
+      if (latestBlobUrl) URL.revokeObjectURL(latestBlobUrl);
+      latestBlobUrl = latestHtml ? URL.createObjectURL(new Blob([latestHtml], { type: 'text/html;charset=utf-8' })) : '';
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = filename; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function reportImage() {
+      const frame = preview.querySelector('iframe');
+      if (!frame?.contentDocument) throw new Error('报告尚未加载完成');
+      const doc = frame.contentDocument;
+      const canvas = await html2canvas(doc.body, {
+        backgroundColor: '#0f172a', scale: 2,
+        width: Math.min(Math.max(doc.documentElement.scrollWidth, 1100), 1800),
+        height: Math.min(Math.max(doc.documentElement.scrollHeight, 700), 24000),
+        windowWidth: doc.documentElement.scrollWidth,
+        windowHeight: doc.documentElement.scrollHeight,
+      });
+      return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('图片生成失败')), 'image/jpeg', .92));
+    }
+
+    function bindActions() {
+      document.getElementById('openBtn').onclick = () => window.open(latestBlobUrl, '_blank', 'noopener');
+      document.getElementById('htmlBtn').onclick = () => downloadBlob(new Blob([latestHtml], { type: 'text/html;charset=utf-8' }), latestName);
+      document.getElementById('imageBtn').onclick = async () => {
+        try { downloadBlob(await reportImage(), latestName.replace(/\.html$/i, '.jpg')); }
+        catch (error) { statusEl.textContent = error.message; }
+      };
+      document.getElementById('shareBtn').onclick = async () => {
+        try {
+          const blob = await reportImage();
+          const file = new File([blob], latestName.replace(/\.html$/i, '.jpg'), { type: 'image/jpeg' });
+          if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: '卖Put标的池溢价扫描' });
+          else downloadBlob(blob, file.name);
+        } catch (error) { statusEl.textContent = error.message; }
+      };
+    }
+
+    function renderReport(meta, restored = false) {
+      preview.className = '';
+      preview.innerHTML = '<iframe title="卖Put标的池溢价扫描" src="' + latestBlobUrl + '"></iframe>';
+      actions.innerHTML =
+        '<button class="action primary" id="openBtn" type="button">新窗口打开报告</button>' +
+        '<button class="action soft" id="htmlBtn" type="button">下载 HTML</button>' +
+        '<button class="action soft" id="imageBtn" type="button">下载图片</button>' +
+        '<button class="action soft" id="shareBtn" type="button">图片分享</button>';
+      bindActions();
+      statusEl.textContent = restored
+        ? '已恢复上次扫描报告，原生成于 ' + formatTime(meta.generatedAt)
+        : '扫描完成：成功 ' + meta.count + ' 个，失败 ' + meta.failedCount + ' 个。';
+    }
+
+    function saveLatest(meta) {
+      localStorage.setItem(latestKey, JSON.stringify({ meta, html: latestHtml, fileName: latestName }));
+    }
+
+    function restoreLatest() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(latestKey) || 'null');
+        if (!saved?.html || !saved?.meta) return;
+        latestName = saved.fileName || latestName;
+        updateBlob(saved.html);
+        renderReport(saved.meta, true);
+      } catch { /* ignore */ }
+    }
+
+    preset.addEventListener('change', () => {
+      if (PRESETS[preset.value]) symbolsInput.value = PRESETS[preset.value].join(', ');
+      if (preset.value === 'custom') symbolsInput.focus();
+    });
+    symbolsInput.addEventListener('input', () => { preset.value = 'custom'; });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const symbols = parseSymbols(symbolsInput.value);
+      if (!symbols.length) { statusEl.textContent = '请至少输入一个有效的美股代码。'; return; }
+      submitBtn.disabled = true;
+      const startedAt = Date.now();
+      let timer = setInterval(() => {
+        const seconds = Math.floor((Date.now() - startedAt) / 1000);
+        submitBtn.textContent = '扫描中 ' + seconds + 's';
+        statusEl.textContent = '正在依次读取 ' + symbols.length + ' 个标的的Barchart期权概览…';
+      }, 1000);
+      try {
+        const response = await fetch(apiBase + '/api/barchart-overview?symbols=' + encodeURIComponent(symbols.join(',')));
+        const json = await response.json();
+        if (!response.ok || !json.ok) throw new Error(json.message || '批量读取失败');
+        const generatedAt = new Date().toISOString();
+        const html = buildReport(json.data || [], json.errors || [], symbols.length, generatedAt, json.delayNote);
+        latestName = 'sell-put-pool-' + new Date().toISOString().slice(0, 10) + '.html';
+        updateBlob(html);
+        const meta = { generatedAt, count: json.count || 0, failedCount: json.failedCount || 0 };
+        renderReport(meta, false);
+        saveLatest(meta);
+      } catch (error) {
+        statusEl.textContent = error.message || '扫描失败';
+      } finally {
+        clearInterval(timer);
+        submitBtn.disabled = false;
+        submitBtn.textContent = '扫描Barchart期权溢价';
+      }
+    });
+
+    restoreLatest();
+  </script>
+</body>
+</html>

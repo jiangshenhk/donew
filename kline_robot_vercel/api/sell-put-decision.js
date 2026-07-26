@@ -347,7 +347,7 @@ function formatKlineStructure(structure) {
   const abc = structure.analysisAngles.abc || {};
   const matches = (structure.top5 || []).map((item) => `${item.name} ${item.score}% ${item.bias}`).join("；") || "无超过阈值的经典形态";
   return [
-    `最高形态匹配：${similarity.title || "未取到"} | 匹配度：${similarity.score ?? "未取到"}% | 方向：${similarity.bias || "中性"}`,
+    `典型K线匹配：${similarity.title || "未取到"} | 匹配度：${similarity.score ?? "未取到"}% | 方向：${similarity.bias || "中性"}`,
     `前五匹配：${matches}`,
     trend.valid >= 8
       ? `历史相似样本：${trend.valid}个 | 后${trend.horizon}根K线 偏多${trend.bullProbability}% / 偏空${trend.bearProbability}% / 震荡${trend.flatProbability}%`
@@ -565,6 +565,30 @@ function sanitizeAiHtml(html) {
   return text.trim();
 }
 
+function ensureKlineMatchLine(html, klineStructure) {
+  const source = String(html || "");
+  const heading = /<h2[^>]*>\s*K线技术信号\s*<\/h2>/i;
+  const headingMatch = heading.exec(source);
+  if (!headingMatch) return source;
+
+  const sectionEnd = source.indexOf("</section>", headingMatch.index);
+  const scopedEnd = sectionEnd >= 0 ? sectionEnd : source.length;
+  const sectionHtml = source.slice(headingMatch.index, scopedEnd);
+  if (/典型K线匹配\s*[：:]/.test(sectionHtml)) return source;
+
+  const similarity = klineStructure?.analysisAngles?.similarity || {};
+  const title = similarity.title || "未取到超过阈值的典型形态";
+  const score = similarity.score === null || similarity.score === undefined ? "未取到" : `${similarity.score}%`;
+  const bias = similarity.bias || "中性";
+  const line = `<p class="kline-match-line"><strong class="signal-label">典型K线匹配：</strong>${safeHtml(title)}（匹配度 ${safeHtml(score)}，方向：${safeHtml(bias)}）</p>`;
+  const flex = /<div[^>]*class=["'][^"']*flex-between[^"']*["'][^>]*>[\s\S]*?<\/div>/i;
+  const flexMatch = flex.exec(sectionHtml);
+  const insertAt = flexMatch
+    ? headingMatch.index + flexMatch.index + flexMatch[0].length
+    : headingMatch.index + headingMatch[0].length;
+  return `${source.slice(0, insertAt)}\n${line}${source.slice(insertAt)}`;
+}
+
 function riskDecisionStatus(risk) {
   if (risk?.putStance === "不利") return "暂不卖Put";
   if (risk?.putStance === "谨慎") return "谨慎卖Put";
@@ -752,14 +776,16 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ### 第4节 · K线技术信号 (<section class="section">)
 - 先输出 <h2>K线技术信号</h2>
-- 然后用 <div class="flex-between"> 一行展示趋势概况+强弱+形态（必须包含具体数值）：
+- 第一行用 <div class="flex-between"> 展示趋势概况和强弱（必须包含具体数值）：
   示例格式：
   <div class="flex-between">
     <span><span class="highlight-red">趋势：空头</span> (SMA5=100.18 < SMA10=104.70 < SMA20=117.70)</span>
     <span><span class="badge-red">弱势</span> 近5日4跌</span>
-    <span><span class="badge-yellow">流星/墓碑十字</span> 上影线</span>
   </div>
   （不要在 <span class="tag"> 里写"趋势：强烈下跌"，要用 highlight-green/highlight-red 着色趋势，并在括号里给出具体均线数值或涨跌天数）
+- 第二行必须单独输出典型K线匹配，不得省略“典型K线匹配：”标签：
+  <p class="kline-match-line"><strong class="signal-label">典型K线匹配：</strong>流星/墓碑十字（匹配度 82%，方向：偏空）</p>
+  形态名称、匹配度和方向必须直接引用“K线相似度结构”的最高形态匹配结果；未取到时明确写“未取到超过阈值的典型形态”，不得编造。
 - 然后用一个标准表格展示 SMA5/10/20/50：
   <table>
     <tr><th>均线</th><th>SMA5</th><th>SMA10</th><th>SMA20</th><th>SMA50</th></tr>
@@ -922,7 +948,7 @@ function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionM
 
 ${klineStats ? `
 <section class="section">
-  <h2>K线相似度与技术信号（规则版）</h2>
+  <h2>K线技术信号（规则版）</h2>
   <pre style="background:#0a0f1a;padding:14px;border-radius:10px;overflow-x:auto;white-space:pre-wrap;font-size:13px;color:#b0c4e8">${safeHtml(klineStructureText)}</pre>
   <p><span class="highlight">最新收盘：</span>${safeHtml(klineStats.lastClose)} | <span class="highlight">ATR(14)：</span>${safeHtml(klineStats.atr)} | <span class="highlight">ATR占比：</span>${safeHtml(klineStats.atrPct)}%</p>
   <p><span class="highlight">涨幅：</span>1日 ${safeHtml(klineStats.returns.d1?.toFixed(2) ?? "N/A")}% | 5日 ${safeHtml(klineStats.returns.d5?.toFixed(2) ?? "N/A")}% | 20日 ${safeHtml(klineStats.returns.d20?.toFixed(2) ?? "N/A")}%</p>
@@ -1157,7 +1183,10 @@ export default async function handler(req, res) {
     });
 
     const ai = await callAI(symbol, prompt);
-    const cleanHtml = sanitizeAiHtml(stripCodeFenceAndExtract(ai.html));
+    const cleanHtml = ensureKlineMatchLine(
+      sanitizeAiHtml(stripCodeFenceAndExtract(ai.html)),
+      klineStructure,
+    );
     const ruleDecision = riskDecisionStatus(risk);
     const aiDecision = extractAiDecisionStatus(cleanHtml);
     const aiAccepted = !!cleanHtml
