@@ -584,6 +584,48 @@ function ensureKlineMatchLine(html, klineStructure) {
   return `${source.slice(0, insertAt)}\n${line}${source.slice(insertAt)}`;
 }
 
+function mergeClassAttribute(attributes, className) {
+  const attrs = String(attributes || "");
+  const classMatch = attrs.match(/\sclass=(["'])(.*?)\1/i);
+  if (!classMatch) return `${attrs} class="${className}"`;
+  const classes = new Set(classMatch[2].split(/\s+/).filter(Boolean));
+  classes.add(className);
+  return attrs.replace(classMatch[0], ` class=${classMatch[1]}${[...classes].join(" ")}${classMatch[1]}`);
+}
+
+export function normalizeReportSections(html) {
+  return String(html || "").replace(/<section([^>]*)>([\s\S]*?)<\/section>/gi, (section, attributes, body) => {
+    let normalized = body;
+    normalized = normalized.replace(/<ul(?![^>]*\bclass=)([^>]*)>/gi, '<ul class="bullet-list"$1>');
+    normalized = normalized.replace(/<table(?![^>]*\bclass=)([^>]*)>/gi, '<table class="report-table"$1>');
+    normalized = normalized.replace(
+      /(<h2[^>]*>[\s\S]*?<\/h2>\s*)<p(?![^>]*\bclass=)([^>]*)>/i,
+      '$1<p class="section-summary"$2>',
+    );
+    return `<section${mergeClassAttribute(attributes, "report-section")}>${normalized}</section>`;
+  });
+}
+
+function reportSectionCss() {
+  return `
+  .report-section{padding:22px;margin-bottom:18px}
+  .report-section>h2{margin:0 0 14px;font-size:24px;line-height:1.35;color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:9px}
+  .section-summary{margin:0 0 14px;padding:12px 14px;background:#1a2338;border-left:3px solid var(--blue);border-radius:8px;color:var(--text);font-weight:600;line-height:1.65}
+  .metric-grid{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin:0 0 14px;padding:12px 14px;background:#131d31;border:1px solid var(--line);border-radius:10px}
+  .action-bar{background:#1a2338}
+  .report-table{width:100%;margin:0 0 14px;font-size:14px;border-collapse:collapse}
+  .report-table th,.report-table td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top}
+  .report-table th{background:#22304d;color:var(--text)}
+  .bullet-list{list-style:none;padding:0;margin:0}
+  .bullet-list li{position:relative;margin:0;padding:9px 8px 9px 18px;border-bottom:1px solid #263653;line-height:1.7}
+  .bullet-list li:last-child{border-bottom:0}
+  .bullet-list li::before{content:"";position:absolute;left:2px;top:18px;width:6px;height:6px;border-radius:50%;background:var(--blue)}
+  .section-note{margin-top:14px;padding:12px 14px;background:#1f2b44;border-left:3px solid var(--gold);border-radius:8px;color:var(--text)}
+  .report-section pre{margin:0 0 14px;background:#0f172a!important;border:1px solid var(--line);border-radius:10px;padding:14px!important;color:var(--muted)!important}
+  @media(max-width:720px){.report-section{padding:16px}.report-section>h2{font-size:21px}.metric-grid{align-items:flex-start;flex-direction:column}.flex-between{align-items:flex-start;gap:8px}}
+`;
+}
+
 function riskDecisionStatus(risk) {
   if (risk?.putStance === "不利") return "暂不卖Put";
   if (risk?.putStance === "谨慎") return "谨慎卖Put";
@@ -755,6 +797,13 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 报告层级必须清晰：每个大节使用 h2；节内判断项名称使用 <strong class="signal-label">判断项：</strong>；普通解释保持正文颜色
 - 只有方向性结论使用红绿黄：偏多/有利/低风险用 highlight-green，偏空/不利/高风险用 highlight-red，中性/谨慎/待确认用 highlight-yellow
 - 不要把整段正文染色；每个判断只着色最短的结论词或关键短语
+- 六个大节必须使用同一套内容骨架，顺序不得变化：
+  1. <h2>小节标题</h2>
+  2. <p class="section-summary"><strong class="signal-label">本节结论：</strong>一句话结论</p>
+  3. <div class="metric-grid">核心数字或标签；没有核心数字时可省略</div>
+  4. <ul class="bullet-list">详细分析，每条以蓝色粗体判断项开头</ul>
+  5. 必要时追加 <div class="section-note">风险提醒或行动条件</div>
+- 不得让某一节只有散落的普通段落；不得使用不同风格的自定义大卡片替代上述骨架
 
 **风险判断铁律（必须在报告中体现）：**
 - "这是不是恐慌溢价？"必须回答并着色：是=<span class="dn">是</span>（绿色），不是=<span class="up">不是</span>（红色），不确定=<span class="warn">不确定</span>（黄色）
@@ -774,7 +823,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 ### 第1节 · 综合结论 (<section class="section hero-judgement">)
 - 先输出 <h2>综合结论</h2>
 - 第一行用大徽章给出结论：<span class="judge-badge" style='background:#1a3a2a;color:#45d483;'>可卖Put</span>（可卖Put→#45d483绿底，谨慎卖Put→#ffd54a黄底text:#333，暂不卖Put→#ff6b7d红底）
-- 第二行用 <span class="judge-reason"> 包裹一句核心判断理由
+- 第二行必须输出 <p class="section-summary"><strong class="signal-label">本节结论：</strong><span class="judge-reason">一句核心判断理由</span></p>
 - 然后必须逐条回答三个关键问题（每行用 class="highlight" 标关键字，答案必须着色）：
   · "这是不是恐慌溢价？" — 是/不是/不确定
   · "未来3-5个交易日的大跌/跳空风险？" — 高/低/中
@@ -784,13 +833,15 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ### 第2节 · 市场环境 (<section class="section">)
 - 先输出 <h2>市场环境</h2>
-- 然后用一排 class="data-item" 标签展示关键行情：<span class="data-item">QQQ <span style="color:#45d483;">+0.68%</span></span>
+- 先输出 class="section-summary" 的一句话市场结论
+- 然后用 <div class="metric-grid"> 包裹一排 class="data-item" 标签展示关键行情：<span class="data-item">QQQ <span style="color:#45d483;">+0.68%</span></span>
 - 然后用 <ul class="bullet-list"> 列出 3-5 条要点，涵盖：宏观/地缘、半导体/科技情绪、利率与美元、近期事件风险、综合判断
 - 每条必须以蓝色粗体判断项开头，例如：<li><strong class="signal-label">科技情绪：</strong>半导体呈现 <span class="highlight-red">偏弱</span>，随后用普通正文解释原因。</li>
 
 ### 第3节 · 期权温度解读 (<section class="section">)
 - 先输出 <h2>期权温度解读</h2>
-- 然后用一行标签展示核心数据+解读（不要只用 class="data-item" 罗列数字，必须标注含义）：
+- 先输出 class="section-summary" 的一句话期权温度结论
+- 然后用 <div class="metric-grid"> 展示核心数据+解读（不要只罗列数字，必须标注含义）：
   示例格式：
   <div style="display:flex;flex-wrap:wrap;gap:16px 30px;margin-bottom:12px;">
     <div><span class="tag">IV 104.23%</span> vs <span class="tag">HV 94.28%</span> <span class="highlight-yellow">IV > HV 约10%</span></div>
@@ -809,7 +860,8 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ### 第4节 · K线技术信号 (<section class="section">)
 - 先输出 <h2>K线技术信号</h2>
-- 第一行用 <div class="flex-between"> 展示趋势概况和强弱（必须包含具体数值）：
+- 先输出 class="section-summary" 的一句话技术面结论
+- 然后用 <div class="metric-grid flex-between"> 展示趋势概况和强弱（必须包含具体数值）：
   示例格式：
   <div class="flex-between">
     <span><span class="highlight-red">趋势：空头</span> (SMA5=100.18 < SMA10=104.70 < SMA20=117.70)</span>
@@ -836,8 +888,9 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 
 ### 第5节 · 综合卖Put建议 (<section class="section">)
 - 先输出 <h2>综合卖Put建议</h2>
-- 然后用一个深色行动建议条包裹动作建议+徽章+标签，格式必须如下：
-  <div style="background:#1a2338;border-radius:16px;padding:16px 20px;margin-bottom:16px;">
+- 先输出 class="section-summary" 的一句话行动结论
+- 然后用 <div class="metric-grid action-bar"> 包裹动作建议、徽章和标签，格式必须如下：
+  <div class="metric-grid action-bar">
     <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
       <span style="font-size:1.5rem;font-weight:700;">动作建议</span>
       <span class="badge-red" style="font-size:1.2rem;padding:4px 28px;">暂不卖Put</span>
@@ -850,15 +903,16 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
   <li><strong>关键风险点：</strong> 此处列出3-4条风险，每条前用编号①②③④，每条用 <span class="highlight-red">...</span> 包裹。必须包含以下维度：趋势风险（跌幅/ATR）、事件风险（财报/FOMC/非农等，如有）、Gamma风险（到期日临近时的风险）、地缘/宏观风险。每条要具体指出风险是什么、触发条件、后果</li>
   <li><strong>如果必须操作：</strong> <span class="highlight-yellow">...</span> 给出仓位控制、策略调整、止损条件等具体建议，不是空话</li>
   <li><strong>建议行权价参考区间：</strong> 基于ATR安全行权价和支撑位给出具体价格区间，用 <span class="highlight-green">安全</span> / <span class="highlight-red">危险</span> / <span class="highlight-yellow">边缘</span> 标注当前选择的相对位置</li>
-- 最后输出一条独立警告条（不要放在 ul 里面）：
-  <div style="background:#1f2b44;border-radius:12px;padding:12px 16px;margin-top:10px;">
+- 最后输出统一的提醒条（不要放在 ul 里面）：
+  <div class="section-note">
     <span class="highlight-yellow">⚠️ 特别提醒：</span> 用1-2句话总结当前风险环境中最重要的注意事项
   </div>
 
 ### 第6节 · 未来3-5个交易日关注清单 (<section class="section">)
 - 先输出 <h2>未来3-5个交易日关注清单</h2>
+- 先输出 class="section-summary" 的一句话监控结论
 - 只检查本次新闻数据中明确出现的近期重大事件；有已验证日期时，用一行 <span class="highlight-red">📅 近期重要事件：[事件名+日期]</span> 显眼标出；没有已验证日期时不得自行补充
-- 分两列排版（flex 或 grid），每列列出 4-5 条需要监控的信号
+- 使用一个 <ul class="bullet-list"> 列出需要监控的信号，不再使用与其他章节不同的双栏卡片
 - 底部用标签行展示：改变判断的信号（绿色好转信号、红色恶化信号、黄色中性信号）
 
 ### 视觉风格参考（可直接使用以下CSS class，或使用内联style）
@@ -956,6 +1010,7 @@ function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionM
   th{background:#22304d}
   ul{margin:8px 0;padding-left:20px} li{margin-bottom:6px}
   .atr-tips{font-size:0.9em;color:var(--muted)} .atr-tips li{margin-bottom:6px}
+${reportSectionCss()}
 </style></head>
 <body><div class="page">
 <section class="hero">
@@ -989,6 +1044,7 @@ ${contractGateHtml(contractDecision)}
 ${klineStats ? `
 <section class="section">
   <h2>K线技术信号（规则版）</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong>最新价 ${safeHtml(klineStats.lastClose)}，ATR占比 ${safeHtml(klineStats.atrPct)}%，结合趋势、支撑阻力和历史相似结构判断行权价安全垫。</p>
   <pre style="background:#0a0f1a;padding:14px;border-radius:10px;overflow-x:auto;white-space:pre-wrap;font-size:13px;color:#b0c4e8">${safeHtml(klineStructureText)}</pre>
   <p><span class="highlight">最新收盘：</span>${safeHtml(klineStats.lastClose)} | <span class="highlight">ATR(14)：</span>${safeHtml(klineStats.atr)} | <span class="highlight">ATR占比：</span>${safeHtml(klineStats.atrPct)}%</p>
   <p><span class="highlight">涨幅：</span>1日 ${safeHtml(klineStats.returns.d1?.toFixed(2) ?? "N/A")}% | 5日 ${safeHtml(klineStats.returns.d5?.toFixed(2) ?? "N/A")}% | 20日 ${safeHtml(klineStats.returns.d20?.toFixed(2) ?? "N/A")}%</p>
@@ -1000,6 +1056,7 @@ ${klineStats ? `
 
 <section class="section">
   <h2>最近24小时相关新闻（规则版）</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong>${eventRows ? "新闻中识别到需纳入到期日前判断的事件风险。" : "本次新闻未识别到带可靠日期的未来重大事件。"}</p>
   <ul>${newsRows || "<li>未取得相关新闻；按完整性门槛不应进入完整报告。</li>"}</ul>
   ${eventRows ? `<h3>新闻内事件风险</h3><ul>${eventRows}</ul>` : `<p class="meta">本次新闻未识别到带可靠日期的未来事件；不根据训练记忆补充事件日历。</p>`}
 </section>
@@ -1007,6 +1064,7 @@ ${klineStats ? `
 ${optionMetricsText ? `
 <section class="section">
   <h2>期权温度数据</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong>以下数据用于判断IV溢价、Expected Move和Put/Call结构，不单独构成卖Put结论。</p>
   <pre style="background:#0a0f1a;padding:14px;border-radius:10px;overflow-x:auto;font-size:13px;color:#b0c4e8">${safeHtml(optionMetricsText)}</pre>
 </section>` : ""}
 
@@ -1027,6 +1085,7 @@ ${atrAnalysis.hasData ? `
 
 <section class="section">
   <h2>规则版卖Put建议</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong><span class="${decisionClass}">${safeHtml(decisionStatus)}</span>，最终动作同时受市场风险和具体合约执行门槛约束。</p>
   <ul>
     <li><span class="highlight">${safeHtml(symbol)} 当前市场环境${safeHtml(risk.putStance)}：</span>${risk.putStance === "有利" ? "风险评分偏低，市场环境相对稳定，可考虑卖Put，但需结合期权IV/HV判断。" : risk.putStance === "谨慎" ? "风险评分中等，市场存在不确定性，建议减少仓位或选择更虚值行权价。" : "风险评分偏高，VIX/半导体/国债收益率等信号偏空，建议等待市场稳定。"}</li>
     <li>期权温度数据（如有截图录入）应重点观察：IV是否高于HV、IV Percentile是否处于高位、Expected Move是否提供足够安全垫。</li>
@@ -1086,6 +1145,7 @@ function buildAiReportWrapper(symbol, market, risk, decisionStatus, aiHtml, snap
   ul{margin:8px 0;padding-left:20px} li{margin-bottom:6px}
   details{margin:16px 0} details>summary{cursor:pointer;font-size:15px;font-weight:700;color:var(--muted);padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;list-style:none}
   details>summary::-webkit-details-marker{display:none} details>summary::before{content:"▸ "} details[open]>summary::before{content:"▾ "}
+${reportSectionCss()}
 </style></head>
 <body><div class="page">
 <section class="hero">
@@ -1254,9 +1314,9 @@ export default async function handler(req, res) {
     const finalDecision = aiAccepted ? aiDecision : ruleDecision;
     const generatedAt = new Date().toISOString();
 
-    const finalHtml = aiAccepted
+    const finalHtml = normalizeReportSections(aiAccepted
       ? buildAiReportWrapper(symbol, market, risk, finalDecision, cleanHtml, stockpriceSnapshot, generatedAt, contractDecision)
-      : buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, stockpriceSnapshot, targetStrike, expiryDate, decisionNewsItems, eventRisks, generatedAt, contractDecision);
+      : buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, stockpriceSnapshot, targetStrike, expiryDate, decisionNewsItems, eventRisks, generatedAt, contractDecision));
 
     return sendJson(res, 200, {
       ok: true,
