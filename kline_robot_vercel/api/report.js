@@ -271,6 +271,7 @@ async function fetchEastmoneyDailyBars(symbol, range, interval, market) {
       exchangeTimezoneName: timezone,
     },
     bars,
+    provider: "东方财富",
   };
 }
 
@@ -375,7 +376,7 @@ async function fetchYahooBars(symbol, range, interval, market = "") {
       });
     }
     if (bars.length < 20) throw new Error("可用K线数量不足：请把数据范围调大，例如选择1个月或3个月。");
-    return { meta, bars };
+    return { meta, bars, provider: "Yahoo Finance" };
   } catch (error) {
     if (String(interval || "").toLowerCase() === "1d") return fetchEastmoneyDailyBars(symbol, range, interval, market);
     throw error;
@@ -401,6 +402,7 @@ async function resolveMarketBars(rawSymbol, selectedMarket, range, interval) {
         timeLabel: marketTimeLabel(market, timezone),
         bars: data.bars,
         meta: data.meta,
+        provider: data.provider || "行情源",
       };
     } catch (error) {
       errors.push(error?.message || String(error));
@@ -3140,6 +3142,20 @@ export async function analyzeKlineStructure({
     rsi14,
     historicalTrendStats,
   });
+  const numericMeta = (value) => value === null || value === undefined || value === "" ? Number.NaN : Number(value);
+  const metaLast = numericMeta(resolved.meta?.regularMarketPrice);
+  const metaPreviousClose = numericMeta(resolved.meta?.chartPreviousClose ?? resolved.meta?.previousClose);
+  const metaChangePct = numericMeta(resolved.meta?.regularMarketChangePercent);
+  const latestBar = bars.at(-1);
+  const previousBar = bars.at(-2);
+  const quoteLast = Number.isFinite(metaLast) ? metaLast : Number(latestBar?.close);
+  const quotePreviousClose = Number.isFinite(metaPreviousClose) ? metaPreviousClose : Number(previousBar?.close);
+  const quoteChangePct = Number.isFinite(metaChangePct)
+    ? metaChangePct
+    : Number.isFinite(quoteLast) && Number.isFinite(quotePreviousClose) && quotePreviousClose !== 0
+      ? (quoteLast / quotePreviousClose - 1) * 100
+      : null;
+  const quoteTime = Number(resolved.meta?.regularMarketTime) || Number(latestBar?.ts) || null;
   return {
     symbol: displayName,
     code: display,
@@ -3151,6 +3167,14 @@ export async function analyzeKlineStructure({
     timezone,
     bars,
     latestBar: last,
+    latestQuote: {
+      last: Number.isFinite(quoteLast) ? quoteLast : null,
+      previousClose: Number.isFinite(quotePreviousClose) ? quotePreviousClose : null,
+      changePct: Number.isFinite(quoteChangePct) ? quoteChangePct : null,
+      marketTime: quoteTime ? new Date(quoteTime * 1000).toISOString() : "",
+      exchange: resolved.meta?.exchangeName || resolved.meta?.fullExchangeName || "",
+      source: resolved.provider || "行情源",
+    },
     top5: cards.slice(0, 5).map((card, index) => ({ rank: index + 1, ...card })),
     historicalTrendStats,
     analysisAngles,

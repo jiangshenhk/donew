@@ -138,6 +138,36 @@ function normalizeStockpriceRow(item, meta) {
   });
 }
 
+export function preferDirectTargetQuote(snapshot, symbol, klineStructure) {
+  const quote = klineStructure?.latestQuote;
+  const last = numberOrNull(quote?.last);
+  const previousClose = numberOrNull(quote?.previousClose);
+  const changePct = numberOrNull(quote?.changePct);
+  if (last === null || previousClose === null || changePct === null) return snapshot;
+
+  const direct = normalizeRow({
+    symbol,
+    last,
+    previousClose,
+    changePct,
+    marketTime: quote.marketTime || "",
+    exchange: quote.exchange || "",
+    source: `kline:${quote.source || "行情源"}`,
+    retrievedAt: new Date().toISOString(),
+    fetchMode: "live",
+  });
+  const data = Array.isArray(snapshot?.data) ? [...snapshot.data] : [];
+  const index = data.findIndex((item) => String(item?.symbol || "").toUpperCase() === String(symbol || "").toUpperCase());
+  if (index >= 0) data[index] = direct;
+  else data.unshift(direct);
+  return {
+    ...(snapshot || {}),
+    data,
+    targetQuoteMode: "direct",
+    targetQuoteSource: quote.source || "行情源",
+  };
+}
+
 function formatEventRisks(events) {
   if (!events || !events.length) return "";
   const byCategory = {};
@@ -358,7 +388,12 @@ function focusTable(snapshot, targetSymbol) {
   const symbols = Array.from(new Set([targetSymbol, ...FOCUS_SYMBOLS.map((i) => i.symbol)]));
   return symbols.map((s) => {
     const item = row(snapshot, s);
-    return `<tr><td>${safeHtml(symbolLabel(s))}</td><td>${item.last === null ? "未取到" : safeHtml(item.last.toFixed(2))}</td><td>${pct(item.changePct)}</td><td>${safeHtml(item.exchange || "-")}</td><td>${safeHtml(formatDateTime(item.marketTime))}</td></tr>`;
+    const source = item.source?.startsWith("kline:")
+      ? `K线行情 / ${item.source.slice(6)}`
+      : item.source === "stockprice"
+        ? "最新行情中心"
+        : (item.source || item.exchange || "-");
+    return `<tr><td>${safeHtml(symbolLabel(s))}</td><td>${item.last === null ? "未取到" : safeHtml(item.last.toFixed(2))}</td><td>${pct(item.changePct)}</td><td>${safeHtml(source)}</td><td>${safeHtml(formatDateTime(item.marketTime))}</td></tr>`;
   }).join("");
 }
 
@@ -1037,12 +1072,13 @@ export default async function handler(req, res) {
 
     const optionMetricsText = formatOptionMetrics(optionMetrics);
 
-    const [stockpriceSnapshot, newsData, klineStructure] = await Promise.all([
+    const [stockpriceBaseSnapshot, newsData, klineStructure] = await Promise.all([
       loadStockpriceSnapshot().catch(() => ({ data: [], checkedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })),
       loadRecentMarketNews().catch(() => ({ items: [], count: 0 })),
       analyzeKlineStructure({ symbol, market, interval: "1d", range: "3mo", maxMatchBars: 10, trendSampleScope: "0" })
         .catch((error) => ({ error: error.message || "K线结构分析失败" })),
     ]);
+    const stockpriceSnapshot = preferDirectTargetQuote(stockpriceBaseSnapshot, symbol, klineStructure);
 
     const klineStats = Array.isArray(klineStructure?.bars) ? computeKlineStats(klineStructure.bars) : null;
     const klineStatsFormatted = formatKlineStats(klineStats);
