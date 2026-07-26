@@ -20,8 +20,8 @@
 | 墨尔本活动地图 | [melbourne-events.html](https://donew-beta.vercel.app/lucas/melbourne-events.html) | 数据可视化 | Leaflet + DeepSeek API | — |
 | Sky Fighters 🛩️ | [lucas_flyplay.html](https://donew-beta.vercel.app/lucas/lucas_flyplay.html) | 3D 飞行射击 | Three.js | VER 1.0.5 |
 | 深渊守护者 | [lucas_zdgy.html](https://donew-beta.vercel.app/lucas/lucas_zdgy.html) | 2D 竖屏塔防射击 | Canvas 2D | VER 3.0.0 |
-| NEON//NOCTURNE Performance | [Download v10.3](./neon-nocturne-performance-v10.3.zip) | Windows 3D exploration game | OpenGL | VER 10.3 |
-| NEON//NOCTURNE Cinematic | [Download v10.3](./neon-nocturne-cinematic-v10.3.zip) | Maximum-quality Windows 3D exploration game | OpenGL | VER 10.3 |
+| NEON//NOCTURNE Performance | [Download v10.4](./neon-nocturne-performance-v10.4.zip) | Plane-crash exploration and driving game | OpenGL | VER 10.4 |
+| NEON//NOCTURNE Cinematic | [Download v10.4](./neon-nocturne-cinematic-v10.4.zip) | Maximum-quality plane-crash exploration and driving game | OpenGL | VER 10.4 |
 
 ---
 
