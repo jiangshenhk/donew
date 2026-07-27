@@ -385,12 +385,13 @@ function dataSourceRows(snapshot, targetSymbol) {
   }).join("");
 }
 
-function dataSourceDetailsBlock(snapshot, targetSymbol) {
+function dataSourceDetailsBlock(snapshot, targetSymbol, optionMetricsMeta = {}) {
   const meta = snapshot.__meta || {};
   return `
 <details>
   <summary>数据来源与行情时间</summary>
   <p>本文行情统一只读取 <code>stockprice/data/latest-price.json</code>，不再额外请求外部实时行情源。</p>
+  <p>期权参数来源：${safeHtml(optionMetricsMeta?.source || "未提供")}；参数获取时间：${safeHtml(formatDateTime(optionMetricsMeta?.retrievedAt))}；参数方式：${safeHtml(optionMetricsMeta?.fetchMode || "未提供")}${optionMetricsMeta?.delayNote ? `；备注：${safeHtml(optionMetricsMeta.delayNote)}` : ""}。</p>
   <p>行情中心文件更新时间：${safeHtml(formatDateTime(meta.stockpriceUpdatedAt))}；行情中心读取时间：${safeHtml(formatDateTime(meta.stockpriceCheckedAt || meta.stockpriceCacheServedAt))}；行情中心读取模式：${safeHtml(meta.stockpriceFetchMode === "cache" ? "缓存" : meta.stockpriceFetchMode ? "实时" : "未使用")}。</p>
   <table>
     <thead>
@@ -406,11 +407,17 @@ function dataSourceDetailsBlock(snapshot, targetSymbol) {
 function formatOptionMetrics(metrics = {}) {
   const entries = [
     ["IV", metrics.iv, "%"],
+    ["IV Change", metrics.ivChange, "%"],
     ["HV", metrics.hv, "%"],
     ["IV Percentile", metrics.ivPercentile, "%"],
     ["IV Rank", metrics.ivRank, "%"],
+    ["IV High", metrics.ivHigh, "%"],
+    ["IV High Date", metrics.ivHighDate, ""],
+    ["IV Low", metrics.ivLow, "%"],
+    ["IV Low Date", metrics.ivLowDate, ""],
     ["Expected Move", metrics.expectedMove, ""],
     ["Expected Move %", metrics.expectedMovePct, "%"],
+    ["Expected Move DTE", metrics.expectedMoveDte, ""],
     ["Expected Range Low", metrics.expectedRangeLow, ""],
     ["Expected Range High", metrics.expectedRangeHigh, ""],
     ["Put/Call Vol Ratio", metrics.putCallVolRatio, ""],
@@ -419,8 +426,12 @@ function formatOptionMetrics(metrics = {}) {
     ["Volume Avg 30D", metrics.volumeAvg30, ""],
     ["Today's Open Interest", metrics.todayOpenInterest, ""],
     ["Open Int 30D", metrics.openInterest30, ""],
-    ["IV High", metrics.ivHigh, "%"],
-    ["IV Low", metrics.ivLow, "%"],
+    ["行权价", metrics.targetStrike, ""],
+    ["Delta", metrics.delta, ""],
+    ["Bid", metrics.bid, ""],
+    ["Ask", metrics.ask, ""],
+    ["Mid", metrics.putPrice, ""],
+    ["到期日", metrics.expiryDate, ""],
   ];
   return entries
     .filter(([, value]) => String(value ?? "").trim() !== "")
@@ -433,13 +444,22 @@ function normalizeMetricValue(value) {
 }
 
 function sanitizeOptionMetrics(raw = {}) {
+  const bid = normalizeMetricValue(raw.bid);
+  const ask = normalizeMetricValue(raw.ask);
+  const bidNumber = numberOrNull(bid);
+  const askNumber = numberOrNull(ask);
+  const mid = bidNumber !== null && askNumber !== null && askNumber >= bidNumber
+    ? ((bidNumber + askNumber) / 2).toFixed(2)
+    : normalizeMetricValue(raw.putPrice);
   return {
     iv: normalizeMetricValue(raw.iv),
+    ivChange: normalizeMetricValue(raw.ivChange),
     hv: normalizeMetricValue(raw.hv),
     ivPercentile: normalizeMetricValue(raw.ivPercentile),
     ivRank: normalizeMetricValue(raw.ivRank),
     expectedMove: normalizeMetricValue(raw.expectedMove),
     expectedMovePct: normalizeMetricValue(raw.expectedMovePct),
+    expectedMoveDte: normalizeMetricValue(raw.expectedMoveDte),
     expectedRangeLow: normalizeMetricValue(raw.expectedRangeLow),
     expectedRangeHigh: normalizeMetricValue(raw.expectedRangeHigh),
     putCallVolRatio: normalizeMetricValue(raw.putCallVolRatio),
@@ -449,7 +469,15 @@ function sanitizeOptionMetrics(raw = {}) {
     todayOpenInterest: normalizeMetricValue(raw.todayOpenInterest),
     openInterest30: normalizeMetricValue(raw.openInterest30),
     ivHigh: normalizeMetricValue(raw.ivHigh),
+    ivHighDate: normalizeMetricValue(raw.ivHighDate),
     ivLow: normalizeMetricValue(raw.ivLow),
+    ivLowDate: normalizeMetricValue(raw.ivLowDate),
+    targetStrike: normalizeMetricValue(raw.targetStrike),
+    delta: normalizeMetricValue(raw.delta),
+    bid,
+    ask,
+    putPrice: mid,
+    expiryDate: normalizeMetricValue(raw.expiryDate),
   };
 }
 
@@ -480,7 +508,7 @@ async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
             {
               type: "input_text",
               text:
-                "你是一个严格的截图字段提取器。请从用户上传的 Barchart Options Overview 截图中，尽量提取以下字段，返回 JSON，不要任何解释：iv,hv,ivPercentile,ivRank,expectedMove,expectedMovePct,expectedRangeLow,expectedRangeHigh,putCallVolRatio,putCallOiRatio,todayVolume,volumeAvg30,todayOpenInterest,openInterest30,ivHigh,ivLow。无法识别的字段返回空字符串。",
+                "你是一个严格的截图字段提取器。请从用户上传的 Barchart Options Overview 截图中，尽量提取以下字段，返回 JSON，不要任何解释：iv,ivChange,hv,ivPercentile,ivRank,ivHigh,ivHighDate,ivLow,ivLowDate,expectedMove,expectedMovePct,expectedMoveDte,expectedRangeLow,expectedRangeHigh,putCallVolRatio,putCallOiRatio,todayVolume,volumeAvg30,todayOpenInterest,openInterest30。无法识别的字段返回空字符串。",
             },
           ],
         },
@@ -773,16 +801,6 @@ async function callAI(payload, snapshot, risk) {
   if (String(payload.provider || "deepseek").toLowerCase() === "openai") return callOpenAI(payload, snapshot, risk);
   const deepseek = await callDeepSeek(payload, snapshot, risk);
   if (deepseek.used) return deepseek;
-  if (process.env.OPENAI_API_KEY) {
-    const openai = await callOpenAI(payload, snapshot, risk);
-    if (openai.used) {
-      return {
-        ...openai,
-        provider: "DeepSeek -> GPT",
-        message: "DeepSeek 识图失败，已自动切换 GPT 继续生成报告。",
-      };
-    }
-  }
   return {
     used: false,
     provider: "规则版",
@@ -910,7 +928,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
   <div class="page">
     <section class="hero">
       <h1>${safeHtml(payload.symbol)}｜卖Put温度判断</h1>
-      <p class="meta">${safeHtml(payload.market.toUpperCase())} 市场 · 截图来源：Barchart Options Overview · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p>
+      <p class="meta">${safeHtml(payload.market.toUpperCase())} 市场 · 期权参数来源：${safeHtml(payload.optionMetricsMeta?.source || "Barchart Options Overview")} · 参数获取时间：${safeHtml(formatDateTime(payload.optionMetricsMeta?.retrievedAt))} · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p>
       <div class="chips">
         <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
         <span class="chip">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
@@ -980,7 +998,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
         </table>
       </div>
     </details>
-    ${dataSourceDetailsBlock(snapshot, payload.symbol)}
+    ${dataSourceDetailsBlock(snapshot, payload.symbol, payload.optionMetricsMeta)}
   </div>
 </body>
 </html>`;
@@ -998,7 +1016,8 @@ export default async function handler(req, res) {
     const provider = String(body.provider || "deepseek").trim().toLowerCase();
     const imageDataUrl = String(body.imageDataUrl || "").trim();
     const notes = String(body.notes || "").trim();
-    const optionMetrics = (body.optionMetrics && typeof body.optionMetrics === "object") ? body.optionMetrics : {};
+    const optionMetrics = sanitizeOptionMetrics((body.optionMetrics && typeof body.optionMetrics === "object") ? body.optionMetrics : {});
+    const optionMetricsMeta = (body.optionMetricsMeta && typeof body.optionMetricsMeta === "object") ? body.optionMetricsMeta : {};
 
     if (mode === "parse-image") {
       if (!imageDataUrl.startsWith("data:image/")) return sendJson(res, 400, { ok: false, message: "请先上传截图。" });
@@ -1015,8 +1034,8 @@ export default async function handler(req, res) {
     if (!hasMetrics) return sendJson(res, 400, { ok: false, message: "请先录入 Barchart 关键字段。" });
 
     const snapshot = await loadSnapshot(symbol, market);
-    const risk = marketRisk(snapshot, symbol);
-    const ai = await callAI({ symbol, market, provider, imageDataUrl, notes, optionMetrics }, snapshot, risk);
+    const risk = marketRisk(snapshot, symbol, optionMetrics);
+    const ai = await callAI({ symbol, market, provider, notes, optionMetrics, optionMetricsMeta }, snapshot, risk);
     const finalHtml = ai.used && ai.html
       ? `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${safeHtml(symbol)} 卖Put温度判断</title>
@@ -1037,10 +1056,10 @@ export default async function handler(req, res) {
   .highlight{color:var(--blue);font-weight:800} .good{color:var(--dn);font-weight:800} .warn{color:var(--gold);font-weight:800} .bad{color:var(--up);font-weight:800}
   details{margin-bottom:18px} details>summary{cursor:pointer;font-size:16px;font-weight:700;color:var(--muted);padding:14px 18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;list-style:none} details>summary::-webkit-details-marker{display:none} details>summary::before{content:"▸ "} details[open]>summary::before{content:"▾ "}
 </style></head><body><div class="page">
-<section class="hero"><h1>${safeHtml(symbol)}｜卖Put温度判断</h1><p class="meta">${safeHtml(market.toUpperCase())} 市场 · 截图来源：Barchart Options Overview · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p></section>
+<section class="hero"><h1>${safeHtml(symbol)}｜卖Put温度判断</h1><p class="meta">${safeHtml(market.toUpperCase())} 市场 · 期权参数来源：${safeHtml(optionMetricsMeta?.source || "Barchart Options Overview")} · 参数获取时间：${safeHtml(formatDateTime(optionMetricsMeta?.retrievedAt))} · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p></section>
 ${ai.html}
 <details><summary>实时行情快照</summary><div class="section"><table><thead><tr><th>标的</th><th>最新价格</th><th>日变化</th><th>日线ATR</th><th>周线ATR</th><th>来源</th><th>行情时间</th></tr></thead><tbody>${focusTable(snapshot, symbol)}</tbody></table></div></details>
-${dataSourceDetailsBlock(snapshot, symbol)}
+${dataSourceDetailsBlock(snapshot, symbol, optionMetricsMeta)}
 </div></body></html>`
       : ruleHtml({ symbol, market }, snapshot, risk, "");
 

@@ -389,6 +389,7 @@ docs/tools/alpha-risk-tool/README.md
 - `kline-robot.html` 本身目前缺少“图片共享”
 - 以后新增工具时，建议把“图片共享”补成标准功能
 - 如果旧工具后续重构，也可以向这个标准靠齐
+- 图片导出不要直接截 `doc.body`。报告 HTML 应有 `.page` 内容容器；前端导出时用 `doc.querySelector(".page") || doc.body` 作为 html2canvas 目标，并在截图前临时把 iframe 高度撑到 `content.scrollHeight + 40`，截图后用 `finally` 恢复原高度，避免只截可见区域或出现顶部/底部大空白。
 
 ### 9.4 结果页风格
 

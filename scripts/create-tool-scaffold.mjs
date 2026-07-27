@@ -49,7 +49,7 @@ if (!/^[a-z0-9-]+$/.test(apiName)) {
   throw new Error(`Invalid api name: ${apiName}. Use lowercase letters, digits, and hyphen only.`);
 }
 
-const versionText = "v0.1.0｜2026-07-18｜脚手架初始版本";
+const versionText = "v0.1.0｜2026-07-18｜脚手架初始版本（含标准导出）";
 const pageFile = path.join(root, `${slug}.html`);
 const vercelPageFile = path.join(root, "kline_robot_vercel", `${slug}.html`);
 const apiFile = path.join(root, "kline_robot_vercel", "api", `${apiName}.js`);
@@ -257,6 +257,7 @@ const htmlTemplate = `<!doctype html>
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script>
     const apiBase = (() => {
       const params = new URLSearchParams(location.search);
@@ -312,6 +313,67 @@ const htmlTemplate = `<!doctype html>
         a.download = latestName;
         a.click();
       });
+      document.getElementById("downloadImageBtn")?.addEventListener("click", async () => {
+        try {
+          await downloadReportImage();
+          setStatus("已下载图片。");
+        } catch (error) {
+          setStatus(error.message || "下载图片失败。", true);
+        }
+      });
+      document.getElementById("shareImageBtn")?.addEventListener("click", async () => {
+        try {
+          const blob = await downloadReportImage(true);
+          const file = new File([blob], latestName.replace(/\\.html?$/i, ".jpg"), { type: "image/jpeg" });
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({ files: [file], title: latestName.replace(/\\.html?$/i, "") });
+            setStatus("已打开系统分享面板。");
+          } else {
+            setStatus("当前浏览器不支持图片分享，已改为下载图片。");
+            downloadBlob(blob, latestName.replace(/\\.html?$/i, ".jpg"));
+          }
+        } catch (error) {
+          setStatus(error.message || "图片分享失败。", true);
+        }
+      });
+    }
+
+    function downloadBlob(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function downloadReportImage(returnBlob = false) {
+      const frame = preview.querySelector("iframe");
+      if (!frame) throw new Error("请先生成报告。");
+      if (!frame.contentDocument || frame.contentDocument.readyState !== "complete") {
+        await new Promise((resolve) => frame.addEventListener("load", resolve, { once: true }));
+      }
+      const doc = frame.contentDocument;
+      if (typeof html2canvas === "undefined") throw new Error("图片导出库加载中，请重试。");
+
+      const content = doc.querySelector(".page") || doc.body;
+      const originalHeight = frame.style.height;
+      frame.style.height = \`\${content.scrollHeight + 40}px\`;
+
+      let canvas;
+      try {
+        canvas = await html2canvas(content, {
+          backgroundColor: "#0f172a",
+          scale: 2,
+        });
+      } finally {
+        frame.style.height = originalHeight;
+      }
+
+      const jpgBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      if (!jpgBlob) throw new Error("图片导出失败。");
+      if (!returnBlob) downloadBlob(jpgBlob, latestName.replace(/\\.html?$/i, ".jpg"));
+      return jpgBlob;
     }
 
     function renderLatestReport(meta, restored = false) {
@@ -326,6 +388,8 @@ const htmlTemplate = `<!doctype html>
       actions.innerHTML = \`
         <button class="soft-btn" id="openBtn" type="button">新窗口打开报告</button>
         <button class="soft-btn" id="downloadBtn" type="button">下载 HTML</button>
+        <button class="soft-btn" id="downloadImageBtn" type="button">下载图片</button>
+        <button class="soft-btn" id="shareImageBtn" type="button">图片分享</button>
       \`;
       bindActions();
       preview.innerHTML = latestBlobUrl
@@ -431,13 +495,13 @@ function buildHtml({ title, symbol, note, generatedAt }) {
   </style>
 </head>
 <body>
-  <main>
+  <main class="page">
     <h1>\${escapeHtml(title)}</h1>
     <div class="meta">生成时间：\${escapeHtml(generatedAt)}｜标的：\${escapeHtml(symbol)}</div>
     <section class="card">
       <p><span class="key">脚手架说明：</span> 这是一个示例 API，后续请在这里替换成真实的行情读取、新闻读取、AI 调用或规则引擎逻辑。</p>
       <p><span class="key">补充说明：</span> \${escapeHtml(note || "无")}</p>
-      <p><span class="key">建议下一步：</span> 先补输入校验，再接统一缓存，再补下载图片、归档和历史记录。</p>
+      <p><span class="key">建议下一步：</span> 先补输入校验，再接统一缓存，再补归档和历史记录。</p>
     </section>
   </main>
 </body>
@@ -499,7 +563,7 @@ ${description}
 - 统一页面布局
 - \`apiBase\` 参数兼容
 - 最近一次报告自动恢复
-- 新窗口打开 / 下载 HTML
+- 新窗口打开 / 下载 HTML / 下载图片 / 图片分享
 - API 的最小返回结构
 
 ## 你接下来应该改哪里
@@ -529,9 +593,8 @@ ${description}
 1. 补输入校验
 2. 接统一缓存
 3. 接 AI / 规则逻辑
-4. 补下载图片
-5. 补历史记录
-6. 补 README 的真实处理流程
+4. 补历史记录
+5. 补 README 的真实处理流程
 `;
 
 function ensureDir(dir) {

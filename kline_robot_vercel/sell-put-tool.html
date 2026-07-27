@@ -220,15 +220,27 @@
       padding: 18px;
       background: #f8fbff;
     }
-    .upload-box input[type="file"] {
-      width: 100%;
-      font-size: 15px;
-    }
+    .upload-box input[type="file"] { width: 100%; font-size: 15px; }
     .upload-hint {
       margin-top: 10px;
       font-size: 13px;
       color: var(--muted);
       line-height: 1.5;
+    }
+    .parameter-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .parameter-state {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .parameter-state.ready {
+      color: #15803d;
+      font-weight: 700;
     }
     .preview-thumb {
       margin-top: 14px;
@@ -237,6 +249,83 @@
       border: 1px solid var(--line);
       display: none;
       background: #fff;
+    }
+    .thumb-wrap { position: relative; display: none; }
+    .thumb-wrap.visible { display: block; }
+    .thumb-loading {
+      position: absolute;
+      inset: 14px 0 0 0;
+      background: rgba(255,255,255,0.88);
+      border-radius: 14px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 2;
+    }
+    .thumb-loading.show { display: flex; }
+    .thumb-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #3467f0;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .thumb-loading-text {
+      font-size: 14px;
+      color: #3467f0;
+      font-weight: 600;
+    }
+    .thumb-loading-progress {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .option-parameter-entry {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .option-fetch-btn {
+      min-height: 38px;
+      padding: 8px 16px;
+      border: 1px solid #2f5ed8;
+      border-radius: 8px;
+      background: #3467f0;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .option-fetch-btn:disabled {
+      opacity: 0.68;
+      cursor: wait;
+    }
+    .manual-metrics-link {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .manual-metrics-link:hover { text-decoration: underline; }
+    .option-fetch-state {
+      flex: 1 1 150px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .option-fetch-state.ready {
+      color: #15803d;
+      font-weight: 700;
+    }
+    .option-fetch-state.error {
+      color: #dc2626;
+      font-weight: 700;
     }
     .primary-btn {
       width: 100%;
@@ -434,7 +523,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI卖Put温度判断 <span class="version">v0.1.27｜2026-07-26｜统一AI浏览器图标</span></h1>
+        <h1>AI卖Put温度判断 <span class="version">v0.1.28｜2026-07-27｜同步综合参数流程</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -471,46 +560,49 @@
           </div>
         </div>
 
-        <div class="label-row">
-          <p class="section-title" style="margin-bottom:0;">上传 Barchart 截图</p>
-          <a id="barchartLink" class="quick-link" href="https://www.barchart.com/stocks/quotes/QLD/overview" target="_blank" rel="noopener noreferrer">打开 Barchart</a>
-        </div>
-        <div class="upload-box">
-          <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
-          <div class="upload-hint">
-            默认先上传截图或 Ctrl+V 粘贴，页面会自动在本地 OCR 提取截图文字并填字段；点击“生成卖Put判断”时也会再兜底检查一次。如果识别不完整，再展开手动校对。
-          </div>
-          <img id="thumb" class="preview-thumb" alt="截图预览">
-        </div>
-
-        <div class="field-grid" style="margin-top:16px;">
-          <div class="field">
-            <label for="targetStrike">目标行权价D0.15</label>
-            <input id="targetStrike" name="targetStrike" type="text" placeholder="例：80">
-          </div>
-          <div class="field">
-            <label for="putPrice">卖Put价格</label>
-            <input id="putPrice" name="putPrice" type="text" placeholder="例：2.50">
-          </div>
-          <div class="field">
-            <label for="expiryDate">卖 Put 到期日</label>
-            <input id="expiryDate" name="expiryDate" type="date">
-          </div>
+        <div class="option-parameter-entry">
+          <button class="option-fetch-btn" id="fetchOptionMetricsBtn" type="button">自动获取期权参数</button>
+          <button class="manual-metrics-link" id="manualMetricsToggleBtn" type="button" aria-expanded="false">手工修改</button>
+          <span class="option-fetch-state" id="optionFetchState">生成前请先获取参数</span>
         </div>
 
         <details class="metrics-panel" id="metricsPanel">
-          <summary>
-            <span>手动校对数据</span>
-            <span>展开 / 收起</span>
-          </summary>
+          <summary hidden>手工修改期权参数</summary>
           <div class="panel-body">
+            <div class="label-row" style="margin-top:0;">
+              <p class="section-title" style="margin-bottom:0;">Barchart 参数来源</p>
+              <a id="barchartLink" class="quick-link" href="https://www.barchart.com/stocks/quotes/QLD/overview" target="_blank" rel="noopener noreferrer">打开 Barchart 参数页</a>
+            </div>
+            <p class="section-title" style="margin-top:16px;">方式一：上传 / 粘贴 Barchart 截图</p>
+            <div class="upload-box">
+              <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
+              <div class="upload-hint" id="uploadHint">上传图片，或直接按 Ctrl+V 粘贴截图，然后点击下方按钮识别并填入参数。</div>
+              <div class="thumb-wrap" id="thumbWrap">
+                <img id="thumb" class="preview-thumb" alt="截图预览">
+                <div class="thumb-loading" id="thumbLoading">
+                  <div class="thumb-spinner"></div>
+                  <div class="thumb-loading-text" id="thumbLoadingText">正在读取图片数据…</div>
+                  <div class="thumb-loading-progress" id="thumbLoadingProgress"></div>
+                </div>
+              </div>
+              <div class="parameter-actions">
+                <button class="secondary-btn" id="parseImageBtn" type="button">识别截图并填入参数</button>
+                <span class="parameter-state" id="parameterState">尚未识别截图</span>
+              </div>
+            </div>
             <div class="field-grid" style="margin-bottom:0;">
               <div class="field"><label for="iv">IV (%)</label><input id="iv" name="iv" type="text" placeholder="52.97"></div>
+              <div class="field"><label for="ivChange">IV 当日变化 (%)</label><input id="ivChange" name="ivChange" type="text" placeholder="0.29"></div>
               <div class="field"><label for="hv">HV (%)</label><input id="hv" name="hv" type="text" placeholder="60.72"></div>
               <div class="field"><label for="ivPercentile">IV Percentile (%)</label><input id="ivPercentile" name="ivPercentile" type="text" placeholder="94"></div>
               <div class="field"><label for="ivRank">IV Rank (%)</label><input id="ivRank" name="ivRank" type="text" placeholder="77.17"></div>
+              <div class="field"><label for="ivHigh">IV High (%)</label><input id="ivHigh" name="ivHigh" type="text" placeholder="60.85"></div>
+              <div class="field"><label for="ivHighDate">IV High 日期</label><input id="ivHighDate" name="ivHighDate" type="text" placeholder="03/30/26"></div>
+              <div class="field"><label for="ivLow">IV Low (%)</label><input id="ivLow" name="ivLow" type="text" placeholder="26.32"></div>
+              <div class="field"><label for="ivLowDate">IV Low 日期</label><input id="ivLowDate" name="ivLowDate" type="text" placeholder="08/12/25"></div>
               <div class="field"><label for="expectedMove">Expected Move</label><input id="expectedMove" name="expectedMove" type="text" placeholder="9.33"></div>
               <div class="field"><label for="expectedMovePct">Expected Move (%)</label><input id="expectedMovePct" name="expectedMovePct" type="text" placeholder="11.13"></div>
+              <div class="field"><label for="expectedMoveDte">Expected Move DTE</label><input id="expectedMoveDte" name="expectedMoveDte" type="text" inputmode="numeric" placeholder="27"></div>
               <div class="field"><label for="expectedRangeLow">Expected Range Low</label><input id="expectedRangeLow" name="expectedRangeLow" type="text" placeholder="74.53"></div>
               <div class="field"><label for="expectedRangeHigh">Expected Range High</label><input id="expectedRangeHigh" name="expectedRangeHigh" type="text" placeholder="93.19"></div>
               <div class="field"><label for="putCallVolRatio">Put/Call Vol Ratio</label><input id="putCallVolRatio" name="putCallVolRatio" type="text" placeholder="9.31"></div>
@@ -519,11 +611,17 @@
               <div class="field"><label for="volumeAvg30">Volume Avg (30D)</label><input id="volumeAvg30" name="volumeAvg30" type="text" placeholder="1330"></div>
               <div class="field"><label for="todayOpenInterest">Today's Open Interest</label><input id="todayOpenInterest" name="todayOpenInterest" type="text" placeholder="53070"></div>
               <div class="field"><label for="openInterest30">Open Int (30D)</label><input id="openInterest30" name="openInterest30" type="text" placeholder="49753"></div>
-              <div class="field"><label for="ivHigh">IV High</label><input id="ivHigh" name="ivHigh" type="text" placeholder="60.85"></div>
-              <div class="field"><label for="ivLow">IV Low</label><input id="ivLow" name="ivLow" type="text" placeholder="26.32"></div>
             </div>
           </div>
         </details>
+        <div class="field-grid">
+          <div class="field"><label for="targetStrike">行权价格</label><input id="targetStrike" name="targetStrike" type="text" inputmode="decimal" placeholder="85.00"></div>
+          <div class="field"><label for="delta">Delta</label><input id="delta" name="delta" type="text" inputmode="decimal" placeholder="-0.15" value="-0.15"></div>
+          <div class="field"><label for="bid">Bid</label><input id="bid" name="bid" type="text" inputmode="decimal" placeholder="1.35"></div>
+          <div class="field"><label for="ask">Ask</label><input id="ask" name="ask" type="text" inputmode="decimal" placeholder="1.47"></div>
+          <div class="field"><label for="putPrice">Mid（自动计算）</label><input id="putPrice" name="putPrice" type="text" inputmode="decimal" placeholder="1.41" readonly></div>
+          <div class="field"><label for="expiryDate">到期日</label><input id="expiryDate" name="expiryDate" type="date"></div>
+        </div>
 
         <button class="primary-btn" id="submitBtn" type="submit">生成卖Put判断</button>
         <div class="note">
@@ -545,10 +643,10 @@
           <button class="action soft disabled" type="button" disabled>保存为图片</button>
           <button class="action soft disabled" type="button" disabled>图片分享</button>
         </div>
-        <div id="status" class="status">请先选择标的并上传截图，或手动录入期权数据。</div>
+        <div id="status" class="status">请先点击“自动获取期权参数”，或展开手工区填入核心参数。</div>
         <div class="preview-wrap">
           <div id="preview">
-            <div class="empty-state">等待生成卖Put判断报告<span>上传图片自动解析，或展开后手动校对</span></div>
+            <div class="empty-state">等待生成卖Put判断报告<span>先获取 Barchart 参数，再校对具体合约</span></div>
           </div>
         </div>
       </section>
@@ -568,14 +666,34 @@
       return origin;
     })();
 
+    async function readApiJson(response, label = '接口') {
+      const text = await response.text();
+      try {
+        return JSON.parse(text);
+      } catch {
+        const detail = text.trim().replace(/\s+/g, ' ').slice(0, 180);
+        throw new Error(`${label}返回异常（HTTP ${response.status}）${detail ? `：${detail}` : ``}`);
+      }
+    }
+
     const form = document.getElementById('toolForm');
     const btn = document.getElementById('submitBtn');
     const thumb = document.getElementById('thumb');
+    const thumbWrap = document.getElementById('thumbWrap');
+    const thumbLoading = document.getElementById('thumbLoading');
+    const thumbLoadingText = document.getElementById('thumbLoadingText');
+    const thumbLoadingProgress = document.getElementById('thumbLoadingProgress');
+    const uploadHint = document.getElementById('uploadHint');
     const statusEl = document.getElementById('status');
     const preview = document.getElementById('preview');
     const resultHead = document.getElementById('resultHead');
     const actions = document.getElementById('actions');
     const imageInput = document.getElementById('imageFile');
+    const parseImageBtn = document.getElementById('parseImageBtn');
+    const parameterState = document.getElementById('parameterState');
+    const fetchOptionMetricsBtn = document.getElementById('fetchOptionMetricsBtn');
+    const manualMetricsToggleBtn = document.getElementById('manualMetricsToggleBtn');
+    const optionFetchState = document.getElementById('optionFetchState');
     const barchartLink = document.getElementById('barchartLink');
     const symbolInput = document.getElementById('symbol');
     const historySelect = document.getElementById('historySelect');
@@ -586,6 +704,13 @@
     let latestBlobUrl = '';
     let latestName = 'sell-put-rating.html';
     let runTimer = null;
+    let optionOverviewMeta = null;
+    let optionParametersFetched = false;
+    const optionMetricFields = [
+      'iv', 'ivChange', 'hv', 'ivPercentile', 'ivRank', 'ivHigh', 'ivHighDate', 'ivLow', 'ivLowDate',
+      'expectedMove', 'expectedMovePct', 'expectedMoveDte', 'expectedRangeLow', 'expectedRangeHigh',
+      'putCallVolRatio', 'putCallOiRatio', 'todayVolume', 'volumeAvg30', 'todayOpenInterest', 'openInterest30',
+    ];
     const historyKey = 'sellPutRatingHistory.v1';
 
     function readHistory() {
@@ -665,10 +790,7 @@
     function normalizeBarchartSymbol(raw) {
       const value = String(raw || '').trim().toUpperCase();
       if (!value) return 'QLD';
-      return value
-        .replace(/\s+/g, '')
-        .replace(/\//g, '-')
-        .replace(/^\^/, '');
+      return value.replace(/\s+/g, '').replace(/\//g, '-').replace(/^\^/, '');
     }
 
     function updateBarchartLink() {
@@ -676,64 +798,65 @@
       barchartLink.href = `https://www.barchart.com/stocks/quotes/${encodeURIComponent(normalized)}/overview`;
     }
 
+    function resetOptionFetchState(message = '生成前请先获取参数') {
+      optionParametersFetched = false;
+      optionOverviewMeta = null;
+      optionFetchState.textContent = message;
+      optionFetchState.classList.remove('ready', 'error');
+    }
+
+    function clearOptionMetricFields() {
+      optionMetricFields.forEach((field) => {
+        if (form.elements[field]) form.elements[field].value = '';
+      });
+    }
+
     function setStatus(text, isError = false) {
       statusEl.textContent = text;
       statusEl.style.color = isError ? '#dc2626' : '#64748b';
     }
 
-    function normalizeOcrText(text) {
-      return String(text || '')
-        .replace(/[，、]/g, ',')
-        .replace(/[：]/g, ':')
-        .replace(/[（）]/g, (char) => (char === '（' ? '(' : ')'))
-        .replace(/[—–]/g, '-')
-        .replace(/\r/g, '\n');
-    }
-
-    function cleanupMetricValue(value) {
-      return String(value || '')
-        .replace(/[,]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-
-    function firstMatch(text, patterns) {
-      for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match && match[1]) return cleanupMetricValue(match[1]);
+    function generationStage(seconds) {
+      if (seconds < 26) {
+        return {
+          title: '正在读取行情与期权温度',
+          detail: '正在组合标的行情、统一行情中心和 Barchart 期权参数。',
+          next: '后续：风险评分与 ATR 安全垫计算 → AI报告',
+        };
       }
-      return '';
-    }
-
-    function extractOptionMetricsFromText(rawText) {
-      const text = normalizeOcrText(rawText);
-      const metrics = {
-        iv: firstMatch(text, [/Implied\s+Volatility\s*:?\s*([0-9.]+)%/i, /\bIV\s*:?\s*([0-9.]+)%/i]),
-        hv: firstMatch(text, [/Historical\s+Volatility\s*:?\s*([0-9.]+)%/i, /\bHV\s*:?\s*([0-9.]+)%/i]),
-        ivPercentile: firstMatch(text, [/IV\s+Percentile\s*:?\s*([0-9.]+)%/i]),
-        ivRank: firstMatch(text, [/IV\s+Rank\s*:?\s*([0-9.]+)%/i]),
-        expectedMove: firstMatch(text, [/Expected\s+Move(?:\s*\(DTE\s*\d+\))?\s*:?\s*([0-9.]+)/i]),
-        expectedMovePct: firstMatch(text, [/Expected\s+Move(?:\s*\(DTE\s*\d+\))?[^\n%]*\(([0-9.]+)%\)/i]),
-        expectedRangeLow: firstMatch(text, [/Expected\s+Range\s*:?\s*([0-9.]+)\s*(?:to|-)/i]),
-        expectedRangeHigh: firstMatch(text, [/Expected\s+Range\s*:?\s*[0-9.]+\s*(?:to|-)\s*([0-9.]+)/i]),
-        putCallVolRatio: firstMatch(text, [/Put\/Call\s+Vol\s+Ratio\s*:?\s*([0-9.]+)/i]),
-        putCallOiRatio: firstMatch(text, [/Put\/Call\s+OI\s+Ratio\s*:?\s*([0-9.]+)/i]),
-        todayVolume: firstMatch(text, [/Today's\s+Volume\s*:?\s*([0-9,]+)/i]),
-        volumeAvg30: firstMatch(text, [/Volume\s+Avg\s*\(30-?Day\)\s*:?\s*([0-9,]+)/i]),
-        todayOpenInterest: firstMatch(text, [/Today's\s+Open\s+Interest\s*:?\s*([0-9,]+)/i]),
-        openInterest30: firstMatch(text, [/Open\s+Int\s*\(30-?Day\)\s*:?\s*([0-9,]+)/i]),
-        ivHigh: firstMatch(text, [/IV\s+High\s*:?\s*([0-9.]+)%/i]),
-        ivLow: firstMatch(text, [/IV\s+Low\s*:?\s*([0-9.]+)%/i]),
+      if (seconds < 42) {
+        return {
+          title: '正在计算风险与期权温度',
+          detail: '正在检查 IV/HV、IV Rank、Expected Move、Put/Call 和具体合约安全垫。',
+          next: '后续：AI整理卖Put温度结论与报告版式',
+        };
+      }
+      if (seconds < 90) {
+        return {
+          title: '正在生成AI温度判断报告',
+          detail: '正在组织恐慌溢价、尾部风险和卖Put动作建议。',
+          next: '报告返回后将自动显示并保存在当前浏览器。',
+        };
+      }
+      return {
+        title: '分析仍在运行，请继续等待',
+        detail: '数据源或AI服务响应较慢，页面仍在等待本次请求返回。',
+        next: '请保持页面打开，完成后会自动显示报告。',
       };
-      return metrics;
     }
 
-    function fillOptionMetrics(metrics) {
-      Object.entries(metrics || {}).forEach(([key, value]) => {
-        if (form.elements[key] && value) {
-          form.elements[key].value = value;
-        }
-      });
+    function renderGenerationProgress(startAt) {
+      const seconds = Math.floor((Date.now() - startAt) / 1000);
+      const stage = generationStage(seconds);
+      btn.textContent = `生成中 ${seconds}s`;
+      preview.innerHTML = `
+        <div class="empty-state run-state">
+          <div class="run-time">已用 ${seconds} 秒 · 当前预计阶段</div>
+          <div class="run-stage">${stage.title}</div>
+          <span class="run-detail">${stage.detail}</span>
+          <span class="run-next">${stage.next}</span>
+        </div>
+      `;
     }
 
     function dataUrlToBlob(dataUrl) {
@@ -752,10 +875,7 @@
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      setTimeout(() => {
-        a.remove();
-        URL.revokeObjectURL(url);
-      }, 1000);
+      setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
     }
 
     async function readFileAsDataUrl(file) {
@@ -767,58 +887,187 @@
       });
     }
 
+    function normalizeOcrText(text) {
+      return String(text || '')
+        .replace(/[，、]/g, ',')
+        .replace(/[：]/g, ':')
+        .replace(/[（）]/g, (c) => (c === '（' ? '(' : ')'))
+        .replace(/[—–]/g, '-')
+        .replace(/\r/g, '\n');
+    }
+
+    function cleanupMetricValue(value) {
+      return String(value || '').replace(/[,]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function firstMatch(text, patterns) {
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) return cleanupMetricValue(match[1]);
+      }
+      return '';
+    }
+
+    function extractOptionMetricsFromText(rawText) {
+      const text = normalizeOcrText(rawText);
+      return {
+        iv: firstMatch(text, [/Implied\s+Volatility\s*:?\s*([0-9.]+)%/i, /\bIV\s*:?\s*([0-9.]+)%/i]),
+        ivChange: firstMatch(text, [/Implied\s+Volatility[^\n]*\(([+-]?[0-9.]+)%\)/i]),
+        hv: firstMatch(text, [/Historical\s+Volatility\s*:?\s*([0-9.]+)%/i, /\bHV\s*:?\s*([0-9.]+)%/i]),
+        ivPercentile: firstMatch(text, [/IV\s+Percentile\s*:?\s*([0-9.]+)%/i]),
+        ivRank: firstMatch(text, [/IV\s+Rank\s*:?\s*([0-9.]+)%/i]),
+        ivHigh: firstMatch(text, [/IV\s+High\s*:?\s*([0-9.]+)%/i]),
+        ivHighDate: firstMatch(text, [/IV\s+High[^\n]*\bon\s+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i]),
+        ivLow: firstMatch(text, [/IV\s+Low\s*:?\s*([0-9.]+)%/i]),
+        ivLowDate: firstMatch(text, [/IV\s+Low[^\n]*\bon\s+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i]),
+        expectedMove: firstMatch(text, [/Expected\s+Move(?:\s*\(DTE\s*\d+\))?\s*:?\s*([0-9.]+)/i]),
+        expectedMovePct: firstMatch(text, [/Expected\s+Move(?:\s*\(DTE\s*\d+\))?[^\n%]*\(([0-9.]+)%\)/i]),
+        expectedMoveDte: firstMatch(text, [/Expected\s+Move\s*\(DTE\s*(\d+)\)/i]),
+        expectedRangeLow: firstMatch(text, [/Expected\s+Range\s*:?\s*([0-9.]+)\s*(?:to|-)/i]),
+        expectedRangeHigh: firstMatch(text, [/Expected\s+Range\s*:?\s*[0-9.]+\s*(?:to|-)\s*([0-9.]+)/i]),
+        putCallVolRatio: firstMatch(text, [/Put\/Call\s+Vol\s+Ratio\s*:?\s*([0-9.]+)/i]),
+        putCallOiRatio: firstMatch(text, [/Put\/Call\s+OI\s+Ratio\s*:?\s*([0-9.]+)/i]),
+        todayVolume: firstMatch(text, [/Today's\s+Volume\s*:?\s*([0-9,]+)/i]),
+        volumeAvg30: firstMatch(text, [/Volume\s+Avg\s*\(30-?Day\)\s*:?\s*([0-9,]+)/i]),
+        todayOpenInterest: firstMatch(text, [/Today's\s+Open\s+Interest\s*:?\s*([0-9,]+)/i]),
+        openInterest30: firstMatch(text, [/Open\s+Int\s*\(30-?Day\)\s*:?\s*([0-9,]+)/i]),
+      };
+    }
+
+    function fillOptionMetrics(metrics, onlyEmpty = false) {
+      Object.entries(metrics || {}).forEach(([key, value]) => {
+        if (!form.elements[key] || !value) return;
+        if (onlyEmpty && String(form.elements[key].value || '').trim()) return;
+        form.elements[key].value = value;
+      });
+    }
+
+    async function loadBarchartOverview() {
+      const market = String(form.elements.market.value || '');
+      if (market && market !== 'us') throw new Error('自动获取期权参数目前只支持美股。');
+      const symbol = String(symbolInput.value || '').trim().toUpperCase();
+      if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) throw new Error('请先输入有效的美股代码。');
+
+      try {
+        const response = await fetch(`${apiBase}/api/barchart-overview?symbol=${encodeURIComponent(symbol)}`);
+        const json = await readApiJson(response, '期权参数接口');
+        if (!response.ok || !json.ok) throw new Error(json.message || 'Barchart期权概览读取失败');
+        clearOptionMetricFields();
+        fillOptionMetrics(json.metrics);
+        optionOverviewMeta = {
+          source: json.source || 'Barchart Options Overview',
+          sourceUrl: json.sourceUrl || '',
+          retrievedAt: json.retrievedAt || new Date().toISOString(),
+          delayed: Boolean(json.delayed),
+          delayNote: json.delayNote || '',
+          fetchMode: json.fetchMode || 'realtime',
+        };
+        metricsPanel.open = false;
+        optionParametersFetched = true;
+        optionFetchState.textContent = `已获取 ${symbol} 的期权参数`;
+        optionFetchState.classList.add('ready');
+        optionFetchState.classList.remove('error');
+        return json;
+      } catch (error) {
+        optionOverviewMeta = null;
+        optionParametersFetched = false;
+        optionFetchState.textContent = '自动获取失败';
+        optionFetchState.classList.remove('ready');
+        optionFetchState.classList.add('error');
+        throw error;
+      }
+    }
+
+    fetchOptionMetricsBtn.addEventListener('click', async () => {
+      fetchOptionMetricsBtn.disabled = true;
+      optionFetchState.textContent = '正在自动获取…';
+      optionFetchState.classList.remove('ready', 'error');
+      setStatus('正在自动获取期权参数…');
+      try {
+        const result = await loadBarchartOverview();
+        const metrics = collectOptionMetrics();
+        const count = optionMetricFields.filter((field) => String(metrics[field] || '').trim()).length;
+        setStatus(`期权参数获取成功，已填入 ${count} 个字段。`);
+        return result;
+      } catch (error) {
+        setStatus(error?.message || '自动获取期权参数失败，请稍后重试。', true);
+        metricsPanel.open = true;
+        manualMetricsToggleBtn.setAttribute('aria-expanded', 'true');
+      } finally {
+        fetchOptionMetricsBtn.disabled = false;
+      }
+    });
+
+    manualMetricsToggleBtn.addEventListener('click', () => {
+      metricsPanel.open = !metricsPanel.open;
+      manualMetricsToggleBtn.setAttribute('aria-expanded', String(metricsPanel.open));
+      manualMetricsToggleBtn.textContent = metricsPanel.open ? '收起手工修改' : '手工修改';
+    });
+
+    function showThumbLoading(text) {
+      thumbLoadingText.textContent = text;
+      thumbLoadingProgress.textContent = '';
+      thumbLoading.classList.add('show');
+    }
+
+    function hideThumbLoading() {
+      thumbLoading.classList.remove('show');
+      thumbLoadingProgress.textContent = '';
+    }
+
     async function parseUploadedImage({ silent = false, keepStatus = false } = {}) {
       if (!imageDataUrl) {
         if (!silent) setStatus('请先上传截图。', true);
+        hideThumbLoading();
         return false;
       }
-      if (!silent) setStatus('正在OCR识别截图中的期权字段...');
+      if (!silent) { setStatus('正在OCR识别截图中的期权字段...'); showThumbLoading('正在OCR识别…'); }
       try {
-        if (!window.Tesseract) {
-          throw new Error('OCR组件加载失败，请刷新页面后重试。');
-        }
+        if (!window.Tesseract) throw new Error('OCR组件加载失败，请刷新页面后重试。');
         const result = await window.Tesseract.recognize(imageDataUrl, 'eng', {
           logger: ({ status, progress }) => {
-            if (!silent && !keepStatus && status) {
-              const percent = typeof progress === 'number' ? ` ${Math.round(progress * 100)}%` : '';
-              setStatus(`正在OCR识别截图中的期权字段...${percent}`);
+            if (!silent && !keepStatus) {
+              const pct = typeof progress === 'number' ? ` ${Math.round(progress * 100)}%` : '';
+              setStatus(`正在OCR识别截图中的期权字段...${pct}`);
+              if (status === 'recognizing text') {
+                thumbLoadingText.textContent = `正在识别文字…${pct}`;
+              } else {
+                thumbLoadingText.textContent = `正在加载OCR引擎…`;
+              }
+              thumbLoadingProgress.textContent = status || '';
             }
           },
         });
         const metrics = extractOptionMetricsFromText(result?.data?.text || '');
         fillOptionMetrics(metrics);
-        metricsPanel.open = false;
-        const hasAny = Object.values(metrics).some((value) => String(value || '').trim());
-        if (!hasAny) {
-          metricsPanel.open = true;
-          throw new Error('OCR未识别到有效字段，请手动录入或换一张更清晰的截图。');
-        }
-        if (!keepStatus) {
-          setStatus('已根据截图自动填入字段，请核对后再生成。');
-        }
+        const recognizedCount = Object.values(metrics).filter((v) => String(v || '').trim()).length;
+        const hasAny = recognizedCount > 0;
+        if (!hasAny) { metricsPanel.open = true; throw new Error('OCR未识别到有效字段，请手动录入或换一张更清晰的截图。'); }
+        hideThumbLoading();
+        uploadHint.textContent = `已识别并填入 ${recognizedCount} 个字段，请在下方核对。`;
+        parameterState.textContent = `已填入 ${recognizedCount} 个字段`;
+        parameterState.classList.add('ready');
+        optionOverviewMeta = {
+          source: 'Barchart screenshot / browser OCR',
+          sourceUrl: barchartLink.href,
+          retrievedAt: new Date().toISOString(),
+          delayed: false,
+          delayNote: '截图由当前浏览器本地识别',
+          fetchMode: 'browser-ocr',
+        };
+        metricsPanel.open = true;
+        if (!keepStatus) setStatus(`截图识别完成，已填入 ${recognizedCount} 个期权字段。`);
         return true;
       } catch (error) {
+        hideThumbLoading();
+        uploadHint.textContent = 'OCR未能识别有效字段，请手动展开下方面板录入或重试。';
+        parameterState.textContent = '截图识别失败';
+        parameterState.classList.remove('ready');
         metricsPanel.open = true;
-        if (!silent && !keepStatus) {
-          const message = error?.message || '截图解析失败，请手动录入。';
-          setStatus(message, true);
-        }
+        if (!silent && !keepStatus) setStatus(error?.message || '截图解析失败，请手动录入。', true);
         return false;
       }
     }
-
-    imageInput.addEventListener('change', async () => {
-      const file = imageInput.files && imageInput.files[0];
-      if (!file) {
-        imageDataUrl = '';
-        thumb.style.display = 'none';
-        return;
-      }
-      imageDataUrl = await readFileAsDataUrl(file);
-      thumb.src = imageDataUrl;
-      thumb.style.display = 'block';
-      await parseUploadedImage({ silent: false });
-    });
 
     document.addEventListener('paste', async (event) => {
       const items = event.clipboardData?.items;
@@ -831,15 +1080,55 @@
           imageDataUrl = await readFileAsDataUrl(file);
           thumb.src = imageDataUrl;
           thumb.style.display = 'block';
+          thumbWrap.classList.add('visible');
+          uploadHint.textContent = '截图已准备，点击“识别截图并填入参数”。';
+          parameterState.textContent = '截图待识别';
+          parameterState.classList.remove('ready');
           imageInput.files = null;
-          await parseUploadedImage({ silent: false });
-          setStatus('已从剪贴板粘贴截图。');
           return;
         }
       }
     });
 
-    symbolInput.addEventListener('input', updateBarchartLink);
+    imageInput.addEventListener('change', async () => {
+      const file = imageInput.files && imageInput.files[0];
+      if (!file) {
+        imageDataUrl = '';
+        thumb.style.display = 'none';
+        thumbWrap.classList.remove('visible');
+        hideThumbLoading();
+        uploadHint.textContent = '上传图片，或直接按 Ctrl+V 粘贴截图，然后点击下方按钮识别并填入参数。';
+        parameterState.textContent = '尚未识别截图';
+        parameterState.classList.remove('ready');
+        return;
+      }
+      imageDataUrl = await readFileAsDataUrl(file);
+      thumb.src = imageDataUrl;
+      thumb.style.display = 'block';
+      thumbWrap.classList.add('visible');
+      uploadHint.textContent = '截图已准备，点击“识别截图并填入参数”。';
+      parameterState.textContent = '截图待识别';
+      parameterState.classList.remove('ready');
+    });
+
+    parseImageBtn.addEventListener('click', async () => {
+      parseImageBtn.disabled = true;
+      try {
+        await parseUploadedImage({ silent: false });
+      } finally {
+        parseImageBtn.disabled = false;
+      }
+    });
+
+    symbolInput.addEventListener('input', () => {
+      clearOptionMetricFields();
+      resetOptionFetchState('标的已变化，请重新自动获取');
+      updateBarchartLink();
+    });
+    form.elements.market.addEventListener('change', () => {
+      clearOptionMetricFields();
+      resetOptionFetchState('市场已变化，请重新自动获取');
+    });
     historySelect.addEventListener('change', () => {
       const item = readHistory()[Number(historySelect.value)];
       applyHistory(item);
@@ -847,24 +1136,70 @@
     renderHistory();
     updateBarchartLink();
 
+    function updateContractMid() {
+      const bid = Number(form.elements.bid?.value);
+      const ask = Number(form.elements.ask?.value);
+      const valid = Number.isFinite(bid) && bid > 0 && Number.isFinite(ask) && ask >= bid;
+      form.elements.putPrice.value = valid ? ((bid + ask) / 2).toFixed(2) : '';
+    }
+
+    form.elements.bid.addEventListener('input', updateContractMid);
+    form.elements.ask.addEventListener('input', updateContractMid);
+
     function collectOptionMetrics() {
-      const fields = [
-        'iv', 'hv', 'ivPercentile', 'ivRank', 'expectedMove', 'expectedMovePct',
-        'expectedRangeLow', 'expectedRangeHigh', 'putCallVolRatio', 'putCallOiRatio',
-        'todayVolume', 'volumeAvg30', 'todayOpenInterest', 'openInterest30', 'ivHigh', 'ivLow'
-      ];
       const metrics = {};
-      fields.forEach((field) => {
+      optionMetricFields.forEach((field) => {
         metrics[field] = String(form.elements[field]?.value || '').trim();
       });
-      metrics.targetStrike = String(form.elements.targetStrike?.value || '').trim();
+      const noteContract = extractContractFromNotes(form.elements.notes?.value || '');
+      metrics.targetStrike = String(form.elements.targetStrike?.value || noteContract.targetStrike || '').trim();
+      metrics.delta = String(form.elements.delta?.value || noteContract.delta || '').trim();
+      metrics.bid = String(form.elements.bid?.value || noteContract.bid || '').trim();
+      metrics.ask = String(form.elements.ask?.value || noteContract.ask || '').trim();
+      updateContractMid();
       metrics.putPrice = String(form.elements.putPrice?.value || '').trim();
-      metrics.expiryDate = String(form.elements.expiryDate?.value || '').trim();
+      metrics.expiryDate = String(form.elements.expiryDate?.value || noteContract.expiryDate || '').trim();
+      if (!form.elements.targetStrike.value && metrics.targetStrike) form.elements.targetStrike.value = metrics.targetStrike;
+      if (!form.elements.delta.value && metrics.delta) form.elements.delta.value = metrics.delta;
+      if (!form.elements.bid.value && metrics.bid) form.elements.bid.value = metrics.bid;
+      if (!form.elements.ask.value && metrics.ask) form.elements.ask.value = metrics.ask;
+      if (!form.elements.expiryDate.value && metrics.expiryDate) form.elements.expiryDate.value = metrics.expiryDate;
+      updateContractMid();
+      metrics.putPrice = String(form.elements.putPrice?.value || '').trim();
       return metrics;
     }
 
-    function hasCoreMetrics(metrics) {
-      return Boolean(metrics.iv || metrics.hv || metrics.ivPercentile || metrics.ivRank || metrics.expectedMove);
+    function normalizeContractDate(value) {
+      const text = String(value || '').trim();
+      const iso = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+      if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+      const chinese = text.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+      if (chinese) return `${chinese[1]}-${chinese[2].padStart(2, '0')}-${chinese[3].padStart(2, '0')}`;
+      return '';
+    }
+
+    function extractContractFromNotes(notes) {
+      const text = String(notes || '');
+      const strike = text.match(/(?:行权价(?:格)?|strike)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
+      const delta = text.match(/(?:delta)\s*[:：为=]?\s*(-?[0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
+      const bid = text.match(/(?:bid|买价)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
+      const ask = text.match(/(?:ask|卖价)\s*[:：为=]?\s*\$?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
+      const date = text.match(/(?:到期日|到期日期|expiry(?:\s*date)?)\s*[:：为=]?\s*((?:\d{4}[-/]\d{1,2}[-/]\d{1,2})|(?:\d{4}年\d{1,2}月\d{1,2}日))/i)?.[1] || '';
+      return { targetStrike: strike, delta, bid, ask, expiryDate: normalizeContractDate(date) };
+    }
+
+    function hasAnyMetrics(metrics) {
+      return Object.values(metrics).some((v) => String(v || '').trim());
+    }
+
+    function missingRequiredOptionMetrics(metrics) {
+      const missing = [];
+      if (!String(metrics.iv || '').trim()) missing.push('IV');
+      if (!String(metrics.hv || '').trim()) missing.push('HV');
+      if (!String(metrics.ivRank || '').trim() && !String(metrics.ivPercentile || '').trim()) missing.push('IV Rank或IV Percentile');
+      if (!String(metrics.expectedMove || '').trim() && !String(metrics.expectedMovePct || '').trim()) missing.push('Expected Move');
+      if (!String(metrics.expectedRangeLow || '').trim()) missing.push('Expected Range Low');
+      return missing;
     }
 
     async function downloadReportImage() {
@@ -903,42 +1238,45 @@
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (imageDataUrl) {
-        setStatus('正在解析截图并准备生成...');
-        await parseUploadedImage({ silent: true, keepStatus: true });
-      }
 
       const optionMetrics = collectOptionMetrics();
-      if (!hasCoreMetrics(optionMetrics)) {
-        setStatus('请至少录入 IV / HV / IV Percentile / IV Rank / Expected Move 中的部分核心字段。', true);
+      const missingOptionMetrics = missingRequiredOptionMetrics(optionMetrics);
+      if (missingOptionMetrics.length) {
+        metricsPanel.open = true;
+        setStatus(`请先识别截图或手工填写：${missingOptionMetrics.join('、')}`, true);
         return;
       }
 
       btn.disabled = true;
       const startAt = Date.now();
       clearInterval(runTimer);
-      runTimer = setInterval(() => {
-        const seconds = Math.floor((Date.now() - startAt) / 1000);
-        setStatus(`正在生成卖Put判断... ${seconds}s`);
-        preview.innerHTML = `<div class="empty-state">正在生成卖Put判断...<span>已运行 ${seconds}s</span></div>`;
-      }, 1000);
-      setStatus('正在生成卖Put判断...');
-      preview.innerHTML = '<div class="empty-state">正在生成卖Put判断...<span>请稍候</span></div>';
+      renderGenerationProgress(startAt);
+      runTimer = setInterval(() => renderGenerationProgress(startAt), 1000);
 
       try {
+        if (!optionOverviewMeta) {
+          optionOverviewMeta = {
+            source: '手工录入 / 手工校对',
+            sourceUrl: barchartLink.href,
+            retrievedAt: new Date().toISOString(),
+            delayed: false,
+            delayNote: '未使用自动接口，参数来自当前页面手工字段',
+            fetchMode: 'manual',
+          };
+        }
         const payload = {
           provider: 'deepseek',
           market: form.elements.market.value,
           symbol: form.elements.symbol.value.trim(),
           optionMetrics,
-          imageDataUrl,
         };
+        if (optionOverviewMeta) payload.optionMetricsMeta = optionOverviewMeta;
         const res = await fetch(`${apiBase}/api/put-rating`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        const json = await res.json();
+        const json = await readApiJson(res, '卖Put温度接口');
         if (!res.ok || !json.ok) throw new Error(json.message || `生成失败（HTTP ${res.status}）`);
 
         latestHtml = json.html || '';
