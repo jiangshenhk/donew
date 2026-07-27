@@ -38,7 +38,11 @@ sell-put-decision ────┼─ K线形态 (Yahoo Finance)
      2. jin10news/data/latest-24h.json（新闻缓存）
      3. Yahoo Finance（K线数据 + ATR 计算）
   → 计算市场风险评分（三灯否决制）
+     - 基准分5.0
+     - VIX需日涨>8%，或VIX>20且日涨>5%，才判定快速上升
+     - IV/HV、IV Rank/Percentile、Expected Move、Put/Call结构参与规则版评分
   → 计算 K线技术指标（ATR、SMA、形态检测、支撑/阻力）
+  → 按DTE计算ATR安全行权价：现价 - ATR×sqrt(DTE)，最低1.5×ATR
   → 组装综合 prompt，一次 AI 调用
   → 返回完整 HTML 报告
 ```
@@ -53,9 +57,12 @@ sell-put-decision ────┼─ K线形态 (Yahoo Finance)
 - 截图 OCR 在浏览器本地执行；`sell-put-decision.js` 不读取图片、不调用视觉模型
 - 综合决策只调用 DeepSeek；50 秒未返回时直接生成规则版报告，不再串行回退其他模型
 - K 线结构分析最多等待 30 秒；超时后进入完整性预检查，避免整次请求撞上 Vercel 120 秒上限
+- 规则版不是备用空壳：AI不可用时仍使用市场风险、期权温度、K线结构、新闻事件和具体合约门槛
+- AI 结论提取兼容“不建议卖Put、暂时不宜、观望”等保守措辞，避免保守结论被误判为空
+- `尾部风险灯号（启发式）`只是风险可视化，不是真正的黑天鹅检测
 - API 返回 `timings.dataMs`、`timings.aiMs` 和 `timings.totalMs`，用于定位耗时阶段
 - 如果 AI 均不可用，返回规则版报告（含技术指标和行情快照）
 
 ## 版本
 
-v2.0.0.5｜2026-07-27｜生成链路限时保护
+v2.0.0.9｜2026-07-27｜简化合约输入区

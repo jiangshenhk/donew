@@ -1,6 +1,7 @@
 import { securityCheck } from './_lib/security.js';
 import {
   analyzeOptionTemperature,
+  adjustRiskWithOptionMetrics,
   calculateMarketRisk,
 } from './_lib/sell-put-decision-core.js';
 
@@ -312,7 +313,7 @@ function row(snapshot, symbol) {
   return normalizeRow(item || { symbol });
 }
 
-function marketRisk(snapshot, targetSymbol) {
+function marketRisk(snapshot, targetSymbol, optionMetrics = {}) {
   const qqq = row(snapshot, "QQQ");
   const spy = row(snapshot, "SPY");
   const iwm = row(snapshot, "IWM");
@@ -325,12 +326,13 @@ function marketRisk(snapshot, targetSymbol) {
   const target = row(snapshot, targetSymbol);
 
   const shared = calculateMarketRisk({ qqq, spy, iwm, smh, soxx, btc, vix, tnx, dxy, target });
-  const risk = Number(shared.riskScore);
+  const adjusted = adjustRiskWithOptionMetrics(shared, optionMetrics);
+  const risk = Number(adjusted.riskScore);
 
   const downside = risk >= 7.5 ? `<span class="up">高</span>（偏向再定价 / 跳空风险）` : risk >= 6.2 ? `<span class="warn">中</span>（仍需防突然转弱）` : `<span class="dn">低</span>（但不是无风险）`;
-  const putStance = shared.putStance;
+  const putStance = adjusted.putStance;
   const panicPremium = risk >= 7.5 ? `<span class="up">不是</span>。更像风险预警，不是舒服的恐慌溢价` : risk >= 6.2 ? `<span class="warn">不确定</span>。可能有一点溢价，但要防权利金陷阱` : `<span class="dn">是</span>。如果 IV 端配合，高概率是真溢价窗口`;
-  const blackSwan = shared.blackSwan;
+  const blackSwan = adjusted.blackSwan;
 
   return {
     riskScore: risk.toFixed(1),
@@ -338,14 +340,14 @@ function marketRisk(snapshot, targetSymbol) {
     putStance,
     panicPremium,
     blackSwan,
-    notes: shared.notes,
+    notes: adjusted.notes,
     summary: `QQQ ${pct(qqq.changePct)} / SPY ${pct(spy.changePct)} / SMH ${pct(smh.changePct)} / VIX ${pct(vix.changePct)} / 10Y ${pct(tnx.changePct)} / DXY ${pct(dxy.changePct)} / BTC ${pct(btc.changePct)}`,
   };
 }
 
 export function analyzePutRatingSnapshot(snapshot, targetSymbol, optionMetrics = {}) {
   return {
-    market: marketRisk(snapshot, targetSymbol),
+    market: marketRisk(snapshot, targetSymbol, optionMetrics),
     temperature: analyzeOptionTemperature(optionMetrics),
   };
 }
@@ -518,8 +520,16 @@ function analyzeAtrVsPut(target, optionMetrics) {
   if (price == null || dailyAtr == null || price <= 0 || dailyAtr <= 0) {
     return { hasData: false, atrPct: null, safeStrike: null, atrSafetyMargin: null, atrSuitability: "" };
   }
+  const expiryDate = optionMetrics?.expiryDate || "";
+  let daysToExpiry = null;
+  if (expiryDate) {
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  }
   const atrPct = (dailyAtr / price) * 100;
-  const safeStrike = price - 1.5 * dailyAtr;
+  const atrDteMultiplier = daysToExpiry !== null && daysToExpiry > 0 ? Math.max(1.5, Math.sqrt(daysToExpiry)) : 1.5;
+  const safeStrike = price - atrDteMultiplier * dailyAtr;
   let atrSuitability = "";
   if (atrPct < 1.5) atrSuitability = "低波动，权利金较少但价格相对稳定";
   else if (atrPct <= 4) atrSuitability = "波动适中，适合卖Put";
@@ -529,8 +539,6 @@ function analyzeAtrVsPut(target, optionMetrics) {
   let marginNote = "";
   const targetStrike = numberOrNull(optionMetrics?.targetStrike);
   const putPrice = numberOrNull(optionMetrics?.putPrice);
-  const expiryDate = optionMetrics?.expiryDate || "";
-  let daysToExpiry = null;
   let annualizedReturn = null;
   if (targetStrike != null && targetStrike > 0) {
     const strikeGap = targetStrike - safeStrike;
@@ -542,9 +550,6 @@ function analyzeAtrVsPut(target, optionMetrics) {
     }
   }
   if (expiryDate && putPrice != null && targetStrike != null && targetStrike > 0 && putPrice > 0) {
-    const now = new Date();
-    const expiry = new Date(expiryDate);
-    daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
     if (daysToExpiry > 0) {
       const capitalPerContract = targetStrike * 100;
       const profitPerContract = putPrice * 100;
@@ -556,6 +561,7 @@ function analyzeAtrVsPut(target, optionMetrics) {
     hasData: true,
     atrPct: atrPct.toFixed(2),
     safeStrike: safeStrike.toFixed(2),
+    atrDteMultiplier: atrDteMultiplier.toFixed(2),
     atrSafetyMargin,
     marginNote,
     atrSuitability,
@@ -576,7 +582,7 @@ function promptText(payload, snapshot, risk) {
   if (target?.weeklyAtr != null) atrInfo.push(`周线ATR(14)：${target.weeklyAtr}`);
   if (atrAnalysis.hasData) {
     atrInfo.push(`ATR占价格比例：${atrAnalysis.atrPct}%`);
-    atrInfo.push(`ATR安全行权价(当前价-1.5×ATR)：${atrAnalysis.safeStrike}`);
+    atrInfo.push(`DTE调整ATR安全行权价(当前价-ATR×sqrt(DTE)，最低1.5×ATR)：${atrAnalysis.safeStrike}`);
     atrInfo.push(`ATR适用性评估：${atrAnalysis.atrSuitability}`);
     if (atrAnalysis.targetStrike) atrInfo.push(`用户选择的目标行权价：$${atrAnalysis.targetStrike}`);
     if (atrAnalysis.putPrice) atrInfo.push(`卖Put价格：$${atrAnalysis.putPrice}`);
@@ -592,7 +598,7 @@ function promptText(payload, snapshot, risk) {
     `市场环境风险评分：${risk.riskScore}/10`,
     `市场环境概览：${risk.summary}`,
     `卖Put环境初判：${risk.putStance}`,
-    `黑天鹅灯号：${risk.blackSwan}`,
+    `尾部风险灯号（启发式）：${risk.blackSwan}`,
     optionMetricsText ? `用户录入的期权温度数据：\n${optionMetricsText}` : "",
     payload.notes ? `用户补充关注点：${payload.notes}` : "",
   ].join("\n");
@@ -622,7 +628,7 @@ function promptText(payload, snapshot, risk) {
 <section class="section">
   <h2>卖Put动作建议</h2>
   <p><span class="highlight">动作建议：</span>...</p>
-  <p><span class="highlight">黑天鹅灯号：</span>...</p>
+  <p><span class="highlight">尾部风险灯号（启发式）：</span>...</p>
   <p><span class="highlight">如果必须操作：</span>...</p>
 </section>
 <section class="section">
@@ -632,12 +638,12 @@ function promptText(payload, snapshot, risk) {
 <section class="section">
   <h2>ATR波动分析</h2>
   <p><span class="highlight">ATR占价格比例：</span>8.31% ｜ 波动过高...</p>
-  <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span>$83.03</p>
+  <p><span class="highlight">DTE调整ATR安全行权价（当前价 - ATR × sqrt(DTE)，最低1.5×ATR）：</span>$83.03</p>
   <p><span class="highlight">你选择的目标行权价：</span>$85.00 ｜ 卖Put价格：$2.00</p>
   <p><span class="highlight">ATR与行权价对比：</span>...</p>
   <ul class="atr-tips">
     <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
-    <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
+    <li>定行权价 — 安全行权价按DTE调整：当前价 - ATR×sqrt(DTE)，再与期权Expected Range一起复核</li>
     <li>管仓位 — ATR 高时减少合约数，ATR 低时可以适当加仓</li>
   </ul>
 </section>
@@ -907,7 +913,7 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
       <p class="meta">${safeHtml(payload.market.toUpperCase())} 市场 · 截图来源：Barchart Options Overview · 实时行情读取时间：${safeHtml(formatDateTime(snapshot.checkedAt || snapshot.updatedAt))}</p>
       <div class="chips">
         <span class="chip">卖Put环境：${safeHtml(risk.putStance)}</span>
-        <span class="chip">黑天鹅灯号：${safeHtml(risk.blackSwan)}</span>
+        <span class="chip">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
         <span class="chip">风险评分：${safeHtml(risk.riskScore)}/10</span>
       </div>
     </section>
@@ -922,8 +928,8 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
 
     <section class="section">
       <h2>卖Put动作建议</h2>
-      <p><span class="highlight">动作建议：</span> ${risk.putStance === "有利" ? "当前适合卖Put，可以筛选标的，但只拿你愿意接货的。" : risk.putStance === "谨慎" ? "IV与HV几乎持平，不存在恐慌溢价；所有指标均指向风险大于收益。建议等待市场情绪稳定、VIX回落后再考虑卖Put。" : "IV与HV几乎持平，不存在恐慌溢价；市场环境偏空，黑天鹅灯号高警戒。所有指标均指向风险大于收益。建议等待市场情绪稳定、VIX回落、IV与HV拉开差距后再考虑卖Put。"}</p>
-      <p><span class="highlight">黑天鹅灯号：</span> ${safeHtml(risk.blackSwan)}。${risk.putStance === "不利" ? "VIX飙升、DXY走强、半导体走弱，三重恶化背景下不宜卖Put。" : risk.putStance === "谨慎" ? "局部信号需警惕，主线结构未坏但不宜重仓。" : "系统性风险较低，可正常操作。"}</p>
+      <p><span class="highlight">动作建议：</span> ${risk.putStance === "有利" ? "当前适合卖Put，可以筛选标的，但只拿你愿意接货的。" : risk.putStance === "谨慎" ? "IV与HV几乎持平，不存在恐慌溢价；所有指标均指向风险大于收益。建议等待市场情绪稳定、VIX回落后再考虑卖Put。" : "IV与HV几乎持平，不存在恐慌溢价；市场环境偏空，尾部风险灯号高警戒。所有指标均指向风险大于收益。建议等待市场情绪稳定、VIX回落、IV与HV拉开差距后再考虑卖Put。"}</p>
+      <p><span class="highlight">尾部风险灯号（启发式）：</span> ${safeHtml(risk.blackSwan)}。${risk.putStance === "不利" ? "VIX、DXY、半导体等组合信号恶化，不宜卖Put。" : risk.putStance === "谨慎" ? "局部信号需警惕，主线结构未坏但不宜重仓。" : "系统性风险较低，可正常操作。"}</p>
       <p><span class="highlight">如果必须操作：</span> ${risk.putStance === "有利" ? "可选择平值附近行权价，控制仓位在常规水平。" : risk.putStance === "谨慎" ? "应选择更远的虚值行权价，并大幅减少仓位，控制在常规的30%以下。" : "当前环境下仍不推荐。如果必须操作，应选择极远虚值行权价并大幅减少仓位，但风险极高。"}</p>
     </section>
 
@@ -937,14 +943,14 @@ function ruleHtml(payload, snapshot, risk, aiMessage = "") {
     <section class="section">
       <h2>ATR波动分析</h2>
       <p><span class="highlight">ATR占价格比例：</span> ${safeHtml(atrAnalysis.atrPct)}% ｜ <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
-      <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}</p>
+      <p><span class="highlight">DTE调整ATR安全行权价（当前价 - ATR × sqrt(DTE)，最低1.5×ATR）：</span> $${safeHtml(atrAnalysis.safeStrike)}${atrAnalysis.daysToExpiry ? ` ｜ DTE ${safeHtml(atrAnalysis.daysToExpiry)}天 ｜ ATR倍数 ${safeHtml(atrAnalysis.atrDteMultiplier)}` : ""}</p>
       ${atrAnalysis.targetStrike ? `
       <p><span class="highlight">你选择的目标行权价：</span> $${safeHtml(atrAnalysis.targetStrike)} ${atrAnalysis.putPrice ? `｜ 卖Put价格：$${safeHtml(atrAnalysis.putPrice)}` : ""} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""} ${atrAnalysis.annualizedReturn ? `｜ <span class="good">预估年化：${safeHtml(atrAnalysis.annualizedReturn)}%</span>` : ""}</p>
       ${atrAnalysis.marginNote ? `<p><span class="highlight">ATR与行权价对比：</span> ${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
       ` : ""}
       <ul class="atr-tips">
         <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
-        <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
+        <li>定行权价 — 安全行权价按DTE调整：当前价 - ATR×sqrt(DTE)，再与期权Expected Range一起复核</li>
         <li>管仓位 — ATR 高时减少合约数，ATR 低时可以适当加仓</li>
       </ul>
     </section>`;

@@ -52,11 +52,85 @@ export function analyzeOptionTemperature(metrics = {}) {
   return { level, iv, hv, ivRank, ivPercentile, expectedMovePct, premiumSpread };
 }
 
+function classifyRiskScore(riskScore) {
+  return {
+    riskScore: riskScore.toFixed(1),
+    putStance: riskScore >= 7.5 ? "不利" : riskScore >= 6.2 ? "谨慎" : "有利",
+    blackSwan: riskScore >= 7.5 ? "🔴 高警戒" : riskScore >= 6.2 ? "🟡 需防范" : "🟢 常规防守",
+  };
+}
+
+export function adjustRiskWithOptionMetrics(risk, optionMetrics = {}) {
+  let riskScore = finite(risk?.riskScore) ?? 5.0;
+  const temperature = analyzeOptionTemperature(optionMetrics);
+  const putCallVolRatio = finite(optionMetrics.putCallVolRatio);
+  const putCallOiRatio = finite(optionMetrics.putCallOiRatio);
+  const expectedMovePct = temperature.expectedMovePct ?? finite(optionMetrics.expectedMovePct);
+  const optionNotes = [];
+  const opportunityNotes = [];
+
+  if (temperature.level === "高温") {
+    riskScore -= 0.3;
+    opportunityNotes.push("IV溢价处于高温区，权利金补偿较好");
+  } else if (temperature.level === "低温") {
+    riskScore += 0.4;
+    optionNotes.push("IV溢价偏低，权利金补偿不足");
+  }
+
+  if (temperature.iv !== null && temperature.hv !== null && temperature.iv < temperature.hv) {
+    riskScore += 0.4;
+    optionNotes.push("IV低于HV，卖方溢价不足");
+  }
+
+  if (putCallVolRatio !== null && putCallVolRatio >= 2.5) {
+    riskScore += 0.8;
+    optionNotes.push("Put/Call成交量比率极高，疑似防守需求集中");
+  } else if (putCallVolRatio !== null && putCallVolRatio >= 1.5) {
+    riskScore += 0.5;
+    optionNotes.push("Put/Call成交量比率偏高");
+  } else if (putCallVolRatio !== null && putCallVolRatio <= 0.7) {
+    riskScore -= 0.2;
+    opportunityNotes.push("Put/Call成交量比率不高，恐慌对冲压力有限");
+  }
+
+  if (putCallOiRatio !== null && putCallOiRatio >= 1.8) {
+    riskScore += 0.6;
+    optionNotes.push("Put/Call持仓比率极高");
+  } else if (putCallOiRatio !== null && putCallOiRatio >= 1.2) {
+    riskScore += 0.3;
+    optionNotes.push("Put/Call持仓比率偏高");
+  }
+
+  if (expectedMovePct !== null && expectedMovePct >= 12) {
+    riskScore += 0.7;
+    optionNotes.push("Expected Move过高，短期跳动风险大");
+  } else if (expectedMovePct !== null && expectedMovePct >= 8) {
+    riskScore += 0.4;
+    optionNotes.push("Expected Move偏高");
+  }
+
+  riskScore = Math.max(1, Math.min(9.5, riskScore));
+  return {
+    ...risk,
+    ...classifyRiskScore(riskScore),
+    optionAdjusted: optionNotes.length > 0 || opportunityNotes.length > 0,
+    optionNotes,
+    opportunityNotes,
+    optionTemperature: temperature,
+  };
+}
+
 export function calculateMarketRisk(signals = {}) {
   const value = (name) => finite(signals[name]?.changePct);
-  let riskScore = 5.2;
-  const notes = [];
-  if ((value("vix") ?? -Infinity) > 5) { riskScore += 1.2; notes.push("VIX快速上升"); }
+  const last = (name) => finite(signals[name]?.last);
+  let riskScore = 5.0;
+  const notes = ["模型基准分5.0，默认偏保守但不主动进入谨慎区"];
+  const vixChange = value("vix");
+  const vixLevel = last("vix");
+  if ((vixChange ?? -Infinity) > 8 || ((vixLevel ?? -Infinity) > 20 && (vixChange ?? -Infinity) > 5)) {
+    riskScore += 1.2;
+    notes.push("VIX快速上升");
+  }
   if ((value("tnx") ?? -Infinity) > 1) { riskScore += 0.7; notes.push("10Y收益率上升"); }
   if ((value("dxy") ?? -Infinity) > 0.3) { riskScore += 0.6; notes.push("美元走强"); }
   if ((value("qqq") ?? Infinity) < -1 || (value("spy") ?? Infinity) < -1) { riskScore += 0.9; notes.push("美股大盘走弱"); }
@@ -66,15 +140,13 @@ export function calculateMarketRisk(signals = {}) {
   if ((value("target") ?? Infinity) < -3) { riskScore += 0.6; notes.push("标的单日跌幅较大"); }
   riskScore = Math.max(1, Math.min(9.5, riskScore));
   return {
-    riskScore: riskScore.toFixed(1),
-    putStance: riskScore >= 7.5 ? "不利" : riskScore >= 6.2 ? "谨慎" : "有利",
-    blackSwan: riskScore >= 7.5 ? "🔴 高警戒" : riskScore >= 6.2 ? "🟡 需防范" : "🟢 常规防守",
+    ...classifyRiskScore(riskScore),
     notes,
   };
 }
 
 export function adjustRiskWithKline(risk, klineStats, klineStructure = null) {
-  let riskScore = finite(risk?.riskScore) ?? 5.2;
+  let riskScore = finite(risk?.riskScore) ?? 5.0;
   const atrPct = finite(klineStats?.atrPct);
   const d20 = finite(klineStats?.returns?.d20);
   const d5 = finite(klineStats?.returns?.d5);
@@ -92,9 +164,7 @@ export function adjustRiskWithKline(risk, klineStats, klineStructure = null) {
   riskScore = Math.max(1, Math.min(9.5, riskScore));
   return {
     ...risk,
-    riskScore: riskScore.toFixed(1),
-    putStance: riskScore >= 7.5 ? "不利" : riskScore >= 6.2 ? "谨慎" : "有利",
-    blackSwan: riskScore >= 7.5 ? "🔴 高警戒" : riskScore >= 6.2 ? "🟡 需防范" : "🟢 常规防守",
+    ...classifyRiskScore(riskScore),
     adjusted: adjustmentNotes.length > 0,
     adjustmentNotes,
   };
@@ -126,18 +196,19 @@ export function evaluateOptionContract({
   const spreadPct = mid !== null && mid > 0 ? spread / mid * 100 : null;
   const maxSpread = mid !== null ? Math.max(0.10, mid * 0.15) : null;
   const spreadPass = spread !== null && maxSpread !== null && spread <= maxSpread;
+  const expiryTimestamp = Date.parse(String(expiryDate || ""));
+  const dte = Number.isFinite(expiryTimestamp)
+    ? Math.ceil((expiryTimestamp - Date.now()) / 86400000)
+    : null;
+  const atrDteMultiplier = dte !== null && dte > 0 ? Math.max(1.5, Math.sqrt(dte)) : 1.5;
   const atrSafeStrike = price !== null && dailyAtr !== null && dailyAtr > 0
-    ? price - 1.5 * dailyAtr
+    ? price - atrDteMultiplier * dailyAtr
     : null;
   const safetyReferences = [atrSafeStrike, expectedLow].filter((value) => value !== null && value > 0);
   const strictSafeStrike = safetyReferences.length ? Math.min(...safetyReferences) : null;
   const strikePass = strike !== null && strictSafeStrike !== null && strike <= strictSafeStrike;
   const otmPct = price !== null && price > 0 && strike !== null
     ? (price - strike) / price * 100
-    : null;
-  const expiryTimestamp = Date.parse(String(expiryDate || ""));
-  const dte = Number.isFinite(expiryTimestamp)
-    ? Math.ceil((expiryTimestamp - Date.now()) / 86400000)
     : null;
   const collateralAnnualized = mid !== null && strike !== null && strike > 0 && dte !== null && dte > 0
     ? mid / strike * 365 / dte * 100
@@ -183,6 +254,7 @@ export function evaluateOptionContract({
     spot: price,
     otmPct,
     atrSafeStrike,
+    atrDteMultiplier,
     expectedRangeLow: expectedLow,
     strictSafeStrike,
     strikePass,

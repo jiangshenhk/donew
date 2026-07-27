@@ -7,6 +7,8 @@ import {
 } from './news-summary.js';
 import {
   adjustRiskWithKline,
+  adjustRiskWithOptionMetrics,
+  analyzeOptionTemperature,
   assessDecisionReadiness,
   calculateMarketRisk,
   evaluateOptionContract,
@@ -380,7 +382,7 @@ function row(snapshot, symbol) {
   return normalizeRow(item || { symbol });
 }
 
-function marketRisk(snapshot, targetSymbol) {
+function marketRisk(snapshot, targetSymbol, optionMetrics = {}) {
   const qqq = row(snapshot, "QQQ");
   const spy = row(snapshot, "SPY");
   const iwm = row(snapshot, "IWM");
@@ -392,14 +394,17 @@ function marketRisk(snapshot, targetSymbol) {
   const dxy = row(snapshot, "DX-Y.NYB");
   const target = row(snapshot, targetSymbol);
 
-  const result = calculateMarketRisk({ qqq, spy, iwm, smh, soxx, btc, vix, tnx, dxy, target });
+  const result = adjustRiskWithOptionMetrics(
+    calculateMarketRisk({ qqq, spy, iwm, smh, soxx, btc, vix, tnx, dxy, target }),
+    optionMetrics,
+  );
   return {
     ...result,
     summary: `QQQ ${pct(qqq.changePct)} / SPY ${pct(spy.changePct)} / SMH ${pct(smh.changePct)} / VIX ${pct(vix.changePct)} / 10Y ${pct(tnx.changePct)} / DXY ${pct(dxy.changePct)} / BTC ${pct(btc.changePct)}`,
   };
 }
 
-function adjustedRisk(risk, klineStats, klineStructure, targetSymbol) {
+function adjustedRisk(risk, klineStats, klineStructure) {
   return adjustRiskWithKline(risk, klineStats, klineStructure);
 }
 
@@ -452,8 +457,15 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, expiryDate) {
   if (price == null || dailyAtr == null || price <= 0 || dailyAtr <= 0) {
     return { hasData: false, atrPct: null, safeStrike: null, marginNote: "", atrSuitability: "" };
   }
+  let daysToExpiry = null;
+  if (expiryDate) {
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  }
   const atrPct = (dailyAtr / price) * 100;
-  const safeStrike = price - 1.5 * dailyAtr;
+  const atrDteMultiplier = daysToExpiry !== null && daysToExpiry > 0 ? Math.max(1.5, Math.sqrt(daysToExpiry)) : 1.5;
+  const safeStrike = price - atrDteMultiplier * dailyAtr;
   let atrSuitability = "";
   if (atrPct < 1.5) atrSuitability = "低波动，权利金较少但价格相对稳定";
   else if (atrPct <= 4) atrSuitability = "波动适中，适合卖Put";
@@ -461,7 +473,6 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, expiryDate) {
   else atrSuitability = "波动过高，需卖更低行权价或减少仓位";
   let marginNote = "";
   const strike = numberOrNull(targetStrike);
-  let daysToExpiry = null;
   if (strike != null && strike > 0) {
     const strikeGapPct = ((strike - safeStrike) / safeStrike * 100);
     if (strike > safeStrike) {
@@ -470,15 +481,11 @@ function analyzeAtrVsPut(targetRow, klineStats, targetStrike, expiryDate) {
       marginNote = `你选择的行权价($${strike.toFixed(2)})低于ATR安全行权价($${safeStrike.toFixed(2)})，ATR提供额外${Math.abs(strikeGapPct.toFixed(2))}%安全垫`;
     }
   }
-  if (expiryDate) {
-    const now = new Date();
-    const expiry = new Date(expiryDate);
-    daysToExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
-  }
   return {
     hasData: true,
     atrPct: atrPct.toFixed(2),
     safeStrike: safeStrike.toFixed(2),
+    atrDteMultiplier: atrDteMultiplier.toFixed(2),
     marginNote,
     atrSuitability,
     strike: strike?.toFixed(2) || null,
@@ -612,12 +619,28 @@ function decisionToneClass(status) {
   return "chip-good";
 }
 
+function ruleDecisionFromRiskOptionAndContract(risk, contractDecision) {
+  const marketDecision = riskDecisionStatus(risk);
+  let status = decisionSeverity(contractDecision?.status) > decisionSeverity(marketDecision)
+    ? contractDecision.status
+    : marketDecision;
+  const temperature = risk?.optionTemperature || analyzeOptionTemperature({});
+  const lowPremium = temperature.level === "低温"
+    || (temperature.iv !== null && temperature.hv !== null && temperature.iv < temperature.hv);
+  if (status === "可卖Put" && lowPremium) status = "谨慎卖Put";
+  if (status === "谨慎卖Put" && lowPremium && contractDecision?.warnings?.length) status = "暂不卖Put";
+  return status;
+}
+
 function extractAiDecisionStatus(html) {
   const source = String(html || "");
   const badge = source.match(/<span[^>]*class=["'][^"']*judge-badge[^"']*["'][^>]*>\s*(可卖Put|谨慎卖Put|暂不卖Put)\s*<\/span>/i);
   if (badge) return badge[1];
   const text = source.replace(/<[^>]+>/g, " ");
-  return text.match(/暂不卖Put|谨慎卖Put|可卖Put/)?.[0] || "";
+  if (/暂不卖Put|暂不宜卖\s*Put|暂时不宜卖\s*Put|不建议卖\s*Put|不适合卖\s*Put|避免卖\s*Put|先观望|观望为主|禁止自动下单/i.test(text)) return "暂不卖Put";
+  if (/谨慎卖Put|谨慎开仓|小仓卖\s*Put|降低仓位|只适合小仓|可以观察性卖\s*Put/i.test(text)) return "谨慎卖Put";
+  if (/可卖Put|适合卖\s*Put|可以卖\s*Put/i.test(text)) return "可卖Put";
+  return "";
 }
 
 function decisionSeverity(status) {
@@ -643,7 +666,7 @@ function contractGateHtml(contractDecision) {
       <tr><td>Delta</td><td>${safeHtml(contractDecision.delta?.toFixed(3) ?? "-")}</td><td>${safeHtml(`${contractDecision.deltaRange.min.toFixed(2)}-${contractDecision.deltaRange.max.toFixed(2)}`)}</td><td class="${contractDecision.delta !== null && contractDecision.delta <= contractDecision.deltaRange.max ? "good" : "bad"}">${contractDecision.delta !== null && contractDecision.delta <= contractDecision.deltaRange.max ? "通过" : "阻断"}</td></tr>
       <tr><td>Bid / Ask / Mid</td><td>${safeHtml(`${contractDecision.bid?.toFixed(2) ?? "-"} / ${contractDecision.ask?.toFixed(2) ?? "-"} / ${contractDecision.mid?.toFixed(2) ?? "-"}`)}</td><td>价差 ≤ max($0.10, Mid×15%)</td><td class="${contractDecision.spreadPass ? "good" : "bad"}">${contractDecision.spreadPass ? "通过" : "阻断"}</td></tr>
       <tr><td>价差</td><td>${safeHtml(`${contractDecision.spread?.toFixed(2) ?? "-"}（${contractDecision.spreadPct?.toFixed(2) ?? "-"}%）`)}</td><td>流动性硬门槛</td><td class="${contractDecision.spreadPass ? "good" : "bad"}">${contractDecision.spreadPass ? "合格" : "过宽"}</td></tr>
-      <tr><td>行权价安全</td><td>${safeHtml(`Strike ${contractDecision.strike?.toFixed(2) ?? "-"} / 安全价 ${contractDecision.strictSafeStrike?.toFixed(2) ?? "-"}`)}</td><td>Strike ≤ min(现价-1.5×ATR, Expected Range Low)</td><td class="${contractDecision.strikePass ? "good" : "bad"}">${contractDecision.strikePass ? "通过" : "阻断"}</td></tr>
+      <tr><td>行权价安全</td><td>${safeHtml(`Strike ${contractDecision.strike?.toFixed(2) ?? "-"} / 安全价 ${contractDecision.strictSafeStrike?.toFixed(2) ?? "-"}`)}</td><td>Strike ≤ min(现价-ATR×sqrt(DTE), Expected Range Low)</td><td class="${contractDecision.strikePass ? "good" : "bad"}">${contractDecision.strikePass ? "通过" : "阻断"}</td></tr>
       <tr><td>OTM安全垫</td><td>${safeHtml(`${contractDecision.otmPct?.toFixed(2) ?? "-"}%`)}</td><td>信息项</td><td>-</td></tr>
       <tr><td>年化收益</td><td>${safeHtml(`现金担保 ${contractDecision.collateralAnnualized?.toFixed(2) ?? "-"}% / 净接货成本 ${contractDecision.netCostAnnualized?.toFixed(2) ?? "-"}%`)}</td><td>不含手续费</td><td>-</td></tr>
     </tbody>
@@ -699,7 +722,7 @@ function buildPrompt({ symbol, market, optionMetricsText, optionTemperature, sto
 - 价差：${contractDecision?.spread?.toFixed(2) ?? "-"}（${contractDecision?.spreadPct?.toFixed(2) ?? "-"}%）
 - 到期日：${expiryDate || "未提供"}${dte != null ? `（距离到期${dte}天）` : ""}
 - OTM安全垫：${contractDecision?.otmPct?.toFixed(2) ?? "-"}%
-- 严格安全行权价：${contractDecision?.strictSafeStrike?.toFixed(2) ?? "-"}（ATR安全价与Expected Range Low取更低值）
+- 严格安全行权价：${contractDecision?.strictSafeStrike?.toFixed(2) ?? "-"}（DTE调整ATR安全价与Expected Range Low取更低值）
 - 现金担保年化：${contractDecision?.collateralAnnualized?.toFixed(2) ?? "-"}%
 - 净接货成本年化：${contractDecision?.netCostAnnualized?.toFixed(2) ?? "-"}%
 - 合约执行门槛：${contractDecision?.approved ? "通过" : "不通过"}
@@ -710,7 +733,7 @@ function buildPrompt({ symbol, market, optionMetricsText, optionTemperature, sto
   if (atrAnalysis.hasData) {
     atrSection = `\n## ATR波动分析与行权价安全评估
 - ATR(14)：${numberOrNull(klineStats?.atr)?.toFixed(4)} | ATR占价格比例：${atrAnalysis.atrPct}% | ${atrAnalysis.atrSuitability}
-- ATR安全行权价（当前价 - 1.5 × ATR）：$${atrAnalysis.safeStrike}
+- DTE调整ATR安全行权价（当前价 - ATR × sqrt(DTE)，最低1.5×ATR）：$${atrAnalysis.safeStrike}
 ${atrAnalysis.strike ? `- 你选择的行权价：$${atrAnalysis.strike} | ${atrAnalysis.marginNote}
 - 安全垫评估：请AI在报告中判断当前行权价的安全垫是否充足
 ` : ""}`;
@@ -733,7 +756,7 @@ ${strikeSection}${atrSection}
 ## 市场行情快照
 ${risk.summary}
 市场风险评分：${risk.riskScore}/10${risk.adjusted ? `（原始 ${rawRisk.riskScore}，${risk.adjustmentNotes.join("，")} 后上调）` : ""}
-卖Put环境判定：${risk.putStance} | ${risk.blackSwan}
+卖Put环境判定：${risk.putStance} | 尾部风险灯号（启发式）：${risk.blackSwan}
 
 ## 最新24小时新闻要点
 ${newsText || "暂无新闻数据。"}
@@ -757,6 +780,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 所有行动建议的措辞必须以"卖Put"为落脚点，例如"当前适合卖Put"而非"当前适合买入"
 - “合约执行门槛”是代码硬约束。门槛不通过时必须输出“暂不卖Put”，不得因高IV或高年化改成更激进结论
 - Delta、Bid、Ask、Mid、价差和收益率只能引用上方代码计算结果，不得猜测或补造
+- 尾部风险灯号只是启发式风险可视化，不是真正的黑天鹅检测或黑天鹅预测
 
 **重要：严格输出规则**
 - 不要输出 \`\`\`html 或 \`\`\` 代码块，不要输出 DOCTYPE、<html>、<head>、<body> 等外层标签
@@ -929,10 +953,7 @@ async function callAI(prompt) {
 
 function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, snapshot, targetStrike, expiryDate, decisionNewsItems, eventRisks, generatedAt, contractDecision) {
   const stanceClass = risk.putStance === "有利" ? "good" : risk.putStance === "谨慎" ? "warn" : "bad";
-  const marketDecision = riskDecisionStatus(risk);
-  const decisionStatus = decisionSeverity(contractDecision?.status) > decisionSeverity(marketDecision)
-    ? contractDecision.status
-    : marketDecision;
+  const decisionStatus = ruleDecisionFromRiskOptionAndContract(risk, contractDecision);
   const decisionClass = decisionStatus === "可卖Put" ? "good" : decisionStatus === "谨慎卖Put" ? "warn" : "bad";
   const riskTone = riskToneClass(risk);
   const decisionTone = decisionToneClass(decisionStatus);
@@ -984,7 +1005,7 @@ ${reportSectionCss()}
     <span class="chip ${decisionTone}">综合结论：${safeHtml(decisionStatus)}</span>
     <span class="chip ${contractDecision?.approved ? "chip-good" : "chip-bad"}">合约执行门槛：${contractDecision?.approved ? "通过" : "阻断"}</span>
     <span class="chip ${riskTone}">尾部风险灯号（启发式）：${safeHtml(risk.blackSwan)}</span>
-    <span class="chip ${riskTone}">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip chip-warn">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}
+    <span class="chip ${riskTone}">风险评分：${safeHtml(risk.riskScore)}/10</span>${risk.adjusted ? ` <span class="chip chip-warn">⚠️ 单票调整: ${safeHtml(risk.adjustmentNotes.join("、"))}</span>` : ""}${risk.optionAdjusted ? ` <span class="chip chip-warn">期权温度: ${safeHtml([...(risk.opportunityNotes || []), ...(risk.optionNotes || [])].join("、"))}</span>` : ""}
   </div>
 </section>
 
@@ -992,7 +1013,7 @@ ${reportSectionCss()}
   <h2>综合结论</h2>
   <p><span class="highlight">当前卖Put：</span><span class="${decisionClass}">${safeHtml(decisionStatus)}</span></p>
   <p><span class="highlight">市场环境：</span>${risk.summary}</p>
-  <p><span class="highlight">规则版说明：</span>AI暂不可用，以下基于规则引擎判断。建议结合截图期权数据综合评估。</p>
+  <p><span class="highlight">规则版说明：</span>AI暂不可用，以下基于规则引擎判断。规则版已纳入IV/HV、IV Rank/Percentile、Expected Move、Put/Call结构和具体合约门槛。</p>
 </section>
 
 ${contractGateHtml(contractDecision)}
@@ -1001,6 +1022,7 @@ ${contractGateHtml(contractDecision)}
   <h2>市场环境过滤</h2>
   <p>${risk.summary}</p>
   <p><span class="highlight">风险评分：</span>${safeHtml(risk.riskScore)}/10 | <span class="highlight">卖Put判定：</span><span class="${stanceClass}">${safeHtml(risk.putStance)}</span></p>
+  ${(risk.notes || []).length ? `<p class="meta">风险模型备注：${safeHtml(risk.notes.join("；"))}</p>` : ""}
 </section>
 
 ${klineStats ? `
@@ -1026,7 +1048,7 @@ ${klineStats ? `
 ${optionMetricsText ? `
 <section class="section">
   <h2>期权温度数据</h2>
-  <p class="section-summary"><strong class="signal-label">本节结论：</strong>以下数据用于判断IV溢价、Expected Move和Put/Call结构，不单独构成卖Put结论。</p>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong>${safeHtml(risk.optionTemperature?.level || "数据不足")}；${safeHtml([...(risk.opportunityNotes || []), ...(risk.optionNotes || [])].join("；") || "期权温度数据已纳入规则版风险评分与结论。")}</p>
   <pre style="background:#0a0f1a;padding:14px;border-radius:10px;overflow-x:auto;font-size:13px;color:#b0c4e8">${safeHtml(optionMetricsText)}</pre>
 </section>` : ""}
 
@@ -1034,13 +1056,13 @@ ${atrAnalysis.hasData ? `
 <section class="section">
   <h2>ATR波动分析与行权价安全</h2>
   <p><span class="highlight">ATR(14)：</span>${safeHtml(numberOrNull(klineStats?.atr)?.toFixed(4))} | <span class="highlight">ATR占价格比例：</span>${safeHtml(atrAnalysis.atrPct)}% | <span class="${parseFloat(atrAnalysis.atrPct) >= 2 && parseFloat(atrAnalysis.atrPct) <= 4 ? 'good' : 'warn'}">${safeHtml(atrAnalysis.atrSuitability)}</span></p>
-  <p><span class="highlight">ATR安全行权价（当前价 - 1.5 × ATR）：</span>$${safeHtml(atrAnalysis.safeStrike)}</p>
+  <p><span class="highlight">DTE调整ATR安全行权价（当前价 - ATR × sqrt(DTE)，最低1.5×ATR）：</span>$${safeHtml(atrAnalysis.safeStrike)}${atrAnalysis.daysToExpiry ? ` ｜ DTE ${safeHtml(atrAnalysis.daysToExpiry)}天 ｜ ATR倍数 ${safeHtml(atrAnalysis.atrDteMultiplier)}` : ""}</p>
   ${atrAnalysis.strike ? `
   <p><span class="highlight">你选择的行权价：</span>$${safeHtml(atrAnalysis.strike)} ｜ Delta ${safeHtml(contractDecision?.delta?.toFixed(3) ?? "-")} ｜ Bid/Ask/Mid ${safeHtml(`${contractDecision?.bid?.toFixed(2) ?? "-"} / ${contractDecision?.ask?.toFixed(2) ?? "-"} / ${contractDecision?.mid?.toFixed(2) ?? "-"}`)} ${atrAnalysis.expiryDate ? `｜ 到期日：${safeHtml(atrAnalysis.expiryDate)}` : ""}</p>
   <p><span class="highlight">安全垫对比：</span>${safeHtml(atrAnalysis.marginNote)}</p>` : ""}
   <ul class="atr-tips">
     <li>选标的 — ATR% 在 2-4% 波动适中，适合卖 Put；太高风险大，太低权利金少</li>
-    <li>定行权价 — 安全行权价 = 当前价 - 1.5×ATR，作为你选行权价的参考底线</li>
+    <li>定行权价 — 安全行权价按DTE调整：当前价 - ATR×sqrt(DTE)，再与Expected Range Low取更保守值</li>
     <li>管仓位 — ATR 高时减少合约数，ATR 低时可以适当加仓</li>
   </ul>
 </section>` : ""}
@@ -1050,8 +1072,8 @@ ${atrAnalysis.hasData ? `
   <p class="section-summary"><strong class="signal-label">本节结论：</strong><span class="${decisionClass}">${safeHtml(decisionStatus)}</span>，最终动作同时受市场风险和具体合约执行门槛约束。</p>
   <ul>
     <li><span class="highlight">${safeHtml(symbol)} 当前市场环境${safeHtml(risk.putStance)}：</span>${risk.putStance === "有利" ? "风险评分偏低，市场环境相对稳定，可考虑卖Put，但需结合期权IV/HV判断。" : risk.putStance === "谨慎" ? "风险评分中等，市场存在不确定性，建议减少仓位或选择更虚值行权价。" : "风险评分偏高，VIX/半导体/国债收益率等信号偏空，建议等待市场稳定。"}</li>
-    <li>期权温度数据（如有截图录入）应重点观察：IV是否高于HV、IV Percentile是否处于高位、Expected Move是否提供足够安全垫。</li>
-    <li>K线支撑位可作为行权价参考，ATR安全行权价 = 当前价 - 1.5 × ATR。</li>
+    <li>期权温度数据已参与规则版判断：IV/HV、IV Rank/Percentile、Expected Move和Put/Call结构会改变风险评分与最低结论。</li>
+    <li>K线支撑位可作为行权价参考，ATR安全行权价按DTE调整，不再固定使用1.5×日ATR。</li>
     <li>未来事件只采用本次新闻中明确出现且日期可验证的内容；未取得时不猜测事件日历。</li>
   </ul>
 </section>
@@ -1184,11 +1206,8 @@ export default async function handler(req, res) {
     const klineStructureFormatted = formatKlineStructure(klineStructure);
 
     const putRating = analyzePutRatingSnapshot(stockpriceSnapshot, symbol, optionMetrics);
-    const rawRisk = {
-      ...putRating.market,
-      summary: putRating.market.summary || marketRisk(stockpriceSnapshot, symbol).summary,
-    };
-    const risk = adjustedRisk(rawRisk, klineStats, klineStructure, symbol);
+    const rawRisk = marketRisk(stockpriceSnapshot, symbol, optionMetrics);
+    const risk = adjustedRisk(rawRisk, klineStats, klineStructure);
     const contractDecision = evaluateOptionContract({
       spot: row(stockpriceSnapshot, symbol).last,
       atr: klineStats?.atr,
@@ -1264,10 +1283,7 @@ export default async function handler(req, res) {
       sanitizeAiHtml(stripCodeFenceAndExtract(ai.html)),
       klineStructure,
     );
-    const marketRuleDecision = riskDecisionStatus(risk);
-    const ruleDecision = decisionSeverity(contractDecision.status) > decisionSeverity(marketRuleDecision)
-      ? contractDecision.status
-      : marketRuleDecision;
+    const ruleDecision = ruleDecisionFromRiskOptionAndContract(risk, contractDecision);
     const aiDecision = extractAiDecisionStatus(cleanHtml);
     const aiAccepted = !!cleanHtml
       && decisionSeverity(aiDecision) >= decisionSeverity(ruleDecision);

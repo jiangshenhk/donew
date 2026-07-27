@@ -69,13 +69,16 @@ function getSetCookies(headers) {
 }
 
 export function parseBarchartOverviewHtml(html) {
-  const start = String(html || '').indexOf('Options Overview');
-  if (start < 0) throw new Error('Barchart 页面未包含期权概览');
-
-  const section = String(html).slice(start, start + 40000);
-  const rows = [...section.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)]
-    .map((match) => textContent(match[1]))
+  const source = String(html || '');
+  const rows = [...source.matchAll(/<li[^>]*>\s*<span[^>]*class=["'][^"']*\bleft\b[^"']*["'][^>]*>[\s\S]*?<\/li>/gi)]
+    .map((match) => textContent(match[0]))
     .filter(Boolean);
+  if (rows.length < 10) {
+    rows.push(...[...source.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)]
+      .map((match) => textContent(match[1]))
+      .filter(Boolean));
+  }
+  if (!rows.length) throw new Error('Barchart 页面未包含期权概览');
   const find = (label) => rows.find((row) => row.startsWith(label)) || '';
 
   const impliedVolatility = find('Implied Volatility');
@@ -186,7 +189,10 @@ async function fetchOverview(symbol, forceRefresh = false) {
 
     let populated = Object.values(metrics).filter((value) => String(value || '').trim()).length;
     let metricSource = 'page-html';
+    let warning = '';
     if (populated < 10) {
+      warning = '页面HTML期权概览字段不足，已使用Barchart data API回退；Expected Move与Expected Range可能缺失。';
+      console.warn(`[barchart-overview] ${symbol}: ${warning}`);
       if (!cookies.length || !xsrfCookie) throw new Error('Barchart免费会话未建立');
       const quoteUrl = new URL(`${BARCHART_ORIGIN}/proxies/core-api/v1/quotes/get`);
       quoteUrl.searchParams.set('symbols', symbol);
@@ -221,6 +227,7 @@ async function fetchOverview(symbol, forceRefresh = false) {
       delayNote: 'Barchart公开期权数据通常延迟约25至30分钟',
       retrievedAt: new Date().toISOString(),
       metricSource,
+      warning,
       metrics,
     };
     overviewCache.set(symbol, { cachedAt: Date.now(), payload });

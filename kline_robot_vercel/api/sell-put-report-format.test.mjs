@@ -54,7 +54,9 @@ test("uses a bounded DeepSeek-only generation chain and reports non-JSON respons
   assert.doesNotMatch(apiSource, /api\.openai\.com/);
   assert.doesNotMatch(apiSource, /OPENAI_API_KEY/);
   assert.match(apiSource, /timings:\s*\{\s*dataMs:/);
+  assert.match(apiSource, /不建议卖\\s\*Put/);
+  assert.match(apiSource, /ruleDecisionFromRiskOptionAndContract/);
   assert.match(pageSource, /async function readApiJson/);
   assert.match(pageSource, /报告生成接口/);
-  assert.match(pageSource, /v2\.0\.0\.5/);
+  assert.match(pageSource, /v2\.0\.0\.9/);
 });

@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  adjustRiskWithOptionMetrics,
   assessDecisionReadiness,
+  calculateMarketRisk,
   evaluateOptionContract,
 } from "./sell-put-decision-core.js";
 
@@ -32,7 +34,7 @@ test("contract gate approves a liquid contract below strict safety reference", (
     spot: 100,
     atr: 2,
     expectedRangeLow: 95,
-    targetStrike: 94,
+    targetStrike: 88,
     delta: -0.15,
     bid: 1,
     ask: 1.1,
@@ -42,7 +44,7 @@ test("contract gate approves a liquid contract below strict safety reference", (
 
   assert.equal(result.approved, true);
   assert.equal(result.status, "可卖Put");
-  assert.equal(result.strictSafeStrike, 95);
+  assert.ok(result.strictSafeStrike < 90);
   assert.equal(result.strikePass, true);
   assert.ok(result.collateralAnnualized > 0);
   assert.ok(result.netCostAnnualized > result.collateralAnnualized);
@@ -53,7 +55,7 @@ test("contract gate blocks a wide spread", () => {
     spot: 100,
     atr: 2,
     expectedRangeLow: 95,
-    targetStrike: 94,
+    targetStrike: 88,
     delta: 0.15,
     bid: 0.5,
     ask: 1.5,
@@ -70,7 +72,7 @@ test("cautious market uses a lower Delta ceiling", () => {
     spot: 100,
     atr: 2,
     expectedRangeLow: 95,
-    targetStrike: 94,
+    targetStrike: 88,
     delta: -0.2,
     bid: 1,
     ask: 1.1,
@@ -87,7 +89,7 @@ test("unfavorable market always blocks automated execution", () => {
     spot: 100,
     atr: 2,
     expectedRangeLow: 95,
-    targetStrike: 94,
+    targetStrike: 88,
     delta: -0.12,
     bid: 1,
     ask: 1.1,
@@ -97,4 +99,25 @@ test("unfavorable market always blocks automated execution", () => {
 
   assert.equal(result.approved, false);
   assert.match(result.blockers.join(" "), /市场风险规则判定为不利/);
+});
+
+test("VIX must clear the higher quick-rise threshold or high-level condition", () => {
+  const normal = calculateMarketRisk({ vix: { last: 16, changePct: 6 } });
+  const highLevel = calculateMarketRisk({ vix: { last: 22, changePct: 6 } });
+  const fastRise = calculateMarketRisk({ vix: { last: 16, changePct: 9 } });
+
+  assert.doesNotMatch(normal.notes.join(" "), /VIX快速上升/);
+  assert.match(highLevel.notes.join(" "), /VIX快速上升/);
+  assert.match(fastRise.notes.join(" "), /VIX快速上升/);
+});
+
+test("option temperature and Put/Call structure adjust the rule risk", () => {
+  const base = calculateMarketRisk({});
+  const lowPremium = adjustRiskWithOptionMetrics(base, { iv: 30, hv: 40, ivRank: 20, putCallVolRatio: 0.6 });
+  const putHedge = adjustRiskWithOptionMetrics(base, { iv: 80, hv: 60, ivRank: 90, putCallVolRatio: 2.8, putCallOiRatio: 2, expectedMovePct: 13 });
+
+  assert.ok(Number(lowPremium.riskScore) > Number(base.riskScore));
+  assert.match(lowPremium.optionNotes.join(" "), /IV低于HV/);
+  assert.ok(Number(putHedge.riskScore) > Number(base.riskScore));
+  assert.match(putHedge.optionNotes.join(" "), /Put\/Call/);
 });
