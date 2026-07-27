@@ -470,16 +470,16 @@ docs/tools/alpha-risk-tool/README.md
 
 | 工具 | 线上入口 | 主要代码位置 | 文档 | 类型 |
 | --- | --- | --- | --- | --- |
-| K线相识度 | `https://donew-beta.vercel.app/kline-robot.html` | `kline-robot.html`、`kline_robot_vercel/` | — | 交互式网页工具 |
-| 24小时新闻中心 | `https://donew-beta.vercel.app/jin10-news.html` | `jin10news/`、`kline_robot_vercel/jin10-news.html` | `jin10news/README.md` | 数据中心 + 展示页 |
-| 最新行情中心 | `https://donew-beta.vercel.app/price-test.html` | `stockprice/`、`kline_robot_vercel/api/market-report-v2.js` | `stockprice/README.md` | 数据中心 + 管理页 |
-| 日报周报自动生成器 | 无独立交互页，走 GitHub Actions | `.github/workflows/generate-market-daily-reports.yml`、`scripts/`、`lib/` | `docs/市场/README.md` + `SellPut/日报周报/策略_*.md`（AI 提示词） | 定时生成器 |
-| 最新每日/每周市场情况分析 | `https://donew-beta.vercel.app/market-analysis-tool.html` | `market-analysis-tool.html`、`kline_robot_vercel/market-analysis-tool.html`、`kline_robot_vercel/api/market-report-v2.js` | `docs/市场/README.md` + `SellPut/日报周报/策略_*.md`（AI 提示词） | 交互式网页工具 |
-| 卖 Put 温度判断 | `https://donew-beta.vercel.app/sell-put-tool.html` | `sell-put-tool.html`、`kline_robot_vercel/sell-put-tool.html`、`kline_robot_vercel/api/put-rating.js` | `docs/tools/sell-put-tool/README.md` | 交互式网页工具 |
-| 综合卖Put决策 | `https://donew-beta.vercel.app/sell-put-decision-tool.html` | `sell-put-decision-tool.html`、`kline_robot_vercel/sell-put-decision-tool.html`、`kline_robot_vercel/api/sell-put-decision.js` | `docs/tools/sell-put-decision/README.md` | 聚合决策层 |
-| 卖Put标的池扫描 | `https://donew-beta.vercel.app/sell-put-pool-tool.html` | `sell-put-pool-tool.html`、`kline_robot_vercel/sell-put-pool-tool.html`、`kline_robot_vercel/api/barchart-overview.js` | `docs/tools/sell-put-pool-tool/README.md` | 批量候选初筛 |
-| 八字命理分析 | `https://donew-beta.vercel.app/bazi-analysis-tool.html` | `bazi-analysis-tool.html`、`kline_robot_vercel/bazi-analysis-tool.html`、`kline_robot_vercel/api/bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README.md` | DeepSeek AI 增强 |
-| 内容总结分析 | `https://donew-beta.vercel.app/video-summary-tool.html` | `video-summary-tool.html`、`kline_robot_vercel/video-summary-tool.html`、`kline_robot_vercel/api/news-summary.js` | `docs/tools/video-summary-tool/README.md` | 视频/文章 AI 摘要 |
+| K线相识度 | `kline-robot.html` | `report.js` | `docs/tools/kline-robot/README-FOR-AI.md` | 交互式 |
+| 24小时新闻中心 | `jin10-news.html` | `news-summary.js` | `docs/tools/jin10-news/README-FOR-AI.md` | 数据中心 |
+| 最新行情中心 | `price-test.html` | `market-report-v2.js` | —（无 AI 调用） | 数据中心 |
+| 日报/晚报自动生成 | Actions | `news-summary.js` | `docs/tools/jin10-news/README-FOR-AI.md`（日报模式） | 定时生成 |
+| 每日/周市场分析 | `market-analysis-tool.html` | `market-report-v2.js` | `docs/tools/market-analysis/README-FOR-AI.md` | 交互式 |
+| 卖Put温度判断 | `sell-put-tool.html` | `put-rating.js` | `docs/tools/sell-put-tool/README-FOR-AI.md` | 交互式 |
+| 综合卖Put决策 | `sell-put-decision-tool.html` | `sell-put-decision.js` | `docs/tools/sell-put-decision/README-FOR-AI.md` | 交互式 |
+| 卖Put标的池扫描 | `sell-put-pool-tool.html` | `barchart-overview.js` | —（无 AI 调用） | 批量初筛 |
+| 八字命理分析 | `bazi-analysis-tool.html` | `bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README-FOR-AI.md` | 交互式 |
+| 内容总结分析 | `video-summary-tool.html` | `news-summary.js` | `docs/tools/video-summary-tool/README-FOR-AI.md` | 交互式 |
 
 ### 13.2 十个工具分别怎么看
 
