@@ -451,18 +451,20 @@ docs/tools/alpha-risk-tool/README.md
 
 ### 13.1 当前工具全景
 
-| 工具 | 线上入口 | 主要代码位置 | 类型 |
-| --- | --- | --- | --- |
-| K线相识度 | `https://donew-beta.vercel.app/kline-robot.html` | `kline-robot.html`、`kline_robot_vercel/` | 交互式网页工具 |
-| 24小时新闻中心 | `https://donew-beta.vercel.app/jin10-news.html` | `jin10news/`、`kline_robot_vercel/jin10-news.html` | 数据中心 + 展示页 |
-| 最新行情中心 | `https://donew-beta.vercel.app/price-test.html` | `stockprice/`、`kline_robot_vercel/api/latest-price.js` | 数据中心 + 管理页 |
-| 日报周报自动生成器 | 无独立交互页，走 GitHub Actions | `.github/workflows/generate-market-daily-reports.yml`、`scripts/`、`lib/` | 定时生成器 |
-| 最新每日/每周市场情况分析 | `https://donew-beta.vercel.app/market-analysis-tool.html` | `market-analysis-tool.html`、`kline_robot_vercel/market-analysis-tool.html`、`kline_robot_vercel/api/market-report-v2.js` | 交互式网页工具 |
-| 卖 Put 温度判断 | `https://donew-beta.vercel.app/sell-put-tool.html` | `sell-put-tool.html`、`kline_robot_vercel/sell-put-tool.html`、`kline_robot_vercel/api/put-rating.js` | 交互式网页工具 |
-| 综合卖Put决策 | `https://donew-beta.vercel.app/sell-put-decision-tool.html` | `sell-put-decision-tool.html`、`kline_robot_vercel/sell-put-decision-tool.html`、`kline_robot_vercel/api/sell-put-decision.js` | 聚合决策层（交互式网页工具） |
-| 卖Put标的池扫描 | `https://donew-beta.vercel.app/sell-put-pool-tool.html` | `sell-put-pool-tool.html`、`kline_robot_vercel/sell-put-pool-tool.html`、`kline_robot_vercel/api/barchart-overview.js` | 批量候选初筛工具 |
+| 工具 | 线上入口 | 主要代码位置 | README / 设计文档 | 类型 |
+| --- | --- | --- | --- | --- |
+| K线相识度 | `https://donew-beta.vercel.app/kline-robot.html` | `kline-robot.html`、`kline_robot_vercel/` | — | 交互式网页工具 |
+| 24小时新闻中心 | `https://donew-beta.vercel.app/jin10-news.html` | `jin10news/`、`kline_robot_vercel/jin10-news.html` | `jin10news/README.md` | 数据中心 + 展示页 |
+| 最新行情中心 | `https://donew-beta.vercel.app/price-test.html` | `stockprice/`、`kline_robot_vercel/api/market-report-v2.js` | `stockprice/README.md` | 数据中心 + 管理页 |
+| 日报周报自动生成器 | 无独立交互页，走 GitHub Actions | `.github/workflows/generate-market-daily-reports.yml`、`scripts/`、`lib/` | `docs/市场/README.md` | 定时生成器 |
+| 最新每日/每周市场情况分析 | `https://donew-beta.vercel.app/market-analysis-tool.html` | `market-analysis-tool.html`、`kline_robot_vercel/market-analysis-tool.html`、`kline_robot_vercel/api/market-report-v2.js` | `docs/市场/README.md` | 交互式网页工具 |
+| 卖 Put 温度判断 | `https://donew-beta.vercel.app/sell-put-tool.html` | `sell-put-tool.html`、`kline_robot_vercel/sell-put-tool.html`、`kline_robot_vercel/api/put-rating.js` | `docs/tools/sell-put-tool/README.md` | 截图 OCR + 行情快照 + AI结论 |
+| 综合卖Put决策 | `https://donew-beta.vercel.app/sell-put-decision-tool.html` | `sell-put-decision-tool.html`、`kline_robot_vercel/sell-put-decision-tool.html`、`kline_robot_vercel/api/sell-put-decision.js` | `docs/tools/sell-put-decision/README.md` | 聚合决策层 |
+| 卖Put标的池扫描 | `https://donew-beta.vercel.app/sell-put-pool-tool.html` | `sell-put-pool-tool.html`、`kline_robot_vercel/sell-put-pool-tool.html`、`kline_robot_vercel/api/barchart-overview.js` | `docs/tools/sell-put-pool-tool/README.md` | 批量候选初筛 |
+| 八字命理分析 | `https://donew-beta.vercel.app/bazi-analysis-tool.html` | `bazi-analysis-tool.html`、`kline_robot_vercel/bazi-analysis-tool.html`、`kline_robot_vercel/api/bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README.md` | DeepSeek AI 增强 |
+| 内容总结分析 | `https://donew-beta.vercel.app/video-summary-tool.html` | `video-summary-tool.html`、`kline_robot_vercel/video-summary-tool.html`、`kline_robot_vercel/api/news-summary.js` | `docs/tools/video-summary-tool/README.md` | 视频/文章 AI 摘要 |
 
-### 13.2 八个工具分别怎么看
+### 13.2 十个工具分别怎么看
 
 #### K线相识度
 
@@ -659,6 +661,32 @@ docs/tools/alpha-risk-tool/README.md
 - Barchart页面未直接渲染完整概览时，接口复用该页面建立的Cookie/XSRF会话读取同源Quotes数据；仍缺少的字段保持为空并在评分中降级。
 - 页面保存最近一次扫描报告，并提供新窗口、HTML、JPG和图片分享。
 
+#### 八字命理分析
+
+- 入口页：`https://donew-beta.vercel.app/bazi-analysis-tool.html`
+- 前端页面：
+  - `bazi-analysis-tool.html`
+  - `kline_robot_vercel/bazi-analysis-tool.html`
+- 主要 API：
+  - `kline_robot_vercel/api/bazi-analysis.js`
+- 详细说明：
+  - `docs/tools/bazi-analysis-tool/README.md`
+
+基于中国传统八字命理学的 AI 分析工具。八字排盘在浏览器端纯前端计算，AI 分析通过 DeepSeek 增强。报告含命理综合评分、八字排盘、五行旺衰、大运走势、流年简析。支持 120 秒超时自动解锁。
+
+#### 内容总结分析（视频/文章）
+
+- 入口页：`https://donew-beta.vercel.app/video-summary-tool.html`
+- 前端页面：
+  - `video-summary-tool.html`
+  - `kline_robot_vercel/video-summary-tool.html`
+- 共用 API：
+  - `kline_robot_vercel/api/news-summary.js`（`mode=video` / `mode=article`）
+- 详细说明：
+  - `docs/tools/video-summary-tool/README.md`
+
+支持 YouTube、B站视频字幕提取和网页文章的 AI 总结分析。平台自动识别，生成结构化摘要，含内容概览、核心要点、关键结论和 AI 深度分析（机会信号、风险提示、背景补充、延伸思考）。
+
 ### 13.3 新增工具先判断类型
 
 #### 类型 A：交互式网页工具
@@ -669,6 +697,9 @@ docs/tools/alpha-risk-tool/README.md
 - 市场情况分析
 - 卖 Put 温度判断
 - 综合卖Put决策
+- 卖Put标的池扫描
+- 八字命理分析
+- 内容总结分析
 
 特征：
 
