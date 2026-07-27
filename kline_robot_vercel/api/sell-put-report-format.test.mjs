@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { normalizeReportSections } from "./sell-put-decision.js";
 
 test("normalizes every report section to the shared structure classes", () => {
@@ -30,4 +31,16 @@ test("preserves existing classes while adding the report section class", () => {
   assert.match(result, /class="section hero-judgement report-section"/);
   assert.equal((result.match(/section-summary/g) || []).length, 1);
   assert.equal((result.match(/bullet-list/g) || []).length, 1);
+});
+
+test("keeps screenshot OCR in the browser and sends only parsed metrics", () => {
+  const apiSource = fs.readFileSync(new URL("./sell-put-decision.js", import.meta.url), "utf8");
+  const pageSource = fs.readFileSync(new URL("../sell-put-decision-tool.html", import.meta.url), "utf8");
+
+  assert.doesNotMatch(apiSource, /body\.imageDataUrl|input_image/);
+  assert.match(pageSource, /id="parseImageBtn"/);
+  assert.match(pageSource, /id="fetchOptionMetricsBtn"/);
+  assert.match(pageSource, /if \(!optionParametersFetched\)/);
+  assert.match(pageSource, /missingRequiredOptionMetrics/);
+  assert.doesNotMatch(pageSource, /payload\.imageDataUrl/);
 });

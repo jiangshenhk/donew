@@ -18,19 +18,25 @@
                       ┌─ 新闻 (jin10news 缓存)
                       ├─ 行情 (stockprice 缓存)
 sell-put-decision ────┼─ K线形态 (Yahoo Finance)
-                      ├─ 期权数据 (截图 OCR 或手动录入)
+                      ├─ 期权数据 (前台自动获取 + 手工校正)
                       └─ AI 综合分析 → 一份决策报告
 ```
 
 ## 处理流程
 
 ```
-用户输入标的 + 可选截图/期权数据
-  → API 并行拉取：
+用户输入标的
+  → 点击“自动获取期权参数”
+  → 前端单独调用 /api/barchart-overview
+  → 成功后填入当前标的默认期权参数
+  → 可选：点击“手工修改”
+     1. 上传/粘贴截图，由浏览器 Tesseract.js 本地 OCR
+     2. 或逐项修改字段
+  → 点击生成，前端只提交结构化字段，不提交截图
+  → 报告 API 并行拉取：
      1. stockprice/data/latest-price.json（行情快照）
      2. jin10news/data/latest-24h.json（新闻缓存）
      3. Yahoo Finance（K线数据 + ATR 计算）
-  → 如果上传了截图，调用 OpenAI Vision 做 OCR
   → 计算市场风险评分（三灯否决制）
   → 计算 K线技术指标（ATR、SMA、形态检测、支撑/阻力）
   → 组装综合 prompt，一次 AI 调用
@@ -41,10 +47,13 @@ sell-put-decision ────┼─ K线形态 (Yahoo Finance)
 
 - API 并行加载行情和新闻（`Promise.all`），避免串行等待
 - K线数据取最近3个月日线，计算技术指标（SMA5/10/20/50、ATR、量比、形态检测）
-- 截图 OCR 走 OpenAI Vision，仅当未手动录入字段时触发
+- 未成功点击“自动获取期权参数”时，前端禁止启动报告生成
+- “手工修改”是校正入口，不代替自动获取前置步骤
+- 切换市场或标的后清除旧期权温度字段，必须重新自动获取
+- 截图 OCR 在浏览器本地执行；`sell-put-decision.js` 不读取图片、不调用视觉模型
 - AI 优先 DeepSeek，回退 GPT
 - 如果 AI 均不可用，返回规则版报告（含技术指标和行情快照）
 
 ## 版本
 
-v1.0.0｜2026-07-21
+v2.0.0.4｜2026-07-27｜期权参数前置获取

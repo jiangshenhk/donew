@@ -230,6 +230,21 @@
       color: var(--muted);
       line-height: 1.5;
     }
+    .parameter-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .parameter-state {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .parameter-state.ready {
+      color: #15803d;
+      font-weight: 700;
+    }
     .preview-thumb {
       margin-top: 14px;
       width: 100%;
@@ -297,6 +312,51 @@
       border: 1px solid var(--line);
       border-radius: 14px;
       background: #fbfdff;
+    }
+    .option-parameter-entry {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .option-fetch-btn {
+      min-height: 38px;
+      padding: 8px 16px;
+      border: 1px solid #2f5ed8;
+      border-radius: 8px;
+      background: #3467f0;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .option-fetch-btn:disabled {
+      opacity: 0.68;
+      cursor: wait;
+    }
+    .manual-metrics-link {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--primary);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .manual-metrics-link:hover { text-decoration: underline; }
+    .option-fetch-state {
+      flex: 1 1 150px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .option-fetch-state.ready {
+      color: #15803d;
+      font-weight: 700;
+    }
+    .option-fetch-state.error {
+      color: #dc2626;
+      font-weight: 700;
     }
     .metrics-panel summary {
       list-style: none;
@@ -751,7 +811,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v2.0.0.2｜2026-07-27｜统一报告章节格式</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v2.0.0.4｜2026-07-27｜期权参数前置获取</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -789,11 +849,14 @@
           </div>
         </div>
 
+        <div class="option-parameter-entry">
+          <button class="option-fetch-btn" id="fetchOptionMetricsBtn" type="button">自动获取期权参数</button>
+          <button class="manual-metrics-link" id="manualMetricsToggleBtn" type="button" aria-expanded="false">手工修改</button>
+          <span class="option-fetch-state" id="optionFetchState">生成前请先自动获取</span>
+        </div>
+
         <details class="metrics-panel" id="metricsPanel">
-          <summary>
-            <span>手工获取期权参数（Barchart）</span>
-            <span>展开 / 收起</span>
-          </summary>
+          <summary hidden>手工修改期权参数</summary>
           <div class="panel-body">
             <div class="label-row" style="margin-top:0;">
               <p class="section-title" style="margin-bottom:0;">Barchart 参数来源</p>
@@ -804,7 +867,7 @@
             <div class="upload-box">
               <input id="imageFile" name="imageFile" type="file" accept="image/png,image/jpeg,image/webp">
               <div class="upload-hint" id="uploadHint">
-                上传图片，或直接按 Ctrl+V 粘贴截图，系统会识别其中的期权参数。
+                上传图片，或直接按 Ctrl+V 粘贴截图，然后点击下方按钮识别并填入参数。
               </div>
               <div class="thumb-wrap" id="thumbWrap">
                 <img id="thumb" class="preview-thumb" alt="截图预览">
@@ -813,6 +876,10 @@
                   <div class="thumb-loading-text" id="thumbLoadingText">正在读取图片数据…</div>
                   <div class="thumb-loading-progress" id="thumbLoadingProgress"></div>
                 </div>
+              </div>
+              <div class="parameter-actions">
+                <button class="secondary-btn" id="parseImageBtn" type="button">识别截图并填入参数</button>
+                <span class="parameter-state" id="parameterState">尚未识别截图</span>
               </div>
             </div>
 
@@ -866,7 +933,7 @@
 
         <div class="note">
           一次生成涵盖：新闻摘要 · 市场环境 · K线技术信号 · 期权温度 · 综合卖Put建议<br>
-          <strong>系统生成时会尝试读取期权参数；也可展开上方栏目，通过截图识别或逐项输入进行补充、校正。</strong>
+          <strong>请先点击“自动获取期权参数”；需要校正时再点击“手工修改”。生成阶段不会再次读取或解析期权参数。</strong>
         </div>
       </form>
 
@@ -883,7 +950,7 @@
           <button class="action soft disabled" type="button" disabled>保存为图片</button>
           <button class="action soft disabled" type="button" disabled>图片分享</button>
         </div>
-        <div id="status" class="status">请选择标的；如需补充期权参数，可展开“手工获取期权参数”栏目。</div>
+        <div id="status" class="status">请选择标的，并先点击“自动获取期权参数”。</div>
         <div class="preview-wrap">
           <div id="preview">
             <div class="empty-state">等待生成综合卖Put决策报告<span>新闻 · 行情 · K线 · 期权 四维一体分析</span></div>
@@ -988,6 +1055,11 @@
     const resultHead = document.getElementById('resultHead');
     const actions = document.getElementById('actions');
     const imageInput = document.getElementById('imageFile');
+    const parseImageBtn = document.getElementById('parseImageBtn');
+    const parameterState = document.getElementById('parameterState');
+    const fetchOptionMetricsBtn = document.getElementById('fetchOptionMetricsBtn');
+    const manualMetricsToggleBtn = document.getElementById('manualMetricsToggleBtn');
+    const optionFetchState = document.getElementById('optionFetchState');
     const barchartLink = document.getElementById('barchartLink');
     const symbolInput = document.getElementById('symbol');
     const historySelect = document.getElementById('historySelect');
@@ -1015,6 +1087,11 @@
     const rankingFilterClearBtn = document.getElementById('rankingFilterClearBtn');
     const initialSymbol = String(new URLSearchParams(location.search).get('symbol') || '').trim().toUpperCase();
     if (/^[A-Z][A-Z0-9.-]{0,14}$/.test(initialSymbol)) symbolInput.value = initialSymbol;
+    const optionMetricFields = [
+      'iv', 'ivChange', 'hv', 'ivPercentile', 'ivRank', 'ivHigh', 'ivHighDate', 'ivLow', 'ivLowDate',
+      'expectedMove', 'expectedMovePct', 'expectedMoveDte', 'expectedRangeLow', 'expectedRangeHigh',
+      'putCallVolRatio', 'putCallOiRatio', 'todayVolume', 'volumeAvg30', 'todayOpenInterest', 'openInterest30',
+    ];
 
     let imageDataUrl = '';
     let latestHtml = '';
@@ -1030,6 +1107,7 @@
     let rankingOpenFilterKey = '';
     let rankingFilterState = {};
     let optionOverviewMeta = null;
+    let optionParametersFetched = false;
     const rankingCache = {};
     const historyKey = 'sellPutDecisionHistory.v1';
     const latestReportKey = 'sellPutDecisionLatestReport.v1';
@@ -1225,10 +1303,12 @@
       symbolButton.addEventListener('click', () => {
         symbolInput.value = item.symbol || '';
         form.elements.market.value = 'us';
+        clearOptionMetricFields();
+        resetOptionFetchState('已选择新标的，请自动获取');
         updateBarchartLink();
         rankingDialog.close();
         symbolInput.focus();
-        setStatus(`已选择 ${item.symbol}；如需补充期权参数，可展开手工获取栏目。`);
+        setStatus(`已选择 ${item.symbol}，请先自动获取期权参数。`);
       });
       const name = document.createElement('span');
       name.className = 'ranking-name';
@@ -1552,9 +1632,11 @@
       if (!item) return;
       form.elements.market.value = item.market || '';
       form.elements.symbol.value = item.symbol || 'QLD';
+      clearOptionMetricFields();
       Object.entries(item.optionMetrics || {}).forEach(([key, value]) => {
         if (form.elements[key]) form.elements[key].value = value || '';
       });
+      resetOptionFetchState('历史参数已载入，请重新自动获取');
       updateContractMid();
       updateBarchartLink();
     }
@@ -1697,27 +1779,33 @@
       barchartLink.href = `https://www.barchart.com/stocks/quotes/${encodeURIComponent(normalized)}/overview`;
     }
 
+    function resetOptionFetchState(message = '生成前请先自动获取') {
+      optionParametersFetched = false;
+      optionOverviewMeta = null;
+      optionFetchState.textContent = message;
+      optionFetchState.classList.remove('ready', 'error');
+    }
+
+    function clearOptionMetricFields() {
+      optionMetricFields.forEach((field) => {
+        if (form.elements[field]) form.elements[field].value = '';
+      });
+    }
+
     function setStatus(text, isError = false) {
       statusEl.textContent = text;
       statusEl.style.color = isError ? '#dc2626' : '#64748b';
     }
 
     function generationStage(seconds) {
-      if (seconds < 6) {
-        return {
-          title: '正在读取Barchart期权概览',
-          detail: '按标的读取 IV、HV、IV Rank、Expected Move 和 Put/Call 数据。',
-          next: '后续：获取行情与新闻 → K线结构分析 → 风险计算 → AI报告',
-        };
-      }
-      if (seconds < 32) {
+      if (seconds < 26) {
         return {
           title: '正在获取行情、新闻与K线数据',
           detail: '市场行情、最近新闻和标的K线结构正在并行处理。',
           next: '后续：风险与期权温度计算 → AI综合报告',
         };
       }
-      if (seconds < 48) {
+      if (seconds < 42) {
         return {
           title: '正在计算风险与期权温度',
           detail: '组合市场环境、K线信号、IV/HV、Expected Move 与具体合约安全垫。',
@@ -1837,15 +1925,16 @@
 
     async function loadBarchartOverview() {
       const market = String(form.elements.market.value || '');
-      if (market && market !== 'us') return null;
+      if (market && market !== 'us') throw new Error('自动获取期权参数目前只支持美股。');
       const symbol = String(symbolInput.value || '').trim().toUpperCase();
-      if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) return null;
+      if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) throw new Error('请先输入有效的美股代码。');
 
       try {
         const response = await fetch(`${apiBase}/api/barchart-overview?symbol=${encodeURIComponent(symbol)}`);
         const json = await response.json();
         if (!response.ok || !json.ok) throw new Error(json.message || 'Barchart期权概览读取失败');
-        fillOptionMetrics(json.metrics, true);
+        clearOptionMetricFields();
+        fillOptionMetrics(json.metrics);
         optionOverviewMeta = {
           source: json.source || 'Barchart Options Overview',
           sourceUrl: json.sourceUrl || '',
@@ -1855,12 +1944,46 @@
           fetchMode: json.fetchMode || 'realtime',
         };
         metricsPanel.open = false;
+        optionParametersFetched = true;
+        optionFetchState.textContent = `已获取 ${symbol} 的期权参数`;
+        optionFetchState.classList.add('ready');
+        optionFetchState.classList.remove('error');
         return json;
-      } catch {
+      } catch (error) {
         optionOverviewMeta = null;
-        return null;
+        optionParametersFetched = false;
+        optionFetchState.textContent = '自动获取失败';
+        optionFetchState.classList.remove('ready');
+        optionFetchState.classList.add('error');
+        throw error;
       }
     }
+
+    fetchOptionMetricsBtn.addEventListener('click', async () => {
+      fetchOptionMetricsBtn.disabled = true;
+      optionFetchState.textContent = '正在自动获取…';
+      optionFetchState.classList.remove('ready', 'error');
+      setStatus('正在自动获取期权参数…');
+      try {
+        const result = await loadBarchartOverview();
+        const metrics = collectOptionMetrics();
+        const count = optionMetricFields.filter((field) => String(metrics[field] || '').trim()).length;
+        setStatus(`期权参数获取成功，已填入 ${count} 个字段。`);
+        return result;
+      } catch (error) {
+        setStatus(error?.message || '自动获取期权参数失败，请稍后重试。', true);
+        metricsPanel.open = true;
+        manualMetricsToggleBtn.setAttribute('aria-expanded', 'true');
+      } finally {
+        fetchOptionMetricsBtn.disabled = false;
+      }
+    });
+
+    manualMetricsToggleBtn.addEventListener('click', () => {
+      metricsPanel.open = !metricsPanel.open;
+      manualMetricsToggleBtn.setAttribute('aria-expanded', String(metricsPanel.open));
+      manualMetricsToggleBtn.textContent = metricsPanel.open ? '收起手工修改' : '手工修改';
+    });
 
     function showThumbLoading(text) {
       thumbLoadingText.textContent = text;
@@ -1898,16 +2021,29 @@
         });
         const metrics = extractOptionMetricsFromText(result?.data?.text || '');
         fillOptionMetrics(metrics);
-        metricsPanel.open = false;
-        const hasAny = Object.values(metrics).some((v) => String(v || '').trim());
+        const recognizedCount = Object.values(metrics).filter((v) => String(v || '').trim()).length;
+        const hasAny = recognizedCount > 0;
         if (!hasAny) { metricsPanel.open = true; throw new Error('OCR未识别到有效字段，请手动录入或换一张更清晰的截图。'); }
         hideThumbLoading();
-        uploadHint.textContent = '';
-        if (!keepStatus) setStatus('');
+        uploadHint.textContent = `已识别并填入 ${recognizedCount} 个字段，请在下方核对。`;
+        parameterState.textContent = `已填入 ${recognizedCount} 个字段`;
+        parameterState.classList.add('ready');
+        optionOverviewMeta = {
+          source: 'Barchart screenshot / browser OCR',
+          sourceUrl: barchartLink.href,
+          retrievedAt: new Date().toISOString(),
+          delayed: false,
+          delayNote: '截图由当前浏览器本地识别',
+          fetchMode: 'browser-ocr',
+        };
+        metricsPanel.open = true;
+        if (!keepStatus) setStatus(`截图识别完成，已填入 ${recognizedCount} 个期权字段。`);
         return true;
       } catch (error) {
         hideThumbLoading();
         uploadHint.textContent = 'OCR未能识别有效字段，请手动展开下方面板录入或重试。';
+        parameterState.textContent = '截图识别失败';
+        parameterState.classList.remove('ready');
         metricsPanel.open = true;
         if (!silent && !keepStatus) setStatus(error?.message || '截图解析失败，请手动录入。', true);
         return false;
@@ -1926,10 +2062,10 @@
           thumb.src = imageDataUrl;
           thumb.style.display = 'block';
           thumbWrap.classList.add('visible');
-          uploadHint.textContent = '正在解析截图，请稍候…';
+          uploadHint.textContent = '截图已准备，点击“识别截图并填入参数”。';
+          parameterState.textContent = '截图待识别';
+          parameterState.classList.remove('ready');
           imageInput.files = null;
-          showThumbLoading('正在分析图片…');
-          await parseUploadedImage({ silent: false });
           return;
         }
       }
@@ -1937,19 +2073,42 @@
 
     imageInput.addEventListener('change', async () => {
       const file = imageInput.files && imageInput.files[0];
-      if (!file) { imageDataUrl = ''; thumb.style.display = 'none'; thumbWrap.classList.remove('visible'); hideThumbLoading(); uploadHint.textContent = '上传图片，或直接按 Ctrl+V 粘贴截图，系统会识别其中的期权参数。'; return; }
+      if (!file) {
+        imageDataUrl = '';
+        thumb.style.display = 'none';
+        thumbWrap.classList.remove('visible');
+        hideThumbLoading();
+        uploadHint.textContent = '上传图片，或直接按 Ctrl+V 粘贴截图，然后点击下方按钮识别并填入参数。';
+        parameterState.textContent = '尚未识别截图';
+        parameterState.classList.remove('ready');
+        return;
+      }
       imageDataUrl = await readFileAsDataUrl(file);
       thumb.src = imageDataUrl;
       thumb.style.display = 'block';
       thumbWrap.classList.add('visible');
-      uploadHint.textContent = '正在解析截图，请稍候…';
-      showThumbLoading('正在分析图片…');
-      await parseUploadedImage({ silent: false });
+      uploadHint.textContent = '截图已准备，点击“识别截图并填入参数”。';
+      parameterState.textContent = '截图待识别';
+      parameterState.classList.remove('ready');
+    });
+
+    parseImageBtn.addEventListener('click', async () => {
+      parseImageBtn.disabled = true;
+      try {
+        await parseUploadedImage({ silent: false });
+      } finally {
+        parseImageBtn.disabled = false;
+      }
     });
 
     symbolInput.addEventListener('input', () => {
-      optionOverviewMeta = null;
+      clearOptionMetricFields();
+      resetOptionFetchState('标的已变化，请重新自动获取');
       updateBarchartLink();
+    });
+    form.elements.market.addEventListener('change', () => {
+      clearOptionMetricFields();
+      resetOptionFetchState('市场已变化，请重新自动获取');
     });
     historySelect.addEventListener('change', () => {
       const item = readHistory()[Number(historySelect.value)];
@@ -1969,12 +2128,10 @@
     form.elements.ask.addEventListener('input', updateContractMid);
 
     function collectOptionMetrics() {
-      const fields = ['iv', 'ivChange', 'hv', 'ivPercentile', 'ivRank', 'ivHigh', 'ivHighDate', 'ivLow', 'ivLowDate',
-        'expectedMove', 'expectedMovePct', 'expectedMoveDte',
-        'expectedRangeLow', 'expectedRangeHigh', 'putCallVolRatio', 'putCallOiRatio',
-        'todayVolume', 'volumeAvg30', 'todayOpenInterest', 'openInterest30'];
       const metrics = {};
-      fields.forEach((f) => { metrics[f] = String(form.elements[f]?.value || '').trim(); });
+      optionMetricFields.forEach((field) => {
+        metrics[field] = String(form.elements[field]?.value || '').trim();
+      });
       const noteContract = extractContractFromNotes(form.elements.notes?.value || '');
       metrics.targetStrike = String(form.elements.targetStrike?.value || noteContract.targetStrike || '').trim();
       metrics.delta = String(form.elements.delta?.value || noteContract.delta || '').trim();
@@ -2014,6 +2171,16 @@
 
     function hasAnyMetrics(metrics) {
       return Object.values(metrics).some((v) => String(v || '').trim());
+    }
+
+    function missingRequiredOptionMetrics(metrics) {
+      const missing = [];
+      if (!String(metrics.iv || '').trim()) missing.push('IV');
+      if (!String(metrics.hv || '').trim()) missing.push('HV');
+      if (!String(metrics.ivRank || '').trim() && !String(metrics.ivPercentile || '').trim()) missing.push('IV Rank或IV Percentile');
+      if (!String(metrics.expectedMove || '').trim() && !String(metrics.expectedMovePct || '').trim()) missing.push('Expected Move');
+      if (!String(metrics.expectedRangeLow || '').trim()) missing.push('Expected Range Low');
+      return missing;
     }
 
     async function downloadReportImage() {
@@ -2105,6 +2272,14 @@
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
 
+      if (!optionParametersFetched) {
+        setStatus('请先点击“自动获取期权参数”，获取成功后再生成报告。', true);
+        optionFetchState.textContent = '请先完成自动获取';
+        optionFetchState.classList.remove('ready');
+        optionFetchState.classList.add('error');
+        return;
+      }
+
       btn.disabled = true;
       const startAt = Date.now();
       statusEl.style.display = 'none';
@@ -2113,9 +2288,13 @@
       runTimer = setInterval(() => renderGenerationProgress(startAt), 1000);
 
       try {
-        await loadBarchartOverview();
         const optionMetrics = collectOptionMetrics();
         const hasMetrics = hasAnyMetrics(optionMetrics);
+        const missingOptionMetrics = missingRequiredOptionMetrics(optionMetrics);
+        if (missingOptionMetrics.length) {
+          metricsPanel.open = true;
+          throw new Error(`请先识别截图或手工填写：${missingOptionMetrics.join('、')}`);
+        }
         const payload = {
           market: form.elements.market.value,
           symbol: form.elements.symbol.value.trim(),
@@ -2123,7 +2302,6 @@
         };
         if (hasMetrics) payload.optionMetrics = optionMetrics;
         if (optionOverviewMeta) payload.optionMetricsMeta = optionOverviewMeta;
-        if (imageDataUrl) payload.imageDataUrl = imageDataUrl;
 
         const res = await fetch(`${apiBase}/api/sell-put-decision`, {
           method: 'POST',

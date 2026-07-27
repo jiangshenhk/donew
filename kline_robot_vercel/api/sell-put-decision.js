@@ -428,54 +428,8 @@ function sanitizeOptionMetrics(raw = {}) {
   };
 }
 
-function needsOptionMetricBackfill(metrics = {}) {
-  const empty = (value) => String(value ?? "").trim() === "";
-  return empty(metrics.iv)
-    || empty(metrics.hv)
-    || (empty(metrics.ivRank) && empty(metrics.ivPercentile))
-    || (empty(metrics.expectedMove) && empty(metrics.expectedMovePct));
-}
-
-function mergeOptionMetrics(preferred = {}, fallback = {}) {
-  const merged = {};
-  for (const key of Object.keys(sanitizeOptionMetrics({}))) {
-    const preferredValue = String(preferred[key] ?? "").trim();
-    merged[key] = preferredValue || String(fallback[key] ?? "").trim();
-  }
-  return sanitizeOptionMetrics(merged);
-}
-
-function parseLooseJson(text) {
-  const source = String(text || "").trim();
-  if (!source) throw new Error("解析服务未返回内容。");
-  const fenced = source.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1].trim() : source;
-  return JSON.parse(candidate);
-}
-
 function extractTextFromResponse(json) {
   return json?.output_text || (json?.output || []).flatMap((i) => i.content || []).map((c) => c.text || "").join("") || "";
-}
-
-async function parseOptionMetricsFromImage(symbol, imageDataUrl) {
-  if (!process.env.OPENAI_API_KEY) throw new Error("未配置截图解析服务，请先手动录入。");
-  const res = await timedFetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: process.env.OPENAI_VISION_MODEL || process.env.OPENAI_MODEL || "gpt-5",
-      input: [
-        { role: "system", content: [{ type: "input_text", text: "你是一个严格的截图字段提取器。请从用户上传的 Barchart Options Overview 截图中逐项提取字段，返回 JSON，不要任何解释：iv,ivChange,hv,ivPercentile,ivRank,ivHigh,ivHighDate,ivLow,ivLowDate,expectedMove,expectedMovePct,expectedMoveDte,expectedRangeLow,expectedRangeHigh,putCallVolRatio,putCallOiRatio,todayVolume,volumeAvg30,todayOpenInterest,openInterest30。百分比字段只返回数字；日期保留截图格式；Expected Move 标题中的 DTE 单独放入 expectedMoveDte；无法识别的字段返回空字符串。" }] },
-        { role: "user", content: [{ type: "input_text", text: `标的：${symbol || "未提供"}` }, { type: "input_image", image_url: imageDataUrl, detail: "low" }] },
-      ],
-    }),
-  }, 30000);
-  if (!res.ok) {
-    if (res.status === 429) throw new Error("截图解析服务当前较忙，请稍后重试，或先手动录入关键字段。");
-    throw new Error(`截图解析失败：${res.status}`);
-  }
-  const json = await res.json();
-  return sanitizeOptionMetrics(parseLooseJson(extractTextFromResponse(json)));
 }
 
 function analyzeAtrVsPut(targetRow, klineStats, targetStrike, expiryDate) {
@@ -1176,7 +1130,6 @@ export default async function handler(req, res) {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
     const symbol = String(body.symbol || "").trim().toUpperCase();
     const market = detectMarket(symbol, body.market);
-    const imageDataUrl = String(body.imageDataUrl || "").trim();
     const notes = String(body.notes || "").trim();
     const noteContract = extractContractFromNotes(notes);
     const targetStrike = String(body.targetStrike || body.optionMetrics?.targetStrike || noteContract.targetStrike || "").trim();
@@ -1188,17 +1141,7 @@ export default async function handler(req, res) {
 
     if (!symbol) return sendJson(res, 400, { ok: false, message: "缺少标的代码。" });
 
-    let optionMetrics = sanitizeOptionMetrics(rawMetrics);
-    let ocrWarning = "";
-
-    if (needsOptionMetricBackfill(optionMetrics) && imageDataUrl.startsWith("data:image/")) {
-      try {
-        const parsedMetrics = await parseOptionMetricsFromImage(symbol, imageDataUrl);
-        optionMetrics = mergeOptionMetrics(optionMetrics, parsedMetrics);
-      } catch (ocrError) {
-        ocrWarning = ocrError.message || "截图解析失败，未识别字段将保持缺失。";
-      }
-    }
+    const optionMetrics = sanitizeOptionMetrics(rawMetrics);
 
     const optionMetricsMeta = (body.optionMetricsMeta && typeof body.optionMetricsMeta === "object")
       ? body.optionMetricsMeta
@@ -1281,7 +1224,7 @@ export default async function handler(req, res) {
         status: "预检查",
         risk_score: null,
         missing: readiness.missing,
-        warnings: ocrWarning ? [ocrWarning] : [],
+        warnings: [],
         message: "关键数据尚未齐全，已生成卖Put预检查，不输出完整决策。",
         filename: `${symbol}-sell-put-precheck.html`,
         html: buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, stockpriceSnapshot, generatedAt),

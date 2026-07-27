@@ -570,16 +570,18 @@ docs/tools/alpha-risk-tool/README.md
   - `jin10news/data/latest-24h.json`（新闻缓存，用于事件风险扫描和 AI 上下文）
   - K线工具共享引擎（底层行情由 `report.js` 统一处理）
   - Barchart Options Overview 免费网页（优先按标的读取期权概览，通常延迟约25至30分钟）
-  - OpenAI Vision API（Barchart网页读取失败时，截图 OCR 作为备用）
+  - 浏览器端 Tesseract.js（用户在“手工修改”中主动识别截图；图片不进入生成 API）
   - DeepSeek / OpenAI（AI 综合判断生成报告）
   - Webull Options Total Volume Ranking 公开页（热门期权标的候选榜）
 - 核心逻辑：
   - 严格完整性门槛：关键行情、相关新闻、K线结构、期权温度、具体合约缺一项就只输出预检查；行权价和权利金必须为正数，到期日必须是未来有效日期
   - Barchart字段映射：支持 IV/IV变化/HV/Percentile/Rank/IV高低点及日期/Expected Move与DTE和Range/Put-Call比率/成交量/持仓量
-  - 期权概览优先级：生成时先调用 `/api/barchart-overview?symbol=QLD`，只补齐尚未手工填写的字段；读取失败后保留截图 OCR 和手工录入路径，不把缺失值伪装成 0
+  - 期权参数前置流程：用户必须先点击“自动获取期权参数”，前端单独调用 `/api/barchart-overview?symbol=QLD` 并填入当前标的默认值；未成功执行该步骤时，前端禁止启动报告生成
+  - 手工校正入口：“手工修改”是文字链接，展开后提供站外 Barchart 参数页、上传/粘贴截图、本地 OCR 和逐项输入；截图只在浏览器中处理，不随 `/api/sell-put-decision` 请求上传
+  - 标的隔离：切换市场、输入新标的、载入历史参数或从热门榜选择标的后，前端清除旧期权温度字段并要求重新自动获取，避免串用上一只标的数据
   - 期权数据溯源：报告的期权温度数据块记录 Barchart 来源、数据获取时间和延迟说明；10分钟内成功结果可由服务实例缓存复用
   - 旧输入兼容：具体合约字段留空时，可从补充说明中的“行权价、中间价、到期日”自动提取
-  - 四维数据聚合：行情快照 + 24小时相关新闻 + K线相似度/历史样本/ABC结构 + Barchart标的级概览（截图 OCR 备用）
+  - 四维数据聚合：行情快照 + 24小时相关新闻 + K线相似度/历史样本/ABC结构 + 前台已确认的Barchart标的级期权概览
   - 三层风险：大盘环境 + ATR/趋势/跌幅 + K线历史偏空概率/高匹配偏空形态
   - 事件风险：代码扫描24小时相关新闻；AI不得凭训练记忆补未来事件日期
   - 结论一致性：AI只能比规则底线更谨慎，冲突或无标准结论时使用规则版
@@ -590,7 +592,7 @@ docs/tools/alpha-risk-tool/README.md
   - K线技术信号固定前两行：第一行以“趋势：”展示均线和强弱，第二行以“典型K线匹配：”展示共享K线引擎返回的形态、匹配度和方向；服务端会补齐AI遗漏的第二行
   - 结论措辞固定为"可卖Put / 谨慎卖Put / 暂不卖Put"，不会输出股票买卖建议
   - 标准功能：新窗口打开、下载 HTML、保存图片（html2canvas）、图片分享、历史报告导入对比、最近报告自动恢复
-  - “手工获取期权参数（Barchart）”整体默认折叠；展开后包含站外 Barchart 参数页链接，以及两种补充方式：上传/粘贴截图识别、逐项手工输入。后台生成时仍可尝试自动读取，但该折叠框只承载用户主动操作
+  - 页面入口固定为“自动获取期权参数”按钮 + “手工修改”链接；自动获取与报告生成是两个独立请求，生成接口只接收结构化字段，不负责Barchart读取或截图解析
   - 生成等待提示：报告预览区显示已用时间和当前预计阶段，工具栏下方不重复显示同一行状态；由于后端是单次 HTTP 请求，不把时间推测表述为服务端真实进度
   - 热门期权榜：标的输入框旁可打开候选榜，点击代码直接填入；三个榜单统一采用“原始数据 → 搜索/按列多选筛选 → 排序 → 分页 → 渲染”的本地处理管线
   - IV与异常成交：同一弹窗分为“成交量Top 100 / IV异动 / 异常成交”三个标签，支持列头升降序、逐列筛选、每页数量和翻页，避免把不同信号混为一个排名
@@ -927,13 +929,13 @@ Vercel 线上需要的所有环境变量（在 Vercel Dashboard → Project Sett
 |---|---|---|
 | `OPENAI_API_KEY` | OpenAI API Key（GPT 模型调用） | `sk-xxx` |
 | `OPENAI_MODEL` | OpenAI 默认模型 | `gpt-5`（默认） |
-| `OPENAI_VISION_MODEL` | OpenAI 视觉模型（OCR / 截图识别），未设时回退 `OPENAI_MODEL` | `gpt-5` |
+| `OPENAI_VISION_MODEL` | 仅供独立 `sell-put-tool` 的后台截图识别使用；综合决策页已改为浏览器本地 OCR | `gpt-5` |
 | `DEEPSEEK_API_KEY` | DeepSeek API Key（DeepSeek 模型调用） | `sk-xxx` |
 | `DEEPSEEK_MODEL` | DeepSeek 默认模型 | `deepseek-chat` 或 `deepseek-v4-flash` |
 
 **AI 双路由说明**：所有 API 均支持 OpenAI + DeepSeek 双路由。各 API 的调用优先级不同：
-- `sell-put-decision.js`：报告生成优先 DeepSeek，OCR 截图固定用 OpenAI Vision
-- `put-rating.js`：优先 OpenAI GPT，失败回退 DeepSeek
+- `sell-put-decision.js`：报告生成优先 DeepSeek；不接收截图，只使用前台已确认的结构化期权字段
+- `put-rating.js`：优先 OpenAI GPT，失败回退 DeepSeek；独立温度工具仍可使用 OpenAI Vision 识别截图
 - `market-report-v2.js` / `report.js`：两路都尝试，任意一路可用即可
 - `news-summary.js`：优先 DeepSeek，失败回退 OpenAI
 

@@ -119,7 +119,33 @@ kline_robot_vercel/
   -> 返回完整 HTML 报告
 ```
 
-### 3.5 最新行情管理页
+### 3.5 综合卖 Put 决策
+
+- 页面：`sell-put-decision-tool.html`
+- 核心 API：`api/sell-put-decision.js`
+- 期权概览 API：`api/barchart-overview.js`
+
+处理流程：
+
+```text
+输入当前标的
+  -> 点击“自动获取期权参数”
+  -> 前端单独调用 barchart-overview 并填入默认值
+  -> 需要校正时点击“手工修改”
+     -> 上传/粘贴截图由浏览器 Tesseract.js 本地识别
+     -> 或逐项手工修改
+  -> 参数确认后点击生成
+  -> sell-put-decision API 只接收结构化字段，不接收图片
+  -> 并行读取行情、新闻、K线，再生成综合报告
+```
+
+前端门槛：
+
+- 未成功点击“自动获取期权参数”时，不启动报告 API。
+- 切换市场或标的后，清除旧期权温度字段并要求重新获取。
+- 自动获取是默认值来源，“手工修改”只负责校正。
+
+### 3.6 最新行情管理页
 
 - 页面：`price-test.html`
 - 读取 API：`api/latest-price.js`
@@ -149,6 +175,7 @@ kline_robot_vercel/
 ### OCR / 截图输入
 
 - 卖 Put 温度判断前端页面支持截图解析
+- 综合卖Put决策页的截图只在“手工修改”中由浏览器本地识别；报告 API 不接收图片
 
 ---
 

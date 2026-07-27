@@ -1,13 +1,13 @@
 # Sell Put 综合决策工具 — 设计思路
 
-> 当前自动交易准备版本：`2.0.0.2`。
+> 当前自动交易准备版本：`2.0.0.4`。
 > `sell-put-decision-v1.7.15` 是加入 Delta / Bid / Ask 合约执行硬门槛前的回退基线。
 
 ## 核心特性
 
 | 特性 | 说明 |
 |---|---|
-| **四维数据聚合** | 行情快照 + 相关新闻 + 共享K线相似度引擎 + 期权截图 OCR |
+| **四维数据聚合** | 行情快照 + 相关新闻 + 共享K线相似度引擎 + 前台期权截图 OCR |
 | **单票风险调整** | ATR%/趋势/跌幅自动上调风险分，代码层执行，不受 AI 输出偏差影响 |
 | **事件风险检查** | 代码层扫描24小时新闻；AI只能引用新闻中明确出现的事件，不得凭训练记忆补未来日期 |
 | **完整性门槛** | 行情、新闻、K线、期权温度或具体合约数据缺失时，只输出预检查，不调用 AI、不输出卖 Put 结论 |
@@ -18,7 +18,8 @@
 | **结论措辞明确** | 可卖Put / 谨慎卖Put / 暂不卖Put，不会输出股票买卖建议 |
 | **标准功能** | 新窗口打开、下载 HTML、保存图片（html2canvas）、图片分享、历史报告导入对比 |
 | **报告自动恢复** | 最近一次报告自动从浏览器 localStorage 恢复，支持离线查看 |
-| **OCR 识别** | 前端 Tesseract.js 本地 OCR + 后端 OpenAI Vision 双重识别 Barchart 截图 |
+| **OCR 识别** | 用户点击按钮后，由前端 Tesseract.js 在当前浏览器本地识别 Barchart 截图并填入字段；生成接口不接收图片 |
+| **期权参数前置门槛** | 用户必须先点击“自动获取期权参数”并成功填入当前标的数据；“手工修改”链接用于展开截图识别和逐项校正 |
 | **完整截图映射** | 对应 Barchart Options Overview 的 IV变化、IV高低点及日期、Expected Move DTE、Expected Range、Put/Call、成交量和持仓量 |
 | **补充说明兼容** | 合约字段留空时，仍可从补充说明中的行权价、Delta、Bid、Ask 和到期日自动提取 |
 | **结论一致性** | AI结论不得比规则风险底线更激进；无标准结论或冲突时自动使用规则版 |
@@ -164,7 +165,9 @@ INTC（2026-07-20）：
 ## 4. 数据流架构
 
 ```text
-用户输入: symbol / screenshot / metrics / notes
+前台准备: 点击“自动获取期权参数” → /api/barchart-overview → 填入当前标的默认 metrics
+可选校正: 点击“手工修改” → 浏览器本地 OCR screenshot 或逐项输入
+用户提交: symbol / metrics / notes（不提交截图）
   │
   ├─→ Promise.all 并行拉取 ─────────────────────┐
   │   ├─ stockprice/data/latest-price.json      │  行情快照
@@ -184,8 +187,7 @@ INTC（2026-07-20）：
   │   │   └─ 1/5/20日涨跌幅                    │  │
   │   ├─ marketRisk()         ← 行情快照        │  │
   │   ├─ adjustedRisk()       ← 风险分+K线      │  │
-  │   ├─ scanEventRisks()     ← 新闻            │  │
-  │   └─ OCR (OpenAI Vision)  ← 补齐前端未识别字段│  │
+  │   └─ scanEventRisks()     ← 新闻            │  │
   │                                              │
   ├─→ assessDecisionReadiness() 完整性门槛       │
   │   ├─ 缺失 → 卖Put预检查（不调用 AI）          │
@@ -219,7 +221,7 @@ INTC（2026-07-20）：
 
 核心规则文件：
 - `kline_robot_vercel/api/_lib/sell-put-decision-core.js`：无网络依赖的可复用判断核心
-- `kline_robot_vercel/api/sell-put-decision.js`：取数、OCR、AI 调用和报告编排
+- `kline_robot_vercel/api/sell-put-decision.js`：读取结构化数据、调用 AI 和编排报告；不接收截图、不执行 OCR
 - `kline_robot_vercel/api/report.js`：导出 `analyzeKlineStructure()`，供K线页面与综合决策共享同一套形态和历史统计逻辑
 - `kline_robot_vercel/api/put-rating.js`：导出 `analyzePutRatingSnapshot()`，供独立温度页与综合决策共享同一套市场/温度判断
 - `kline_robot_vercel/api/news-summary.js`：导出 `loadRecentMarketNews()` 和 `analyzeDecisionNews()`，供新闻中心与综合决策共享24小时新闻边界、相关性筛选和事件扫描
