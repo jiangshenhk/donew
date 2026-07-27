@@ -468,18 +468,18 @@ docs/tools/alpha-risk-tool/README.md
 
 ### 13.1 当前工具全景
 
-| 工具 | 线上入口 | 主要代码位置 | 文档 | 类型 |
-| --- | --- | --- | --- | --- |
-| K线相识度 | `kline-robot.html` | `report.js` | `docs/tools/kline-robot/README-FOR-AI.md` | 交互式 |
-| 24小时新闻中心 | `jin10-news.html` | `news-summary.js` | `docs/tools/jin10-news/README-FOR-AI.md` | 数据中心 |
-| 最新行情中心 | `price-test.html` | `market-report-v2.js` | —（无 AI 调用） | 数据中心 |
-| 日报/晚报自动生成 | Actions | `news-summary.js` | `docs/tools/jin10-news/README-FOR-AI.md`（日报模式） | 定时生成 |
-| 每日/周市场分析 | `market-analysis-tool.html` | `market-report-v2.js` | `docs/tools/market-analysis/README-FOR-AI.md` | 交互式 |
-| 卖Put温度判断 | `sell-put-tool.html` | `put-rating.js` | `docs/tools/sell-put-tool/README-FOR-AI.md` | 交互式 |
-| 综合卖Put决策 | `sell-put-decision-tool.html` | `sell-put-decision.js` | `docs/tools/sell-put-decision/README-FOR-AI.md` | 交互式 |
-| 卖Put标的池扫描 | `sell-put-pool-tool.html` | `barchart-overview.js` | —（无 AI 调用） | 批量初筛 |
-| 八字命理分析 | `bazi-analysis-tool.html` | `bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README-FOR-AI.md` | 交互式 |
-| 内容总结分析 | `video-summary-tool.html` | `news-summary.js` | `docs/tools/video-summary-tool/README-FOR-AI.md` | 交互式 |
+| 工具 | 入口 | API | README | README-FOR-AI | 类型 |
+| --- | --- | --- | --- | --- | --- |
+| K线相识度 | `kline-robot.html` | `report.js` | `docs/tools/kline-robot/README.md` | `docs/tools/kline-robot/README-FOR-AI.md` | 交互式 |
+| 24小时新闻中心 | `jin10-news.html` | `news-summary.js` | `jin10news/README.md` | `docs/tools/jin10-news/README-FOR-AI.md` | 数据中心 |
+| 最新行情中心 | `price-test.html` | `market-report-v2.js` | `stockprice/README.md` | —（无 AI） | 数据中心 |
+| 日报/晚报自动生成 | Actions | `news-summary.js` | `docs/市场/README.md` | `docs/tools/jin10-news/README-FOR-AI.md` | 定时生成 |
+| 每日/周市场分析 | `market-analysis-tool.html` | `market-report-v2.js` | `docs/市场/README.md` | `docs/tools/market-analysis/README-FOR-AI.md` | 交互式 |
+| 卖Put温度判断 | `sell-put-tool.html` | `put-rating.js` | `docs/tools/sell-put-tool/README.md` | `docs/tools/sell-put-tool/README-FOR-AI.md` | 交互式 |
+| 综合卖Put决策 | `sell-put-decision-tool.html` | `sell-put-decision.js` | `docs/tools/sell-put-decision/README.md` | `docs/tools/sell-put-decision/README-FOR-AI.md` | 交互式 |
+| 卖Put标的池扫描 | `sell-put-pool-tool.html` | `barchart-overview.js` | `docs/tools/sell-put-pool-tool/README.md` | —（无 AI） | 批量初筛 |
+| 八字命理分析 | `bazi-analysis-tool.html` | `bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README.md` | `docs/tools/bazi-analysis-tool/README-FOR-AI.md` | 交互式 |
+| 内容总结分析 | `video-summary-tool.html` | `news-summary.js` | `docs/tools/video-summary-tool/README.md` | `docs/tools/video-summary-tool/README-FOR-AI.md` | 交互式 |
 
 ### 13.2 十个工具分别怎么看
 
