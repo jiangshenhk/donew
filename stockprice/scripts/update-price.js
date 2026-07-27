@@ -66,6 +66,7 @@ function previousTradingClose(result,meta){
    latestBarDate:latestBar.dateKey,
    marketDate,
    previousCloseDate:previousBar?.dateKey ?? latestBar.dateKey,
+   gapDays: previousBar ? Math.floor((new Date(latestBar.dateKey).getTime() - new Date(previousBar.dateKey).getTime()) / 86400000) : 0,
   };
  }
  return {
@@ -74,11 +75,13 @@ function previousTradingClose(result,meta){
   latestBarDate:latestBar.dateKey,
   marketDate,
   previousCloseDate:latestBar.dateKey,
+  gapDays: 0,
   };
 }
 
 function resolvePreviousClose(result,meta){
  const barBased=previousTradingClose(result,meta);
+ const gapNote=barBased.gapDays>1 ? `previousClose来自${barBased.gapDays}天前的K线，日变化可能跨多日` : '';
  const directCandidates=[
   numberOrNull(meta?.chartPreviousClose),
   numberOrNull(meta?.previousClose),
@@ -86,13 +89,14 @@ function resolvePreviousClose(result,meta){
  ].filter((value)=>value!==null);
  const direct=directCandidates.length ? directCandidates[0] : null;
  if(direct===null){
-  return barBased;
+  return {...barBased, gapNote};
  }
  if(barBased.value===null){
   return {
    ...barBased,
    value:direct,
    source:'direct-previous-close-no-bar-check',
+   gapNote,
   };
  }
  const diff=Math.abs(direct-barBased.value);
@@ -102,11 +106,13 @@ function resolvePreviousClose(result,meta){
    ...barBased,
    value:direct,
    source:'direct-previous-close-validated',
+   gapNote,
   };
  }
  return {
   ...barBased,
   source:`bar-derived-override-direct(${direct})`,
+  gapNote,
  };
 }
 
@@ -166,6 +172,7 @@ async function fetchPrice(item,retry=2){
     previousCloseDate:previous.previousCloseDate,
     latestBarDate:previous.latestBarDate,
     marketDate:previous.marketDate,
+    previousCloseGapNote:previous.gapNote||null,
     sma5:sma5??null,
     sma10:sma10??null,
     vs5Pct:vs5Pct!=null?Number(vs5Pct).toFixed(2):null,

@@ -302,6 +302,8 @@ function calcKlineStats(bars) {
   const closes = bars.map(b => b.close);
   const n = closes.length;
   const latest = closes[n - 1];
+  const previousClose = closes[n - 2] || closes[n - 1];
+  const dailyChangePct = previousClose ? (latest / previousClose - 1) * 100 : null;
 
   const sma5 = closes.slice(-5).reduce((a, b) => a + b, 0) / 5;
   const sma10 = closes.slice(-10).reduce((a, b) => a + b, 0) / Math.min(10, n);
@@ -322,7 +324,7 @@ function calcKlineStats(bars) {
   const high20 = Math.max(...recent20.map(b => b.high));
   const low20 = Math.min(...recent20.map(b => b.low));
 
-  return { latest, sma5, sma10, sma20, atr, high20, low20, bars: n };
+  return { latest, previousClose, dailyChangePct, sma5, sma10, sma20, atr, high20, low20, bars: n };
 }
 
 async function fetchNews() {
@@ -907,15 +909,22 @@ async function runDaily() {
       }
     } catch { /* ok */ }
 
+    const changePctKline = klineStats?.dailyChangePct;
+    const prevCloseKline = klineStats?.previousClose;
+    const stockChgPct = priceInfo.changePct;
+    const isStockpriceStale = changePctKline != null && stockChgPct != null && Math.abs(changePctKline - stockChgPct) > 3;
+    if (isStockpriceStale) {
+      console.log(`  ⚠️ 行情中心日变化${stockChgPct?.toFixed(1)}% vs K线${changePctKline?.toFixed(1)}%，使用K线值`);
+    }
     const market = {
-      price: priceInfo.price,
-      prevClose: priceInfo.prevClose,
-      changePct: priceInfo.changePct,
+      price: klineStats?.latest || priceInfo.price,
+      prevClose: prevCloseKline || priceInfo.prevClose,
+      changePct: changePctKline ?? priceInfo.changePct,
       vix: prices['^VIX']?.price,
       ...klineStats,
       atr: klineStats.atr || priceInfo.dailyAtr,
-      atrSafePrice: priceInfo.price && (klineStats.atr || priceInfo.dailyAtr)
-        ? priceInfo.price - (klineStats.atr || priceInfo.dailyAtr) * Math.sqrt(Math.max(contract.dte, 1))
+      atrSafePrice: klineStats?.latest && (klineStats.atr || priceInfo.dailyAtr)
+        ? (klineStats.latest || priceInfo.price) - (klineStats.atr || priceInfo.dailyAtr) * Math.sqrt(Math.max(contract.dte, 1))
         : null,
     };
 
