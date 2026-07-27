@@ -1,5 +1,11 @@
 # donew 开发接力说明（DEV-README）
 
+| | 地址 |
+|---|---|
+| GitHub | `https://github.com/jiangshenhk/donew` |
+| 本地路径 | `/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
+| 线上域名 | `https://donew-beta.vercel.app/`（Vercel 主站） |
+
 这份文件是给“新开的智能体对话 / 新接手的开发者”看的。
 
 目标只有一个：
@@ -40,7 +46,7 @@
 
 ### 必读 2：如果要新增一个类似工具
 
-- [scripts/create-tool-scaffold.mjs](/Users/jiangshen/Desktop/Obsidian/网络文章/收集箱/Codex相关/donew/scripts/create-tool-scaffold.mjs)
+- [scripts/create-tool-scaffold.mjs](scripts/create-tool-scaffold.mjs)
 
 作用：
 
@@ -48,7 +54,7 @@
 
 ### 必读 3：如果要改线上交互工具
 
-- [kline_robot_vercel/README.md](/Users/jiangshen/Desktop/Obsidian/网络文章/收集箱/Codex相关/donew/kline_robot_vercel/README.md)
+- [kline_robot_vercel/README.md](kline_robot_vercel/README.md)
 
 作用：
 
@@ -63,19 +69,19 @@
 
 读：
 
-- [jin10news/README.md](/Users/jiangshen/Desktop/Obsidian/网络文章/收集箱/Codex相关/donew/jin10news/README.md)
+- [jin10news/README.md](jin10news/README.md)
 
 ### B. 改行情相关
 
 读：
 
-- [stockprice/README.md](/Users/jiangshen/Desktop/Obsidian/网络文章/收集箱/Codex相关/donew/stockprice/README.md)
+- [stockprice/README.md](stockprice/README.md)
 
 ### C. 改自动早报 / 晚报链路
 
 读：
 
-- [docs/市场/README.md](/Users/jiangshen/Desktop/Obsidian/网络文章/收集箱/Codex相关/donew/docs/市场/README.md)
+- [docs/市场/README.md](docs/市场/README.md)
 
 ---
 
@@ -439,6 +445,9 @@ docs/tools/alpha-risk-tool/README.md
 给新智能体对话时，直接发以下内容：
 
 ```text
+仓库：https://github.com/jiangshenhk/donew
+本地：/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew
+
 我要修改这个工具：https://donew-beta.vercel.app/sell-put-decision-tool.html
 
 你先读：
