@@ -8,7 +8,11 @@
 - 24小时新闻中心：`https://donew-beta.vercel.app/jin10-news.html`
 - 最新每日/每周市场情况分析：`https://donew-beta.vercel.app/market-analysis-tool.html`
 - 卖 Put 温度判断：`https://donew-beta.vercel.app/sell-put-tool.html`
+- 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
+- 卖Put标的池扫描：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
 - 最新行情管理页：`https://donew-beta.vercel.app/price-test.html`
+
+> **Sell Put Agent** 是本地 CLI 工具（`scripts/sell-put-agent.mjs`），不在 Vercel 上部署。文档见 `docs/tools/sell-put-agent/README.md`。
 
 ---
 
@@ -125,26 +129,21 @@ kline_robot_vercel/
 - 核心 API：`api/sell-put-decision.js`
 - 综合决策只调用 DeepSeek；K线分析最多30秒、DeepSeek最多50秒，超时后返回预检查或规则版
 - 期权概览 API：`api/barchart-overview.js`
+- 期权链自动获取：`api/_lib/barchart-options-chain.js`（与 Agent 共用）
 
 处理流程：
 
 ```text
 输入当前标的
-  -> 点击“自动获取期权参数”
-  -> 前端单独调用 barchart-overview 并填入默认值
-  -> 需要校正时点击“手工修改”
-     -> 上传/粘贴截图由浏览器 Tesseract.js 本地识别
-     -> 或逐项手工修改
-  -> 参数确认后点击生成
-  -> sell-put-decision API 只接收结构化字段，不接收图片
-  -> 并行读取行情、新闻、K线，再生成综合报告
+  -> 点击"自动获取期权参数"
+  -> 前端调用 barchart-overview 获取 IV/HV 等概览数据
+  -> 合约字段（行权价/delta/bid/ask/到期日）留空即可
+  -> 点击"生成综合卖Put决策"
+  -> API 自动从 Barchart 拉取 Delta≈0.15、最近到期的 Put 合约
+  -> 并行读取行情、新闻、K线 → DeepSeek 生成综合报告
 ```
 
-前端门槛：
-
-- 未成功点击“自动获取期权参数”时，不启动报告 API。
-- 切换市场或标的后，清除旧期权温度字段并要求重新获取。
-- 自动获取是默认值来源，“手工修改”只负责校正。
+> 合约字段现在支持**自动获取**：留空时 API 会从 Barchart 期权链自动匹配最佳合约（delta≈0.15，到期≥5天）。手工输入仍可覆盖自动匹配结果。
 
 ### 3.6 最新行情管理页
 

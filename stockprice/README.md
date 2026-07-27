@@ -127,6 +127,7 @@ GitHub Actions 定时触发
       "retrievedAt": "...",
       "exchange": "NasdaqGM",
       "currency": "USD",
+      "previousCloseGapNote": "previousClose来自4天前的K线，日变化可能跨多日",
       "error": ""
     }
   ]

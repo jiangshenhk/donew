@@ -20,11 +20,12 @@ ETF定投 = 长期底仓
 Sell Put = 现金流增强
 AI市场判断 = 判断今天能不能动手
 K线结构工具 = 判断单票有没有技术风险
+Sell Put Agent = 自动化决策 + 纸面交易跟踪
 ```
 
-## 两把 AI 武器
+## 三把 AI 武器
 
-我把现在最常用的两个工具放在首页最前面：
+我把现在最常用的三个工具放在首页最前面：
 
 <div class="signal-grid">
   <a class="signal-card action" href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank">
@@ -35,9 +36,13 @@ K线结构工具 = 判断单票有没有技术风险
     <strong>🧭 武器 2：K 线相似度机器人</strong>
     <p>针对单个股票或 ETF，辅助判断当前 K 线结构、动量状态、相似形态和关键风险位置。</p>
   </a>
+  <a class="signal-card strong" href="https://donew-beta.vercel.app/sell-put-decision-tool.html" target="_blank">
+    <strong>💰 武器 3：综合卖Put决策</strong>
+    <p>自动匹配 Delta≈0.15 的 Put 合约，AI 一键生成卖Put决策报告。支持纸面交易跟踪和每日自动化分析。</p>
+  </a>
 </div>
 
-?> **我的使用顺序：先用市场判断工具看大环境，再用 K 线机器人看具体标的。大环境不对，宁愿少做；标的结构不好，也不要硬做。**
+?> **我的使用顺序：先用市场判断工具看大环境，再用卖Put决策看一下能不能卖 Put，最后用 K 线机器人看具体标的。大环境不对，宁愿少做；标的结构不好，也不要硬做。**
 
 ## 小工具与常用入口
 
