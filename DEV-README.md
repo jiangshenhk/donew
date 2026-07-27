@@ -234,6 +234,17 @@ node scripts/create-tool-scaffold.mjs \
 
 **现有策略文档的处理**：`docs/SellPut/策略/` 中的文件本质上是 README-FOR-AI，应逐步迁移到对应工具的 `README-FOR-AI.md` 中。日报/晚报生成器已通过 `loadStrategyBaseline()` 读取这些文件作为 AI 提示词，保持现有链路不变。
 
+**文档查找标准路径**：
+
+```
+DEV-README.md                    ← 总入口：列所有工具，链接各工具文档
+  └─ docs/tools/<slug>/
+       ├─ README.md              ← 给开发者/接手AI读：架构、数据流、评分逻辑、API参数
+       └─ README-FOR-AI.md       ← 运行时喂给GPT/DeepSeek：输出格式、判断规则、策略口径
+```
+
+接手任何工具时：先读 `DEV-README.md` 找工具 → 打开 `docs/tools/<slug>/README.md` 理解架构 → 打开 `README-FOR-AI.md` 理解 AI 行为。
+
 ### 约定 6：Vercel Hobby 上限 12 Functions，优先用 action 路由合并
 
 Vercel Hobby 计划每个 Deployment 最多 12 个 Serverless Functions（`api/` 目录下每个 .js 算一个，`_lib/` 不计入）。
