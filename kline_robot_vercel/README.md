@@ -85,7 +85,7 @@ kline_robot_vercel/
 页面发起生成请求
   -> API 先读取 GitHub 上的 jin10news/data/latest-24h.json
   -> 压缩筛选要点
-  -> 调用 DeepSeek / OpenAI
+  -> 按各工具配置调用 DeepSeek 或 OpenAI
   -> 返回 Markdown 报告
 ```
 
@@ -123,6 +123,7 @@ kline_robot_vercel/
 
 - 页面：`sell-put-decision-tool.html`
 - 核心 API：`api/sell-put-decision.js`
+- 综合决策只调用 DeepSeek；K线分析最多30秒、DeepSeek最多50秒，超时后返回预检查或规则版
 - 期权概览 API：`api/barchart-overview.js`
 
 处理流程：

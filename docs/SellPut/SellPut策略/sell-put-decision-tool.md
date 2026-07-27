@@ -1,6 +1,6 @@
 # Sell Put 综合决策工具 — 设计思路
 
-> 当前自动交易准备版本：`2.0.0.4`。
+> 当前自动交易准备版本：`2.0.0.5`。
 > `sell-put-decision-v1.7.15` 是加入 Delta / Bid / Ask 合约执行硬门槛前的回退基线。
 
 ## 核心特性
@@ -226,6 +226,8 @@ INTC（2026-07-20）：
 - `kline_robot_vercel/api/put-rating.js`：导出 `analyzePutRatingSnapshot()`，供独立温度页与综合决策共享同一套市场/温度判断
 - `kline_robot_vercel/api/news-summary.js`：导出 `loadRecentMarketNews()` 和 `analyzeDecisionNews()`，供新闻中心与综合决策共享24小时新闻边界、相关性筛选和事件扫描
 - `kline_robot_vercel/vercel.json`：为综合决策 API 配置最长120秒执行时长
+- 生成链路内部限制：K线结构分析最多30秒，DeepSeek最多50秒；任一阶段超时都应返回预检查或规则版，不等待平台硬超时
+- 综合决策只使用 DeepSeek，不调用 GPT；接口同时返回各阶段耗时，便于定位慢点
 - 其他工具需要复用规则时应导入核心函数，不要在 API 文件中复制一套评分规则
 
 ## 7. 后续扩展方向

@@ -44,3 +44,17 @@ test("keeps screenshot OCR in the browser and sends only parsed metrics", () => 
   assert.match(pageSource, /missingRequiredOptionMetrics/);
   assert.doesNotMatch(pageSource, /payload\.imageDataUrl/);
 });
+
+test("uses a bounded DeepSeek-only generation chain and reports non-JSON responses clearly", () => {
+  const apiSource = fs.readFileSync(new URL("./sell-put-decision.js", import.meta.url), "utf8");
+  const pageSource = fs.readFileSync(new URL("../sell-put-decision-tool.html", import.meta.url), "utf8");
+
+  assert.match(apiSource, /K线分析超过30秒/);
+  assert.match(apiSource, /\}, 50000\)/);
+  assert.doesNotMatch(apiSource, /api\.openai\.com/);
+  assert.doesNotMatch(apiSource, /OPENAI_API_KEY/);
+  assert.match(apiSource, /timings:\s*\{\s*dataMs:/);
+  assert.match(pageSource, /async function readApiJson/);
+  assert.match(pageSource, /报告生成接口/);
+  assert.match(pageSource, /v2\.0\.0\.5/);
+});

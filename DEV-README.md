@@ -436,21 +436,20 @@ docs/tools/alpha-risk-tool/README.md
 
 ## 11. 推荐给新对话直接复制的提示词
 
-新开一个对话时，可以直接给它这段：
+给新智能体对话时，直接发以下内容：
 
 ```text
-你先读以下文件，再开始动手：
+我要修改这个工具：https://donew-beta.vercel.app/sell-put-decision-tool.html
 
-1. /Users/jiangshen/Desktop/Obsidian/网络文章/收集箱/Codex相关/donew/DEV-README.md
+你先读：
+1. DEV-README.md 第 13 章确认工具名称和文档位置
+2. 打开对应的 README.md 理解架构和数据流
+3. 打开对应的 README-FOR-AI.md 理解 AI 提示词和行为约束
 
-如果是新增工具，再读：
-2. /Users/jiangshen/Desktop/Obsidian/网络文章/收集箱/Codex相关/donew/scripts/create-tool-scaffold.mjs
-3. /Users/jiangshen/Desktop/Obsidian/网络文章/收集箱/Codex相关/donew/kline_robot_vercel/README.md
-
-按 donew 当前结构工作。
-除非我明确要求，否则不要推送、不要部署。
-如果递交有冲突，只做小范围递交。
+遵守 DEV-README 全部约定：不要默认推送、改后更新版本号、不加新 API 文件（用 action 路由）、推送后 vercel --prod --yes。
 ```
+
+把 `sell-put-decision-tool.html` 替换成实际要改的工具入口。
 
 ---
 
@@ -599,7 +598,7 @@ docs/tools/alpha-risk-tool/README.md
   - K线工具共享引擎（底层行情由 `report.js` 统一处理）
   - Barchart Options Overview 免费网页（优先按标的读取期权概览，通常延迟约25至30分钟）
   - 浏览器端 Tesseract.js（用户在“手工修改”中主动识别截图；图片不进入生成 API）
-  - DeepSeek / OpenAI（AI 综合判断生成报告）
+  - DeepSeek（AI 综合判断生成报告；本工具不调用 OpenAI）
   - Webull Options Total Volume Ranking 公开页（热门期权标的候选榜）
 - 核心逻辑：
   - 严格完整性门槛：关键行情、相关新闻、K线结构、期权温度、具体合约缺一项就只输出预检查；行权价和权利金必须为正数，到期日必须是未来有效日期
@@ -990,8 +989,8 @@ Vercel 线上需要的所有环境变量（在 Vercel Dashboard → Project Sett
 | `DEEPSEEK_API_KEY` | DeepSeek API Key（DeepSeek 模型调用） | `sk-xxx` |
 | `DEEPSEEK_MODEL` | DeepSeek 默认模型 | `deepseek-chat` 或 `deepseek-v4-flash` |
 
-**AI 双路由说明**：所有 API 均支持 OpenAI + DeepSeek 双路由。各 API 的调用优先级不同：
-- `sell-put-decision.js`：报告生成优先 DeepSeek；不接收截图，只使用前台已确认的结构化期权字段
+**AI 路由说明**：各 API 按自身用途选择模型，不应假定所有接口都具有双路由：
+- `sell-put-decision.js`：报告生成只调用 DeepSeek；不接收截图，只使用前台已确认的结构化期权字段。K线分析最多30秒、DeepSeek最多50秒，超时后返回预检查或规则版，不串行回退其他模型
 - `put-rating.js`：优先 OpenAI GPT，失败回退 DeepSeek；独立温度工具仍可使用 OpenAI Vision 识别截图
 - `market-report-v2.js` / `report.js`：两路都尝试，任意一路可用即可
 - `news-summary.js`：优先 DeepSeek，失败回退 OpenAI

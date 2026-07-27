@@ -47,6 +47,24 @@ async function timedFetch(url, options = {}, timeoutMs = 12000) {
   finally { clearTimeout(timer); }
 }
 
+async function withTimeLimit(promise, timeoutMs, message) {
+  let timer;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          const error = new Error(message);
+          error.name = "TimeoutError";
+          reject(error);
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -426,10 +444,6 @@ function sanitizeOptionMetrics(raw = {}) {
     todayVolume: String(raw.todayVolume ?? "").trim(), volumeAvg30: String(raw.volumeAvg30 ?? "").trim(),
     todayOpenInterest: String(raw.todayOpenInterest ?? "").trim(), openInterest30: String(raw.openInterest30 ?? "").trim(),
   };
-}
-
-function extractTextFromResponse(json) {
-  return json?.output_text || (json?.output || []).flatMap((i) => i.content || []).map((c) => c.text || "").join("") || "";
 }
 
 function analyzeAtrVsPut(targetRow, klineStats, targetStrike, expiryDate) {
@@ -883,40 +897,34 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 记住：直接输出 HTML 片段，不要任何包装标记！`;
 }
 
-async function callAI(symbol, prompt) {
-  if (process.env.DEEPSEEK_API_KEY) {
-    try {
-      const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
-      const res = await timedFetch("https://api.deepseek.com/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], temperature: 0.2 }),
-      }, 60000);
-      if (res.ok) {
-        const json = await res.json();
-        const html = json?.choices?.[0]?.message?.content?.trim() || "";
-        if (html) return { provider: "DeepSeek", html };
-      }
-    } catch (e) { /* fall through */ }
+async function callAI(prompt) {
+  if (!process.env.DEEPSEEK_API_KEY) {
+    return { provider: "规则版", html: "", warning: "未配置DEEPSEEK_API_KEY" };
   }
-  if (process.env.OPENAI_API_KEY) {
-    try {
-      const res = await timedFetch("https://api.openai.com/v1/responses", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: process.env.OPENAI_MODEL || "gpt-5",
-          input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }],
-        }),
-      }, 60000);
-      if (res.ok) {
-        const json = await res.json();
-        const html = extractTextFromResponse(json).trim();
-        if (html) return { provider: "GPT", html };
-      }
-    } catch (e) { /* fall through */ }
+  try {
+    const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
+    const res = await timedFetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2,
+        max_tokens: 6000,
+      }),
+    }, 50000);
+    if (!res.ok) {
+      return { provider: "规则版", html: "", warning: `DeepSeek HTTP ${res.status}` };
+    }
+    const json = await res.json();
+    const html = json?.choices?.[0]?.message?.content?.trim() || "";
+    return html
+      ? { provider: "DeepSeek", html, warning: "" }
+      : { provider: "规则版", html: "", warning: "DeepSeek未返回报告内容" };
+  } catch (error) {
+    const message = error?.name === "AbortError" ? "DeepSeek 50秒未返回" : (error?.message || "DeepSeek调用失败");
+    return { provider: "规则版", html: "", warning: message };
   }
-  return { provider: "规则版", html: "" };
 }
 
 function buildRuleHtml(symbol, market, risk, klineStats, klineStructure, optionMetricsText, snapshot, targetStrike, expiryDate, decisionNewsItems, eventRisks, generatedAt, contractDecision) {
@@ -1157,12 +1165,18 @@ export default async function handler(req, res) {
       optionDelayNote ? `Data Delay: ${optionDelayNote}` : "",
     ].filter(Boolean).join("\n");
 
+    const dataStartedAt = Date.now();
     const [stockpriceBaseSnapshot, newsData, klineStructure] = await Promise.all([
       loadStockpriceSnapshot().catch(() => ({ data: [], checkedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })),
       loadRecentMarketNews().catch(() => ({ items: [], count: 0 })),
-      analyzeKlineStructure({ symbol, market, interval: "1d", range: "3mo", maxMatchBars: 10, trendSampleScope: "0" })
+      withTimeLimit(
+        analyzeKlineStructure({ symbol, market, interval: "1d", range: "3mo", maxMatchBars: 10, trendSampleScope: "0" }),
+        30000,
+        "K线分析超过30秒",
+      )
         .catch((error) => ({ error: error.message || "K线结构分析失败" })),
     ]);
+    const dataElapsedMs = Date.now() - dataStartedAt;
     const stockpriceSnapshot = preferDirectTargetQuote(stockpriceBaseSnapshot, symbol, klineStructure);
 
     const klineStats = Array.isArray(klineStructure?.bars) ? computeKlineStats(klineStructure.bars) : null;
@@ -1229,6 +1243,7 @@ export default async function handler(req, res) {
         filename: `${symbol}-sell-put-precheck.html`,
         html: buildPrecheckHtml(symbol, market, readiness, risk, klineStats, optionMetricsText, stockpriceSnapshot, generatedAt),
         generatedAt,
+        timings: { dataMs: dataElapsedMs, aiMs: 0, totalMs: Date.now() - startTime },
         elapsedMs: Date.now() - startTime,
       });
     }
@@ -1242,7 +1257,9 @@ export default async function handler(req, res) {
       klineStats, risk, rawRisk, eventRisksText, contractDecision,
     });
 
-    const ai = await callAI(symbol, prompt);
+    const aiStartedAt = Date.now();
+    const ai = await callAI(prompt);
+    const aiElapsedMs = Date.now() - aiStartedAt;
     const cleanHtml = ensureKlineMatchLine(
       sanitizeAiHtml(stripCodeFenceAndExtract(ai.html)),
       klineStructure,
@@ -1283,6 +1300,8 @@ export default async function handler(req, res) {
       filename: `${symbol}-sell-put-decision.html`,
       html: finalHtml,
       generatedAt,
+      warnings: ai.warning ? [ai.warning] : [],
+      timings: { dataMs: dataElapsedMs, aiMs: aiElapsedMs, totalMs: Date.now() - startTime },
       elapsedMs: Date.now() - startTime,
     });
   } catch (error) {
