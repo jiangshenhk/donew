@@ -219,7 +219,16 @@ node scripts/create-tool-scaffold.mjs \
   --api your-tool
 ```
 
-### 约定 5：Vercel Hobby 上限 12 Functions，优先用 action 路由合并
+脚手架会自动生成 `docs/tools/<slug>/README.md`。这个 README 是该工具**唯一的文档**，同时包含使用说明和设计思路。
+
+### 约定 5：每工具一个 README，含使用说明 + 设计思路
+
+- DEV-README 是总入口，列所有工具 + 链接各工具 README
+- 每个工具在 `docs/tools/<slug>/README.md` 有一份文档
+- README 必须包含：功能概述、设计思路、数据流、评分逻辑、API 参数、前端入口
+- 无需额外的"设计文档"或"策略文档"单独存放
+
+### 约定 6：Vercel Hobby 上限 12 Functions，优先用 action 路由合并
 
 Vercel Hobby 计划每个 Deployment 最多 12 个 Serverless Functions（`api/` 目录下每个 .js 算一个，`_lib/` 不计入）。
 
@@ -234,7 +243,7 @@ Vercel Hobby 计划每个 Deployment 最多 12 个 Serverless Functions（`api/`
 
 **模式**：在 handler 入口处判断 `req.query.action` 或 `req.body.mode`，分派到不同逻辑分支后提前 return。
 
-### 约定 6：部署时必须同时跑 `vercel --prod`
+### 约定 7：部署时必须同时跑 `vercel --prod`
 
 推送代码到 GitHub 后，从仓库根目录执行：
 
@@ -244,7 +253,7 @@ vercel --prod --yes
 
 Vercel 的 GitHub 自动集成有时不触发或延迟，手动部署确保代码立即上线。
 
-### 约定 7：标的池体系
+### 约定 8：标的池体系
 
 完整的标的分类体系在：
 
