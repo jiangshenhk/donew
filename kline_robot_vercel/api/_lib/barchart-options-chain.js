@@ -57,6 +57,10 @@ export async function fetchOptionsChain(symbol, options = {}) {
     dteMin = 5,
     dteMax = 25,
     targetDelta = 0.15,
+    minBid = 0.10,
+    minOi = 50,
+    deltaMin = 0.05,
+    deltaMax = 0.25,
     timeoutMs = 20000,
   } = options;
 
@@ -113,8 +117,9 @@ export async function fetchOptionsChain(symbol, options = {}) {
       && c.optionType.toLowerCase() === 'put'
       && c.strikePrice
       && c.daysToExpiration >= dteMin && c.daysToExpiration <= dteMax
-      && c.bidPrice > 0
-      && c.openInterest >= 10
+      && c.delta != null && Math.abs(c.delta) >= deltaMin && Math.abs(c.delta) <= deltaMax
+      && c.bidPrice >= minBid
+      && c.openInterest >= minOi
     );
 
     contracts.sort((a, b) => {

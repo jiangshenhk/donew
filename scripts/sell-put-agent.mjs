@@ -944,7 +944,7 @@ async function runDaily() {
 
     // Save journal
     const alreadyHolding = positions.some(p => p.status === 'open' && p.symbol === symbol);
-    const willOpen = !alreadyHolding && gates.canOpen && decision.stance === '可卖Put';
+    let willOpen = !alreadyHolding && gates.canOpen && decision.stance === '可卖Put';
     let actionNote = '不操作';
     let tradeDetail = null;
 
