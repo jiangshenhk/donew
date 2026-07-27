@@ -221,12 +221,18 @@ node scripts/create-tool-scaffold.mjs \
 
 脚手架会自动生成 `docs/tools/<slug>/README.md`。这个 README 是该工具**唯一的文档**，同时包含使用说明和设计思路。
 
-### 约定 5：每工具一个 README，含使用说明 + 设计思路
+### 约定 5：每工具两个文档：README + README-FOR-AI
 
-- DEV-README 是总入口，列所有工具 + 链接各工具 README
-- 每个工具在 `docs/tools/<slug>/README.md` 有一份文档
-- README 必须包含：功能概述、设计思路、数据流、评分逻辑、API 参数、前端入口
-- 无需额外的"设计文档"或"策略文档"单独存放
+每个工具在 `docs/tools/<slug>/` 下应有两份文件：
+
+| 文件 | 受众 | 内容 |
+|---|---|---|
+| `README.md` | 开发者 / 接手 AI | 功能概述、设计思路、数据流、API 参数、评分逻辑、部署说明 |
+| `README-FOR-AI.md` | 喂给 GPT/DeepSeek | 该工具专用的 AI 提示词：输出格式、判断规则、策略口径、素材引用 |
+
+**AI 调用时**，API 代码应读取 `docs/tools/<slug>/README-FOR-AI.md`，将其内容拼入系统 prompt，确保 AI 行为与该工具的设计意图一致。
+
+**现有策略文档的处理**：`docs/SellPut/策略/` 中的文件本质上是 README-FOR-AI，应逐步迁移到对应工具的 `README-FOR-AI.md` 中。日报/晚报生成器已通过 `loadStrategyBaseline()` 读取这些文件作为 AI 提示词，保持现有链路不变。
 
 ### 约定 6：Vercel Hobby 上限 12 Functions，优先用 action 路由合并
 
@@ -451,14 +457,14 @@ docs/tools/alpha-risk-tool/README.md
 
 ### 13.1 当前工具全景
 
-| 工具 | 线上入口 | 主要代码位置 | README / 设计文档 | 类型 |
+| 工具 | 线上入口 | 主要代码位置 | 文档 | 类型 |
 | --- | --- | --- | --- | --- |
 | K线相识度 | `https://donew-beta.vercel.app/kline-robot.html` | `kline-robot.html`、`kline_robot_vercel/` | — | 交互式网页工具 |
 | 24小时新闻中心 | `https://donew-beta.vercel.app/jin10-news.html` | `jin10news/`、`kline_robot_vercel/jin10-news.html` | `jin10news/README.md` | 数据中心 + 展示页 |
 | 最新行情中心 | `https://donew-beta.vercel.app/price-test.html` | `stockprice/`、`kline_robot_vercel/api/market-report-v2.js` | `stockprice/README.md` | 数据中心 + 管理页 |
-| 日报周报自动生成器 | 无独立交互页，走 GitHub Actions | `.github/workflows/generate-market-daily-reports.yml`、`scripts/`、`lib/` | `docs/市场/README.md` | 定时生成器 |
-| 最新每日/每周市场情况分析 | `https://donew-beta.vercel.app/market-analysis-tool.html` | `market-analysis-tool.html`、`kline_robot_vercel/market-analysis-tool.html`、`kline_robot_vercel/api/market-report-v2.js` | `docs/市场/README.md` | 交互式网页工具 |
-| 卖 Put 温度判断 | `https://donew-beta.vercel.app/sell-put-tool.html` | `sell-put-tool.html`、`kline_robot_vercel/sell-put-tool.html`、`kline_robot_vercel/api/put-rating.js` | `docs/tools/sell-put-tool/README.md` | 截图 OCR + 行情快照 + AI结论 |
+| 日报周报自动生成器 | 无独立交互页，走 GitHub Actions | `.github/workflows/generate-market-daily-reports.yml`、`scripts/`、`lib/` | `docs/市场/README.md` + `SellPut/日报周报/策略_*.md`（AI 提示词） | 定时生成器 |
+| 最新每日/每周市场情况分析 | `https://donew-beta.vercel.app/market-analysis-tool.html` | `market-analysis-tool.html`、`kline_robot_vercel/market-analysis-tool.html`、`kline_robot_vercel/api/market-report-v2.js` | `docs/市场/README.md` + `SellPut/日报周报/策略_*.md`（AI 提示词） | 交互式网页工具 |
+| 卖 Put 温度判断 | `https://donew-beta.vercel.app/sell-put-tool.html` | `sell-put-tool.html`、`kline_robot_vercel/sell-put-tool.html`、`kline_robot_vercel/api/put-rating.js` | `docs/tools/sell-put-tool/README.md` | 交互式网页工具 |
 | 综合卖Put决策 | `https://donew-beta.vercel.app/sell-put-decision-tool.html` | `sell-put-decision-tool.html`、`kline_robot_vercel/sell-put-decision-tool.html`、`kline_robot_vercel/api/sell-put-decision.js` | `docs/tools/sell-put-decision/README.md` | 聚合决策层 |
 | 卖Put标的池扫描 | `https://donew-beta.vercel.app/sell-put-pool-tool.html` | `sell-put-pool-tool.html`、`kline_robot_vercel/sell-put-pool-tool.html`、`kline_robot_vercel/api/barchart-overview.js` | `docs/tools/sell-put-pool-tool/README.md` | 批量候选初筛 |
 | 八字命理分析 | `https://donew-beta.vercel.app/bazi-analysis-tool.html` | `bazi-analysis-tool.html`、`kline_robot_vercel/bazi-analysis-tool.html`、`kline_robot_vercel/api/bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README.md` | DeepSeek AI 增强 |
