@@ -13,6 +13,7 @@ import {
   calculateMarketRisk,
   evaluateOptionContract,
 } from './_lib/sell-put-decision-core.js';
+import { fetchOptionsChain, selectBestContract } from './_lib/barchart-options-chain.js';
 
 const STOCKPRICE_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
 const STOCKPRICE_CACHE_TTL = 5 * 60 * 1000;
@@ -1162,14 +1163,28 @@ export default async function handler(req, res) {
     const market = detectMarket(symbol, body.market);
     const notes = String(body.notes || "").trim();
     const noteContract = extractContractFromNotes(notes);
-    const targetStrike = String(body.targetStrike || body.optionMetrics?.targetStrike || noteContract.targetStrike || "").trim();
-    const delta = String(body.delta || body.optionMetrics?.delta || noteContract.delta || "").trim();
-    const bid = String(body.bid || body.optionMetrics?.bid || noteContract.bid || "").trim();
-    const ask = String(body.ask || body.optionMetrics?.ask || noteContract.ask || "").trim();
-    const expiryDate = String(body.expiryDate || body.optionMetrics?.expiryDate || noteContract.expiryDate || "").trim();
+    let targetStrike = String(body.targetStrike || body.optionMetrics?.targetStrike || noteContract.targetStrike || "").trim();
+    let delta = String(body.delta || body.optionMetrics?.delta || noteContract.delta || "").trim();
+    let bid = String(body.bid || body.optionMetrics?.bid || noteContract.bid || "").trim();
+    let ask = String(body.ask || body.optionMetrics?.ask || noteContract.ask || "").trim();
+    let expiryDate = String(body.expiryDate || body.optionMetrics?.expiryDate || noteContract.expiryDate || "").trim();
     const rawMetrics = (body.optionMetrics && typeof body.optionMetrics === "object") ? body.optionMetrics : {};
 
     if (!symbol) return sendJson(res, 400, { ok: false, message: "缺少标的代码。" });
+
+    if (!targetStrike || !delta || !bid || !ask || !expiryDate) {
+      try {
+        const contracts = await fetchOptionsChain(symbol, { targetDte: 10 });
+        const best = selectBestContract(contracts, 10, 0.15);
+        if (best) {
+          targetStrike = String(best.strikePrice || "");
+          delta = String(best.delta || "");
+          bid = String(best.bidPrice || "");
+          ask = String(best.askPrice || "");
+          expiryDate = String(best.expireDate || "");
+        }
+      } catch { /* 自动获取失败，沿用已有预检查逻辑 */ }
+    }
 
     const optionMetrics = sanitizeOptionMetrics(rawMetrics);
 

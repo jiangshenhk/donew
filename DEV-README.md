@@ -28,6 +28,7 @@
 6. 卖 Put 温度判断工具
 7. 综合卖Put决策工具（新闻+行情+K线+期权四合一）
 8. 卖Put标的池扫描工具（Barchart期权溢价批量初筛）
+9. Sell Put Agent — 自动卖Put决策引擎（CLI脚本 + 可视化仪表板）
 
 它们之间有共享的数据中心、共享的 AI 接口、共享的前端样式和共享的部署层。
 
@@ -177,6 +178,11 @@
 - 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
 - 卖Put标的池扫描：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
 - 最新行情管理页：`https://donew-beta.vercel.app/price-test.html`
+
+### 本地工具（CLI）
+
+- **Sell Put Agent**：`node scripts/sell-put-agent.mjs daily` — 自动分析 QLD/MSTR/INTC 卖Put机会，纸面交易 + 仪表板，数据存 `~/.donew-agent/`
+  - 文档：`docs/tools/sell-put-agent/README.md`
 
 以上正式工具入口统一使用仓库根目录或 `kline_robot_vercel/` 下的 `ai-icon.svg` 作为浏览器标签图标。新增工具时必须在 `<head>` 中同时声明 `rel="icon"` 和 `rel="shortcut icon"`，并使用相对于当前入口页可访问的静态路径。
 
