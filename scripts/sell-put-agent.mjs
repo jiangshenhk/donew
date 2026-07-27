@@ -610,12 +610,14 @@ async function settlePosition(pos, prices) {
     pos.lossAmount = Math.round(totalLoss * 100) / 100;
     pos.pnl = Math.round((pos.premiumCollected - totalLoss) * 100) / 100;
     pos.status = 'closed';
+    pos.closedAt = new Date().toISOString();
     console.log(`  ❌ ${pos.symbol} $${pos.strike}P 到期ITM: 收盘$${closePrice} 亏损$${pos.pnl.toFixed(2)}`);
   } else {
     pos.result = 'win';
     pos.pnl = pos.premiumCollected;
     pos.lossAmount = 0;
     pos.status = 'closed';
+    pos.closedAt = new Date().toISOString();
     console.log(`  ✅ ${pos.symbol} $${pos.strike}P 到期OTM: 收盘$${closePrice} 盈利$${pos.pnl.toFixed(2)}`);
   }
   return pos;
@@ -772,7 +774,7 @@ async function processEarlyCloseSignals(signals, positions) {
       const idx = sig.positionIndex;
       const actualProfit = Math.round((sig.originalPremium - sig.currentPremium) * positions[idx].contracts * 100 * 100) / 100;
       positions[idx].status = 'closed';
-      positions[idx].closedAt = todayStr();
+      positions[idx].closedAt = new Date().toISOString();
       positions[idx].result = 'win';
       positions[idx].pnl = actualProfit;
       positions[idx].lossAmount = 0;
