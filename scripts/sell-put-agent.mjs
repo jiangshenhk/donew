@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // sell-put-agent.mjs — Sell Put Decision Agent v0.3.0
-// 每日自动分析 QLD/MSTR/QQQ 卖Put机会，记录纸面交易，跟踪胜率
+// 每日自动分析 QLD/MSTR/INTC 卖Put机会，记录纸面交易，跟踪胜率
 // 数据存储于 ~/.donew-agent/ (独立于仓库，不 commit)
 //
 // Usage: node scripts/sell-put-agent.mjs [daily|stats|version]
@@ -166,7 +166,13 @@ async function barchartSession(symbol, timeoutMs = 15000) {
 
 // ─── Options Chain Fetcher ────────────────────────────────────
 
-async function fetchOptionsChain(symbol, timeoutMs = 20000) {
+async function fetchOptionsChain(symbol, opts = {}) {
+  // TODO: 统一使用 _lib/barchart-options-chain.js 的 fetchOptionsChain。
+  // 当前为 Agent 自有副本，字段名与共用模块不同（strike vs strikePrice 等），
+  // 统一前需对齐字段名并确保所有调用方兼容。
+  const timeoutMs = opts.timeoutMs || 20000;
+  const dteMin = opts.dteMin ?? 5;
+  const dteMax = opts.dteMax ?? 25;
   const session = await barchartSession(symbol, timeoutMs);
 
   const url = new URL(`${BARCHART}/proxies/core-api/v1/options/get`);
@@ -179,7 +185,7 @@ async function fetchOptionsChain(symbol, timeoutMs = 20000) {
     meta: 'field.shortName,field.type',
     'in(symbolType,(put))': '',
     'gt(bidPrice,0.01)': '',
-    'between(daysToExpiration,5,25)': '',
+    [`between(daysToExpiration,${dteMin},${dteMax})`]: '',
     'between(openInterest,10,)': '',
     'gt(baseLastPrice,1.00)': '',
     [`eq(baseSymbol,${symbol})`]: '',
@@ -215,9 +221,10 @@ async function fetchOptionsChain(symbol, timeoutMs = 20000) {
     }).filter(c =>
       c.symbol === symbol.toUpperCase()
       && c.optionType.toLowerCase() === 'put'
-      && c.strike && c.dte && c.dte >= 5 && c.dte <= 25
-      && c.bid > 0
-      && c.oi >= 10
+      && c.strike && c.dte && c.dte >= dteMin && c.dte <= dteMax
+      && c.delta != null && Math.abs(c.delta) >= CONFIG.deltaRange[0] && Math.abs(c.delta) <= CONFIG.deltaRange[1]
+      && c.bid >= CONFIG.minBid
+      && c.oi >= CONFIG.minOi
     );
 
     // Sort: closest delta to 0.15 first, then nearest expiration
@@ -555,7 +562,8 @@ function openPaperPosition(symbol, contract, decision) {
   const mid = Math.round((contract.bid + (contract.ask || contract.bid)) / 2 * 100) / 100;
   const capitalPerContract = contract.strike * 100;
   const maxContracts = Math.floor(CONFIG.capital * CONFIG.maxSinglePositionPct / capitalPerContract);
-  const contracts = Math.max(1, Math.min(5, maxContracts));
+  if (maxContracts < 1) return null;
+  const contracts = Math.min(5, maxContracts);
   const premium = Math.round(mid * contracts * 100 * 100) / 100;
   const capitalUsed = capitalPerContract * contracts;
   const annualizedReturn = mid / contract.strike * (365 / contract.dte) * 100;
@@ -686,7 +694,7 @@ async function checkEarlyClose() {
 
     let currentMid = null;
     try {
-      const contracts = await fetchOptionsChain(pos.symbol);
+      const contracts = await fetchOptionsChain(pos.symbol, { dteMin: 1 });
       const match = contracts.find(c =>
         Math.abs(c.strike - pos.strike) < 0.01 &&
         c.expireDate === pos.expireDate
@@ -757,16 +765,18 @@ async function processEarlyCloseSignals(signals, positions) {
     console.log(`     原始权利金: $${sig.originalPremium} → 当前: $${sig.currentPremium} (${sig.premiumRemaining}%)`);
     console.log(`     利润捕获: ${sig.profitCapture}% | ${sig.reason}`);
 
-    // Auto-close on take_profit
-    if (sig.type === 'take_profit') {
+    // Auto-close on take_profit or time_decay_close
+    if (sig.type === 'take_profit' || sig.type === 'time_decay_close') {
       const idx = sig.positionIndex;
+      const actualProfit = Math.round((sig.originalPremium - sig.currentPremium) * positions[idx].contracts * 100 * 100) / 100;
       positions[idx].status = 'closed';
       positions[idx].closedAt = todayStr();
       positions[idx].result = 'win';
-      positions[idx].pnl = sig.originalPremium * positions[idx].contracts * 100; // simplified: keep full premium
-      positions[idx].closeNote = `提前平仓: 捕获${sig.profitCapture}%利润`;
-      positions[idx].expireClose = positions[idx].strike + 1; // fake OTM
-      console.log(`     📝 自动平仓 (赢)`);
+      positions[idx].pnl = actualProfit;
+      positions[idx].lossAmount = 0;
+      positions[idx].closeNote = `提前平仓: 捕获${sig.profitCapture}%利润 ($${sig.originalPremium}→$${sig.currentPremium})`;
+      positions[idx].expireClose = positions[idx].strike + 1;
+      console.log(`     📝 自动平仓 (赢) PnL: $${actualProfit}`);
     }
   }
   savePositions(positions);
@@ -873,8 +883,9 @@ async function runDaily() {
       console.log(`     $${c.strike?.toFixed(0)}P | DTE:${c.dte} | Δ:${c.delta?.toFixed(3)} | Bid:$${c.bid?.toFixed(2)} | OTM:${otm}%`);
     }
 
-    // ATR safety filter: prefer contracts where strike ≤ ATR safe price
-    const estAtr = prices[symbol]?.dailyAtr || contracts[0]?.dte ? (prices[symbol]?.price || 0) * 0.03 : 0;
+    // ATR safety filter: use stockprice dailyAtr, fall back to 3% of price estimate
+    const dailyAtr = prices[symbol]?.dailyAtr;
+    const estAtr = (dailyAtr != null && dailyAtr > 0) ? dailyAtr : ((prices[symbol]?.price || 0) * 0.03);
     const estSafePrice = prices[symbol]?.price && estAtr
       ? prices[symbol].price - estAtr * Math.sqrt(contracts[0].dte || 10)
       : null;
@@ -943,10 +954,15 @@ async function runDaily() {
     else if (decision.stance === '暂不卖Put') actionNote = '信号不利';
 
     if (willOpen) {
-      const premium = Math.round((contract.bid + (contract.ask || contract.bid)) / 2 * 100) / 100;
-      const contracts = Math.min(5, Math.floor(CONFIG.capital * CONFIG.maxSinglePositionPct / (contract.strike * 100)));
-      actionNote = `开仓 ${contracts}张`;
-      tradeDetail = { strike: contract.strike, premium, contracts, expireDate: contract.expireDate, dte: contract.dte };
+      const maxContracts = Math.floor(CONFIG.capital * CONFIG.maxSinglePositionPct / (contract.strike * 100));
+      const contracts = Math.min(5, maxContracts);
+      if (maxContracts < 1) {
+        actionNote = '资金不足';
+        willOpen = false;
+      } else {
+        actionNote = `开仓 ${contracts}张`;
+      }
+      tradeDetail = { strike: contract.strike, premium: Math.round((contract.bid + (contract.ask || contract.bid)) / 2 * 100) / 100, contracts, expireDate: contract.expireDate, dte: contract.dte };
     }
 
     saveJournal({
@@ -980,6 +996,7 @@ async function runDaily() {
     // Open paper position
     if (willOpen) {
       const pos = openPaperPosition(symbol, contract, decision);
+      if (pos) {
       positions = loadPositions();
       positions.push(pos);
       savePositions(positions);
@@ -1011,7 +1028,7 @@ async function runDaily() {
       console.log(`     成交价: $${pos.premium} | Bid: $${contract.bid} / Ask: $${contract.ask} | 价差: $${order.spread}`);
       console.log(`     数量: ${pos.contracts}张 | 权利金: $${pos.premiumCollected} | 保证金: $${pos.capitalUsed}`);
       console.log(`     年化: ${pos.annualizedReturn}% | 到期: ${pos.expireDate} (${Math.ceil((new Date(pos.expireDate) - new Date()) / 86400000)}天)`);
-    }
+    }} // end if(pos) / if(willOpen)
 
     // Update stats
     const s = loadStats();
