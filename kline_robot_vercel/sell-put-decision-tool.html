@@ -313,6 +313,7 @@
       border-radius: 14px;
       background: #fbfdff;
     }
+    .metrics-panel:not([open]) { display: none; }
     .option-parameter-entry {
       display: flex;
       align-items: center;
@@ -914,7 +915,7 @@
           <div class="field"><label for="putPrice">Mid（自动计算）</label><input id="putPrice" name="putPrice" type="text" inputmode="decimal" placeholder="1.41" readonly></div>
           <div class="field"><label for="expiryDate">到期日</label><input id="expiryDate" name="expiryDate" type="date"></div>
         </div>
-        <div id="contractAutoSummary" style="display:none;padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;border-radius:6px;font-size:.85rem;margin:8px 0"></div>
+        <div id="contractAutoSummary" style="display:none;padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;border-radius:6px;font-size:.85rem;margin:8px 0;color:#cddbf7"></div>
 
         <div class="field full">
           <label for="notes">补充说明（可选）</label>
