@@ -1463,7 +1463,7 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
 </head>
 <body>
 <div class="header">
-  <h1>📊 Sell Put 自动化机器人</h1>
+  <h1><svg width="24" height="24" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px"><rect x="3" y="7" width="18" height="13" rx="3" fill="#4d9eff"/><circle cx="9" cy="13" r="2" fill="#0d1522"/><circle cx="15" cy="13" r="2" fill="#0d1522"/><rect x="9" y="16" width="6" height="2" rx="1" fill="#0d1522"/><rect x="10" y="3" width="4" height="5" rx="2" fill="#4d9eff"/><circle cx="12" cy="6" r="1" fill="#ffd54a"/></svg>Sell Put 自动化机器人</h1>
   <span>Generated: <span id="genTime"></span>
   <label style="margin-left:12px;cursor:pointer;font-size:.8rem;color:#6b7fa3"><input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()" style="vertical-align:middle;margin-right:4px">自动刷新 <span id="refreshCountdown"></span></label>
   <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button></span>
