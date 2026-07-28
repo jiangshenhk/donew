@@ -1915,7 +1915,7 @@ function calShift(n) {
   html += '<p class="muted">当前标的 (' + targets.length + '个)</p>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">';
   for (const s of targets) {
-    html += '<span style="display:inline-flex;align-items:center;gap:4px;background:#111d2f;border:1px solid #1f2b44;border-radius:6px;padding:4px 10px;font-size:.85rem"><b>'+s+'</b> <button onclick="removeSymbol(\''+s+'\')" style="background:none;border:none;color:#ff6b7d;cursor:pointer;font-size:1rem;padding:0 2px" title="删除 '+s+'">×</button></span>';
+    html += '<span style="display:inline-flex;align-items:center;gap:4px;background:#111d2f;border:1px solid #1f2b44;border-radius:6px;padding:4px 10px;font-size:.85rem"><b>'+s+'</b> <button data-sym="'+s+'" onclick="removeSymbol(this.dataset.sym)" style="background:none;border:none;color:#ff6b7d;cursor:pointer;font-size:1rem;padding:0 2px" title="删除 '+s+'">×</button></span>';
   }
   html += '</div>';
   html += '<div class="filter-bar">';
@@ -1976,6 +1976,11 @@ function removeSymbol(sym) {
 
   let chart = null;
   window.renderKlineChart = function() {
+    if (typeof LightweightCharts === 'undefined') {
+      document.getElementById('kline-chart-container').innerHTML = '<p class="muted" style="padding:40px;text-align:center">图表库加载中...请确保网络连接正常</p>';
+      return;
+    }
+    try {
     const sym = document.getElementById('kc-symbol').value;
     const data = klineData[sym];
     if (!data || !data.bars || !data.bars.length) return;
@@ -2032,6 +2037,7 @@ function removeSymbol(sym) {
     if (markers.length) candleSeries.setMarkers(markers);
 
     chart.timeScale().fitContent();
+    } catch(e) { document.getElementById('kline-chart-container').innerHTML = '<p class="muted" style="padding:40px;text-align:center">图表渲染失败</p>'; }
   };
 
   setTimeout(() => renderKlineChart(), 500);
