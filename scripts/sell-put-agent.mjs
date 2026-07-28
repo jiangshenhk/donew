@@ -25,8 +25,19 @@ const EXPERIENCE_FILE = path.join(AGENT_DIR, 'experience.json');
 const ORDERS_FILE     = path.join(AGENT_DIR, 'orders.json');
 const REPORTS_DIR     = path.join(AGENT_DIR, 'reports');
 const ENV_FILE        = path.join(AGENT_DIR, '.env');
+const SYMBOLS_FILE    = path.join(AGENT_DIR, 'symbols.json');
+const SCAN_RESULT_FILE = path.join(AGENT_DIR, 'scan-result.json');
 
-const TARGETS = ['QLD', 'MSTR', 'INTC'];
+const DEFAULT_TARGETS = ['QLD', 'MSTR', 'INTC'];
+
+function loadTargets() {
+  try { return JSON.parse(fs.readFileSync(SYMBOLS_FILE, 'utf-8')); }
+  catch { return [...DEFAULT_TARGETS]; }
+}
+
+function saveTargets(targets) { saveJson(SYMBOLS_FILE, targets); }
+
+const TARGETS = loadTargets();
 
 const CONFIG = {
   capital: 100000,
@@ -1286,7 +1297,10 @@ function buildDashboardHtml() {
   capitalInfo.available = Math.round((capitalInfo.total - capitalInfo.deployed) * 100) / 100;
   capitalInfo.deploymentRate = Math.round(capitalInfo.deployed / capitalInfo.total * 1000) / 10;
 
-  const dataJson = JSON.stringify({ stats, positions, orders: orders.slice(-50).reverse(), journalEntries: journalEntries.slice(0, 100), experience, capital: capitalInfo, generatedAt: new Date().toISOString() });
+  const scanData = loadJson(SCAN_RESULT_FILE) || { results: [], scannedAt: null };
+  const currentTargets = loadTargets();
+
+  const dataJson = JSON.stringify({ stats, positions, orders: orders.slice(-50).reverse(), journalEntries: journalEntries.slice(0, 100), experience, capital: capitalInfo, scan: scanData, targets: currentTargets, generatedAt: new Date().toISOString() });
 
   const html = `<!DOCTYPE html>
 <html lang="zh-HK">
@@ -1376,12 +1390,16 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
   <button class="tab" onclick="switchTab('orders')">交易明细</button>
   <button class="tab" onclick="switchTab('journal')">判断日志</button>
   <button class="tab" onclick="switchTab('stats')">统计</button>
+  <button class="tab" onclick="switchTab('scan')">标的扫描</button>
+  <button class="tab" onclick="switchTab('settings')">设置</button>
 </div>
 <div class="panels">
   <div id="panel-positions" class="panel active"></div>
   <div id="panel-orders" class="panel"></div>
   <div id="panel-journal" class="panel"></div>
   <div id="panel-stats" class="panel"></div>
+  <div id="panel-scan" class="panel"></div>
+  <div id="panel-settings" class="panel"></div>
 </div>
 <div class="footer">Sell Put Agent · Paper Trading Dashboard</div>
 <script>
@@ -1830,6 +1848,78 @@ function calShift(n) {
   calHtml += '</div>';
   document.getElementById('cal-container').innerHTML = calHtml;
 }
+
+// Scan panel
+(function() {
+  const s = DATA.scan || { results: [], scannedAt: null };
+  let html = '<h2>标的扫描 · IV溢价排名</h2>';
+  if (s.scannedAt) {
+    html += '<p class="muted">扫描时间: ' + new Date(s.scannedAt).toLocaleString('zh-HK') + ' (' + s.total + ' 个标的)';
+    html += ' · 刷新: <code>node scripts/sell-put-agent.mjs scan</code></p>';
+  } else {
+    html += '<p class="muted">暂无扫描数据。运行 <code>node scripts/sell-put-agent.mjs scan</code> 获取。</p>';
+  }
+  if (s.results && s.results.length) {
+    html += '<table><thead><tr><th>#</th><th>标的</th><th>评分</th><th>状态</th><th>IV</th><th>HV</th><th>溢价</th><th>Rank</th><th>Pctl</th><th>ExpMove</th><th>成交量</th><th>OI</th><th>P/C Vol</th><th>信号</th></tr></thead><tbody>';
+    for (let i = 0; i < s.results.length; i++) {
+      const r = s.results[i];
+      const toneEmoji = r.tone === 'green' ? '🟢' : r.tone === 'yellow' ? '🟡' : '🔴';
+      const toneStyle = r.tone === 'green' ? 'color:#45d483;font-weight:700' : r.tone === 'yellow' ? 'color:#ffd54a' : 'color:#ff6b7d';
+      const premiumStyle = r.premium >= 3 ? 'up' : r.premium < 0 ? 'dn' : '';
+      html += '<tr>';
+      html += '<td>' + (i + 1) + '</td>';
+      html += '<td><b>' + r.symbol + '</b> <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html?symbol='+r.symbol+'" target="_blank" style="font-size:.7rem;color:#4d9eff">→决策</a></td>';
+      html += '<td style="font-weight:700;font-size:1.1rem;color:#ffd54a">' + r.score + '</td>';
+      html += '<td style="' + toneStyle + '">' + toneEmoji + ' ' + r.state + '</td>';
+      html += '<td>' + (r.iv?.toFixed(1) || '--') + '%</td>';
+      html += '<td>' + (r.hv?.toFixed(1) || '--') + '%</td>';
+      html += '<td class="' + premiumStyle + '">' + (r.premium >= 0 ? '+' : '') + r.premium + '%</td>';
+      html += '<td>' + (r.ivRank?.toFixed(0) || '--') + '%</td>';
+      html += '<td>' + (r.ivPct?.toFixed(0) || '--') + '%</td>';
+      html += '<td>' + (r.expected?.toFixed(1) || '--') + '%</td>';
+      html += '<td>' + (r.vol >= 1000 ? (r.vol/1000).toFixed(1)+'k' : r.vol?.toFixed(0) || '--') + '</td>';
+      html += '<td>' + (r.oi >= 1000 ? (r.oi/1000).toFixed(1)+'k' : r.oi?.toFixed(0) || '--') + '</td>';
+      html += '<td>' + (r.pcVol?.toFixed(2) || '--') + '</td>';
+      html += '<td style="font-size:.78rem">' + (r.posReasons || []).map(x => '<span class="up">+'+x+'</span>').join(' ') + ' ' + (r.riskReasons || []).map(x => '<span class="dn">-'+x+'</span>').join(' ') + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+  }
+  document.getElementById('panel-scan').innerHTML = html;
+})();
+
+// Settings panel
+(function() {
+  const targets = DATA.targets || [];
+  let html = '<h2>标的池管理</h2>';
+  html += '<p class="muted">当前标的: <b>' + targets.join(', ') + '</b> (' + targets.length + '个)</p>';
+  html += '<div class="filter-bar">';
+  html += '<label>添加标的</label><input id="symAdd" type="text" placeholder="输入代码..." style="width:120px;padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;color:#cddbf7;border-radius:6px">';
+  html += '<button onclick="addSymbol()" style="padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;font-size:.82rem">添加</button>';
+  html += '</div>';
+  html += '<p class="muted" style="margin-top:12px">或使用命令行:</p>';
+  html += '<p style="font-size:.82rem;color:#b0c4e8"><code>node scripts/sell-put-agent.mjs symbols add TSLA</code></p>';
+  html += '<p style="font-size:.82rem;color:#b0c4e8"><code>node scripts/sell-put-agent.mjs symbols remove TSLA</code></p>';
+  html += '<p style="font-size:.82rem;color:#b0c4e8"><code>node scripts/sell-put-agent.mjs symbols list</code></p>';
+  html += '<p class="muted" style="margin-top:16px">修改后需重新生成仪表板生效</p>';
+  
+  // Show add result
+  html += '<p id="symMsg" style="font-size:.82rem;margin-top:8px"></p>';
+  
+  document.getElementById('panel-settings').innerHTML = html;
+})();
+
+// Symbol management functions
+function addSymbol() {
+  const input = document.getElementById('symAdd');
+  const sym = input.value.trim().toUpperCase();
+  if (!sym || !/^[A-Z][A-Z0-9.-]{0,14}$/.test(sym)) {
+    document.getElementById('symMsg').innerHTML = '<span style="color:#ff6b7d">请输入有效的美股代码</span>';
+    return;
+  }
+  document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请在终端运行: <code>node scripts/sell-put-agent.mjs symbols add '+sym+'</code> 然后重新生成仪表板</span>';
+}
+
 </script>
 </body>
 </html>`;
@@ -1861,6 +1951,108 @@ async function serveDashboard() {
     console.log('🖥 Dashboard: http://localhost:' + port);
     console.log('   每 10 分钟自动刷新。按 Ctrl+C 停止。');
   });
+}
+
+// ─── CLI: scan ────────────────────────────────────────────────
+
+async function runScan() {
+  const symbols = loadTargets();
+  console.log(`🔍 扫描 ${symbols.length} 个标的...`);
+
+  const VERCEL_API = 'https://donew-beta.vercel.app';
+  const res = await fetch(`${VERCEL_API}/api/barchart-overview?symbols=${symbols.join(',')}`, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-agent/1.0)' },
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!res.ok) { console.log(`❌ HTTP ${res.status}`); return; }
+
+  const json = await res.json();
+  const data = json.data || [];
+  const results = data.filter(d => d.ok && d.metrics).map(d => {
+    const m = d.metrics || {};
+    const iv = parseFloat(m.iv) || 0;
+    const hv = parseFloat(m.hv) || 0;
+    const ivRank = parseFloat(m.ivRank) || 0;
+    const ivPct = parseFloat(m.ivPercentile) || 0;
+    const expected = parseFloat(m.expectedMovePct) || 0;
+    const vol = parseFloat(m.todayVolume) || 0;
+    const oi = parseFloat(m.todayOpenInterest) || 0;
+    const pcVol = parseFloat(m.putCallVolRatio) || 0;
+    const premium = iv - hv;
+
+    let score = 12;
+    const posReasons = [], riskReasons = [];
+    if (premium >= 8) { score += 25; posReasons.push('IV-HV溢价显著'); }
+    else if (premium >= 3) { score += 18; posReasons.push('IV高于HV'); }
+    else if (premium >= 0) { score += 8; }
+    else { score -= 15; riskReasons.push('IV低于HV'); }
+    if (ivRank >= 70) { score += 18; posReasons.push('IV Rank高'); }
+    else if (ivRank >= 50) score += 12;
+    else if (ivRank >= 30) score += 6;
+    else riskReasons.push('IV Rank偏低');
+    if (ivPct >= 80) { score += 15; posReasons.push('IV Percentile高'); }
+    else if (ivPct >= 60) score += 10;
+    else if (ivPct >= 40) score += 5;
+    if (vol >= 1000) { score += 8; posReasons.push('成交活跃'); }
+    else if (vol >= 300) score += 4;
+    else { score -= 6; riskReasons.push('成交量低'); }
+    if (oi >= 10000) { score += 8; posReasons.push('OI充足'); }
+    else if (oi >= 1000) score += 4;
+    else { score -= 6; riskReasons.push('OI偏低'); }
+    if (expected > 15) { score -= 16; riskReasons.push('ExpMove极高'); }
+    else if (expected > 10) { score -= 7; riskReasons.push('ExpMove偏高'); }
+    else if (expected >= 4) score += 5;
+    if (pcVol >= 2) { score -= 12; riskReasons.push('Put拥挤'); }
+    else if (pcVol >= 1.3) { score -= 6; riskReasons.push('Put偏多'); }
+    else if (pcVol >= 0.25) score += 4;
+
+    const missing = [iv, hv, ivRank, ivPct].filter(v => v === null || isNaN(v)).length;
+    if (missing >= 2) score = Math.min(score, 35);
+    score = Math.max(0, Math.min(100, Math.round(score)));
+
+    let state = '观察', tone = 'yellow';
+    if (score >= 70) { tone = 'green'; state = '优质候选'; }
+    else if (score >= 50) { tone = 'yellow'; state = '可观察'; }
+    else { tone = 'red'; state = '暂不建议'; }
+
+    return { symbol: d.symbol, score, tone, state, premium: Math.round(premium * 10) / 10, iv, hv, ivRank, ivPct, expected, vol, oi, pcVol, posReasons, riskReasons, delayNote: d.delayNote || '', warning: d.warning || '' };
+  });
+
+  results.sort((a, b) => b.score - a.score);
+  saveJson(SCAN_RESULT_FILE, { scannedAt: new Date().toISOString(), total: results.length, results });
+  console.log(`✅ 扫描完成: ${results.length} 个标的\n`);
+
+  // Print top results
+  for (const r of results.slice(0, 10)) {
+    const badge = r.tone === 'green' ? '🟢' : r.tone === 'yellow' ? '🟡' : '🔴';
+    console.log(`${badge} ${r.symbol.padEnd(6)} 评分:${String(r.score).padStart(3)}  ${r.state.padEnd(8)} IV:${String(r.iv?.toFixed(1)).padStart(6)}% HV:${String(r.hv?.toFixed(1)).padStart(6)}% 溢价:${r.premium >= 0 ? '+' : ''}${r.premium}%`);
+  }
+}
+
+// ─── CLI: symbols ─────────────────────────────────────────────
+
+async function manageSymbols() {
+  const sub = process.argv[3] || 'list';
+  let targets = loadTargets();
+
+  if (sub === 'list') {
+    console.log(`📋 当前标的池 (${targets.length}):`, targets.join(', '));
+    return;
+  }
+  if (sub === 'add' && process.argv[4]) {
+    const sym = process.argv[4].toUpperCase();
+    if (!targets.includes(sym)) { targets.push(sym); saveTargets(targets); console.log(`✅ 已添加: ${sym}`); }
+    else console.log(`⚠️ ${sym} 已在池中`);
+    return;
+  }
+  if (sub === 'remove' && process.argv[4]) {
+    const sym = process.argv[4].toUpperCase();
+    targets = targets.filter(s => s !== sym);
+    saveTargets(targets);
+    console.log(`✅ 已移除: ${sym} 当前池:`, targets.join(', '));
+    return;
+  }
+  console.log('Usage: node scripts/sell-put-agent.mjs symbols [list|add SYM|remove SYM]');
 }
 
 // ─── CLI: stats ───────────────────────────────────────────────
@@ -1922,16 +2114,19 @@ async function main() {
     case 'report':    await generateReport(); break;
     case 'dashboard': generateDashboard();    break;
     case 'serve':     await serveDashboard(); break;
+    case 'scan':      await runScan();        break;
+    case 'symbols':   await manageSymbols();  break;
     case 'setup':     await setupCron();      break;
     case 'env':     await setupEnv();       break;
     case 'version': showVersion();          break;
     default:
-      console.log('Usage: node scripts/sell-put-agent.mjs [daily|stats|report|dashboard|serve|setup|env|version]');
+      console.log('Usage: node scripts/sell-put-agent.mjs [daily|stats|report|dashboard|scan|symbols|setup|env|version]');
       console.log('  daily     - 每日卖Put分析（拉取数据→AI决策→记录→结算到期）');
       console.log('  stats     - 显示统计面板');
       console.log('  report    - 生成今日 Markdown 日报');
       console.log('  dashboard - 生成可视化仪表板 (HTML 文件)');
-      console.log('  serve     - 启动本地服务器 (http://localhost:8765 每10分钟自动刷新)');
+      console.log('  scan      - 扫描标的池的IV溢价排名和异动');
+      console.log('  symbols   - 管理标的池 (list/add/remove)');
       console.log('  setup     - 安装 launchd 自动运行');
       console.log('  env       - 将 DEEPSEEK_API_KEY 写入本地 .env 文件');
       console.log('  version   - 版本信息');
