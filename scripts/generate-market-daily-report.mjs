@@ -43,7 +43,7 @@ const prompt = buildMarketReportPrompt({ strategy, reportType, news, marketSnaps
 async function callAI() {
   const response = await fetch(aiEndpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Origin': 'https://donew-beta.vercel.app' },
     body: JSON.stringify({
       mode: 'daily-report',
       reportType,
@@ -55,7 +55,7 @@ async function callAI() {
     }),
   });
   const data = await response.json();
-  if (!response.ok || !data.ok) throw new Error(data.message || 'AI failed');
+  if (!response.ok || !data.ok) throw new Error(data.message || data.error || 'AI failed');
   return String(data.report?.markdown || '').trim();
 }
 
@@ -81,14 +81,25 @@ function updateHistory(markdown) {
   const core = (extractSection(markdown, ['一句话结论', '本期市场在交易什么']) || '市场结构分析完成').replace(/\|/g, '｜').replace(/\n/g, ' ').slice(0, 120);
   const action = (extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行').replace(/\|/g, '｜').replace(/\n/g, ' ').slice(0, 120);
   const link = `[📊 ${label}](/docs/市场/${hkDate}市场结构日报(${label}).md)`;
-  const header = '| 日期 | 星期 | 类型 | 报告 | 核心判断 | 策略倾向 |\n|:---|:---|:---|:---|:---|:---|';
-  const row = `| **${displayDate}** | ${weekday} | 日报 | ${link} | ${core} | ${action} |`;
+  const newRow = `| **${displayDate}** | ${weekday} | 日报 | ${link} | ${core} | ${action} |`;
+
   if (text.includes(link)) return;
-  if (text.includes(month)) {
-    text = text.replace(month, `${month}\n\n${header}\n${row}`);
-  } else {
-    text += `\n\n---\n\n${month}\n\n${header}\n${row}`;
+
+  const monthIdx = text.indexOf(month);
+  if (monthIdx === -1) {
+    const header = '| 日期 | 星期 | 类型 | 报告 | 核心判断 | 策略倾向 |\n|:---|:---|:---|:---|:---|:---|';
+    text += `\n\n---\n\n${month}\n\n${header}\n${newRow}\n`;
+    fs.writeFileSync(historyFile, text);
+    return;
   }
+
+  const rest = text.slice(monthIdx);
+  const sepMatch = rest.match(/\n\|:---[\s\S]*?\n/);
+  if (sepMatch) {
+    const insertIdx = monthIdx + sepMatch.index + sepMatch[0].length;
+    text = text.slice(0, insertIdx) + newRow + '\n' + text.slice(insertIdx);
+  }
+
   fs.writeFileSync(historyFile, text);
 }
 
@@ -96,21 +107,21 @@ function updateToday(markdown) {
   const core = extractSection(markdown, ['一句话结论', '本期市场在交易什么']) || '市场结构分析完成';
   const action = extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行';
   const link = `[📊 ${hkDate}市场结构日报（${label}）](/docs/市场/${hkDate}市场结构日报(${label}).md)`;
-  let text = fs.existsSync(todayFile) ? fs.readFileSync(todayFile, 'utf8') : '# 今日市场结构日报\n';
-  const reportKey = `## ${displayDate} ${label}`;
-  if (!text.includes(reportKey)) {
-    text += `\n## ${displayDate} ${label}\n\n- 核心判断：${core}\n- 策略倾向：${action}\n`;
+
+  const existing = fs.existsSync(todayFile) ? fs.readFileSync(todayFile, 'utf8') : '';
+  const gridStart = existing.indexOf('<div class="signal-grid">');
+  let signalGrid = '';
+  if (gridStart !== -1) {
+    const afterGrid = existing.slice(gridStart);
+    const endMatch = afterGrid.match(/<\/div>\s*\n\n/);
+    if (endMatch) signalGrid = afterGrid.slice(0, endMatch.index + 6);
   }
-  const latestSection = text.match(/## 最新报告[\s\S]*?(?=\n## |\n$|$)/);
-  if (latestSection) {
-    if (!latestSection[0].includes(hkDate + label)) {
-      const newLinks = latestSection[0] + `\n${link}\n`;
-      text = text.replace(latestSection[0], newLinks);
-    }
-  } else {
-    text = text.replace(/\n---/, `\n## 最新报告\n\n${link}\n\n---`);
-  }
-  fs.writeFileSync(todayFile, text);
+
+  let content = '# 今日市场结构日报\n';
+  if (signalGrid) content += `\n${signalGrid}\n\n---\n\n`;
+  content += `${link}\n\n## 核心判断\n\n${core}\n\n## 策略倾向\n\n${action}\n`;
+
+  fs.writeFileSync(todayFile, content);
 }
 
 const markdown = await callAI();

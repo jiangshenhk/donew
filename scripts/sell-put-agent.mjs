@@ -1251,7 +1251,7 @@ async function setupCron() {
     nodePath = execSync('which node', { encoding: 'utf-8' }).trim() || nodePath;
   } catch { /* keep default */ }
 
-  const scriptPath = path.resolve(import.meta.url.replace('file://', ''));
+  const scriptPath = path.resolve(decodeURIComponent(import.meta.url.replace('file://', '')));
   const repoDir = path.resolve(scriptPath, '../../');
   const logFile = path.join(AGENT_DIR, 'cron.log');
   const pidFile = path.join(AGENT_DIR, 'cron.pid');
