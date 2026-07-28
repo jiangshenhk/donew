@@ -249,7 +249,7 @@
    <!-- <span>判断单票结构：趋势、动量、相似形态、关键位。</span> -->
   </a>
 
-  <a href="https://donew-beta.vercel.app/sell-put-tool.html" class="main-card mindset">
+  <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html" class="main-card mindset">
     <strong>AI看期权</strong>
     <!--  <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span> -->
   </a>
