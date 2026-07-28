@@ -1949,6 +1949,7 @@ function calShift(n) {
     if (scanTime) html += '<span class="muted">扫描时间: ' + new Date(scanTime).toLocaleString('zh-HK') + ' (' + scanResults.length + ' 个标的)</span>';
     html += '<button onclick="refreshScan()" id="scanRefreshBtn" style="padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;font-size:.82rem;margin-left:auto">🔄 刷新扫描</button>';
     html += '</div>';
+    html += '<p class="muted" style="font-size:.78rem">或运行: <code>node scripts/sell-put-agent.mjs scan && node scripts/sell-put-agent.mjs dashboard</code></p>';
     html += '<p id="scanStatus" class="muted"></p>';
     
     if (scanResults.length) {
@@ -2040,7 +2041,7 @@ function calShift(n) {
     // Show status after DOM rebuild
     const statusEl = document.getElementById('scanStatus');
     if (statusEl) {
-      if (errorMsg) statusEl.textContent = '❌ ' + errorMsg;
+      if (errorMsg) statusEl.innerHTML = '<span style="color:#ffd54a">浏览器跨域限制，请运行: <code>node scripts/sell-put-agent.mjs scan && node scripts/sell-put-agent.mjs dashboard</code></span>';
       else if (scanResults.length) { statusEl.textContent = '✅ 刷新完成 (' + scanResults.length + ' 个标的)'; setTimeout(() => { const el = document.getElementById('scanStatus'); if (el) el.textContent = ''; }, 3000); }
     }
   };
