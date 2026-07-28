@@ -67,8 +67,11 @@ function extractSection(text, names) {
     const headingMatch = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}\\s*\\n([^\\n#|]+)`));
     if (headingMatch) return headingMatch[1].replace(/\|/g, '｜').trim().slice(0, 180);
 
-    const paraMatch = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}[\\s\\S]*?\\n\\s*\\n`));
-    if (paraMatch) return paraMatch[0].replace(/[#\n]/g, ' ').replace(/\|/g, '｜').trim().slice(0, 120);
+    const paraMatch = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n---|$)`));
+    if (paraMatch) {
+      const stripped = paraMatch[1].replace(/^[\s\n]*/, '');
+      return stripped.replace(/[#\n]/g, ' ').replace(/\|/g, '｜').trim().slice(0, 120);
+    }
   }
   return '';
 }

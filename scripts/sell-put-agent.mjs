@@ -1611,13 +1611,18 @@ function stanceBadge(s) {
   const allPositions = DATA.positions || [];
   const closed = allPositions.filter(p => p.status === 'closed' || p.status === 'cancelled');
   
-  // Merge orders and closed positions into unified trade list (skip cancelled to avoid duplicates with orders)
+  // Merge orders and closed positions into unified trade list
   const trades = [];
-  for (const o of orders) {
-    trades.push({ type: 'open', time: o.createdAt, symbol: o.symbol, strike: o.strike, fillPrice: o.fillPrice, bid: o.bid, ask: o.ask, spread: o.spread, contracts: o.contracts, premium: o.premium, annualizedReturn: o.annualizedReturn });
-  }
-  for (const p of closed.filter(x => x.status !== 'cancelled')) {
+  // Add cancelled/closed positions first (they serve as the "result" for each order)
+  const closedPositions = closed.filter(x => x.status === 'closed' || x.status === 'cancelled');
+  for (const p of closedPositions) {
     trades.push({ type: 'close', time: p.closedAt || p.openedAt, symbol: p.symbol, strike: p.strike, fillPrice: p.premium, bid: null, ask: null, spread: null, contracts: p.contracts, premium: p.premiumCollected || 0, annualizedReturn: p.annualizedReturn || 0, result: p.result, reason: p.closeNote || '', pnl: p.pnl || 0 });
+  }
+  for (const o of orders) {
+    // Check if this order matches a cancelled position
+    const matchedPosition = closedPositions.find(p => p.symbol === o.symbol && p.strike === o.strike && p.result === 'cancelled');
+    const orderResult = matchedPosition ? 'cancelled' : null;
+    trades.push({ type: 'open', time: o.createdAt, symbol: o.symbol, strike: o.strike, fillPrice: o.fillPrice, bid: o.bid, ask: o.ask, spread: o.spread, contracts: o.contracts, premium: o.premium, annualizedReturn: o.annualizedReturn, result: orderResult });
   }
   trades.sort((a, b) => new Date(b.time) - new Date(a.time));
 
@@ -1630,8 +1635,8 @@ function stanceBadge(s) {
       const typeBadge = tr.type === 'open' ? '<span class="badge badge-green">开仓</span>' :
         tr.result === 'cancelled' ? '<span class="badge badge-gray">取消</span>' :
         tr.result === 'win' ? '<span class="badge badge-green">平仓</span>' : '<span class="badge badge-red">平仓</span>';
-      const resultStr = tr.type === 'open' ? '<span class="muted">待到期</span>' :
-        tr.result === 'cancelled' ? '<span class="badge badge-gray">'+tr.reason+'</span>' :
+      const resultStr = tr.type === 'open' ? (tr.result === 'cancelled' ? '<span class="badge badge-gray">已取消</span>' : '<span class="muted">待到期</span>') :
+        tr.result === 'cancelled' ? '<span class="badge badge-gray">'+ (tr.reason||'已取消') +'</span>' :
         tr.result === 'win' ? '<span class="up">+$'+tr.pnl.toFixed(2)+'</span>' : '<span class="dn">-$'+tr.pnl.toFixed(2)+'</span>';
       html += '<tr><td class="muted">'+t+'</td><td>'+typeBadge+'</td><td><b>'+tr.symbol+'</b></td><td>$'+tr.strike+'P</td><td>$'+(tr.fillPrice||0).toFixed(2)+'</td><td>'+tr.contracts+'张</td><td>$'+tr.premium.toFixed(2)+'</td><td>'+resultStr+'</td></tr>';
     }
