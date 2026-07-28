@@ -926,8 +926,7 @@
         </div>
 
         <div class="note">
-          一次生成涵盖：新闻摘要 · 市场环境 · K线技术信号 · 期权温度 · 综合卖Put建议<br>
-          <strong>请先点击“自动获取期权参数”；需要校正时再点击“手工修改”。生成阶段不会再次读取或解析期权参数。</strong>
+          <strong>一次生成涵盖：新闻摘要 · 市场环境 · K线技术信号 · 期权温度 · 综合卖Put建议</strong>
         </div>
       </form>
 
@@ -2306,7 +2305,7 @@
       event.preventDefault();
 
       if (!optionParametersFetched) {
-        setStatus('请先点击“自动获取期权参数”，获取成功后再生成报告。', true);
+        setStatus('请先获取期权参数。', true);
         metricsPanelSummary.textContent = '请先完成自动获取';
         metricsPanelSummary.classList.remove('ready');
         metricsPanelSummary.classList.add('error');
