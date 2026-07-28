@@ -2332,7 +2332,7 @@
         const payload = {
           market: form.elements.market.value,
           symbol: form.elements.symbol.value.trim(),
-          notes: form.elements.notes.value.trim(),
+          notes: '',
         };
         if (hasMetrics) payload.optionMetrics = optionMetrics;
         if (optionOverviewMeta) payload.optionMetricsMeta = optionOverviewMeta;
