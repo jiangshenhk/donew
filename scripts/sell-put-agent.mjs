@@ -1964,8 +1964,7 @@ function calShift(n) {
       });
       scanResults.sort((a,b) => b.score - a.score);
       scanTime = new Date().toISOString();
-    } catch(e) { /* keep old data */ }
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 刷新扫描'; }
+    } catch(e) { console.error('Scan refresh error:', e); }
     renderScanTable();
   };
 })();
