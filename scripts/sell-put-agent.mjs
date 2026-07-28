@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sell-put-agent.mjs — Sell Put Decision Agent v0.3.0
+// sell-put-agent.mjs — Sell Put Decision Agent v0.4.0
 // 每日自动分析 QLD/MSTR/INTC 卖Put机会，记录纸面交易，跟踪胜率
 // 数据存储于 ~/.donew-agent/ (独立于仓库，不 commit)
 //
@@ -2221,7 +2221,7 @@ function showStats() {
 // ─── Main ─────────────────────────────────────────────────────
 
 function showVersion() {
-  console.log('Sell Put Agent v0.3.0');
+  console.log('Sell Put Agent v0.4.0');
   console.log(`Data: ${AGENT_DIR}`);
 }
 
