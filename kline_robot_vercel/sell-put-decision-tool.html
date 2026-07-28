@@ -847,7 +847,7 @@
               <button class="help-tip" type="button" aria-label="标的输入格式说明" data-tip="输入参考：&#10;美股：QLD / MSTR / INTC / HOOD&#10;美股指数：^VIX&#10;宏观：^TNX（10年美债）、DX-Y.NYB（美元指数）&#10;港股：00700 / 09988&#10;A股：600570 / 000001&#10;加密：BTC / BTC-USD">?</button>
               <button class="ranking-trigger" id="openRankingBtn" type="button">热门期权榜</button>
             </div>
-            <input id="symbol" name="symbol" value="QLD" placeholder="QLD / MSTR / INTC / HOOD" required>
+            <input id="symbol" name="symbol" value="QQQ" placeholder="QLD / MSTR / QQQ / INTC" required>
           </div>
         </div>
 
@@ -1640,7 +1640,7 @@
     function applyHistory(item) {
       if (!item) return;
       form.elements.market.value = item.market || '';
-      form.elements.symbol.value = item.symbol || 'QLD';
+      form.elements.symbol.value = item.symbol || 'QQQ';
       clearOptionMetricFields();
       Object.entries(item.optionMetrics || {}).forEach(([key, value]) => {
         if (form.elements[key]) form.elements[key].value = value || '';
