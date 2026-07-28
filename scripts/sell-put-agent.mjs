@@ -49,7 +49,7 @@ const CONFIG = {
   maxSinglePositionPct: 0.50,
   targetDte: 10,
   targetDelta: 0.15,
-  dteRange: [1, 20],
+  dteRange: [5, 25],
   deltaRange: [0.05, 0.25],
   minOtm: 0.04,
   minBid: 0.10,
@@ -183,8 +183,8 @@ async function fetchOptionsChain(symbol, opts = {}) {
   // 当前为 Agent 自有副本，字段名与共用模块不同（strike vs strikePrice 等），
   // 统一前需对齐字段名并确保所有调用方兼容。
   const timeoutMs = opts.timeoutMs || 20000;
-  const dteMin = opts.dteMin ?? 5;
-  const dteMax = opts.dteMax ?? 25;
+  const dteMin = opts.dteMin ?? CONFIG.dteRange[0];
+  const dteMax = opts.dteMax ?? CONFIG.dteRange[1];
   const session = await barchartSession(symbol, timeoutMs);
 
   const url = new URL(`${BARCHART}/proxies/core-api/v1/options/get`);
@@ -239,10 +239,10 @@ async function fetchOptionsChain(symbol, opts = {}) {
       && c.oi >= CONFIG.minOi
     );
 
-    // Sort: closest delta to 0.15 first, then nearest expiration
+    // Sort: closest delta to targetDelta first, then nearest expiration
     contracts.sort((a, b) => {
-      const scoreA = Math.abs(Math.abs(a.delta) - 0.15) * 50 + a.dte;
-      const scoreB = Math.abs(Math.abs(b.delta) - 0.15) * 50 + b.dte;
+      const scoreA = Math.abs(Math.abs(a.delta) - CONFIG.targetDelta) * 50 + a.dte;
+      const scoreB = Math.abs(Math.abs(b.delta) - CONFIG.targetDelta) * 50 + b.dte;
       return scoreA - scoreB;
     });
 
@@ -821,7 +821,7 @@ async function runDaily() {
     const prices = await fetchPrices();
     let settled = false;
     for (let i = 0; i < positions.length; i++) {
-      if (positions[i].status === 'closed') continue;
+      if (positions[i].status !== 'open') continue;
       positions[i] = await settlePosition(positions[i], prices);
       if (positions[i].status === 'closed') settled = true;
     }
@@ -991,8 +991,8 @@ async function runDaily() {
         willOpen = false;
       } else {
         actionNote = `开仓 ${contracts}张`;
+        tradeDetail = { strike: contract.strike, premium: Math.round((contract.bid + (contract.ask || contract.bid)) / 2 * 100) / 100, contracts, expireDate: contract.expireDate, dte: contract.dte };
       }
-      tradeDetail = { strike: contract.strike, premium: Math.round((contract.bid + (contract.ask || contract.bid)) / 2 * 100) / 100, contracts, expireDate: contract.expireDate, dte: contract.dte };
     }
 
     saveJournal({
@@ -1295,11 +1295,11 @@ function buildDashboardHtml() {
   }
 
   const capitalInfo = {
-    total: 100000,
+    total: CONFIG.capital,
     deployed: Math.round(positions.filter(p => p.status === 'open').reduce((s, p) => s + (p.capitalUsed || 0), 0) * 100) / 100,
     pendingPremium: Math.round(positions.filter(p => p.status === 'open').reduce((s, p) => s + (p.premiumCollected || 0), 0) * 100) / 100,
     realizedPnL: Math.round(stats.netPnL * 100) / 100,
-    totalEquity: Math.round((100000 + (positions.filter(p => p.status === 'closed' && p.result).reduce((s, p) => s + (p.pnl || 0), 0)) + positions.filter(p => p.status === 'open').reduce((s, p) => s + (p.premiumCollected || 0), 0)) * 100) / 100,
+    totalEquity: Math.round((CONFIG.capital + (positions.filter(p => p.status === 'closed' && p.result).reduce((s, p) => s + (p.pnl || 0), 0)) + positions.filter(p => p.status === 'open').reduce((s, p) => s + (p.premiumCollected || 0), 0)) * 100) / 100,
     maxDrawdown: Math.round(stats.maxDrawdown * 10000) / 100,
   };
   capitalInfo.available = Math.round((capitalInfo.total - capitalInfo.deployed) * 100) / 100;
@@ -1827,6 +1827,7 @@ function calShift(n) {
   
   const dailyPnL = {};
   for (const pos of DATA.positions) {
+    if (pos.status === 'cancelled') continue;
     if (pos.openedAt && pos.premiumCollected) {
       dailyPnL[pos.openedAt] = (dailyPnL[pos.openedAt] || 0) + pos.premiumCollected;
     }
