@@ -1403,13 +1403,13 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
   <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button></span>
 </div>
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('positions')">持仓</button>
-  <button class="tab" onclick="switchTab('orders')">交易明细</button>
-  <button class="tab" onclick="switchTab('journal')">判断日志</button>
-  <button class="tab" onclick="switchTab('stats')">统计</button>
-  <button class="tab" onclick="switchTab('scan')">标的扫描</button>
-  <button class="tab" onclick="switchTab('kline')">K线</button>
-  <button class="tab" onclick="switchTab('settings')">设置</button>
+  <button class="tab active" onclick="switchTab('positions', event)">持仓</button>
+  <button class="tab" onclick="switchTab('orders', event)">交易明细</button>
+  <button class="tab" onclick="switchTab('journal', event)">判断日志</button>
+  <button class="tab" onclick="switchTab('stats', event)">统计</button>
+  <button class="tab" onclick="switchTab('scan', event)">标的扫描</button>
+  <button class="tab" onclick="switchTab('kline', event)">K线</button>
+  <button class="tab" onclick="switchTab('settings', event)">设置</button>
 </div>
 <div class="panels">
   <div id="panel-positions" class="panel active"></div>
@@ -1452,10 +1452,10 @@ function updateCountdown() {
   document.getElementById('refreshCountdown').textContent = '(' + m + ':' + String(s).padStart(2,'0') + ')';
 }
 
-function switchTab(name) {
+function switchTab(name, ev) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  event.target.classList.add('active');
+  if (ev && ev.target) ev.target.classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
   sessionStorage.setItem('activeTab', name);
 }
@@ -1544,12 +1544,12 @@ function stanceBadge(s) {
   const allPositions = DATA.positions || [];
   const closed = allPositions.filter(p => p.status === 'closed' || p.status === 'cancelled');
   
-  // Merge orders and closed positions into unified trade list
+  // Merge orders and closed positions into unified trade list (skip cancelled to avoid duplicates with orders)
   const trades = [];
   for (const o of orders) {
     trades.push({ type: 'open', time: o.createdAt, symbol: o.symbol, strike: o.strike, fillPrice: o.fillPrice, bid: o.bid, ask: o.ask, spread: o.spread, contracts: o.contracts, premium: o.premium, annualizedReturn: o.annualizedReturn });
   }
-  for (const p of closed) {
+  for (const p of closed.filter(x => x.status !== 'cancelled')) {
     trades.push({ type: 'close', time: p.closedAt || p.openedAt, symbol: p.symbol, strike: p.strike, fillPrice: p.premium, bid: null, ask: null, spread: null, contracts: p.contracts, premium: p.premiumCollected || 0, annualizedReturn: p.annualizedReturn || 0, result: p.result, reason: p.closeNote || '', pnl: p.pnl || 0 });
   }
   trades.sort((a, b) => new Date(b.time) - new Date(a.time));
@@ -1588,7 +1588,7 @@ function stanceBadge(s) {
 
   function actionBadgeHTML(act) {
     if (!act) return '<span class="badge badge-gray">--</span>';
-    if (act.trade) return '<span class="badge badge-green">开仓'+act.trade.contracts+'张 $'+act.trade.strike+'P</span>';
+    if (act.trade && act.trade.contracts > 0) return '<span class="badge badge-green">开仓'+act.trade.contracts+'张 $'+act.trade.strike+'P</span>';
     if (act.result === '已有持仓') return '<span class="badge badge-blue">已有持仓</span>';
     if (act.result === '风控阻断') return '<span class="badge badge-red">风控阻断</span>';
     if (act.result === '信号不利') return '<span class="badge badge-red">信号不利</span>';
@@ -1602,8 +1602,8 @@ function stanceBadge(s) {
     if (filterSymbol !== 'all') filtered = filtered.filter(e => e.symbol === filterSymbol);
     if (filterStance !== 'all') filtered = filtered.filter(e => e.decision?.stance === filterStance);
     if (filterAction !== 'all') {
-      if (filterAction === '开仓+平仓') filtered = filtered.filter(e => e.action?.trade != null || /平仓|取消/.test(e.action?.result || ''));
-      else if (filterAction === '开仓') filtered = filtered.filter(e => e.action?.trade != null);
+      if (filterAction === '开仓+平仓') filtered = filtered.filter(e => (e.action?.trade?.contracts > 0) || /平仓|取消/.test(e.action?.result || ''));
+      else if (filterAction === '开仓') filtered = filtered.filter(e => e.action?.trade?.contracts > 0);
       else if (filterAction === '平仓') filtered = filtered.filter(e => !e.action?.trade && /平仓|取消/.test(e.action?.result || ''));
       else if (filterAction === '清算') filtered = filtered.filter(e => !e.action?.trade && /到期|结算|清算|win|loss/.test(e.action?.result || ''));
       else if (filterAction === '其他') filtered = filtered.filter(e => !e.action?.trade && !/平仓|取消|到期|结算|清算|win|loss/.test(e.action?.result || ''));
