@@ -852,11 +852,11 @@
         <div class="option-parameter-entry">
           <button class="option-fetch-btn" id="fetchOptionMetricsBtn" type="button">自动获取期权参数</button>
           <button class="manual-metrics-link" id="manualMetricsToggleBtn" type="button" aria-expanded="false">手工修改</button>
-          <span class="option-fetch-state" id="optionFetchState">生成前请先自动获取</span>
+          <span class="option-fetch-state" id="optionFetchState" style="display:none"></span>
         </div>
 
         <details class="metrics-panel" id="metricsPanel">
-           <summary hidden></summary>
+          <summary id="metricsPanelSummary">生成前请先自动获取期权参数</summary>
           <div class="panel-body">
             <div class="label-row" style="margin-top:0;">
               <p class="section-title" style="margin-bottom:0;">Barchart 参数来源</p>
@@ -1070,6 +1070,7 @@
     const symbolInput = document.getElementById('symbol');
     const historySelect = document.getElementById('historySelect');
     const metricsPanel = document.getElementById('metricsPanel');
+    const metricsPanelSummary = document.getElementById('metricsPanelSummary');
     const rankingDialog = document.getElementById('rankingDialog');
     const openRankingBtn = document.getElementById('openRankingBtn');
     const closeRankingBtn = document.getElementById('closeRankingBtn');
@@ -1788,8 +1789,8 @@
     function resetOptionFetchState(message = '生成前请先自动获取') {
       optionParametersFetched = false;
       optionOverviewMeta = null;
-      optionFetchState.textContent = message;
-      optionFetchState.classList.remove('ready', 'error');
+      metricsPanelSummary.textContent = message;
+      metricsPanelSummary.classList.remove('ready', 'error');
     }
 
     function clearOptionMetricFields() {
@@ -1967,24 +1968,24 @@
         };
         metricsPanel.open = false;
         optionParametersFetched = true;
-        optionFetchState.textContent = `已获取 ${symbol} 的期权参数`;
-        optionFetchState.classList.add('ready');
-        optionFetchState.classList.remove('error');
+        metricsPanelSummary.textContent = `已获取 ${symbol} 的期权参数`;
+        metricsPanelSummary.classList.add('ready');
+        metricsPanelSummary.classList.remove('error');
         return json;
       } catch (error) {
         optionOverviewMeta = null;
         optionParametersFetched = false;
-        optionFetchState.textContent = '自动获取失败';
-        optionFetchState.classList.remove('ready');
-        optionFetchState.classList.add('error');
+        metricsPanelSummary.textContent = '自动获取失败';
+        metricsPanelSummary.classList.remove('ready');
+        metricsPanelSummary.classList.add('error');
         throw error;
       }
     }
 
     fetchOptionMetricsBtn.addEventListener('click', async () => {
       fetchOptionMetricsBtn.disabled = true;
-      optionFetchState.textContent = '正在自动获取…';
-      optionFetchState.classList.remove('ready', 'error');
+      metricsPanelSummary.textContent = '正在自动获取…';
+      metricsPanelSummary.classList.remove('ready', 'error');
       setStatus('正在自动获取期权参数…');
       try {
         const result = await loadBarchartOverview();
@@ -2302,9 +2303,9 @@
 
       if (!optionParametersFetched) {
         setStatus('请先点击“自动获取期权参数”，获取成功后再生成报告。', true);
-        optionFetchState.textContent = '请先完成自动获取';
-        optionFetchState.classList.remove('ready');
-        optionFetchState.classList.add('error');
+        metricsPanelSummary.textContent = '请先完成自动获取';
+        metricsPanelSummary.classList.remove('ready');
+        metricsPanelSummary.classList.add('error');
         return;
       }
 
