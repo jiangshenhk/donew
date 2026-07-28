@@ -1389,7 +1389,7 @@ function buildDashboardHtml() {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sell Put Agent · 仪表板</title>
+<title>Sell Put 自动化机器人</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1463,7 +1463,7 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
 </head>
 <body>
 <div class="header">
-  <h1>📊 Sell Put Agent</h1>
+  <h1>📊 Sell Put 自动化机器人</h1>
   <span>Generated: <span id="genTime"></span>
   <label style="margin-left:12px;cursor:pointer;font-size:.8rem;color:#6b7fa3"><input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()" style="vertical-align:middle;margin-right:4px">自动刷新 <span id="refreshCountdown"></span></label>
   <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button></span>
