@@ -27,6 +27,7 @@ const REPORTS_DIR     = path.join(AGENT_DIR, 'reports');
 const ENV_FILE        = path.join(AGENT_DIR, '.env');
 const SYMBOLS_FILE    = path.join(AGENT_DIR, 'symbols.json');
 const SCAN_RESULT_FILE = path.join(AGENT_DIR, 'scan-result.json');
+const KLINE_DIR       = path.join(AGENT_DIR, 'kline');
 
 const DEFAULT_TARGETS = ['QLD', 'MSTR', 'INTC'];
 
@@ -335,7 +336,7 @@ function calcKlineStats(bars) {
   const high20 = Math.max(...recent20.map(b => b.high));
   const low20 = Math.min(...recent20.map(b => b.low));
 
-  return { latest, previousClose, dailyChangePct, sma5, sma10, sma20, atr, high20, low20, bars: n };
+  return { latest, previousClose, dailyChangePct, sma5, sma10, sma20, atr, high20, low20, barCount: n };
 }
 
 async function fetchNews() {
@@ -914,13 +915,20 @@ async function runDaily() {
     const priceInfo = prices[symbol] || {};
     let klineStats = {};
 
+    let bars = null;
     try {
       console.log('  📈 获取K线...');
-      const bars = await fetchKline(symbol);
+      bars = await fetchKline(symbol);
       if (bars) {
         klineStats = calcKlineStats(bars) || {};
       }
     } catch { /* ok */ }
+
+    // Save K-line data for chart display
+    if (bars && bars.length >= 5) {
+      ensureDir(KLINE_DIR);
+      saveJson(path.join(KLINE_DIR, symbol + '.json'), { symbol, date: todayStr(), bars, ...klineStats });
+    }
 
     const changePctKline = klineStats?.dailyChangePct;
     const prevCloseKline = klineStats?.previousClose;
@@ -1300,7 +1308,15 @@ function buildDashboardHtml() {
   const scanData = loadJson(SCAN_RESULT_FILE) || { results: [], scannedAt: null };
   const currentTargets = loadTargets();
 
-  const dataJson = JSON.stringify({ stats, positions, orders: orders.slice(-50).reverse(), journalEntries: journalEntries.slice(0, 100), experience, capital: capitalInfo, scan: scanData, targets: currentTargets, generatedAt: new Date().toISOString() });
+  // Load K-line data for symbols with positions
+  const klineData = {};
+  const symbolsWithKline = [...new Set([...positions.map(p => p.symbol), ...currentTargets])];
+  for (const sym of symbolsWithKline) {
+    const kf = loadJson(path.join(KLINE_DIR, sym + '.json'));
+    if (kf && kf.bars) klineData[sym] = kf;
+  }
+
+  const dataJson = JSON.stringify({ stats, positions, orders: orders.slice(-50).reverse(), journalEntries: journalEntries.slice(0, 100), experience, capital: capitalInfo, scan: scanData, targets: currentTargets, kline: klineData, generatedAt: new Date().toISOString() });
 
   const html = `<!DOCTYPE html>
 <html lang="zh-HK">
@@ -1308,6 +1324,7 @@ function buildDashboardHtml() {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sell Put Agent · 仪表板</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#0d1522;color:#cddbf7;line-height:1.5;padding:0}
@@ -1391,6 +1408,7 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
   <button class="tab" onclick="switchTab('journal')">判断日志</button>
   <button class="tab" onclick="switchTab('stats')">统计</button>
   <button class="tab" onclick="switchTab('scan')">标的扫描</button>
+  <button class="tab" onclick="switchTab('kline')">K线</button>
   <button class="tab" onclick="switchTab('settings')">设置</button>
 </div>
 <div class="panels">
@@ -1399,6 +1417,7 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
   <div id="panel-journal" class="panel"></div>
   <div id="panel-stats" class="panel"></div>
   <div id="panel-scan" class="panel"></div>
+  <div id="panel-kline" class="panel" style="position:relative;min-height:500px"></div>
   <div id="panel-settings" class="panel"></div>
 </div>
 <div class="footer">Sell Put Agent · Paper Trading Dashboard</div>
@@ -1919,6 +1938,91 @@ function addSymbol() {
   }
   document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请在终端运行: <code>node scripts/sell-put-agent.mjs symbols add '+sym+'</code> 然后重新生成仪表板</span>';
 }
+
+// K-line chart panel
+(function() {
+  const klineData = DATA.kline || {};
+  const positions = DATA.positions || [];
+  const symbolKeys = Object.keys(klineData);
+  
+  let html = '<h2>K线图表</h2>';
+  if (!symbolKeys.length) {
+    html += '<p class="muted">暂无K线数据。运行 daily 后自动获取。</p>';
+    document.getElementById('panel-kline').innerHTML = html;
+    return;
+  }
+
+  html += '<div class="filter-bar"><label>标的</label><select id="kc-symbol" onchange="renderKlineChart()">';
+  for (const s of symbolKeys) {
+    const posCount = positions.filter(p => p.symbol === s && (p.status === 'open' || p.status === 'closed')).length;
+    html += '<option value="'+s+'">'+s+(posCount?' ('+posCount+'笔)':'')+'</option>';
+  }
+  html += '</select></div>';
+  html += '<div id="kline-chart-container" style="width:100%;height:560px;border:1px solid #1f2b44;border-radius:8px;overflow:hidden"></div>';
+  document.getElementById('panel-kline').innerHTML = html;
+
+  let chart = null;
+  window.renderKlineChart = function() {
+    const sym = document.getElementById('kc-symbol').value;
+    const data = klineData[sym];
+    if (!data || !data.bars || !data.bars.length) return;
+
+    document.getElementById('kline-chart-container').innerHTML = '';
+    if (chart) chart.remove();
+
+    chart = LightweightCharts.createChart(document.getElementById('kline-chart-container'), {
+      layout: { background: { color: '#0d1522' }, textColor: '#6b7fa3' },
+      grid: { vertLines: { color: '#1a2942' }, horzLines: { color: '#1a2942' } },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      timeScale: { borderColor: '#1f2b44', timeVisible: true, secondsVisible: false },
+      rightPriceScale: { borderColor: '#1f2b44' },
+    });
+
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#45d483', downColor: '#ff6b7d',
+      borderUpColor: '#45d483', borderDownColor: '#ff6b7d',
+      wickUpColor: '#45d483', wickDownColor: '#ff6b7d',
+    });
+
+    const bars = data.bars.map(b => ({
+      time: b.date,
+      open: b.open, high: b.high, low: b.low, close: b.close,
+    }));
+    candleSeries.setData(bars);
+
+    // Add position markers
+    const symPositions = positions.filter(p => p.symbol === sym);
+    const markers = [];
+    for (const pos of symPositions) {
+      if (pos.openedAt) {
+        markers.push({
+          time: pos.openedAt,
+          position: 'belowBar',
+          color: pos.status === 'cancelled' ? '#6b7fa3' : '#45d483',
+          shape: 'arrowDown',
+          text: 'Sell ' + pos.strike + 'P×' + (pos.contracts || 1) + ' @$' + pos.premium,
+          size: 2,
+        });
+      }
+      if (pos.closedAt && pos.status !== 'open') {
+        const closeTime = pos.closedAt.includes('T') ? pos.closedAt.split('T')[0] : pos.closedAt.split(' ')[0];
+        markers.push({
+          time: closeTime,
+          position: 'aboveBar',
+          color: pos.result === 'win' ? '#45d483' : pos.result === 'cancelled' ? '#6b7fa3' : '#ff6b7d',
+          shape: pos.result === 'win' ? 'arrowUp' : 'circle',
+          text: pos.result === 'win' ? 'Win +$' + (pos.pnl || 0).toFixed(0) : pos.result === 'cancelled' ? '取消' : 'Loss',
+          size: 2,
+        });
+      }
+    }
+    if (markers.length) candleSeries.setMarkers(markers);
+
+    chart.timeScale().fitContent();
+  };
+
+  setTimeout(() => renderKlineChart(), 500);
+})();
 
 </script>
 </body>
