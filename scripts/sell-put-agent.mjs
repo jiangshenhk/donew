@@ -1882,6 +1882,7 @@ function calShift(n) {
     if (scanTime) html += '<span class="muted">扫描时间: ' + new Date(scanTime).toLocaleString('zh-HK') + ' (' + scanResults.length + ' 个标的)</span>';
     html += '<button onclick="refreshScan()" id="scanRefreshBtn" style="padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;font-size:.82rem;margin-left:auto">🔄 刷新扫描</button>';
     html += '</div>';
+    html += '<p id="scanStatus" class="muted"></p>';
     
     if (scanResults.length) {
       html += '<table><thead><tr><th>#</th><th>标的</th><th>评分</th><th>状态</th><th>IV</th><th>HV</th><th>溢价</th><th>Rank</th><th>Pctl</th><th>ExpMove</th><th>成交量</th><th>OI</th><th>P/C Vol</th><th>信号</th></tr></thead><tbody>';
@@ -1919,9 +1920,11 @@ function calShift(n) {
   window.refreshScan = async function() {
     const btn = document.getElementById('scanRefreshBtn');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ 扫描中...'; }
+    let errorMsg = null;
     try {
       const apiUrl = 'https://donew-beta.vercel.app/api/barchart-overview?symbols=' + targets.join(',');
       const res = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       const data = json.data || [];
       scanResults = data.filter(d => d.ok && d.metrics).map(d => {
@@ -1964,8 +1967,17 @@ function calShift(n) {
       });
       scanResults.sort((a,b) => b.score - a.score);
       scanTime = new Date().toISOString();
-    } catch(e) { console.error('Scan refresh error:', e); }
+    } catch(e) {
+      errorMsg = e.message || '网络错误';
+      console.error('Scan refresh error:', e);
+    }
     renderScanTable();
+    // Show status after DOM rebuild
+    const statusEl = document.getElementById('scanStatus');
+    if (statusEl) {
+      if (errorMsg) statusEl.textContent = '❌ ' + errorMsg;
+      else if (scanResults.length) { statusEl.textContent = '✅ 刷新完成 (' + scanResults.length + ' 个标的)'; setTimeout(() => { const el = document.getElementById('scanStatus'); if (el) el.textContent = ''; }, 3000); }
+    }
   };
 })();
 
