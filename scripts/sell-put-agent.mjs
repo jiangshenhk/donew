@@ -1649,14 +1649,15 @@ function stanceBadge(s) {
 
     if (!slice.length) { html += '<p class="muted">无匹配记录</p>'; }
     else {
-      html += '<table><thead><tr><th>时间</th><th>标的</th><th>价格</th><th>合约</th><th>OTM</th><th>Δ</th><th>结论</th><th>风险</th><th>操作</th><th>理由</th></tr></thead><tbody>';
+      html += '<table><thead><tr><th>时间</th><th>标的</th><th>价格</th><th>合约</th><th>OTM</th><th>Δ</th><th>年化</th><th>结论</th><th>风险</th><th>操作</th><th>理由</th></tr></thead><tbody>';
       for (const e of slice) {
         const t = new Date(e.timestamp).toLocaleString('zh-HK', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
         const contract = e.contract ? '$'+e.contract.strike+'P DTE'+e.contract.dte : '--';
         const otm = e.contract?.otm != null ? e.contract.otm.toFixed(1)+'%' : '--';
         const delta = e.contract?.delta != null ? e.contract.delta.toFixed(3) : '--';
+        const annual = e.factors?.rtnAnnualized != null ? e.factors.rtnAnnualized+'%' : (e.contract?.bid && e.contract?.strike && e.contract?.dte ? (e.contract.bid / e.contract.strike * 365 / e.contract.dte * 100).toFixed(0)+'%' : '--');
         const reason = e.decision?.reasoning || '';
-        html += '<tr><td class="muted">'+t+'</td><td><b>'+e.symbol+'</b></td><td>$'+e.price+'</td><td>'+contract+'</td><td>'+otm+'</td><td>'+delta+'</td><td>'+stanceBadge(e.decision?.stance)+'</td><td style="color:'+riskColor(e.decision?.riskScore)+';font-weight:700">'+e.decision?.riskScore+'/10</td><td>'+actionBadgeHTML(e.action)+'</td><td class="reason">'+reason+'</td></tr>';
+        html += '<tr><td class="muted">'+t+'</td><td><b>'+e.symbol+'</b></td><td>$'+e.price+'</td><td>'+contract+'</td><td>'+otm+'</td><td>'+delta+'</td><td>'+annual+'</td><td>'+stanceBadge(e.decision?.stance)+'</td><td style="color:'+riskColor(e.decision?.riskScore)+';font-weight:700">'+e.decision?.riskScore+'/10</td><td>'+actionBadgeHTML(e.action)+'</td><td class="reason">'+reason+'</td></tr>';
       }
       html += '</tbody></table>';
 
