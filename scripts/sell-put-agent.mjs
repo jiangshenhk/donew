@@ -1872,40 +1872,102 @@ function calShift(n) {
 // Scan panel
 (function() {
   const s = DATA.scan || { results: [], scannedAt: null };
-  let html = '<h2>标的扫描 · IV溢价排名</h2>';
-  if (s.scannedAt) {
-    html += '<p class="muted">扫描时间: ' + new Date(s.scannedAt).toLocaleString('zh-HK') + ' (' + s.total + ' 个标的)';
-    html += ' · 刷新: <code>node scripts/sell-put-agent.mjs scan</code></p>';
-  } else {
-    html += '<p class="muted">暂无扫描数据。运行 <code>node scripts/sell-put-agent.mjs scan</code> 获取。</p>';
-  }
-  if (s.results && s.results.length) {
-    html += '<table><thead><tr><th>#</th><th>标的</th><th>评分</th><th>状态</th><th>IV</th><th>HV</th><th>溢价</th><th>Rank</th><th>Pctl</th><th>ExpMove</th><th>成交量</th><th>OI</th><th>P/C Vol</th><th>信号</th></tr></thead><tbody>';
-    for (let i = 0; i < s.results.length; i++) {
-      const r = s.results[i];
-      const toneEmoji = r.tone === 'green' ? '🟢' : r.tone === 'yellow' ? '🟡' : '🔴';
-      const toneStyle = r.tone === 'green' ? 'color:#45d483;font-weight:700' : r.tone === 'yellow' ? 'color:#ffd54a' : 'color:#ff6b7d';
-      const premiumStyle = r.premium >= 3 ? 'up' : r.premium < 0 ? 'dn' : '';
-      html += '<tr>';
-      html += '<td>' + (i + 1) + '</td>';
-      html += '<td><b>' + r.symbol + '</b> <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html?symbol='+r.symbol+'" target="_blank" style="font-size:.7rem;color:#4d9eff">→决策</a></td>';
-      html += '<td style="font-weight:700;font-size:1.1rem;color:#ffd54a">' + r.score + '</td>';
-      html += '<td style="' + toneStyle + '">' + toneEmoji + ' ' + r.state + '</td>';
-      html += '<td>' + (r.iv?.toFixed(1) || '--') + '%</td>';
-      html += '<td>' + (r.hv?.toFixed(1) || '--') + '%</td>';
-      html += '<td class="' + premiumStyle + '">' + (r.premium >= 0 ? '+' : '') + r.premium + '%</td>';
-      html += '<td>' + (r.ivRank?.toFixed(0) || '--') + '%</td>';
-      html += '<td>' + (r.ivPct?.toFixed(0) || '--') + '%</td>';
-      html += '<td>' + (r.expected?.toFixed(1) || '--') + '%</td>';
-      html += '<td>' + (r.vol >= 1000 ? (r.vol/1000).toFixed(1)+'k' : r.vol?.toFixed(0) || '--') + '</td>';
-      html += '<td>' + (r.oi >= 1000 ? (r.oi/1000).toFixed(1)+'k' : r.oi?.toFixed(0) || '--') + '</td>';
-      html += '<td>' + (r.pcVol?.toFixed(2) || '--') + '</td>';
-      html += '<td style="font-size:.78rem">' + (r.posReasons || []).map(x => '<span class="up">+'+x+'</span>').join(' ') + ' ' + (r.riskReasons || []).map(x => '<span class="dn">-'+x+'</span>').join(' ') + '</td>';
-      html += '</tr>';
+  const targets = DATA.targets || [];
+  let scanResults = s.results || [];
+  let scanTime = s.scannedAt;
+  
+  function renderScanTable() {
+    let html = '<h2>标的扫描 · IV溢价排名</h2>';
+    html += '<div class="filter-bar">';
+    if (scanTime) html += '<span class="muted">扫描时间: ' + new Date(scanTime).toLocaleString('zh-HK') + ' (' + scanResults.length + ' 个标的)</span>';
+    html += '<button onclick="refreshScan()" id="scanRefreshBtn" style="padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;font-size:.82rem;margin-left:auto">🔄 刷新扫描</button>';
+    html += '</div>';
+    
+    if (scanResults.length) {
+      html += '<table><thead><tr><th>#</th><th>标的</th><th>评分</th><th>状态</th><th>IV</th><th>HV</th><th>溢价</th><th>Rank</th><th>Pctl</th><th>ExpMove</th><th>成交量</th><th>OI</th><th>P/C Vol</th><th>信号</th></tr></thead><tbody>';
+      for (let i = 0; i < scanResults.length; i++) {
+        const r = scanResults[i];
+        const toneEmoji = r.tone === 'green' ? '🟢' : r.tone === 'yellow' ? '🟡' : '🔴';
+        const toneStyle = r.tone === 'green' ? 'color:#45d483;font-weight:700' : r.tone === 'yellow' ? 'color:#ffd54a' : 'color:#ff6b7d';
+        const premiumStyle = r.premium >= 3 ? 'up' : r.premium < 0 ? 'dn' : '';
+        html += '<tr>';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td><b>' + r.symbol + '</b> <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html?symbol='+r.symbol+'" target="_blank" style="font-size:.7rem;color:#4d9eff">→决策</a></td>';
+        html += '<td style="font-weight:700;font-size:1.1rem;color:#ffd54a">' + r.score + '</td>';
+        html += '<td style="' + toneStyle + '">' + toneEmoji + ' ' + r.state + '</td>';
+        html += '<td>' + (r.iv?.toFixed(1) || '--') + '%</td>';
+        html += '<td>' + (r.hv?.toFixed(1) || '--') + '%</td>';
+        html += '<td class="' + premiumStyle + '">' + (r.premium >= 0 ? '+' : '') + r.premium + '%</td>';
+        html += '<td>' + (r.ivRank?.toFixed(0) || '--') + '%</td>';
+        html += '<td>' + (r.ivPct?.toFixed(0) || '--') + '%</td>';
+        html += '<td>' + (r.expected?.toFixed(1) || '--') + '%</td>';
+        html += '<td>' + (r.vol >= 1000 ? (r.vol/1000).toFixed(1)+'k' : r.vol?.toFixed(0) || '--') + '</td>';
+        html += '<td>' + (r.oi >= 1000 ? (r.oi/1000).toFixed(1)+'k' : r.oi?.toFixed(0) || '--') + '</td>';
+        html += '<td>' + (r.pcVol?.toFixed(2) || '--') + '</td>';
+        html += '<td style="font-size:.78rem">' + (r.posReasons || []).map(x => '<span class="up">+'+x+'</span>').join(' ') + ' ' + (r.riskReasons || []).map(x => '<span class="dn">-'+x+'</span>').join(' ') + '</td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+    } else {
+      html += '<p class="muted">暂无数据，点击刷新按钮获取</p>';
     }
-    html += '</tbody></table>';
+    document.getElementById('panel-scan').innerHTML = html;
   }
-  document.getElementById('panel-scan').innerHTML = html;
+  
+  renderScanTable();
+  
+  window.refreshScan = async function() {
+    const btn = document.getElementById('scanRefreshBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 扫描中...'; }
+    try {
+      const apiUrl = 'https://donew-beta.vercel.app/api/barchart-overview?symbols=' + targets.join(',');
+      const res = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      const json = await res.json();
+      const data = json.data || [];
+      scanResults = data.filter(d => d.ok && d.metrics).map(d => {
+        const m = d.metrics || {};
+        const iv = parseFloat(m.iv) || 0, hv = parseFloat(m.hv) || 0;
+        const ivRank = parseFloat(m.ivRank) || 0, ivPct = parseFloat(m.ivPercentile) || 0;
+        const expected = parseFloat(m.expectedMovePct) || 0;
+        const vol = parseFloat(m.todayVolume) || 0, oi = parseFloat(m.todayOpenInterest) || 0;
+        const pcVol = parseFloat(m.putCallVolRatio) || 0;
+        const premium = iv - hv;
+        let score = 12; const posR = [], riskR = [];
+        if (premium >= 8) { score += 25; posR.push('IV-HV溢价显著'); }
+        else if (premium >= 3) { score += 18; posR.push('IV高于HV'); }
+        else if (premium >= 0) score += 8;
+        else { score -= 15; riskR.push('IV低于HV'); }
+        if (ivRank >= 70) { score += 18; posR.push('IV Rank高'); }
+        else if (ivRank >= 50) score += 12;
+        else if (ivRank >= 30) score += 6;
+        else riskR.push('IV Rank偏低');
+        if (ivPct >= 80) { score += 15; posR.push('IV Percentile高'); }
+        else if (ivPct >= 60) score += 10;
+        else if (ivPct >= 40) score += 5;
+        if (vol >= 1000) { score += 8; posR.push('成交活跃'); }
+        else if (vol >= 300) score += 4;
+        else { score -= 6; riskR.push('成交量低'); }
+        if (oi >= 10000) { score += 8; posR.push('OI充足'); }
+        else if (oi >= 1000) score += 4;
+        else { score -= 6; riskR.push('OI偏低'); }
+        if (expected > 15) { score -= 16; riskR.push('ExpMove极高'); }
+        else if (expected > 10) score -= 7;
+        else if (expected >= 4) score += 5;
+        if (pcVol >= 2) { score -= 12; riskR.push('Put拥挤'); }
+        else if (pcVol >= 1.3) score -= 6;
+        else if (pcVol >= 0.25) score += 4;
+        score = Math.max(0, Math.min(100, Math.round(score)));
+        let tone='yellow', state='可观察';
+        if (score >= 70) { tone='green'; state='优质候选'; }
+        else if (score < 50) { tone='red'; state='暂不建议'; }
+        return { symbol: d.symbol, score, tone, state, premium: Math.round(premium*10)/10, iv, hv, ivRank, ivPct, expected, vol, oi, pcVol, posReasons: posR, riskReasons: riskR };
+      });
+      scanResults.sort((a,b) => b.score - a.score);
+      scanTime = new Date().toISOString();
+    } catch(e) { /* keep old data */ }
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 刷新扫描'; }
+    renderScanTable();
+  };
 })();
 
 // Settings panel
