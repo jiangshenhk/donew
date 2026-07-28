@@ -906,7 +906,7 @@
             </div>
           </div>
         </details>
-        <div class="field-grid">
+        <div class="field-grid" id="contractFieldsGrid" style="display:none">
           <div class="field"><label for="targetStrike">行权价格</label><input id="targetStrike" name="targetStrike" type="text" inputmode="decimal" placeholder="85.00"></div>
           <div class="field"><label for="delta">Delta</label><input id="delta" name="delta" type="text" inputmode="decimal" placeholder="-0.15" value="-0.15"></div>
           <div class="field"><label for="bid">Bid</label><input id="bid" name="bid" type="text" inputmode="decimal" placeholder="1.35"></div>
@@ -914,6 +914,7 @@
           <div class="field"><label for="putPrice">Mid（自动计算）</label><input id="putPrice" name="putPrice" type="text" inputmode="decimal" placeholder="1.41" readonly></div>
           <div class="field"><label for="expiryDate">到期日</label><input id="expiryDate" name="expiryDate" type="date"></div>
         </div>
+        <div id="contractAutoSummary" style="display:none;padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;border-radius:6px;font-size:.85rem;margin:8px 0"></div>
 
         <div class="field full">
           <label for="notes">补充说明（可选）</label>
@@ -1952,6 +1953,10 @@
           if (bc.expiryDate != null)    form.elements.expiryDate.value = bc.expiryDate;
           if (bc.mid != null)           form.elements.putPrice.value = bc.mid;
           if (bc.dte != null)           optionFetchedDte = bc.dte;
+
+          const summary = document.getElementById('contractAutoSummary');
+          summary.style.display = 'block';
+          summary.innerHTML = '<b>合约已匹配</b> ' + symbol + ' $' + bc.strike + 'P ｜ Δ' + (bc.delta != null ? bc.delta.toFixed(3) : '--') + ' ｜ Bid $' + bc.bid + ' / Ask $' + bc.ask + ' ｜ Mid $' + bc.mid + ' ｜ 到期 ' + bc.expiryDate + ' (' + bc.dte + '天)';
         }
         optionOverviewMeta = {
           source: json.source || 'Barchart Options Overview',
@@ -2001,6 +2006,7 @@
       metricsPanel.open = !metricsPanel.open;
       manualMetricsToggleBtn.setAttribute('aria-expanded', String(metricsPanel.open));
       manualMetricsToggleBtn.textContent = metricsPanel.open ? '收起手工修改' : '手工修改';
+      document.getElementById('contractFieldsGrid').style.display = metricsPanel.open ? '' : 'none';
     });
 
     function showThumbLoading(text) {
