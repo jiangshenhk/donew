@@ -7,7 +7,7 @@
 - K线相识度：`https://donew-beta.vercel.app/kline-robot.html`
 - 24小时新闻中心：`https://donew-beta.vercel.app/jin10-news.html`
 - 最新每日/每周市场情况分析：`https://donew-beta.vercel.app/market-analysis-tool.html`
-- 卖 Put 温度判断：`https://donew-beta.vercel.app/sell-put-tool.html`
+- 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
 - 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
 - 卖Put标的池扫描：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
 - 最新行情管理页：`https://donew-beta.vercel.app/price-test.html`
@@ -108,8 +108,9 @@ kline_robot_vercel/
   -> 支持下载、归档、恢复浏览器上次报告
 ```
 
-### 3.4 卖 Put 温度判断
+### 3.4 卖 Put 温度判断 ⚠️ 已暂停维护
 
+> 已被 [综合卖Put决策](#35-综合卖-put-决策) 完全覆盖。
 - 页面：`sell-put-tool.html`
 - 核心 API：`api/put-rating.js`
 

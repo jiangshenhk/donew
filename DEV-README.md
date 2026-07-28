@@ -174,7 +174,6 @@
 - K线相识度：`https://donew-beta.vercel.app/kline-robot.html`
 - 24小时新闻中心：`https://donew-beta.vercel.app/jin10-news.html`
 - 最新每日 / 每周市场情况分析：`https://donew-beta.vercel.app/market-analysis-tool.html`
-- 卖 Put 温度判断：`https://donew-beta.vercel.app/sell-put-tool.html`
 - 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
 - 卖Put标的池扫描：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
 - 最新行情管理页：`https://donew-beta.vercel.app/price-test.html`
@@ -490,7 +489,7 @@ docs/tools/alpha-risk-tool/README.md
 | 最新行情中心 | `price-test.html` | `market-report-v2.js` | `stockprice/README.md` | —（无 AI） | 数据中心 |
 | 日报/晚报自动生成 | Actions | `news-summary.js` | `docs/市场/README.md` | `docs/tools/jin10-news/README-FOR-AI.md` | 定时生成 |
 | 每日/周市场分析 | `market-analysis-tool.html` | `market-report-v2.js` | `docs/市场/README.md` | `docs/tools/market-analysis/README-FOR-AI.md` | 交互式 |
-| 卖Put温度判断 | `sell-put-tool.html` | `put-rating.js` | `docs/tools/sell-put-tool/README.md` | `docs/tools/sell-put-tool/README-FOR-AI.md` | 交互式 |
+| 综合卖Put决策 | `sell-put-decision-tool.html` | `sell-put-decision.js` | `docs/tools/sell-put-tool/README.md` | `docs/tools/sell-put-tool/README-FOR-AI.md` | 交互式 |
 | 综合卖Put决策 | `sell-put-decision-tool.html` | `sell-put-decision.js` | `docs/tools/sell-put-decision/README.md` | `docs/tools/sell-put-decision/README-FOR-AI.md` | 交互式 |
 | 卖Put标的池扫描 | `sell-put-pool-tool.html` | `barchart-overview.js` | `docs/tools/sell-put-pool-tool/README.md` | —（无 AI） | 批量初筛 |
 | 八字命理分析 | `bazi-analysis-tool.html` | `bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README.md` | `docs/tools/bazi-analysis-tool/README-FOR-AI.md` | 交互式 |
@@ -580,8 +579,9 @@ docs/tools/alpha-risk-tool/README.md
 - 使用 `.github/workflows/verify-market-generation-paths.yml` 做双链路结构校验，避免只修好网页或只修好自动生成。
 - 不要让网页 API 依赖一个看似废弃的 `_old` 文件；正式入口应保持依赖关系清晰、可独立部署。
 
-#### 卖 Put 温度判断
+#### 卖 Put 温度判断 ⚠️ 已暂停维护
 
+> 功能已被 [综合卖Put决策](#35-综合卖-put-决策) 完全覆盖。该工具保留但不再更新。
 - 入口页：`https://donew-beta.vercel.app/sell-put-tool.html`
 - 前端页面：
   - `sell-put-tool.html`
