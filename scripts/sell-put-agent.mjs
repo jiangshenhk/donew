@@ -35,21 +35,26 @@ const DEFAULT_TRADING   = ['QLD', 'MSTR', 'INTC'];
 const DEFAULT_WATCHLIST = ['QLD', 'MSTR', 'INTC', 'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'HOOD', 'SOXL', 'AMD', 'TLT', 'GLD', 'XLE'];
 
 function loadPool() {
-  try {
-    const pool = JSON.parse(fs.readFileSync(POOL_FILE, 'utf-8'));
-    if (!pool.trading || !pool.watchlist) throw new Error('missing fields');
-    return pool;
-  } catch {
-    // Migrate from old separate files
-    const oldTrading = loadJson(SYMBOLS_FILE);
-    const oldWatchlist = loadJson(WATCHLIST_FILE);
-    const pool = {
-      trading: Array.isArray(oldTrading) ? oldTrading : [...DEFAULT_TRADING],
-      watchlist: Array.isArray(oldWatchlist) ? oldWatchlist : [...DEFAULT_WATCHLIST],
-    };
-    saveJson(POOL_FILE, pool);
-    return pool;
+  const exists = fs.existsSync(POOL_FILE);
+  if (exists) {
+    try {
+      const pool = JSON.parse(fs.readFileSync(POOL_FILE, 'utf-8'));
+      if (!Array.isArray(pool.trading) || !Array.isArray(pool.watchlist)) throw new Error('invalid fields');
+      return pool;
+    } catch (e) {
+      console.error('⚠️ pool.json 损坏，使用默认配置（原文件未修改）。请手动检查: ' + POOL_FILE);
+      return { trading: [...DEFAULT_TRADING], watchlist: [...DEFAULT_WATCHLIST] };
+    }
   }
+  // File doesn't exist — migrate from old files or create default
+  const oldTrading = loadJson(SYMBOLS_FILE);
+  const oldWatchlist = loadJson(WATCHLIST_FILE);
+  const pool = {
+    trading: Array.isArray(oldTrading) ? oldTrading : [...DEFAULT_TRADING],
+    watchlist: Array.isArray(oldWatchlist) ? oldWatchlist : [...DEFAULT_WATCHLIST],
+  };
+  saveJson(POOL_FILE, pool);
+  return pool;
 }
 
 function savePool(pool) { saveJson(POOL_FILE, pool); }
@@ -708,7 +713,7 @@ function recalcStats() {
       peak = Math.max(peak, running);
       const dd = Math.max(0, (peak - running) / CONFIG.capital);
       stats.maxDrawdown = Math.max(stats.maxDrawdown, dd);
-      if (running < 0) stats.currentDrawdown = Math.abs(running) / CONFIG.capital;
+      stats.currentDrawdown = dd;
     }
   }
 
@@ -828,18 +833,25 @@ async function processEarlyCloseSignals(signals, positions) {
     console.log(`     原始权利金: $${sig.originalPremium} → 当前: $${sig.currentPremium} (${sig.premiumRemaining}%)`);
     console.log(`     利润捕获: ${sig.profitCapture}% | ${sig.reason}`);
 
-    // Auto-close on take_profit or time_decay_close
-    if (sig.type === 'take_profit' || sig.type === 'time_decay_close') {
+    // Auto-close winners and stop losses
+    if (sig.type === 'take_profit' || sig.type === 'time_decay_close' || sig.type === 'stop_loss') {
       const idx = sig.positionIndex;
-      const actualProfit = Math.round((sig.originalPremium - sig.currentPremium) * positions[idx].contracts * 100 * 100) / 100;
+      const closePnl = Math.round((sig.originalPremium - sig.currentPremium) * positions[idx].contracts * 100 * 100) / 100;
       positions[idx].status = 'closed';
       positions[idx].closedAt = new Date().toISOString();
-      positions[idx].result = 'win';
-      positions[idx].pnl = actualProfit;
-      positions[idx].lossAmount = 0;
-      positions[idx].closeNote = `提前平仓: 捕获${sig.profitCapture}%利润 ($${sig.originalPremium}→$${sig.currentPremium})`;
-      positions[idx].expireClose = positions[idx].strike + 1;
-      console.log(`     📝 自动平仓 (赢) PnL: $${actualProfit}`);
+      positions[idx].pnl = closePnl;
+      positions[idx].lossAmount = closePnl < 0 ? Math.abs(closePnl) : 0;
+      if (sig.type === 'stop_loss') {
+        positions[idx].result = 'loss';
+        positions[idx].closeNote = `止损: 权利金翻倍 ($${sig.originalPremium}→$${sig.currentPremium})`;
+        positions[idx].expireClose = positions[idx].strike;
+        console.log(`     📝 自动平仓 (亏) PnL: $${closePnl}`);
+      } else {
+        positions[idx].result = 'win';
+        positions[idx].closeNote = `提前平仓: 捕获${sig.profitCapture}%利润 ($${sig.originalPremium}→$${sig.currentPremium})`;
+        positions[idx].expireClose = positions[idx].strike + 1;
+        console.log(`     📝 自动平仓 (赢) PnL: $${closePnl}`);
+      }
     }
   }
   savePositions(positions);
@@ -1020,17 +1032,23 @@ async function runDaily() {
 
     // Save journal
     const alreadyHolding = positions.some(p => p.status === 'open' && p.symbol === symbol);
-    let willOpen = !alreadyHolding && gates.canOpen && decision.stance === '可卖Put';
+    const currentGates = checkRiskGates(loadStats());
+    let willOpen = !alreadyHolding && currentGates.canOpen && decision.stance === '可卖Put';
     let actionNote = '不操作';
     let tradeDetail = null;
 
     if (alreadyHolding) actionNote = '已有持仓';
-    else if (!gates.canOpen) actionNote = '风控阻断';
+    else if (!currentGates.canOpen) actionNote = '风控阻断';
     else if (decision.stance === '谨慎卖Put') actionNote = '谨慎不下单';
     else if (decision.stance === '暂不卖Put') actionNote = '信号不利';
 
     if (willOpen) {
-      const maxContracts = Math.floor(CONFIG.capital * CONFIG.maxSinglePositionPct / (contract.strike * 100));
+      const capitalPerContract = contract.strike * 100;
+      const deployed = loadPositions().filter(p => p.status === 'open').reduce((s, p) => s + (p.capitalUsed || 0), 0);
+      const remaining = CONFIG.capital - deployed;
+      const maxByConfig = Math.floor(CONFIG.capital * CONFIG.maxSinglePositionPct / capitalPerContract);
+      const maxByRemaining = Math.floor(remaining / capitalPerContract);
+      const maxContracts = Math.min(maxByConfig, maxByRemaining);
       const contracts = Math.min(5, maxContracts);
       if (maxContracts < 1) {
         actionNote = '资金不足';
@@ -1775,7 +1793,7 @@ function stanceBadge(s) {
       dailyPnL[pos.openedAt] = (dailyPnL[pos.openedAt] || 0) + pos.premiumCollected;
     }
     if (pos.status === 'closed' && pos.result && pos.closedAt) {
-      dailyPnL[pos.closedAt] = (dailyPnL[pos.closedAt] || 0) + (pos.pnl || 0) - (pos.premiumCollected || 0);
+      dailyPnL[(pos.closedAt || '').substring(0, 10)] = (dailyPnL[(pos.closedAt || '').substring(0, 10)] || 0) + (pos.pnl || 0) - (pos.premiumCollected || 0);
     }
   }
   
@@ -1880,7 +1898,7 @@ function calShift(n) {
       dailyPnL[pos.openedAt] = (dailyPnL[pos.openedAt] || 0) + pos.premiumCollected;
     }
     if (pos.status === 'closed' && pos.result && pos.closedAt) {
-      dailyPnL[pos.closedAt] = (dailyPnL[pos.closedAt] || 0) + (pos.pnl || 0) - (pos.premiumCollected || 0);
+      dailyPnL[(pos.closedAt || '').substring(0, 10)] = (dailyPnL[(pos.closedAt || '').substring(0, 10)] || 0) + (pos.pnl || 0) - (pos.premiumCollected || 0);
     }
   }
   const monthlyPnL = {};
