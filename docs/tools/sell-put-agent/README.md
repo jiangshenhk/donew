@@ -5,19 +5,32 @@
 
 ## 功能
 
-自动每日/盘中分析 QLD / MSTR / INTC 的卖 Put 机会，纸面模拟交易，跟踪胜率和盈亏。
+自动每日/盘中分析交易池标的的卖 Put 机会，纸面模拟交易，跟踪胜率和盈亏。
+
+## 标的池体系
+
+| 池 | 存储 | 用途 | 管理方式 |
+|:---|:---|:---|:---|
+| **交易池** | `pool.json` → `trading` | 可自动开仓的标的 | `symbols add/remove/list` |
+| **扫描池** | `pool.json` → `watchlist` | IV溢价排名观察 | `watchlist add/remove/list` |
+| **行情中心** | `stockprice/config/symbols.json` | 实时价格/K线数据源 | GitHub Actions 管理 |
+
+> 交易池 ⊆ 扫描池：交易池的标的必须也在扫描池中才能获取完整数据。
 
 ## 命令速查
 
 ```bash
 export DEEPSEEK_API_KEY=sk-xxx
-node scripts/sell-put-agent.mjs daily     # 每日分析 + 模拟交易
-node scripts/sell-put-agent.mjs stats     # 统计面板（终端）
-node scripts/sell-put-agent.mjs dashboard # 生成 HTML 仪表板
-node scripts/sell-put-agent.mjs report    # 生成 Markdown 日报
-node scripts/sell-put-agent.mjs setup     # 安装 launchd 自动运行
-node scripts/sell-put-agent.mjs env       # 写入 API Key 到本地文件
-node scripts/sell-put-agent.mjs version   # 版本
+node scripts/sell-put-agent.mjs daily        # 每日分析 + 模拟交易
+node scripts/sell-put-agent.mjs stats        # 统计面板（终端）
+node scripts/sell-put-agent.mjs scan         # 扫描 IV 溢价排名
+node scripts/sell-put-agent.mjs dashboard    # 生成 HTML 仪表板
+node scripts/sell-put-agent.mjs report       # 生成 Markdown 日报
+node scripts/sell-put-agent.mjs symbols      # 管理交易池 (list/add/remove)
+node scripts/sell-put-agent.mjs watchlist    # 管理扫描池 (list/add/remove)
+node scripts/sell-put-agent.mjs setup        # 安装 launchd 自动运行
+node scripts/sell-put-agent.mjs env          # 写入 API Key 到本地文件
+node scripts/sell-put-agent.mjs version      # 版本
 ```
 
 ## 数据流
@@ -27,19 +40,21 @@ Barchart 期权链 → 筛选 DTE 5–25, Δ≈0.15 的 Put
        ↓
 Yahoo Finance K线 → ATR / SMA 计算
        ↓
-GitHub stockprice → 行情快照 (25 标的)
+GitHub stockprice → 行情快照
        ↓
 DeepSeek API → 生成决策（可卖/谨慎/不卖）
        ↓
 存储 ~/.donew-agent/
-  ├─ journal/      # 每次分析的完整记录
-  ├─ positions.json # 持仓
-  ├─ orders.json    # 交易订单
-  ├─ stats.json     # 统计数据
-  ├─ experience.json # 历史经验
-  ├─ reports/       # Markdown 日报
-  ├─ dashboard.html # 可视化仪表板
-  └─ .env           # API Key
+  ├─ pool.json          # 统一标的池配置（交易 + 扫描）
+  ├─ journal/           # 每次分析的完整记录
+  ├─ positions.json     # 持仓
+  ├─ orders.json        # 交易订单
+  ├─ stats.json         # 统计数据
+  ├─ scan-result.json   # 扫描结果缓存
+  ├─ kline/             # K线数据缓存（每标的）
+  ├─ reports/           # Markdown 日报
+  ├─ dashboard.html     # 可视化仪表板
+  └─ .env               # API Key
 ```
 
 ## 决策规则
@@ -52,6 +67,7 @@ DeepSeek API → 生成决策（可卖/谨慎/不卖）
 | 总回撤 | ≥ 20% | 停止开仓 |
 | 连续亏损 | ≥ 3 笔 | 暂停开仓 |
 | 最大持仓 | 3 笔 | 阻断 |
+| 总资金超限 | 已占用 + 新仓 > 总资金 | 减少或跳过 |
 | 同标的不重复 | 已有持仓 | 跳过 |
 
 ### 提前平仓
@@ -79,20 +95,26 @@ launchctl load ~/Library/LaunchAgents/com.donew.sellput.plist  # 启用
 
 ## 仪表板
 
-打开 `~/.donew-agent/dashboard.html`，四个标签页：
-- **持仓**：当前仓位 + 资金总览 + 已结算
-- **交易明细**：开仓/平仓/取消记录
-- **判断日志**：每次分析 + 筛选 + 分页
-- **统计**：数据面板 + 月度日历 + 按标的
+打开 `~/.donew-agent/dashboard.html`，七个标签页：
+- **持仓**：当前仓位 + 资金总览 + 已结算 + 浮盈
+- **交易明细**：开仓/平仓记录
+- **判断日志**：每次分析 + 筛选/分页/年化
+- **统计**：数据面板 + 月度日历 + 收益百分比
+- **标的扫描**：IV溢价排名，手动刷新
+- **K线**：蜡烛图 + 交易标注
+- **设置**：交易池/扫描池管理
 
 ## 文件结构
 
 ```
-scripts/sell-put-agent.mjs          # 单文件 Agent (~1900 行)
+scripts/sell-put-agent.mjs              # 单文件 Agent (~2400 行)
 kline_robot_vercel/api/_lib/
-  └─ barchart-options-chain.js      # Barchart 期权链模块（Agent 和 API 共用）
+  └─ barchart-options-chain.js          # Barchart 期权链模块（Agent 和 API 共用）
+
+部署依赖（Agent 本身不直接修改）：
+stockprice/config/symbols.json          # 行情中心标的列表（GitHub Actions 驱动）
 ```
 
 ## 版本
 
-v0.3.0 · 2026-07-27
+v0.4.0 · 2026-07-28

@@ -28,15 +28,35 @@ const ENV_FILE        = path.join(AGENT_DIR, '.env');
 const SYMBOLS_FILE    = path.join(AGENT_DIR, 'symbols.json');
 const SCAN_RESULT_FILE = path.join(AGENT_DIR, 'scan-result.json');
 const KLINE_DIR       = path.join(AGENT_DIR, 'kline');
+const WATCHLIST_FILE  = path.join(AGENT_DIR, 'watchlist.json');
+const POOL_FILE       = path.join(AGENT_DIR, 'pool.json');
 
-const DEFAULT_TARGETS = ['QLD', 'MSTR', 'INTC'];
+const DEFAULT_TRADING   = ['QLD', 'MSTR', 'INTC'];
+const DEFAULT_WATCHLIST = ['QLD', 'MSTR', 'INTC', 'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'HOOD', 'SOXL', 'AMD', 'TLT', 'GLD', 'XLE'];
 
-function loadTargets() {
-  try { return JSON.parse(fs.readFileSync(SYMBOLS_FILE, 'utf-8')); }
-  catch { return [...DEFAULT_TARGETS]; }
+function loadPool() {
+  try {
+    const pool = JSON.parse(fs.readFileSync(POOL_FILE, 'utf-8'));
+    if (!pool.trading || !pool.watchlist) throw new Error('missing fields');
+    return pool;
+  } catch {
+    // Migrate from old separate files
+    const oldTrading = loadJson(SYMBOLS_FILE);
+    const oldWatchlist = loadJson(WATCHLIST_FILE);
+    const pool = {
+      trading: Array.isArray(oldTrading) ? oldTrading : [...DEFAULT_TRADING],
+      watchlist: Array.isArray(oldWatchlist) ? oldWatchlist : [...DEFAULT_WATCHLIST],
+    };
+    saveJson(POOL_FILE, pool);
+    return pool;
+  }
 }
 
-function saveTargets(targets) { saveJson(SYMBOLS_FILE, targets); }
+function savePool(pool) { saveJson(POOL_FILE, pool); }
+function loadTargets() { return loadPool().trading; }
+function loadWatchlist() { return loadPool().watchlist; }
+function saveTargets(trading) { const p = loadPool(); p.trading = trading; savePool(p); }
+function saveWatchlist(watchlist) { const p = loadPool(); p.watchlist = watchlist; savePool(p); }
 
 const TARGETS = loadTargets();
 
@@ -185,6 +205,10 @@ async function fetchOptionsChain(symbol, opts = {}) {
   const timeoutMs = opts.timeoutMs || 20000;
   const dteMin = opts.dteMin ?? CONFIG.dteRange[0];
   const dteMax = opts.dteMax ?? CONFIG.dteRange[1];
+  const minBid = opts.minBid ?? CONFIG.minBid;
+  const minOi = opts.minOi ?? CONFIG.minOi;
+  const deltaMin = opts.deltaMin ?? CONFIG.deltaRange[0];
+  const deltaMax = opts.deltaMax ?? CONFIG.deltaRange[1];
   const session = await barchartSession(symbol, timeoutMs);
 
   const url = new URL(`${BARCHART}/proxies/core-api/v1/options/get`);
@@ -234,15 +258,15 @@ async function fetchOptionsChain(symbol, opts = {}) {
       c.symbol === symbol.toUpperCase()
       && c.optionType.toLowerCase() === 'put'
       && c.strike && c.dte && c.dte >= dteMin && c.dte <= dteMax
-      && c.delta != null && Math.abs(c.delta) >= CONFIG.deltaRange[0] && Math.abs(c.delta) <= CONFIG.deltaRange[1]
-      && c.bid >= CONFIG.minBid
-      && c.oi >= CONFIG.minOi
+      && c.delta != null && Math.abs(c.delta) >= deltaMin && Math.abs(c.delta) <= deltaMax
+      && c.bid >= minBid
+      && c.oi >= minOi
     );
 
-    // Sort: closest delta to targetDelta first, then nearest expiration
+    // Sort: closest delta to targetDelta first, then closest DTE to targetDte
     contracts.sort((a, b) => {
-      const scoreA = Math.abs(Math.abs(a.delta) - CONFIG.targetDelta) * 50 + a.dte;
-      const scoreB = Math.abs(Math.abs(b.delta) - CONFIG.targetDelta) * 50 + b.dte;
+      const scoreA = Math.abs(Math.abs(a.delta) - CONFIG.targetDelta) * 50 + Math.abs(a.dte - CONFIG.targetDte);
+      const scoreB = Math.abs(Math.abs(b.delta) - CONFIG.targetDelta) * 50 + Math.abs(b.dte - CONFIG.targetDte);
       return scoreA - scoreB;
     });
 
@@ -575,7 +599,11 @@ function checkRiskGates(stats) {
 function openPaperPosition(symbol, contract, decision) {
   const mid = Math.round((contract.bid + (contract.ask || contract.bid)) / 2 * 100) / 100;
   const capitalPerContract = contract.strike * 100;
-  const maxContracts = Math.floor(CONFIG.capital * CONFIG.maxSinglePositionPct / capitalPerContract);
+  const deployed = loadPositions().filter(p => p.status === 'open').reduce((s, p) => s + (p.capitalUsed || 0), 0);
+  const remaining = CONFIG.capital - deployed;
+  const maxByConfig = Math.floor(CONFIG.capital * CONFIG.maxSinglePositionPct / capitalPerContract);
+  const maxByRemaining = Math.floor(remaining / capitalPerContract);
+  const maxContracts = Math.min(maxByConfig, maxByRemaining);
   if (maxContracts < 1) return null;
   const contracts = Math.min(5, maxContracts);
   const premium = Math.round(mid * contracts * 100 * 100) / 100;
@@ -601,14 +629,34 @@ function openPaperPosition(symbol, contract, decision) {
   };
 }
 
-async function settlePosition(pos, prices) {
+async function settlePosition(pos) {
   const expireDate = pos.expireDate;
   if (!expireDate || todayStr() < expireDate) return pos;
 
-  const priceData = prices[pos.symbol];
-  const closePrice = priceData?.price;
+  // Try to get actual expiry date close from Yahoo K-line
+  let closePrice = null;
+  try {
+    const bars = await fetchKline(pos.symbol, '1mo');
+    if (bars) {
+      const expiryBar = bars.find(b => b.date === expireDate);
+      if (expiryBar) closePrice = expiryBar.close;
+    }
+  } catch { /* fall back to current price */ }
+
+  // Fallback: use current price if last run was within 2 days of expiry
   if (!closePrice) {
-    console.log(`  ⚠️ ${pos.symbol}: 无法获取到期日收盘价，跳过结算`);
+    const expiryDateObj = new Date(expireDate);
+    const now = new Date();
+    const daysSinceExpiry = Math.ceil((now.getTime() - expiryDateObj.getTime()) / 86400000);
+    if (daysSinceExpiry <= 2) {
+      const prices = await fetchPrices();
+      const priceData = prices[pos.symbol];
+      closePrice = priceData?.price;
+    }
+  }
+
+  if (!closePrice) {
+    console.log(`  ⚠️ ${pos.symbol}: 无法获取到期日(${expireDate})收盘价，跳过结算`);
     return pos;
   }
 
@@ -643,26 +691,24 @@ function recalcStats() {
   const open = positions.filter(p => p.status === 'open');
 
   const stats = loadStats();
-  stats.totalPositions = positions.length;
+  stats.totalPositions = closed.length;
   stats.wins = closed.filter(p => p.result === 'win').length;
   stats.losses = closed.filter(p => p.result === 'loss').length;
   stats.totalPremium = Math.round(closed.reduce((s, p) => s + (p.premiumCollected || 0), 0) * 100) / 100;
   stats.totalLosses = Math.round(closed.reduce((s, p) => s + (p.lossAmount || 0), 0) * 100) / 100;
   stats.netPnL = Math.round(closed.reduce((s, p) => s + (p.pnl || 0), 0) * 100) / 100;
 
-  // Drawdown tracking
+  // Drawdown tracking: use running PnL, drawdown = (peak - trough) / capital
   stats.currentDrawdown = 0;
   if (closed.length) {
     let peak = 0;
     let running = 0;
     for (const p of closed) {
       running += p.pnl || 0;
-      if (running > peak) {
-        peak = running;
-      }
-      const dd = peak > 0 ? Math.max(0, (peak - running) / CONFIG.capital) : 0;
+      peak = Math.max(peak, running);
+      const dd = Math.max(0, (peak - running) / CONFIG.capital);
       stats.maxDrawdown = Math.max(stats.maxDrawdown, dd);
-      stats.currentDrawdown = dd;
+      if (running < 0) stats.currentDrawdown = Math.abs(running) / CONFIG.capital;
     }
   }
 
@@ -710,7 +756,8 @@ async function checkEarlyClose() {
 
     let currentMid = null;
     try {
-      const contracts = await fetchOptionsChain(pos.symbol, { dteMin: 1 });
+      // Fetch with relaxed filters to find existing contract (may be deep ITM or near zero)
+      const contracts = await fetchOptionsChain(pos.symbol, { dteMin: 1, dteMax: 999, minBid: 0, minOi: 0, deltaMin: 0, deltaMax: 1 });
       const match = contracts.find(c =>
         Math.abs(c.strike - pos.strike) < 0.01 &&
         c.expireDate === pos.expireDate
@@ -818,11 +865,10 @@ async function runDaily() {
   const openBefore = positions.filter(p => p.status === 'open');
   if (openBefore.length) {
     console.log('📋 检查到期持仓...');
-    const prices = await fetchPrices();
     let settled = false;
     for (let i = 0; i < positions.length; i++) {
       if (positions[i].status !== 'open') continue;
-      positions[i] = await settlePosition(positions[i], prices);
+      positions[i] = await settlePosition(positions[i]);
       if (positions[i].status === 'closed') settled = true;
     }
     if (settled) savePositions(positions);
@@ -1280,17 +1326,18 @@ function buildDashboardHtml() {
     : [];
   const journalEntries = journalFiles.map(f => loadJson(path.join(journalDir, f))).filter(Boolean).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-  // Enrich positions with current price from latest journal
-  const latestBySymbol = {};
-  for (const entry of journalEntries) {
-    if (!latestBySymbol[entry.symbol]) latestBySymbol[entry.symbol] = entry;
-  }
+  // Enrich positions with current price — match by symbol + strike + expireDate
   for (const pos of positions) {
-    const latest = latestBySymbol[pos.symbol];
-    if (latest) {
-      pos.currentPrice = latest.price;
-      pos.currentPutMid = latest.contract ? Math.round((latest.contract.bid + (latest.contract.ask || latest.contract.bid)) / 2 * 100) / 100 : null;
-      pos.currentOtm = latest.contract?.otm;
+    // Find the latest journal entry for this specific position's contract
+    const matchingEntry = journalEntries.find(e =>
+      e.symbol === pos.symbol &&
+      e.contract && Math.abs(e.contract.strike - pos.strike) < 0.01 &&
+      e.contract.expireDate === pos.expireDate
+    );
+    if (matchingEntry) {
+      pos.currentPrice = matchingEntry.price;
+      pos.currentPutMid = matchingEntry.contract ? Math.round((matchingEntry.contract.bid + (matchingEntry.contract.ask || matchingEntry.contract.bid)) / 2 * 100) / 100 : null;
+      pos.currentOtm = matchingEntry.contract?.otm;
     }
   }
 
@@ -1307,6 +1354,7 @@ function buildDashboardHtml() {
 
   const scanData = loadJson(SCAN_RESULT_FILE) || { results: [], scannedAt: null };
   const currentTargets = loadTargets();
+  const watchlist = loadWatchlist();
 
   // Load K-line data for symbols with positions
   const klineData = {};
@@ -1316,7 +1364,7 @@ function buildDashboardHtml() {
     if (kf && kf.bars) klineData[sym] = kf;
   }
 
-  const dataJson = JSON.stringify({ stats, positions, orders: orders.slice(-50).reverse(), journalEntries: journalEntries.slice(0, 100), experience, capital: capitalInfo, scan: scanData, targets: currentTargets, kline: klineData, generatedAt: new Date().toISOString() });
+  const dataJson = JSON.stringify({ stats, positions, orders: orders.slice(-50).reverse(), journalEntries: journalEntries.slice(0, 100), experience, capital: capitalInfo, scan: scanData, targets: currentTargets, watchlist, kline: klineData, generatedAt: new Date().toISOString() });
 
   const html = `<!DOCTYPE html>
 <html lang="zh-HK">
@@ -1873,7 +1921,7 @@ function calShift(n) {
 // Scan panel
 (function() {
   const s = DATA.scan || { results: [], scannedAt: null };
-  const targets = DATA.targets || [];
+  const scanTargets = DATA.watchlist || DATA.targets || [];
   let scanResults = s.results || [];
   let scanTime = s.scannedAt;
   
@@ -1923,40 +1971,38 @@ function calShift(n) {
     if (btn) { btn.disabled = true; btn.textContent = '⏳ 扫描中...'; }
     let errorMsg = null;
     try {
-      const apiUrl = 'https://donew-beta.vercel.app/api/barchart-overview?symbols=' + targets.join(',');
+      const apiUrl = 'https://donew-beta.vercel.app/api/barchart-overview?symbols=' + scanTargets.join(',');
       const res = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
       const data = json.data || [];
       scanResults = data.filter(d => d.ok && d.metrics).map(d => {
         const m = d.metrics || {};
-        const iv = parseFloat(m.iv) || 0, hv = parseFloat(m.hv) || 0;
-        const ivRank = parseFloat(m.ivRank) || 0, ivPct = parseFloat(m.ivPercentile) || 0;
-        const expected = parseFloat(m.expectedMovePct) || 0;
-        const vol = parseFloat(m.todayVolume) || 0, oi = parseFloat(m.todayOpenInterest) || 0;
-        const pcVol = parseFloat(m.putCallVolRatio) || 0;
-        const premium = iv - hv;
+        const rv = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+        const iv = rv(m.iv), hv = rv(m.hv), ivRank = rv(m.ivRank), ivPct = rv(m.ivPercentile);
+        const expected = rv(m.expectedMovePct), vol = parseFloat(m.todayVolume) || 0, oi = parseFloat(m.todayOpenInterest) || 0, pcVol = parseFloat(m.putCallVolRatio) || 0;
+        const premium = iv != null && hv != null ? iv - hv : 0;
         let score = 12; const posR = [], riskR = [];
         if (premium >= 8) { score += 25; posR.push('IV-HV溢价显著'); }
         else if (premium >= 3) { score += 18; posR.push('IV高于HV'); }
-        else if (premium >= 0) score += 8;
-        else { score -= 15; riskR.push('IV低于HV'); }
-        if (ivRank >= 70) { score += 18; posR.push('IV Rank高'); }
-        else if (ivRank >= 50) score += 12;
-        else if (ivRank >= 30) score += 6;
-        else riskR.push('IV Rank偏低');
-        if (ivPct >= 80) { score += 15; posR.push('IV Percentile高'); }
-        else if (ivPct >= 60) score += 10;
-        else if (ivPct >= 40) score += 5;
+        else if (premium >= 0) { score += 8; }
+        else if (iv != null && hv != null) { score -= 15; riskR.push('IV低于HV'); }
+        if (ivRank != null && ivRank >= 70) { score += 18; posR.push('IV Rank高'); }
+        else if (ivRank != null && ivRank >= 50) score += 12;
+        else if (ivRank != null && ivRank >= 30) score += 6;
+        else if (ivRank != null || ivPct != null) riskR.push('IV Rank偏低');
+        if (ivPct != null && ivPct >= 80) { score += 15; posR.push('IV Percentile高'); }
+        else if (ivPct != null && ivPct >= 60) score += 10;
+        else if (ivPct != null && ivPct >= 40) score += 5;
         if (vol >= 1000) { score += 8; posR.push('成交活跃'); }
         else if (vol >= 300) score += 4;
         else { score -= 6; riskR.push('成交量低'); }
         if (oi >= 10000) { score += 8; posR.push('OI充足'); }
         else if (oi >= 1000) score += 4;
         else { score -= 6; riskR.push('OI偏低'); }
-        if (expected > 15) { score -= 16; riskR.push('ExpMove极高'); }
-        else if (expected > 10) score -= 7;
-        else if (expected >= 4) score += 5;
+        if (expected != null && expected > 15) { score -= 16; riskR.push('ExpMove极高'); }
+        else if (expected != null && expected > 10) score -= 7;
+        else if (expected != null && expected >= 4) score += 5;
         if (pcVol >= 2) { score -= 12; riskR.push('Put拥挤'); }
         else if (pcVol >= 1.3) score -= 6;
         else if (pcVol >= 0.25) score += 4;
@@ -1985,17 +2031,34 @@ function calShift(n) {
 // Settings panel
 (function() {
   const targets = DATA.targets || [];
-  let html = '<h2>标的池管理</h2>';
-  html += '<p class="muted">当前标的 (' + targets.length + '个)</p>';
-  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">';
-  for (const s of targets) {
-    html += '<span style="display:inline-flex;align-items:center;gap:4px;background:#111d2f;border:1px solid #1f2b44;border-radius:6px;padding:4px 10px;font-size:.85rem"><b>'+s+'</b> <button data-sym="'+s+'" onclick="removeSymbol(this.dataset.sym)" style="background:none;border:none;color:#ff6b7d;cursor:pointer;font-size:1rem;padding:0 2px" title="删除 '+s+'">×</button></span>';
+  const watchlist = DATA.watchlist || [];
+  
+  function tagBar(list, poolName) {
+    let h = '<p class="muted">'+poolName+' (' + list.length + '个)</p>';
+    h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">';
+    for (const s of list) {
+      const inTargets = targets.includes(s);
+      h += '<span style="display:inline-flex;align-items:center;gap:4px;background:#111d2f;border:1px solid #1f2b44;border-radius:6px;padding:4px 10px;font-size:.85rem' + (inTargets ? ';border-color:#4d9eff' : '') + '"><b>'+s+'</b>' + (inTargets ? ' <span style="font-size:.65rem;color:#4d9eff">交易</span>' : '') + '</span>';
+    }
+    h += '</div>';
+    return h;
   }
-  html += '</div>';
+  
+  let html = '<h2>标的池管理</h2>';
+  html += tagBar(targets, '🎯 交易池（可自动开仓）');
   html += '<div class="filter-bar">';
-  html += '<label>添加标的</label><input id="symAdd" type="text" placeholder="输入代码..." style="width:120px;padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;color:#cddbf7;border-radius:6px">';
+  html += '<label>添加交易标的</label><input id="symAdd" type="text" placeholder="输入代码..." style="width:120px;padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;color:#cddbf7;border-radius:6px">';
   html += '<button onclick="addSymbol()" style="padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;font-size:.82rem">添加</button>';
+  html += '<button onclick="removeSymbolPrompt()" style="padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#ff6b7d;border-radius:6px;cursor:pointer;font-size:.82rem">删除</button>';
   html += '</div>';
+  
+  html += '<h2 style="margin-top:24px">扫描池管理</h2>';
+  html += tagBar(watchlist, '🔍 扫描池（IV溢价排名）');
+  html += '<div class="filter-bar">';
+  html += '<label>添加扫描标的</label><input id="wlAdd" type="text" placeholder="输入代码..." style="width:120px;padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;color:#cddbf7;border-radius:6px">';
+  html += '<button onclick="addWatchlist()" style="padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;font-size:.82rem">添加</button>';
+  html += '</div>';
+  
   html += '<p id="symMsg" style="font-size:.82rem;margin-top:8px"></p>';
   html += '<p class="muted" style="margin-top:8px">修改后运行 <code>node scripts/sell-put-agent.mjs dashboard</code> 生效</p>';
   
@@ -2013,8 +2076,19 @@ function addSymbol() {
   document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请运行: <code>node scripts/sell-put-agent.mjs symbols add '+sym+'</code> 然后重新生成仪表板</span>';
 }
 
-function removeSymbol(sym) {
-  document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请运行: <code>node scripts/sell-put-agent.mjs symbols remove '+sym+'</code> 然后重新生成仪表板</span>';
+function removeSymbolPrompt() {
+  const sym = document.getElementById('symAdd').value.trim().toUpperCase() || 'SYM';
+  document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请运行: <code>node scripts/sell-put-agent.mjs symbols remove '+sym+'</code></span>';
+}
+
+function addWatchlist() {
+  const input = document.getElementById('wlAdd');
+  const sym = input.value.trim().toUpperCase();
+  if (!sym || !/^[A-Z][A-Z0-9.-]{0,14}$/.test(sym)) {
+    document.getElementById('symMsg').innerHTML = '<span style="color:#ff6b7d">请输入有效的美股代码</span>';
+    return;
+  }
+  document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请运行: <code>node scripts/sell-put-agent.mjs watchlist add '+sym+'</code> 然后重新生成仪表板</span>';
 }
 
 // K-line chart panel
@@ -2153,7 +2227,7 @@ async function serveDashboard() {
 // ─── CLI: scan ────────────────────────────────────────────────
 
 async function runScan() {
-  const symbols = loadTargets();
+  const symbols = loadWatchlist();
   console.log(`🔍 扫描 ${symbols.length} 个标的...`);
 
   const VERCEL_API = 'https://donew-beta.vercel.app';
@@ -2167,38 +2241,39 @@ async function runScan() {
   const data = json.data || [];
   const results = data.filter(d => d.ok && d.metrics).map(d => {
     const m = d.metrics || {};
-    const iv = parseFloat(m.iv) || 0;
-    const hv = parseFloat(m.hv) || 0;
-    const ivRank = parseFloat(m.ivRank) || 0;
-    const ivPct = parseFloat(m.ivPercentile) || 0;
-    const expected = parseFloat(m.expectedMovePct) || 0;
-    const vol = parseFloat(m.todayVolume) || 0;
-    const oi = parseFloat(m.todayOpenInterest) || 0;
-    const pcVol = parseFloat(m.putCallVolRatio) || 0;
-    const premium = iv - hv;
+    const raw = { iv: parseFloat(m.iv), hv: parseFloat(m.hv), ivRank: parseFloat(m.ivRank), ivPct: parseFloat(m.ivPercentile), expected: parseFloat(m.expectedMovePct), vol: parseFloat(m.todayVolume), oi: parseFloat(m.todayOpenInterest), pcVol: parseFloat(m.putCallVolRatio) };
+    const iv = isNaN(raw.iv) ? null : raw.iv;
+    const hv = isNaN(raw.hv) ? null : raw.hv;
+    const ivRank = isNaN(raw.ivRank) ? null : raw.ivRank;
+    const ivPct = isNaN(raw.ivPct) ? null : raw.ivPct;
+    const expected = isNaN(raw.expected) ? null : raw.expected;
+    const vol = isNaN(raw.vol) ? 0 : raw.vol;
+    const oi = isNaN(raw.oi) ? 0 : raw.oi;
+    const pcVol = isNaN(raw.pcVol) ? 0 : raw.pcVol;
+    const premium = iv != null && hv != null ? iv - hv : 0;
 
     let score = 12;
     const posReasons = [], riskReasons = [];
     if (premium >= 8) { score += 25; posReasons.push('IV-HV溢价显著'); }
     else if (premium >= 3) { score += 18; posReasons.push('IV高于HV'); }
     else if (premium >= 0) { score += 8; }
-    else { score -= 15; riskReasons.push('IV低于HV'); }
-    if (ivRank >= 70) { score += 18; posReasons.push('IV Rank高'); }
-    else if (ivRank >= 50) score += 12;
-    else if (ivRank >= 30) score += 6;
-    else riskReasons.push('IV Rank偏低');
-    if (ivPct >= 80) { score += 15; posReasons.push('IV Percentile高'); }
-    else if (ivPct >= 60) score += 10;
-    else if (ivPct >= 40) score += 5;
+    else if (iv != null && hv != null) { score -= 15; riskReasons.push('IV低于HV'); }
+    if (ivRank != null && ivRank >= 70) { score += 18; posReasons.push('IV Rank高'); }
+    else if (ivRank != null && ivRank >= 50) score += 12;
+    else if (ivRank != null && ivRank >= 30) score += 6;
+    else if (ivRank != null || ivPct != null) riskReasons.push('IV Rank偏低');
+    if (ivPct != null && ivPct >= 80) { score += 15; posReasons.push('IV Percentile高'); }
+    else if (ivPct != null && ivPct >= 60) score += 10;
+    else if (ivPct != null && ivPct >= 40) score += 5;
     if (vol >= 1000) { score += 8; posReasons.push('成交活跃'); }
     else if (vol >= 300) score += 4;
     else { score -= 6; riskReasons.push('成交量低'); }
     if (oi >= 10000) { score += 8; posReasons.push('OI充足'); }
     else if (oi >= 1000) score += 4;
     else { score -= 6; riskReasons.push('OI偏低'); }
-    if (expected > 15) { score -= 16; riskReasons.push('ExpMove极高'); }
-    else if (expected > 10) { score -= 7; riskReasons.push('ExpMove偏高'); }
-    else if (expected >= 4) score += 5;
+    if (expected != null && expected > 15) { score -= 16; riskReasons.push('ExpMove极高'); }
+    else if (expected != null && expected > 10) { score -= 7; riskReasons.push('ExpMove偏高'); }
+    else if (expected != null && expected >= 4) score += 5;
     if (pcVol >= 2) { score -= 12; riskReasons.push('Put拥挤'); }
     else if (pcVol >= 1.3) { score -= 6; riskReasons.push('Put偏多'); }
     else if (pcVol >= 0.25) score += 4;
@@ -2250,6 +2325,30 @@ async function manageSymbols() {
     return;
   }
   console.log('Usage: node scripts/sell-put-agent.mjs symbols [list|add SYM|remove SYM]');
+}
+
+async function manageWatchlist() {
+  const sub = process.argv[3] || 'list';
+  let list = loadWatchlist();
+
+  if (sub === 'list') {
+    console.log(`📋 扫描池 (${list.length}):`, list.join(', '));
+    return;
+  }
+  if (sub === 'add' && process.argv[4]) {
+    const sym = process.argv[4].toUpperCase();
+    if (!list.includes(sym)) { list.push(sym); saveWatchlist(list); console.log(`✅ 已添加: ${sym}`); }
+    else console.log(`⚠️ ${sym} 已在池中`);
+    return;
+  }
+  if (sub === 'remove' && process.argv[4]) {
+    const sym = process.argv[4].toUpperCase();
+    list = list.filter(s => s !== sym);
+    saveWatchlist(list);
+    console.log(`✅ 已移除: ${sym} 当前池:`, list.join(', '));
+    return;
+  }
+  console.log('Usage: node scripts/sell-put-agent.mjs watchlist [list|add SYM|remove SYM]');
 }
 
 // ─── CLI: stats ───────────────────────────────────────────────
@@ -2313,6 +2412,7 @@ async function main() {
     case 'serve':     await serveDashboard(); break;
     case 'scan':      await runScan();        break;
     case 'symbols':   await manageSymbols();  break;
+    case 'watchlist': await manageWatchlist(); break;
     case 'setup':     await setupCron();      break;
     case 'env':     await setupEnv();       break;
     case 'version': showVersion();          break;

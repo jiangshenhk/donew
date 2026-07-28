@@ -180,8 +180,10 @@
 
 ### 本地工具（CLI）
 
-- **Sell Put Agent**：`node scripts/sell-put-agent.mjs daily` — 自动分析 QLD/MSTR/INTC 卖Put机会，纸面交易 + 仪表板，数据存 `~/.donew-agent/`
+- **Sell Put Agent**：`node scripts/sell-put-agent.mjs daily` — 自动分析交易池标的的卖Put机会，纸面交易 + 可视化仪表板，数据存 `~/.donew-agent/`
   - 文档：`docs/tools/sell-put-agent/README.md`
+  - 标的池：`~/.donew-agent/pool.json`（`trading` 交易池 + `watchlist` 扫描池）
+  - 行情依赖：`stockprice/config/symbols.json`（GitHub Actions 管理，需与扫描池对齐）
 
 以上正式工具入口统一使用仓库根目录或 `kline_robot_vercel/` 下的 `ai-icon.svg` 作为浏览器标签图标。新增工具时必须在 `<head>` 中同时声明 `rel="icon"` 和 `rel="shortcut icon"`，并使用相对于当前入口页可访问的静态路径。
 
