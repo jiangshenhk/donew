@@ -1046,6 +1046,10 @@
 
     const form = document.getElementById('toolForm');
     const btn = document.getElementById('submitBtn');
+    function setFormEnabled(enabled) {
+      const el = form.querySelectorAll('input, select, textarea, button');
+      el.forEach(e => { if (e.id !== 'submitBtn') e.disabled = !enabled; });
+    }
     const thumb = document.getElementById('thumb');
     const thumbWrap = document.getElementById('thumbWrap');
     const thumbLoading = document.getElementById('thumbLoading');
@@ -2305,6 +2309,7 @@
       }
 
       btn.disabled = true;
+      setFormEnabled(false);
       const startAt = Date.now();
       statusEl.style.display = 'none';
       clearInterval(runTimer);
@@ -2350,6 +2355,7 @@
         clearInterval(runTimer);
         runTimer = null;
         btn.disabled = false;
+        setFormEnabled(true);
         btn.textContent = '生成综合卖Put决策';
       }
     });
