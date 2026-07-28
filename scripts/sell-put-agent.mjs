@@ -1390,6 +1390,7 @@ function buildDashboardHtml() {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sell Put 自动化机器人</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='7' width='18' height='13' rx='3' fill='%234d9eff'/><circle cx='9' cy='13' r='2' fill='%230d1522'/><circle cx='15' cy='13' r='2' fill='%230d1522'/><rect x='9' y='16' width='6' height='2' rx='1' fill='%230d1522'/><rect x='10' y='3' width='4' height='5' rx='2' fill='%234d9eff'/><circle cx='12' cy='6' r='1' fill='%23ffd54a'/></svg>">
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
