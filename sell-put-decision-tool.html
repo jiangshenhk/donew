@@ -811,7 +811,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v2.0.1.0｜2026-07-27｜修复图片导出空白</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v2.0.3.0｜2026-07-28｜合约自动填入</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -1936,11 +1936,23 @@
       if (!/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)) throw new Error('请先输入有效的美股代码。');
 
       try {
-        const response = await fetch(`${apiBase}/api/barchart-overview?symbol=${encodeURIComponent(symbol)}`);
+        const response = await fetch(`${apiBase}/api/barchart-overview?symbol=${encodeURIComponent(symbol)}&chain=1`);
         const json = await readApiJson(response, '期权参数接口');
         if (!response.ok || !json.ok) throw new Error(json.message || 'Barchart期权概览读取失败');
         clearOptionMetricFields();
         fillOptionMetrics(json.metrics);
+
+        // Auto-fill contract fields from options chain
+        if (json.bestContract) {
+          const bc = json.bestContract;
+          if (bc.strike != null)        form.elements.targetStrike.value = bc.strike;
+          if (bc.delta != null)         form.elements.delta.value = bc.delta;
+          if (bc.bid != null)           form.elements.bid.value = bc.bid;
+          if (bc.ask != null)           form.elements.ask.value = bc.ask;
+          if (bc.expiryDate != null)    form.elements.expiryDate.value = bc.expiryDate;
+          if (bc.mid != null)           form.elements.putPrice.value = bc.mid;
+          if (bc.dte != null)           optionFetchedDte = bc.dte;
+        }
         optionOverviewMeta = {
           source: json.source || 'Barchart Options Overview',
           sourceUrl: json.sourceUrl || '',

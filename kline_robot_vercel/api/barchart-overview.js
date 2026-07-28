@@ -276,7 +276,31 @@ export default async function handler(req, res) {
     }
     const symbol = normalizeSymbol(req.query?.symbol);
     const forceRefresh = String(req.query?.force || '') === '1';
-    return sendJson(res, 200, await fetchOverview(symbol, forceRefresh));
+    const includeChain = String(req.query?.chain || '') === '1';
+
+    const overview = await fetchOverview(symbol, forceRefresh);
+
+    if (includeChain && overview.ok) {
+      try {
+        const { fetchOptionsChain, selectBestContract } = await import('./_lib/barchart-options-chain.js');
+        const contracts = await fetchOptionsChain(symbol);
+        const best = selectBestContract(contracts);
+        if (best) {
+          overview.bestContract = {
+            strike: best.strikePrice,
+            delta: best.delta ? Math.round(best.delta * 1000) / 1000 : null,
+            bid: best.bidPrice,
+            ask: best.askPrice,
+            mid: best.bidPrice && best.askPrice ? Math.round((best.bidPrice + best.askPrice) / 2 * 100) / 100 : null,
+            expiryDate: best.expireDate,
+            dte: best.daysToExpiration,
+            iv: best.iv ? Math.round(best.iv * 1000) / 10 : null,
+          };
+        }
+      } catch { /* chain fetch failed, proceed with overview only */ }
+    }
+
+    return sendJson(res, 200, overview);
   } catch (error) {
     const message = error?.name === 'AbortError'
       ? 'Barchart期权概览请求超时'
