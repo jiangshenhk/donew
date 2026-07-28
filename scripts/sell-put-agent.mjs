@@ -1911,19 +1911,18 @@ function calShift(n) {
 (function() {
   const targets = DATA.targets || [];
   let html = '<h2>标的池管理</h2>';
-  html += '<p class="muted">当前标的: <b>' + targets.join(', ') + '</b> (' + targets.length + '个)</p>';
+  html += '<p class="muted">当前标的 (' + targets.length + '个)</p>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0">';
+  for (const s of targets) {
+    html += '<span style="display:inline-flex;align-items:center;gap:4px;background:#111d2f;border:1px solid #1f2b44;border-radius:6px;padding:4px 10px;font-size:.85rem"><b>'+s+'</b> <button onclick="removeSymbol(\''+s+'\')" style="background:none;border:none;color:#ff6b7d;cursor:pointer;font-size:1rem;padding:0 2px" title="删除 '+s+'">×</button></span>';
+  }
+  html += '</div>';
   html += '<div class="filter-bar">';
   html += '<label>添加标的</label><input id="symAdd" type="text" placeholder="输入代码..." style="width:120px;padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;color:#cddbf7;border-radius:6px">';
   html += '<button onclick="addSymbol()" style="padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;font-size:.82rem">添加</button>';
   html += '</div>';
-  html += '<p class="muted" style="margin-top:12px">或使用命令行:</p>';
-  html += '<p style="font-size:.82rem;color:#b0c4e8"><code>node scripts/sell-put-agent.mjs symbols add TSLA</code></p>';
-  html += '<p style="font-size:.82rem;color:#b0c4e8"><code>node scripts/sell-put-agent.mjs symbols remove TSLA</code></p>';
-  html += '<p style="font-size:.82rem;color:#b0c4e8"><code>node scripts/sell-put-agent.mjs symbols list</code></p>';
-  html += '<p class="muted" style="margin-top:16px">修改后需重新生成仪表板生效</p>';
-  
-  // Show add result
   html += '<p id="symMsg" style="font-size:.82rem;margin-top:8px"></p>';
+  html += '<p class="muted" style="margin-top:8px">修改后运行 <code>node scripts/sell-put-agent.mjs dashboard</code> 生效</p>';
   
   document.getElementById('panel-settings').innerHTML = html;
 })();
@@ -1936,7 +1935,11 @@ function addSymbol() {
     document.getElementById('symMsg').innerHTML = '<span style="color:#ff6b7d">请输入有效的美股代码</span>';
     return;
   }
-  document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请在终端运行: <code>node scripts/sell-put-agent.mjs symbols add '+sym+'</code> 然后重新生成仪表板</span>';
+  document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请运行: <code>node scripts/sell-put-agent.mjs symbols add '+sym+'</code> 然后重新生成仪表板</span>';
+}
+
+function removeSymbol(sym) {
+  document.getElementById('symMsg').innerHTML = '<span style="color:#ffd54a">请运行: <code>node scripts/sell-put-agent.mjs symbols remove '+sym+'</code> 然后重新生成仪表板</span>';
 }
 
 // K-line chart panel
