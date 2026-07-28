@@ -1943,7 +1943,12 @@ function addSymbol() {
 (function() {
   const klineData = DATA.kline || {};
   const positions = DATA.positions || [];
-  const symbolKeys = Object.keys(klineData);
+  
+  // Only show symbols with positions or K-line data that has trades
+  const symbolKeys = [...new Set([
+    ...positions.map(p => p.symbol),
+    ...Object.keys(klineData).filter(s => positions.some(p => p.symbol === s))
+  ])];
   
   let html = '<h2>K线图表</h2>';
   if (!symbolKeys.length) {
@@ -1952,10 +1957,14 @@ function addSymbol() {
     return;
   }
 
+  // Default to symbol with open positions first
+  const openSym = positions.find(p => p.status === 'open')?.symbol;
+  const defaultSym = openSym || symbolKeys[0];
+
   html += '<div class="filter-bar"><label>标的</label><select id="kc-symbol" onchange="renderKlineChart()">';
   for (const s of symbolKeys) {
-    const posCount = positions.filter(p => p.symbol === s && (p.status === 'open' || p.status === 'closed')).length;
-    html += '<option value="'+s+'">'+s+(posCount?' ('+posCount+'笔)':'')+'</option>';
+    const posCount = positions.filter(p => p.symbol === s && (p.status === 'open' || p.status === 'closed' || p.status === 'cancelled')).length;
+    html += '<option value="'+s+'"'+(s===defaultSym?' selected':'')+'>'+s+(posCount?' ('+posCount+'笔)':'')+'</option>';
   }
   html += '</select></div>';
   html += '<div id="kline-chart-container" style="width:100%;height:560px;border:1px solid #1f2b44;border-radius:8px;overflow:hidden"></div>';
@@ -2000,19 +2009,19 @@ function addSymbol() {
           position: 'belowBar',
           color: pos.status === 'cancelled' ? '#6b7fa3' : '#45d483',
           shape: 'arrowDown',
-          text: 'Sell ' + pos.strike + 'P×' + (pos.contracts || 1) + ' @$' + pos.premium,
-          size: 2,
+          text: 'S ' + pos.strike + 'P×' + (pos.contracts || 1) + ' $' + pos.premium,
+          size: 3,
         });
       }
       if (pos.closedAt && pos.status !== 'open') {
-        const closeTime = pos.closedAt.includes('T') ? pos.closedAt.split('T')[0] : pos.closedAt.split(' ')[0];
+        const closeTime = pos.closedAt.includes('T') ? pos.closedAt.split('T')[0] : (pos.closedAt.includes(' ') ? pos.closedAt.split(' ')[0] : pos.closedAt);
         markers.push({
           time: closeTime,
           position: 'aboveBar',
-          color: pos.result === 'win' ? '#45d483' : pos.result === 'cancelled' ? '#6b7fa3' : '#ff6b7d',
+          color: pos.result === 'win' ? '#45d483' : pos.result === 'cancelled' ? '#ffd54a' : '#ff6b7d',
           shape: pos.result === 'win' ? 'arrowUp' : 'circle',
-          text: pos.result === 'win' ? 'Win +$' + (pos.pnl || 0).toFixed(0) : pos.result === 'cancelled' ? '取消' : 'Loss',
-          size: 2,
+          text: pos.result === 'win' ? '+$' + (pos.pnl || 0).toFixed(0) : pos.result === 'cancelled' ? '取消' : 'Loss',
+          size: 3,
         });
       }
     }
