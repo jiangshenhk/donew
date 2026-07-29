@@ -80,6 +80,7 @@
 
 - **[🔥 热门栏目](/docs/sections/hot.md)**
   - [用AI判断今日市场趋势](/docs/市场/今日.md)
+  - [用AI卖Put](https://jiangshenhk.github.io/donew/sell-put-decision-tool.html)
   - [杠杆ETF定投收益比较结果惊人](/docs/ETF图谱/B站ETF视频清单.md)
   - [大佬偏爱卖Put而不直接买股](/docs/SellPut/how-to-sell-put.md)
 
@@ -101,9 +102,11 @@
   - <a href="https://donew-beta.vercel.app/sell-put-pool-tool.html">卖Put标的池扫描</a>
   - <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html">综合卖Put决策</a>
 
-- **[🤖 AI市场趋势判断](/docs/sections/market-ai.md)**
-  - <a href="https://jiangshenhk.github.io/donew/market-analysis-tool.html">每日/周度市场分析工具</a>
-  - <a href="https://jiangshenhk.github.io/donew/kline-robot.html?apiBase=https%3A%2F%2Fdonew-beta.vercel.app">AI智能匹配K线形态与趋势判断</a>
+- **[🤖 AI工具](/docs/sections/market-ai.md)**
+  - [AI看新闻](https://jiangshenhk.github.io/donew/jin10-news.html)
+  - [AI看市场](https://jiangshenhk.github.io/donew/market-analysis-tool.html)
+  - [AI看K线](https://jiangshenhk.github.io/donew/kline-robot.html)
+  - [AI卖Put](https://jiangshenhk.github.io/donew/sell-put-decision-tool.html)
   - [今日市场趋势](/docs/市场/今日.md)
   - [历史市场趋势](/docs/市场/历史.md)
   - [怎么看市场日报](/docs/市场/每日市场判断怎么看.md)
