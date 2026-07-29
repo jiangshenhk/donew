@@ -127,16 +127,33 @@ function updateToday(markdown) {
   fs.writeFileSync(todayFile, content);
 }
 
-const markdown = await callAI();
-validateCriticalRequirements(markdown);
-fs.mkdirSync(outputDir, { recursive: true });
-fs.mkdirSync(statusDir, { recursive: true });
-fs.writeFileSync(path.join(outputDir, reportType === 'morning' ? '每日市场早报.md' : '每日市场晚报.md'), `${markdown}\n`);
-fs.writeFileSync(path.join(outputDir, `${hkDate}市场结构日报(${label}).md`), `${markdown}\n`);
-updateHistory(markdown);
-updateToday(markdown);
-fs.writeFileSync(
-  path.join(statusDir, `latest-${reportType}.json`),
-  JSON.stringify({ status: 'success', reportType, generatedAt: new Date().toISOString(), strategySource }, null, 2),
-);
-console.log(`Generated ${label} with shared core: ${strategySource}`);
+async function generateWithRetry(maxRetries = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const markdown = await callAI();
+      validateCriticalRequirements(markdown);
+      fs.mkdirSync(outputDir, { recursive: true });
+      fs.mkdirSync(statusDir, { recursive: true });
+      fs.writeFileSync(path.join(outputDir, reportType === 'morning' ? '每日市场早报.md' : '每日市场晚报.md'), `${markdown}\n`);
+      fs.writeFileSync(path.join(outputDir, `${hkDate}市场结构日报(${label}).md`), `${markdown}\n`);
+      updateHistory(markdown);
+      updateToday(markdown);
+      fs.writeFileSync(
+        path.join(statusDir, `latest-${reportType}.json`),
+        JSON.stringify({ status: 'success', reportType, generatedAt: new Date().toISOString(), strategySource }, null, 2),
+      );
+      console.log(`Generated ${label} with shared core: ${strategySource}${attempt > 1 ? ` (attempt ${attempt})` : ''}`);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries) {
+        console.warn(`Attempt ${attempt}/${maxRetries} failed: ${error.message}. Retrying in 5s...`);
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+  }
+  throw lastError;
+}
+
+await generateWithRetry();
