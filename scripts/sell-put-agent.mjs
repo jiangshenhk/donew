@@ -8,6 +8,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { homedir } from 'node:os';
 
 // ─── Constants ───────────────────────────────────────────────
@@ -156,6 +157,40 @@ function readApiKey() {
 
 function loadOrders() { return loadJson(ORDERS_FILE) || []; }
 function saveOrders(data) { saveJson(ORDERS_FILE, data); }
+
+function readEnvVar(key, def) {
+  if (process.env[key]) return process.env[key];
+  try {
+    const content = fs.readFileSync(ENV_FILE, 'utf-8');
+    const m = content.match(new RegExp(key + '\\s*=\\s*(.+)'));
+    return m ? m[1].trim().replace(/["']/g, '') : def || null;
+  } catch { return def || null; }
+}
+
+function sendEmail(subject, htmlBody) {
+  const user = readEnvVar('GMAIL_USER');
+  const pass = readEnvVar('GMAIL_PASS');
+  const to = readEnvVar('EMAIL_TO');
+  if (!user || !pass || !to) return;
+
+  const raw = [
+    'From: "你的机器人" <' + user + '>',
+    'To: ' + to,
+    'Subject: =?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=',
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    Buffer.from(htmlBody, 'utf-8').toString('base64'),
+  ].join('\r\n');
+
+  const tmpFile = '/tmp/email-' + Date.now() + '.txt';
+  fs.writeFileSync(tmpFile, raw, 'utf-8');
+  try {
+    execSync("curl -s --url 'smtps://smtp.gmail.com:465' --ssl-reqd --mail-from '" + user + "' --mail-rcpt '" + to + "' --user '" + user + ':' + pass + "' --upload-file '" + tmpFile + "'", { timeout: 15000, stdio: 'pipe' });
+  } catch { /* silently fail */ }
+  try { fs.unlinkSync(tmpFile); } catch {}
+}
 
 // ─── Barchart Session ────────────────────────────────────────
 
@@ -677,6 +712,10 @@ async function settlePosition(pos) {
     pos.status = 'closed';
     pos.closedAt = new Date().toISOString();
     console.log(`  ❌ ${pos.symbol} $${pos.strike}P 到期ITM: 收盘$${closePrice} 亏损$${pos.pnl.toFixed(2)}`);
+    sendEmail(`[到期] ${pos.symbol} $${pos.strike}P 亏损 $${pos.pnl.toFixed(2)}`,
+      `<h2>❌ 到期亏损</h2><table><tr><td>标的</td><td><b>${pos.symbol}</b></td></tr>
+      <tr><td>合约</td><td>$${pos.strike}P</td></tr><tr><td>到期收盘价</td><td>$${closePrice}</td></tr>
+      <tr><td>权利金收入</td><td>$${pos.premiumCollected}</td></tr><tr><td>PnL</td><td style="color:red">$${pos.pnl.toFixed(2)}</td></tr></table>`);
   } else {
     pos.result = 'win';
     pos.pnl = pos.premiumCollected;
@@ -684,6 +723,10 @@ async function settlePosition(pos) {
     pos.status = 'closed';
     pos.closedAt = new Date().toISOString();
     console.log(`  ✅ ${pos.symbol} $${pos.strike}P 到期OTM: 收盘$${closePrice} 盈利$${pos.pnl.toFixed(2)}`);
+    sendEmail(`[到期] ${pos.symbol} $${pos.strike}P 盈利 $${pos.pnl.toFixed(2)}`,
+      `<h2>✅ 到期盈利</h2><table><tr><td>标的</td><td><b>${pos.symbol}</b></td></tr>
+      <tr><td>合约</td><td>$${pos.strike}P</td></tr><tr><td>到期收盘价</td><td>$${closePrice}</td></tr>
+      <tr><td>权利金收入</td><td>$${pos.premiumCollected}</td></tr><tr><td>PnL</td><td style="color:green">+$${pos.pnl.toFixed(2)}</td></tr></table>`);
   }
   return pos;
 }
@@ -846,11 +889,19 @@ async function processEarlyCloseSignals(signals, positions) {
         positions[idx].closeNote = `止损: 权利金翻倍 ($${sig.originalPremium}→$${sig.currentPremium})`;
         positions[idx].expireClose = positions[idx].strike;
         console.log(`     📝 自动平仓 (亏) PnL: $${closePnl}`);
+        sendEmail(`[止损] ${sig.symbol} $${sig.strike}P 亏损 $${closePnl}`,
+          `<h2>🛑 止损平仓</h2><table><tr><td>标的</td><td><b>${sig.symbol}</b></td></tr>
+          <tr><td>合约</td><td>$${sig.strike}P</td></tr><tr><td>原始权利金</td><td>$${sig.originalPremium}</td></tr>
+          <tr><td>当前权利金</td><td>$${sig.currentPremium}</td></tr><tr><td>PnL</td><td style="color:red">$${closePnl}</td></tr></table>`);
       } else {
         positions[idx].result = 'win';
         positions[idx].closeNote = `提前平仓: 捕获${sig.profitCapture}%利润 ($${sig.originalPremium}→$${sig.currentPremium})`;
         positions[idx].expireClose = positions[idx].strike + 1;
         console.log(`     📝 自动平仓 (赢) PnL: $${closePnl}`);
+        sendEmail(`[止盈] ${sig.symbol} $${sig.strike}P +$${closePnl} 捕获${sig.profitCapture}%`,
+          `<h2>✅ 止盈平仓</h2><table><tr><td>标的</td><td><b>${sig.symbol}</b></td></tr>
+          <tr><td>合约</td><td>$${sig.strike}P</td></tr><tr><td>原始权利金</td><td>$${sig.originalPremium}</td></tr>
+          <tr><td>当前权利金</td><td>$${sig.currentPremium}</td></tr><tr><td>利润捕获</td><td>${sig.profitCapture}%</td></tr><tr><td>PnL</td><td style="color:green">+$${closePnl}</td></tr></table>`);
       }
     }
   }
@@ -1122,6 +1173,21 @@ async function runDaily() {
       console.log(`     成交价: $${pos.premium} | Bid: $${contract.bid} / Ask: $${contract.ask} | 价差: $${order.spread}`);
       console.log(`     数量: ${pos.contracts}张 | 权利金: $${pos.premiumCollected} | 保证金: $${pos.capitalUsed}`);
       console.log(`     年化: ${pos.annualizedReturn}% | 到期: ${pos.expireDate} (${Math.ceil((new Date(pos.expireDate) - new Date()) / 86400000)}天)`);
+
+      // Email通知
+      sendEmail(
+        `[开仓] ${symbol} $${pos.strike}P ×${pos.contracts}张 年化${pos.annualizedReturn}%`,
+        `<h2>📝 模拟开仓</h2>
+        <table><tr><td>标的</td><td><b>${symbol}</b></td></tr>
+        <tr><td>合约</td><td>$${pos.strike}P</td></tr>
+        <tr><td>到期日</td><td>${pos.expireDate} (${Math.ceil((new Date(pos.expireDate) - new Date()) / 86400000)}天)</td></tr>
+        <tr><td>成交价</td><td>$${pos.premium} (Bid:$${contract.bid} / Ask:$${contract.ask})</td></tr>
+        <tr><td>数量</td><td>${pos.contracts}张</td></tr>
+        <tr><td>权利金</td><td>$${pos.premiumCollected}</td></tr>
+        <tr><td>保证金</td><td>$${pos.capitalUsed}</td></tr>
+        <tr><td>年化收益</td><td><b>${pos.annualizedReturn}%</b></td></tr>
+        <tr><td>风险评分</td><td>${pos.riskScore}/10</td></tr></table>`
+      );
     }} // end if(pos) / if(willOpen)
 
     // Update stats

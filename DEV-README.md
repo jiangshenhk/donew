@@ -496,6 +496,8 @@ docs/tools/alpha-risk-tool/README.md
 | 卖Put标的池扫描 | `sell-put-pool-tool.html` | `barchart-overview.js` | `docs/tools/sell-put-pool-tool/README.md` | —（无 AI） | 批量初筛 |
 | 八字命理分析 | `bazi-analysis-tool.html` | `bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README.md` | `docs/tools/bazi-analysis-tool/README-FOR-AI.md` | 交互式 |
 | 内容总结分析 | `video-summary-tool.html` | `news-summary.js` | `docs/tools/video-summary-tool/README.md` | `docs/tools/video-summary-tool/README-FOR-AI.md` | 交互式 |
+| Sell Put Agent | `scripts/sell-put-agent.mjs` | —（CLI） | `docs/tools/sell-put-agent/README.md` | —（内嵌 prompt） | CLI 自动 |
+| 短线K线交易机器人 | `scripts/short-term-trader.mjs` | —（CLI） | `docs/tools/short-term-trader/README.md` | `docs/tools/short-term-trader/README-FOR-AI.md` | CLI 自动 |
 
 ### 13.2 十个工具分别怎么看
 
@@ -720,6 +722,23 @@ docs/tools/alpha-risk-tool/README.md
   - `docs/tools/video-summary-tool/README.md`
 
 支持 YouTube、B站视频字幕提取和网页文章的 AI 总结分析。平台自动识别，生成结构化摘要，含内容概览、核心要点、关键结论和 AI 深度分析（机会信号、风险提示、背景补充、延伸思考）。
+
+#### 短线K线交易机器人
+
+- 入口：`node scripts/short-term-trader.mjs run`
+- CLI 脚本：
+  - `scripts/short-term-trader.mjs`
+- 主要依赖：
+  - Yahoo Finance 5分钟K线数据
+  - DeepSeek Chat API（纯技术面分析）
+- 数据存储：`~/.donew-trader/`（独立于仓库）
+- 核心逻辑：
+  - 每5分钟拉取 QQQ/IBIT/MSTR 的5分钟K线，计算技术指标（EMA/MACD/RSI/ATR/价位），DeepSeek 生成 BUY/HOLD 信号，模拟下单和成交
+  - 仅做多，入场需置信度 ≥ 60，止盈止损由 AI 每笔交易时确定
+  - 风险规则：同标的不重复、最大 3 笔持仓、非美股交易时段跳过
+  - 仪表板：持仓/交易记录/信号日志/统计/K线图 五标签页
+  - 自动化：launchd 每5分钟运行，脚本内判断美股交易时段
+  - 模拟成交：下根K线价格执行，止盈止损触及后按穿透价平仓
 
 ### 13.3 新增工具先判断类型
 

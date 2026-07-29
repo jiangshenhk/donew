@@ -5,6 +5,7 @@ import {
   loadStrategyBaseline,
   reportMetadata,
   validateCriticalRequirements,
+  sanitizeReport,
 } from '../lib/market-report-core.mjs';
 
 function corsHeaders() {
@@ -74,7 +75,8 @@ export default async function handler(req, res) {
     const news = recentNews(root);
     const snapshot = marketSnapshot(root);
     const prompt = buildMarketReportPrompt({ strategy, reportType: kind, news, marketSnapshot: snapshot });
-    const markdown = await callNewsSummary({ reportType: kind, news, snapshot, prompt, strategySource });
+    const rawMarkdown = await callNewsSummary({ reportType: kind, news, snapshot, prompt, strategySource });
+    const markdown = sanitizeReport(rawMarkdown);
     validateCriticalRequirements(markdown);
     const report = reportMetadata({ reportType: kind, markdown, provider: 'DeepSeek' });
     report.strategySource = strategySource;

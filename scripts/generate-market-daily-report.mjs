@@ -4,6 +4,7 @@ import {
   buildMarketReportPrompt,
   loadStrategyBaseline,
   validateCriticalRequirements,
+  sanitizeReport,
 } from '../lib/market-report-core.mjs';
 
 const reportType = String(process.argv[2] || '').toLowerCase();
@@ -131,7 +132,8 @@ async function generateWithRetry(maxRetries = 3) {
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const markdown = await callAI();
+      const rawMarkdown = await callAI();
+      const markdown = sanitizeReport(rawMarkdown);
       validateCriticalRequirements(markdown);
       fs.mkdirSync(outputDir, { recursive: true });
       fs.mkdirSync(statusDir, { recursive: true });

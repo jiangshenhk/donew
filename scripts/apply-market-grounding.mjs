@@ -15,14 +15,17 @@ fs.writeFileSync(corePath, core);
 
 const generatorPath = 'scripts/generate-market-daily-report.mjs';
 let generator = fs.readFileSync(generatorPath, 'utf8');
-generator = replaceOnce(generator, '  validateCriticalRequirements,\n', '  validateCriticalRequirements,\n  EVIDENCE_GROUNDING_RULES,\n  sanitizeUnsupportedClaims,\n', 'generator imports');
+generator = replaceOnce(generator,
+  '  validateCriticalRequirements,\n  sanitizeReport,\n',
+  '  validateCriticalRequirements,\n  sanitizeReport,\n  EVIDENCE_GROUNDING_RULES,\n  sanitizeUnsupportedClaims,\n',
+  'generator imports');
 generator = replaceOnce(generator,
   'const prompt = buildMarketReportPrompt({ strategy, reportType, news, marketSnapshot: pricePayload });',
   'const prompt = `${buildMarketReportPrompt({ strategy, reportType, news, marketSnapshot: pricePayload })}\\n\\n${EVIDENCE_GROUNDING_RULES}`;',
   'generator prompt');
 generator = replaceOnce(generator,
-  'const markdown = await callAI();\nvalidateCriticalRequirements(markdown);',
-  'const markdown = sanitizeUnsupportedClaims(await callAI());\nvalidateCriticalRequirements(markdown);',
+  'const rawMarkdown = await callAI();\n      const markdown = sanitizeReport(rawMarkdown);',
+  'const rawMarkdown = sanitizeUnsupportedClaims(await callAI());\n      const markdown = sanitizeReport(rawMarkdown);',
   'generator sanitize');
 fs.writeFileSync(generatorPath, generator);
 
