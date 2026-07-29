@@ -133,8 +133,15 @@ function updateHistory(markdown) {
   fs.writeFileSync(historyFile, text);
 }
 
+function extractFullSection(text, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = text.match(new RegExp(`##\\s*\\d*[）.)]?\\s*${escaped}.*?\\n([\\s\\S]*?)(?=\\n## |$)`));
+  return match ? match[1].replace(/^\n+/, '').trimEnd() : '';
+}
+
 function updateToday(markdown) {
-  const core = extractSection(markdown, ['一句话结论', '本期市场在交易什么']) || '市场结构分析完成';
+  const section1 = extractFullSection(markdown, '本期市场在交易什么');
+  const section2 = extractFullSection(markdown, '资金流向异动');
   const action = extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行';
   const link = `[📊 ${hkDate}市场结构日报（${label}）](/docs/市场/${hkDate}市场结构日报(${label}).md)`;
 
@@ -149,7 +156,10 @@ function updateToday(markdown) {
 
   let content = '# 今日市场结构日报\n';
   if (signalGrid) content += `\n${signalGrid}\n\n---\n\n`;
-  content += `${link}\n\n## 核心判断\n\n${core}\n\n## 策略倾向\n\n${action}\n`;
+  content += `${link}\n`;
+  if (section1) content += `\n${section1}\n`;
+  if (section2) content += `\n${section2}\n`;
+  content += `\n## 策略倾向\n\n${action}\n`;
 
   fs.writeFileSync(todayFile, content);
 }
