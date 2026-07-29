@@ -24,7 +24,18 @@ const aiEndpoint = process.env.NEWS_SUMMARY_API || 'https://donew-beta.vercel.ap
 if (!fs.existsSync(newsFile)) throw new Error(`Required file missing: ${path.relative(root, newsFile)}`);
 const { strategy, strategySource } = loadStrategyBaseline(root);
 const newsPayload = JSON.parse(fs.readFileSync(newsFile, 'utf8'));
-const pricePayload = fs.existsSync(priceFile) ? JSON.parse(fs.readFileSync(priceFile, 'utf8')) : {};
+
+const PRICE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const REQUIRED_PRICE_SYMBOLS = ['QQQ', '^VIX', 'QLD', 'MSTR', 'INTC'];
+if (!fs.existsSync(priceFile)) throw new Error(`Price cache missing: ${path.relative(root, priceFile)}`);
+const pricePayload = JSON.parse(fs.readFileSync(priceFile, 'utf8'));
+const priceAge = Date.now() - new Date(pricePayload.updatedAt || 0).getTime();
+if (priceAge > PRICE_MAX_AGE_MS) throw new Error(`Price cache too old: ${Math.round(priceAge / 3600000)}h ago`);
+const priceData = Array.isArray(pricePayload.data) ? pricePayload.data : [];
+const priceSymbols = new Set(priceData.map(d => d.symbol));
+for (const sym of REQUIRED_PRICE_SYMBOLS) {
+  if (!priceSymbols.has(sym)) throw new Error(`Price cache missing required symbol: ${sym}`);
+}
 
 const now = new Date();
 const cutoff = now.getTime() - 48 * 60 * 60 * 1000;
@@ -34,6 +45,7 @@ const news = (newsPayload.items || [])
   .slice(0, 250);
 if (!news.length) throw new Error('No valid 48h news');
 
+const hkNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
 const hkDate = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Hong_Kong', year: 'numeric', month: '2-digit', day: '2-digit'
 }).format(now);
@@ -42,22 +54,29 @@ const label = reportType === 'morning' ? '早报' : '晚报';
 const prompt = buildMarketReportPrompt({ strategy, reportType, news, marketSnapshot: pricePayload });
 
 async function callAI() {
-  const response = await fetch(aiEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Origin': 'https://donew-beta.vercel.app' },
-    body: JSON.stringify({
-      mode: 'daily-report',
-      reportType,
-      provider: 'deepseek',
-      rawNews: news,
-      prompt,
-      marketSnapshot: pricePayload,
-      strategySource,
-    }),
-  });
-  const data = await response.json();
-  if (!response.ok || !data.ok) throw new Error(data.message || data.error || 'AI failed');
-  return String(data.report?.markdown || '').trim();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(new Error('AI request timeout')), 90000);
+  try {
+    const response = await fetch(aiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': 'https://donew-beta.vercel.app' },
+      body: JSON.stringify({
+        mode: 'daily-report',
+        reportType,
+        provider: 'deepseek',
+        rawNews: news,
+        prompt,
+        marketSnapshot: pricePayload,
+        strategySource,
+      }),
+      signal: controller.signal,
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.message || data.error || 'AI failed');
+    return String(data.report?.markdown || '').trim();
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function extractSection(text, names) {
@@ -65,14 +84,14 @@ function extractSection(text, names) {
     const boldMatch = text.match(new RegExp(`\\*\\*${name}[：:]\\s*(.+?)\\*\\*`));
     if (boldMatch) return boldMatch[1].replace(/\|/g, '｜').trim().slice(0, 180);
 
-    const headingMatch = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}\\s*\\n([^\\n#|]+)`));
-    if (headingMatch) return headingMatch[1].replace(/\|/g, '｜').trim().slice(0, 180);
-
     const paraMatch = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}\\s*\\n([\\s\\S]*?)(?=\\n## |\\n---|$)`));
     if (paraMatch) {
       const stripped = paraMatch[1].replace(/^[\s\n]*/, '');
       return stripped.replace(/[#\n]/g, ' ').replace(/\|/g, '｜').trim().slice(0, 120);
     }
+
+    const headingMatch = text.match(new RegExp(`##?\\s*\\d*[）.)]?\\s*${name}\\s*\\n([^\\n#|]+)`));
+    if (headingMatch) return headingMatch[1].replace(/\|/g, '｜').trim().slice(0, 180);
   }
   return '';
 }
@@ -81,13 +100,20 @@ function updateHistory(markdown) {
   if (!fs.existsSync(historyFile)) return;
   let text = fs.readFileSync(historyFile, 'utf8');
   const month = `## 📅 ${hkDate.slice(0, 4)}年${Number(hkDate.slice(5, 7))}月`;
-  const weekday = ['日', '一', '二', '三', '四', '五', '六'][new Date(now).getDay()];
+  const weekday = ['日', '一', '二', '三', '四', '五', '六'][hkNow.getDay()];
   const core = (extractSection(markdown, ['一句话结论', '本期市场在交易什么']) || '市场结构分析完成').replace(/\|/g, '｜').replace(/\n/g, ' ').slice(0, 120);
   const action = (extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行').replace(/\|/g, '｜').replace(/\n/g, ' ').slice(0, 120);
   const link = `[📊 ${label}](/docs/市场/${hkDate}市场结构日报(${label}).md)`;
   const newRow = `| **${displayDate}** | ${weekday} | 日报 | ${link} | ${core} | ${action} |`;
 
-  if (text.includes(link)) return;
+  const rowPrefix = `| **${displayDate}** | ${weekday} | 日报 |`;
+  const existingRowIdx = text.indexOf(rowPrefix);
+  if (existingRowIdx !== -1) {
+    const lineEnd = text.indexOf('\n', existingRowIdx);
+    text = text.slice(0, existingRowIdx) + newRow + text.slice(lineEnd);
+    fs.writeFileSync(historyFile, text);
+    return;
+  }
 
   const monthIdx = text.indexOf(month);
   if (monthIdx === -1) {
@@ -129,6 +155,10 @@ function updateToday(markdown) {
 }
 
 async function generateWithRetry(maxRetries = 3) {
+  fs.mkdirSync(statusDir, { recursive: true });
+  const statusPath = path.join(statusDir, `latest-${reportType}.json`);
+  fs.writeFileSync(statusPath, JSON.stringify({ status: 'running', reportType, startedAt: new Date().toISOString() }, null, 2));
+
   let lastError;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -136,13 +166,11 @@ async function generateWithRetry(maxRetries = 3) {
       const markdown = sanitizeReport(rawMarkdown);
       validateCriticalRequirements(markdown);
       fs.mkdirSync(outputDir, { recursive: true });
-      fs.mkdirSync(statusDir, { recursive: true });
       fs.writeFileSync(path.join(outputDir, reportType === 'morning' ? '每日市场早报.md' : '每日市场晚报.md'), `${markdown}\n`);
       fs.writeFileSync(path.join(outputDir, `${hkDate}市场结构日报(${label}).md`), `${markdown}\n`);
       updateHistory(markdown);
       updateToday(markdown);
-      fs.writeFileSync(
-        path.join(statusDir, `latest-${reportType}.json`),
+      fs.writeFileSync(statusPath,
         JSON.stringify({ status: 'success', reportType, generatedAt: new Date().toISOString(), strategySource }, null, 2),
       );
       console.log(`Generated ${label} with shared core: ${strategySource}${attempt > 1 ? ` (attempt ${attempt})` : ''}`);
@@ -150,11 +178,13 @@ async function generateWithRetry(maxRetries = 3) {
     } catch (error) {
       lastError = error;
       if (attempt < maxRetries) {
-        console.warn(`Attempt ${attempt}/${maxRetries} failed: ${error.message}. Retrying in 5s...`);
-        await new Promise(r => setTimeout(r, 5000));
+        const isRetryable = error.name === 'AbortError' || /timeout|ETIMEDOUT|429|ECONNREFUSED|5\d\d/i.test(error.message);
+        console.warn(`Attempt ${attempt}/${maxRetries} failed: ${error.message}. Retrying in ${isRetryable ? 5 : 1}s...`);
+        await new Promise(r => setTimeout(r, isRetryable ? 5000 : 1000));
       }
     }
   }
+  fs.writeFileSync(statusPath, JSON.stringify({ status: 'failed', reportType, failedAt: new Date().toISOString(), error: lastError.message }, null, 2));
   throw lastError;
 }
 
