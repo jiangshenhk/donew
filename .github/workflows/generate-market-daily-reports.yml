@@ -4,8 +4,12 @@ on:
   schedule:
     # 北京时间 7:28（周一至周五）→ UTC 周日-周四 23:28
     - cron: '28 23 * * 0-4'
+    # 北京时间 8:28 兜底（防止 7:28 被排队延迟）
+    - cron: '28 0 * * 1-5'
     # 北京时间 20:28（周一至周五）→ UTC 周一至周五 12:28
     - cron: '28 12 * * 1-5'
+    # 北京时间 21:28 兜底（防止 20:28 被排队延迟）
+    - cron: '28 13 * * 1-5'
   workflow_dispatch:
     inputs:
       report_type:
@@ -19,6 +23,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: generate-market-report-${{ github.event.schedule || github.event.inputs.report_type || 'manual' }}
+  cancel-in-progress: false
 
 jobs:
   generate-report:
@@ -38,15 +46,17 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_SCHEDULE: ${{ github.event.schedule }}
           INPUT_REPORT_TYPE: ${{ inputs.report_type }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "type=$INPUT_REPORT_TYPE" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT_SCHEDULE" = "28 23 * * 0-4" ]; then
-            echo "type=morning" >> "$GITHUB_OUTPUT"
           else
-            echo "type=evening" >> "$GITHUB_OUTPUT"
+            UTC_HOUR=$(date -u +%H)
+            if [ "$UTC_HOUR" = "23" ] || [ "$UTC_HOUR" = "00" ]; then
+              echo "type=morning" >> "$GITHUB_OUTPUT"
+            else
+              echo "type=evening" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Verify strategy baseline
