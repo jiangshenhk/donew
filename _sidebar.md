@@ -84,10 +84,10 @@
   - [大佬偏爱卖Put而不直接买股](/docs/SellPut/how-to-sell-put.md)
     
 - **[🤖 AI工具](/docs/sections/market-ai.md)**
-  - [AI看新闻](https://jiangshenhk.github.io/donew/jin10-news.html)
-  - [AI看市场](https://jiangshenhk.github.io/donew/market-analysis-tool.html)
-  - [AI看K线](https://jiangshenhk.github.io/donew/kline-robot.html)
-  - [AI卖Put](https://jiangshenhk.github.io/donew/sell-put-decision-tool.html)
+  - [AI看新闻](https://donew-beta.vercel.app/jin10-news.html)
+  - [AI看市场](https://donew-beta.vercel.app/market-analysis-tool.html)
+  - [AI看K线](https://donew-beta.vercel.app/kline-robot.html)
+  - [AI卖Put](https://donew-beta.vercel.app/sell-put-decision-tool.html)
 
 - **[🌿 心安复利](/docs/sections/compound.md)**
   - [树立正确的财富观](/docs/other/calm-wealth-mindset.md)
