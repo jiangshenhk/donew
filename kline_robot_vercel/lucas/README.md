@@ -20,8 +20,8 @@
 | 墨尔本活动地图 | [melbourne-events.html](https://donew-beta.vercel.app/lucas/melbourne-events.html) | 数据可视化 | Leaflet + DeepSeek API | — |
 | Sky Fighters 🛩️ | [lucas_flyplay.html](https://donew-beta.vercel.app/lucas/lucas_flyplay.html) | 3D 飞行射击 | Three.js | VER 1.0.5 |
 | 深渊守护者 | [lucas_zdgy.html](https://donew-beta.vercel.app/lucas/lucas_zdgy.html) | 2D 竖屏塔防射击 | Canvas 2D | VER 3.0.0 |
-| NEON//NOCTURNE Performance | [Download v10.9](./neon-nocturne-performance-v10.9.zip) | Optimized exploration and driving with adjustable motion blur | OpenGL | VER 10.9 |
-| NEON//NOCTURNE Cinematic | [Download v10.9](./neon-nocturne-cinematic-v10.9.zip) | Maximum-quality ray-traced city with adjustable motion blur | OpenGL | VER 10.9 |
+| NEON//NOCTURNE Performance | [Download v10.10](./neon-nocturne-performance-v10.10.zip) | Optimized exploration with motion blur and resolution settings | OpenGL | VER 10.10 |
+| NEON//NOCTURNE Cinematic | [Download v10.10](./neon-nocturne-cinematic-v10.10.zip) | Maximum-quality city with motion blur and resolution settings | OpenGL | VER 10.10 |
 
 ---
 
