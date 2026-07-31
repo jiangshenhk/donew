@@ -13,7 +13,8 @@
     "api/auth.js": { "maxDuration": 30 }
   },
   "rewrites": [
-    { "source": "/api/auth/(.*)", "destination": "/api/auth" }
+    { "source": "/api/auth/(.*)", "destination": "/api/auth" },
+    { "source": "/api/sell-put-signal", "destination": "/api/barchart-overview?mode=signal" }
   ],
   "github": { "silent": true }
 }
