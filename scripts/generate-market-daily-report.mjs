@@ -55,7 +55,7 @@ const prompt = buildMarketReportPrompt({ strategy, reportType, news, marketSnaps
 
 async function callAI() {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(new Error('AI request timeout')), 90000);
+  const timeout = setTimeout(() => controller.abort(new Error('AI request timeout')), 115000);
   try {
     const response = await fetch(aiEndpoint, {
       method: 'POST',

@@ -9,7 +9,7 @@ function cors(res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
-async function timedFetch(url, options = {}, timeoutMs = 90000) {
+async function timedFetch(url, options = {}, timeoutMs = 110000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try { return await fetch(url, { ...options, signal: controller.signal }); }
