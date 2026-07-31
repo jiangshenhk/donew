@@ -55,8 +55,6 @@ const SCAN_RESULT_FILE = path.join(AGENT_DIR, 'scan-result.json');
 const KLINE_DIR       = path.join(AGENT_DIR, 'kline');
 const WATCHLIST_FILE  = path.join(AGENT_DIR, 'watchlist.json');
 const POOL_FILE       = path.join(AGENT_DIR, 'pool.json');
-const REPO_DIR         = path.resolve(path.dirname(decodeURIComponent(import.meta.url.replace('file://', ''))), '..');
-const SIGNALS_REPO_FILE = path.join(REPO_DIR, 'stockprice', 'data', 'sell-put-signals.json');
 
 const DEFAULT_TRADING   = ['QLD', 'MSTR', 'INTC'];
 const DEFAULT_WATCHLIST = ['QLD', 'MSTR', 'INTC', 'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'HOOD', 'SOXL', 'AMD', 'TLT', 'GLD', 'XLE'];
@@ -807,7 +805,7 @@ async function settlePosition(pos) {
       `<h2>❌ 到期亏损</h2><table><tr><td>标的</td><td><b>${pos.symbol}</b></td></tr>
       <tr><td>合约</td><td>$${pos.strike}P</td></tr><tr><td>到期收盘价</td><td>$${closePrice}</td></tr>
       <tr><td>权利金收入</td><td>$${pos.premiumCollected}</td></tr><tr><td>PnL</td><td style="color:red">$${pos.pnl.toFixed(2)}</td></tr></table>`);
-    sendNotify(`🩸 到期 ${pos.symbol} $${pos.strike}P 亏损 $${pos.pnl.toFixed(2)}`,
+    await sendNotify(`🩸 到期 ${pos.symbol} $${pos.strike}P 亏损 $${pos.pnl.toFixed(2)}`,
       `**${pos.symbol}** $${pos.strike}P 到期亏损\n\n权利金: $${pos.premiumCollected.toFixed(2)} | 到期收盘: $${closePrice}\nPnL: **$${pos.pnl.toFixed(2)}**`,
       'skull');
   } else {
@@ -821,7 +819,7 @@ async function settlePosition(pos) {
       `<h2>✅ 到期盈利</h2><table><tr><td>标的</td><td><b>${pos.symbol}</b></td></tr>
       <tr><td>合约</td><td>$${pos.strike}P</td></tr><tr><td>到期收盘价</td><td>$${closePrice}</td></tr>
       <tr><td>权利金收入</td><td>$${pos.premiumCollected}</td></tr><tr><td>PnL</td><td style="color:green">+$${pos.pnl.toFixed(2)}</td></tr></table>`);
-    sendNotify(`💰 到期 ${pos.symbol} $${pos.strike}P 盈利 $${pos.pnl.toFixed(2)}`,
+    await sendNotify(`💰 到期 ${pos.symbol} $${pos.strike}P 盈利 $${pos.pnl.toFixed(2)}`,
       `**${pos.symbol}** $${pos.strike}P 到期盈利\n\n权利金: $${pos.premiumCollected.toFixed(2)} | 到期收盘: $${closePrice}\nPnL: **+$${pos.pnl.toFixed(2)}**`,
       'moneybag');
   }
@@ -990,7 +988,7 @@ async function processEarlyCloseSignals(signals, positions) {
           `<h2>🛑 止损平仓</h2><table><tr><td>标的</td><td><b>${sig.symbol}</b></td></tr>
           <tr><td>合约</td><td>$${sig.strike}P</td></tr><tr><td>原始权利金</td><td>$${sig.originalPremium}</td></tr>
           <tr><td>当前权利金</td><td>$${sig.currentPremium}</td></tr><tr><td>PnL</td><td style="color:red">$${closePnl}</td></tr></table>`);
-        sendNotify(`🩸 止损 ${sig.symbol} $${sig.strike}P 亏损 $${closePnl}`,
+        await sendNotify(`🩸 止损 ${sig.symbol} $${sig.strike}P 亏损 $${closePnl}`,
           `**${sig.symbol}** $${sig.strike}P 止损平仓\n\n原始权利金: $${sig.originalPremium} → 当前: $${sig.currentPremium}\nPnL: **$${closePnl}**`,
           'skull');
       } else {
@@ -1002,7 +1000,7 @@ async function processEarlyCloseSignals(signals, positions) {
           `<h2>✅ 止盈平仓</h2><table><tr><td>标的</td><td><b>${sig.symbol}</b></td></tr>
           <tr><td>合约</td><td>$${sig.strike}P</td></tr><tr><td>原始权利金</td><td>$${sig.originalPremium}</td></tr>
           <tr><td>当前权利金</td><td>$${sig.currentPremium}</td></tr><tr><td>利润捕获</td><td>${sig.profitCapture}%</td></tr><tr><td>PnL</td><td style="color:green">+$${closePnl}</td></tr></table>`);
-        sendNotify(`💰 止盈 ${sig.symbol} $${sig.strike}P +$${closePnl} 捕获${sig.profitCapture}%`,
+        await sendNotify(`💰 止盈 ${sig.symbol} $${sig.strike}P +$${closePnl} 捕获${sig.profitCapture}%`,
           `**${sig.symbol}** $${sig.strike}P 止盈平仓\n\n原始权利金: $${sig.originalPremium} → 当前: $${sig.currentPremium}\nPnL: **+$${closePnl}** (${sig.profitCapture}%利润)`,
           'moneybag');
       }
@@ -1074,7 +1072,6 @@ async function runDaily() {
 
   // 5. Process each target
   const decisions = [];
-  const latestSignals = {};
   for (const symbol of TARGETS) {
     console.log(`\n━━━ ${symbol} ━━━`);
 
@@ -1237,7 +1234,7 @@ async function runDaily() {
     if (decision.stance === '可卖Put' && !willOpen) {
       const midPx = (contract.bid + (contract.ask || contract.bid)) / 2;
       const annRet = (midPx / contract.strike * 365 / contract.dte * 100).toFixed(1);
-      sendNotify(`🔔 ${symbol} 可卖Put $${contract.strike}P 未开仓`,
+      await sendNotify(`🔔 ${symbol} 可卖Put $${contract.strike}P 未开仓`,
         `**${symbol}** $${contract.strike}P DTE${contract.dte}\n\n年化: ${annRet}% | OTM: ${((1 - contract.strike / priceInfo.price) * 100).toFixed(1)}%\n风险: ${decision.riskScore}/10 | 原因: ${actionNote}\n\n${decision.reasoning}`,
         'bell'
       );
@@ -1270,20 +1267,6 @@ async function runDaily() {
       factors,
       action: { result: actionNote, trade: tradeDetail },
     });
-
-    // Collect latest signal per symbol
-    const midPx2 = (contract.bid + (contract.ask || contract.bid)) / 2;
-    latestSignals[symbol] = {
-      timestamp: new Date().toISOString(),
-      symbol,
-      price: priceInfo.price,
-      contract: { strike: contract.strike, expireDate: contract.expireDate, dte: contract.dte, delta: contract.delta, bid: contract.bid, ask: contract.ask, iv: contract.iv, mid: midPx2 },
-      otm: priceInfo.price ? ((1 - contract.strike / priceInfo.price) * 100) : null,
-      annual: (midPx2 / contract.strike * 365 / contract.dte * 100).toFixed(1),
-      safePrice: market.atrSafePrice,
-      decision,
-      action: actionNote,
-    };
 
     // Open paper position
     if (willOpen) {
@@ -1335,7 +1318,7 @@ async function runDaily() {
         <tr><td>年化收益</td><td><b>${pos.annualizedReturn}%</b></td></tr>
         <tr><td>风险评分</td><td>${pos.riskScore}/10</td></tr></table>`
       );
-      sendNotify(`🟢 开仓 ${symbol} $${pos.strike}P ×${pos.contracts}张`,
+      await sendNotify(`🟢 开仓 ${symbol} $${pos.strike}P ×${pos.contracts}张`,
         `**${symbol}** $${pos.strike}P 开仓\n\n权利金: $${pos.premiumCollected} | 年化: ${pos.annualizedReturn}%\n到期: ${pos.expireDate} | 风险评分: ${pos.riskScore}/10`,
         'money_bag'
       );
@@ -1351,13 +1334,6 @@ async function runDaily() {
       await sleep(2000);
     }
   }
-
-  // Save latest signals per symbol to repo for Vercel sharing
-  try {
-    ensureDir(path.dirname(SIGNALS_REPO_FILE));
-    saveJson(SIGNALS_REPO_FILE, latestSignals);
-    console.log('📡 信号已写入仓库:', SIGNALS_REPO_FILE);
-  } catch (e) { console.log('⚠️ 信号写入仓库失败:', e.message); }
 
   // 6. Summary
   const finalStats = recalcStats();
