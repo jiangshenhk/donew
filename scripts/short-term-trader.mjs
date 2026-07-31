@@ -951,7 +951,7 @@ async function run() {
       // 手机推送 BUY 信号（去重：同标的同K线只推一次）
       const alreadyNotified = signalHistory.some(s => s.barTime === signalRecord.barTime && s.decision === 'BUY');
       if (!alreadyNotified) {
-        sendNotify(
+        await sendNotify(
           `📶 BUY信号 ${symbol} $${lastBar.c.toFixed(2)}`,
           `**${symbol}** 技术规则触发 ✅  AI评分: ${ai.score}/10\n\n价格: $${lastBar.c.toFixed(2)}\n止损: $${levels.stopLoss.toFixed(2)} | 止盈: $${levels.takeProfit.toFixed(2)}\n\n${ai.reasoning}`,
           'chart_with_upwards_trend'
@@ -985,7 +985,7 @@ async function run() {
       const emoji = exit.pnlPct > 0 ? '💰' : '🩸';
       console.log(`  ${emoji} ${exit.symbol} ${exit.exitType}: $${exit.closePrice} | PnL: $${exit.pnl} (${exit.pnlPct > 0 ? '+' : ''}${exit.pnlPct}%) | ${exit.closeReason}`);
       const isWin = exit.pnl > 0;
-      sendNotify(
+      await sendNotify(
         `${isWin ? '💰 止盈' : '🩸 止损'} ${exit.symbol} $${exit.closePrice}`,
         `**${exit.symbol}** ${exit.closeReason}\n\n入场: $${exit.entryPrice.toFixed(2)} → 出场: $${exit.closePrice.toFixed(2)}\nPnL: **$${exit.pnl.toFixed(2)}** (${exit.pnlPct > 0 ? '+' : ''}${exit.pnlPct}%)`,
         isWin ? 'moneybag' : 'skull'
@@ -1024,7 +1024,7 @@ async function run() {
       newPositions++;
       console.log(`  ✅ ${symbol}: 开仓 $${pos.entryPrice.toFixed(2)} × ${pos.shares}股 = $${pos.cost.toFixed(2)}`);
       console.log(`     止损: $${pos.stopLoss.toFixed(2)} | 止盈: $${pos.takeProfit.toFixed(2)} | ATR评分: ${signal.score}/10`);
-      sendNotify(
+      await sendNotify(
         `🟢 开仓 ${symbol} $${pos.entryPrice.toFixed(2)}`,
         `**${symbol}** 买入 × ${pos.shares}股  $${pos.entryPrice.toFixed(2)}\n\n止损: $${pos.stopLoss.toFixed(2)} | 止盈: $${pos.takeProfit.toFixed(2)} | AI评分: ${signal.score}/10`,
         'money_bag'
