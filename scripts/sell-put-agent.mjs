@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sell-put-agent.mjs — Sell Put Decision Agent v0.4.0
+// sell-put-agent.mjs — Sell Put Decision Agent v0.5.0  (2026-07-30: +期权概览数据/+ATR预期区间/+中间价/+交易明细翻页/+邮件通知)
 // 每日自动分析 QLD/MSTR/INTC 卖Put机会，记录纸面交易，跟踪胜率
 // 数据存储于 ~/.donew-agent/ (独立于仓库，不 commit)
 //
@@ -10,6 +10,30 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { homedir } from 'node:os';
+
+// ─── ntfy 通知 ──────────────────────────────────────────────────
+const NTFY_TOPIC = 'dudiaozhangtest112233';
+const NTFY_TOKEN = 'tk_yw31dbl7scelalsvk3rhc0fhqvei6';
+const NTFY_SERVER = 'https://ntfy.sh';
+
+async function sendNotify(title, message, tags = '') {
+  try {
+    const headers = {
+      'Authorization': `Bearer ${NTFY_TOKEN}`,
+      'Priority': '4',
+      'Markdown': 'yes',
+    };
+    if (tags) headers['Tags'] = tags;
+    // Title may contain emoji; pass as query param to avoid header encoding issues
+    const url = new URL(`${NTFY_SERVER}/${NTFY_TOPIC}`);
+    url.searchParams.set('title', title);
+    await fetch(url, {
+      method: 'POST',
+      headers,
+      body: message,
+    });
+  } catch { /* silently ignore notification failures */ }
+}
 
 // ─── Constants ───────────────────────────────────────────────
 
@@ -31,6 +55,8 @@ const SCAN_RESULT_FILE = path.join(AGENT_DIR, 'scan-result.json');
 const KLINE_DIR       = path.join(AGENT_DIR, 'kline');
 const WATCHLIST_FILE  = path.join(AGENT_DIR, 'watchlist.json');
 const POOL_FILE       = path.join(AGENT_DIR, 'pool.json');
+const REPO_DIR         = path.resolve(path.dirname(decodeURIComponent(import.meta.url.replace('file://', ''))), '..');
+const SIGNALS_REPO_FILE = path.join(REPO_DIR, 'stockprice', 'data', 'sell-put-signals.json');
 
 const DEFAULT_TRADING   = ['QLD', 'MSTR', 'INTC'];
 const DEFAULT_WATCHLIST = ['QLD', 'MSTR', 'INTC', 'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'HOOD', 'SOXL', 'AMD', 'TLT', 'GLD', 'XLE'];
@@ -316,6 +342,33 @@ async function fetchOptionsChain(symbol, opts = {}) {
   }
 }
 
+async function fetchOptionsOverview(symbol) {
+  try {
+    const res = await fetch(`https://donew-beta.vercel.app/api/barchart-overview?symbols=${symbol}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-agent/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const item = json.data?.[0];
+    if (!item?.ok || !item?.metrics) return null;
+    const m = item.metrics;
+    const r = (v) => { const n = parseFloat(v); return isNaN(n) ? null : n; };
+    return {
+      iv: r(m.iv),
+      hv: r(m.hv),
+      ivRank: r(m.ivRank),
+      ivPercentile: r(m.ivPercentile),
+      expectedMovePct: r(m.expectedMovePct),
+      expectedRangeLow: r(m.expectedRangeLow),
+      putCallVolRatio: r(m.putCallVolRatio),
+      putCallOiRatio: r(m.putCallOiRatio),
+      totalVolume: parseInt(m.todayVolume) || 0,
+      totalOi: parseInt(m.todayOpenInterest) || 0,
+    };
+  } catch { return null; }
+}
+
 // ─── Market Data ──────────────────────────────────────────────
 
 async function fetchPrices() {
@@ -385,7 +438,7 @@ function calcKlineStats(bars) {
   const sma10 = closes.slice(-10).reduce((a, b) => a + b, 0) / Math.min(10, n);
   const sma20 = closes.slice(-20).reduce((a, b) => a + b, 0) / Math.min(20, n);
 
-  // ATR (14-day)
+  // ATR (14-day) — Wilder's smoothed (same as sell-put-decision.js computeAtr)
   const trs = [];
   for (let i = 1; i < n; i++) {
     const high = bars[i].high;
@@ -393,7 +446,14 @@ function calcKlineStats(bars) {
     const prevClose = bars[i - 1].close;
     trs.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)));
   }
-  const atr = trs.slice(-14).reduce((a, b) => a + b, 0) / Math.min(14, trs.length);
+  const period = 14;
+  let atr = trs.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  for (let i = period; i < trs.length; i++) {
+    atr = (atr * (period - 1) + trs[i]) / period;
+  }
+  if (trs.length < period) {
+    atr = trs.reduce((a, b) => a + b, 0) / trs.length;
+  }
 
   // 20-day high/low
   const recent20 = bars.slice(-20);
@@ -483,7 +543,7 @@ function buildJudgmentFactors(symbol, priceInfo, contract, market, decision) {
     ivLevel,
     delta: contract?.delta ? Math.round(contract.delta * 1000) / 1000 : null,
     dte: contract?.dte || null,
-    rtnAnnualized: otm && strike && contract?.bid ? parseFloat((contract.bid / strike * 365 / contract.dte * 100).toFixed(1)) : null,
+    rtnAnnualized: otm && strike && contract?.bid ? parseFloat(((contract.bid + (contract.ask || contract.bid)) / 2 / strike * 365 / contract.dte * 100).toFixed(1)) : null,
     aiRiskScore: decision?.riskScore ?? null,
     aiStance: decision?.stance ?? '--',
     aiTemperature: decision?.temperature ?? '--',
@@ -518,6 +578,11 @@ function buildSystemPrompt() {
 - VIX > 25 且日涨 > 8% → 至少谨慎
 - 价格跌破 SMA20 → 倾向 谨慎/暂不卖
 - IV Rank > 90% → 不单独视为卖方优势，需结合趋势
+- IV-HV差：负数（倒挂）= 卖方不利（权利金没覆盖实际波动风险）；正数 > 5pp = 恐慌溢价（卖方机会但注意趋势）
+- 期权温度判定：IV Percentile > 70% 且 IV-HV 倒挂 → 中温（IV历史高位，倒挂不代表低温）；IV Percentile < 30% 且 IV-HV 倒挂 → 低温（真正卖方不利）；IV-HV 正且 IV Rank > 70% → 高温（恐慌溢价）
+- Put/Call成交量比 < 0.5 = Call狂热（多为投机追涨，卖方谨慎）；> 1.5 = Put主导（恐慌避险，卖方机会需防趋势恶化）
+- 行权价安全：若 expectedRangeLow 有值，strike 必须低于 expectedRangeLow 才算安全
+- 严格安全价 = min(ATR安全行权价, Expected Range Low)
 
 输出格式（JSON）：
 {
@@ -547,12 +612,27 @@ function buildUserPrompt(symbol, contract, market, news, experience) {
     ? news.slice(0, 10).map(n => `- [${n.time}] ${n.title}`).join('\n')
     : '（无新闻数据）';
 
+  const o = market;
+  const overviewLine = o.ivRank != null ? [
+    o.weightedIv != null ? `- 加权IV: ${o.weightedIv.toFixed(1)}%` : '',
+    o.hv != null ? `- HV(30d): ${o.hv.toFixed(1)}%` : '',
+    o.ivHvDiff != null ? `- IV-HV差: ${o.ivHvDiff >= 0 ? '+' : ''}${o.ivHvDiff.toFixed(2)}个百分点 ${o.ivHvDiff < 0 ? '（倒挂，卖方不利）' : o.ivHvDiff > 5 ? '（恐慌溢价）' : ''}` : '',
+    o.ivRank != null ? `- IV Rank: ${o.ivRank.toFixed(0)}% ${o.ivRank > 90 ? '（极高）' : o.ivRank > 70 ? '（偏高）' : o.ivRank > 30 ? '（中等）' : '（偏低）'}` : '',
+    o.ivPercentile != null ? `- IV Percentile: ${o.ivPercentile.toFixed(0)}%` : '',
+    o.putCallVolRatio != null ? `- Put/Call成交量比: ${o.putCallVolRatio.toFixed(2)} ${o.putCallVolRatio < 0.5 ? '（Call狂热）' : o.putCallVolRatio > 1.5 ? '（Put主导→恐慌）' : '（中性）'}` : '',
+    o.putCallOiRatio != null ? `- Put/Call持仓量比: ${o.putCallOiRatio.toFixed(2)}` : '',
+    o.totalVolume != null ? `- 今日期权总成交量: ${o.totalVolume.toLocaleString()}` : '',
+    o.totalOi != null ? `- 今日总持仓量: ${o.totalOi.toLocaleString()}` : '',
+    o.expectedMovePct != null ? `- Expected Move: ±${o.expectedMovePct.toFixed(2)}% (约$${(o.price ? o.price * o.expectedMovePct / 100 : 0).toFixed(2)})` : '',
+    o.expectedRangeLow != null ? `- Expected Range Low: $${o.expectedRangeLow.toFixed(2)}（行权价低于此才算安全）` : '',
+  ].filter(Boolean).join('\n') : '（无期权概览数据）';
+
   return `## 标的
 - 代码: ${symbol}${symbolNote}
 - 市场: US
-- 当前价格: $${market.price?.toFixed(2) || '--'}
-- 日变化: ${pctStr(market.changePct)}
-- VIX: ${market.vix?.toFixed(1) || '--'}
+- 当前价格: $${o.price?.toFixed(2) || '--'}
+- 日变化: ${pctStr(o.changePct)}
+- VIX: ${o.vix?.toFixed(1) || '--'}
 
 ## 期权合约（自动匹配）
 - 行权价: $${contract.strike?.toFixed(2)}
@@ -560,8 +640,13 @@ function buildUserPrompt(symbol, contract, market, news, experience) {
 - Delta: ${contract.delta?.toFixed(3)}
 - Bid: $${contract.bid?.toFixed(2)} / Ask: $${contract.ask?.toFixed(2)}
 - Mid: $${((contract.bid + (contract.ask || contract.bid)) / 2).toFixed(2)}
+- 价差: ${contract.bid && contract.ask ? ((contract.ask - contract.bid) / ((contract.bid + contract.ask) / 2) * 100).toFixed(2) + '%' : '--'}
 - IV: ${contract.iv ? (contract.iv * 100).toFixed(1) + '%' : '--'}
-- OTM安全垫: ${market.price ? ((1 - contract.strike / market.price) * 100).toFixed(2) + '%' : '--'}
+- OTM安全垫: ${o.price ? ((1 - contract.strike / o.price) * 100).toFixed(2) + '%' : '--'}
+- 年化收益: ${contract.bid && contract.strike && contract.dte ? (contract.bid / contract.strike * 365 / contract.dte * 100).toFixed(1) + '%' : '--'}
+
+## 期权概览（标的级）
+${overviewLine}
 
 ## 技术指标
 - SMA5: ${market.sma5?.toFixed(2) || '--'}
@@ -592,8 +677,14 @@ async function getDecision(symbol, contract, market, news, experience) {
       result.stance = '谨慎卖Put';
       result.riskScore = Math.max(result.riskScore || 4, 6);
       result.putStance = result.putStance === '有利' ? '谨慎' : result.putStance;
-      result.reasoning = '⛔ 行权价$' + contract.strike + ' > ATR安全价$' + safePrice.toFixed(2) + '，强制降级。' + result.reasoning;
-      result.keyRisks = [...(result.keyRisks || []), '行权价高于ATR安全行权价'];
+      result.reasoning = '⛔ 行权价$' + contract.strike + ' > 严格安全价$' + safePrice.toFixed(2) + '，强制降级。' + result.reasoning;
+    }
+    // If strike is way above safe price, force暂不卖Put
+    if (safePrice != null && contract.strike > safePrice * 1.05) {
+      result.stance = '暂不卖Put';
+      result.riskScore = Math.max(result.riskScore || 5, 7);
+      result.putStance = '不利';
+      result.reasoning = '🚫 行权价$' + contract.strike + ' 远超严格安全价$' + safePrice.toFixed(2) + '（>5%），禁止开仓。' + result.reasoning;
     }
 
     return {
@@ -716,6 +807,9 @@ async function settlePosition(pos) {
       `<h2>❌ 到期亏损</h2><table><tr><td>标的</td><td><b>${pos.symbol}</b></td></tr>
       <tr><td>合约</td><td>$${pos.strike}P</td></tr><tr><td>到期收盘价</td><td>$${closePrice}</td></tr>
       <tr><td>权利金收入</td><td>$${pos.premiumCollected}</td></tr><tr><td>PnL</td><td style="color:red">$${pos.pnl.toFixed(2)}</td></tr></table>`);
+    sendNotify(`🩸 到期 ${pos.symbol} $${pos.strike}P 亏损 $${pos.pnl.toFixed(2)}`,
+      `**${pos.symbol}** $${pos.strike}P 到期亏损\n\n权利金: $${pos.premiumCollected.toFixed(2)} | 到期收盘: $${closePrice}\nPnL: **$${pos.pnl.toFixed(2)}**`,
+      'skull');
   } else {
     pos.result = 'win';
     pos.pnl = pos.premiumCollected;
@@ -727,6 +821,9 @@ async function settlePosition(pos) {
       `<h2>✅ 到期盈利</h2><table><tr><td>标的</td><td><b>${pos.symbol}</b></td></tr>
       <tr><td>合约</td><td>$${pos.strike}P</td></tr><tr><td>到期收盘价</td><td>$${closePrice}</td></tr>
       <tr><td>权利金收入</td><td>$${pos.premiumCollected}</td></tr><tr><td>PnL</td><td style="color:green">+$${pos.pnl.toFixed(2)}</td></tr></table>`);
+    sendNotify(`💰 到期 ${pos.symbol} $${pos.strike}P 盈利 $${pos.pnl.toFixed(2)}`,
+      `**${pos.symbol}** $${pos.strike}P 到期盈利\n\n权利金: $${pos.premiumCollected.toFixed(2)} | 到期收盘: $${closePrice}\nPnL: **+$${pos.pnl.toFixed(2)}**`,
+      'moneybag');
   }
   return pos;
 }
@@ -893,6 +990,9 @@ async function processEarlyCloseSignals(signals, positions) {
           `<h2>🛑 止损平仓</h2><table><tr><td>标的</td><td><b>${sig.symbol}</b></td></tr>
           <tr><td>合约</td><td>$${sig.strike}P</td></tr><tr><td>原始权利金</td><td>$${sig.originalPremium}</td></tr>
           <tr><td>当前权利金</td><td>$${sig.currentPremium}</td></tr><tr><td>PnL</td><td style="color:red">$${closePnl}</td></tr></table>`);
+        sendNotify(`🩸 止损 ${sig.symbol} $${sig.strike}P 亏损 $${closePnl}`,
+          `**${sig.symbol}** $${sig.strike}P 止损平仓\n\n原始权利金: $${sig.originalPremium} → 当前: $${sig.currentPremium}\nPnL: **$${closePnl}**`,
+          'skull');
       } else {
         positions[idx].result = 'win';
         positions[idx].closeNote = `提前平仓: 捕获${sig.profitCapture}%利润 ($${sig.originalPremium}→$${sig.currentPremium})`;
@@ -902,6 +1002,9 @@ async function processEarlyCloseSignals(signals, positions) {
           `<h2>✅ 止盈平仓</h2><table><tr><td>标的</td><td><b>${sig.symbol}</b></td></tr>
           <tr><td>合约</td><td>$${sig.strike}P</td></tr><tr><td>原始权利金</td><td>$${sig.originalPremium}</td></tr>
           <tr><td>当前权利金</td><td>$${sig.currentPremium}</td></tr><tr><td>利润捕获</td><td>${sig.profitCapture}%</td></tr><tr><td>PnL</td><td style="color:green">+$${closePnl}</td></tr></table>`);
+        sendNotify(`💰 止盈 ${sig.symbol} $${sig.strike}P +$${closePnl} 捕获${sig.profitCapture}%`,
+          `**${sig.symbol}** $${sig.strike}P 止盈平仓\n\n原始权利金: $${sig.originalPremium} → 当前: $${sig.currentPremium}\nPnL: **+$${closePnl}** (${sig.profitCapture}%利润)`,
+          'moneybag');
       }
     }
   }
@@ -971,6 +1074,7 @@ async function runDaily() {
 
   // 5. Process each target
   const decisions = [];
+  const latestSignals = {};
   for (const symbol of TARGETS) {
     console.log(`\n━━━ ${symbol} ━━━`);
 
@@ -1012,7 +1116,7 @@ async function runDaily() {
     const dailyAtr = prices[symbol]?.dailyAtr;
     const estAtr = (dailyAtr != null && dailyAtr > 0) ? dailyAtr : ((prices[symbol]?.price || 0) * 0.03);
     const estSafePrice = prices[symbol]?.price && estAtr
-      ? prices[symbol].price - estAtr * Math.sqrt(contracts[0].dte || 10)
+      ? prices[symbol].price - estAtr * Math.max(1.5, Math.sqrt(contracts[0].dte || 10))
       : null;
     const safeContracts = estSafePrice ? contracts.filter(c => c.strike <= estSafePrice) : contracts;
     const contract = safeContracts.length ? safeContracts[0] : contracts[0];
@@ -1039,6 +1143,17 @@ async function runDaily() {
       saveJson(path.join(KLINE_DIR, symbol + '.json'), { symbol, date: todayStr(), bars, ...klineStats });
     }
 
+    // Options overview (IV Rank / PCR / HV / etc.)
+    let overview = null;
+    try {
+      console.log('  📊 获取期权概览...');
+      overview = await fetchOptionsOverview(symbol);
+      if (overview) {
+        const diff = overview.iv != null && overview.hv != null ? (overview.iv - overview.hv).toFixed(1) : '--';
+        console.log(`     IV:${overview.iv != null ? overview.iv.toFixed(1)+'%' : '--'} | HV:${overview.hv != null ? overview.hv.toFixed(1)+'%' : '--'} | 差:${diff}pp | IV Rank:${overview.ivRank != null ? overview.ivRank.toFixed(0)+'%' : '--'} | PCR:${overview.putCallVolRatio != null ? overview.putCallVolRatio.toFixed(2) : '--'}`);
+      }
+    } catch { /* ok */ }
+
     const changePctKline = klineStats?.dailyChangePct;
     const prevCloseKline = klineStats?.previousClose;
     const stockChgPct = priceInfo.changePct;
@@ -1054,8 +1169,16 @@ async function runDaily() {
       ...klineStats,
       atr: klineStats.atr || priceInfo.dailyAtr,
       atrSafePrice: klineStats?.latest && (klineStats.atr || priceInfo.dailyAtr)
-        ? (klineStats.latest || priceInfo.price) - (klineStats.atr || priceInfo.dailyAtr) * Math.sqrt(Math.max(contract.dte, 1))
+        ? (() => {
+            const base = klineStats.latest || priceInfo.price;
+            const d = Math.max(contract.dte, 1);
+            const dailyAtr = klineStats.atr || priceInfo.dailyAtr;
+            const atrSafe = base - dailyAtr * Math.max(1.5, Math.sqrt(d));
+            const expectedLow = overview?.expectedRangeLow;
+            return expectedLow != null ? Math.min(atrSafe, expectedLow) : atrSafe;
+          })()
         : null,
+      ...overview ? { weightedIv: overview.iv, ivHvDiff: overview.iv != null && overview.hv != null ? overview.iv - overview.hv : null, ivRank: overview.ivRank, ivPercentile: overview.ivPercentile, hv: overview.hv, putCallVolRatio: overview.putCallVolRatio, putCallOiRatio: overview.putCallOiRatio, totalVolume: overview.totalVolume, totalOi: overview.totalOi, expectedMovePct: overview.expectedMovePct } : {},
     };
 
     // AI decision
@@ -1110,6 +1233,16 @@ async function runDaily() {
       }
     }
 
+    // Notify when AI says "可卖Put" but position wasn't opened
+    if (decision.stance === '可卖Put' && !willOpen) {
+      const midPx = (contract.bid + (contract.ask || contract.bid)) / 2;
+      const annRet = (midPx / contract.strike * 365 / contract.dte * 100).toFixed(1);
+      sendNotify(`🔔 ${symbol} 可卖Put $${contract.strike}P 未开仓`,
+        `**${symbol}** $${contract.strike}P DTE${contract.dte}\n\n年化: ${annRet}% | OTM: ${((1 - contract.strike / priceInfo.price) * 100).toFixed(1)}%\n风险: ${decision.riskScore}/10 | 原因: ${actionNote}\n\n${decision.reasoning}`,
+        'bell'
+      );
+    }
+
     saveJournal({
       date: todayStr(),
       timestamp: new Date().toISOString(),
@@ -1137,6 +1270,20 @@ async function runDaily() {
       factors,
       action: { result: actionNote, trade: tradeDetail },
     });
+
+    // Collect latest signal per symbol
+    const midPx2 = (contract.bid + (contract.ask || contract.bid)) / 2;
+    latestSignals[symbol] = {
+      timestamp: new Date().toISOString(),
+      symbol,
+      price: priceInfo.price,
+      contract: { strike: contract.strike, expireDate: contract.expireDate, dte: contract.dte, delta: contract.delta, bid: contract.bid, ask: contract.ask, iv: contract.iv, mid: midPx2 },
+      otm: priceInfo.price ? ((1 - contract.strike / priceInfo.price) * 100) : null,
+      annual: (midPx2 / contract.strike * 365 / contract.dte * 100).toFixed(1),
+      safePrice: market.atrSafePrice,
+      decision,
+      action: actionNote,
+    };
 
     // Open paper position
     if (willOpen) {
@@ -1188,6 +1335,10 @@ async function runDaily() {
         <tr><td>年化收益</td><td><b>${pos.annualizedReturn}%</b></td></tr>
         <tr><td>风险评分</td><td>${pos.riskScore}/10</td></tr></table>`
       );
+      sendNotify(`🟢 开仓 ${symbol} $${pos.strike}P ×${pos.contracts}张`,
+        `**${symbol}** $${pos.strike}P 开仓\n\n权利金: $${pos.premiumCollected} | 年化: ${pos.annualizedReturn}%\n到期: ${pos.expireDate} | 风险评分: ${pos.riskScore}/10`,
+        'money_bag'
+      );
     }} // end if(pos) / if(willOpen)
 
     // Update stats
@@ -1200,6 +1351,13 @@ async function runDaily() {
       await sleep(2000);
     }
   }
+
+  // Save latest signals per symbol to repo for Vercel sharing
+  try {
+    ensureDir(path.dirname(SIGNALS_REPO_FILE));
+    saveJson(SIGNALS_REPO_FILE, latestSignals);
+    console.log('📡 信号已写入仓库:', SIGNALS_REPO_FILE);
+  } catch (e) { console.log('⚠️ 信号写入仓库失败:', e.message); }
 
   // 6. Summary
   const finalStats = recalcStats();
@@ -1330,6 +1488,7 @@ async function setupCron() {
 cd "${repoDir}"
 export DEEPSEEK_API_KEY="${apiKey}"
 ${nodePath} "${scriptPath}" daily >> "${logFile}" 2>&1
+${nodePath} "${scriptPath}" dashboard >> "${logFile}" 2>&1
 `;
   fs.writeFileSync(runScript, sh, { mode: 0o755 });
   console.log(`✅ 启动脚本已创建: ${runScript}`);
@@ -1531,8 +1690,9 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
 <body>
 <div class="header">
   <h1><svg width="24" height="24" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px"><rect x="3" y="7" width="18" height="13" rx="3" fill="#4d9eff"/><circle cx="9" cy="13" r="2" fill="#0d1522"/><circle cx="15" cy="13" r="2" fill="#0d1522"/><rect x="9" y="16" width="6" height="2" rx="1" fill="#0d1522"/><rect x="10" y="3" width="4" height="5" rx="2" fill="#4d9eff"/><circle cx="12" cy="6" r="1" fill="#ffd54a"/></svg>Sell Put 自动化机器人</h1>
+  <span style="font-size:.75rem;color:#6b7fa3;margin-left:8px;padding:2px 8px;background:#1a2942;border-radius:4px;border:1px solid #1f2b44">v0.5.0</span>
   <span>Generated: <span id="genTime"></span>
-  <label style="margin-left:12px;cursor:pointer;font-size:.8rem;color:#6b7fa3"><input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()" style="vertical-align:middle;margin-right:4px">自动刷新 <span id="refreshCountdown"></span></label>
+  <label style="margin-left:12px;cursor:pointer;font-size:.8rem;color:#6b7fa3"><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" style="vertical-align:middle;margin-right:4px">自动刷新 <span id="refreshCountdown"></span></label>
   <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button></span>
 </div>
 <div class="tabs">
@@ -1561,6 +1721,8 @@ document.getElementById('genTime').textContent = new Date(DATA.generatedAt).toLo
 
 let refreshTimer = null;
 let refreshSeconds = 600;
+
+toggleAutoRefresh();
 
 function toggleAutoRefresh() {
   const checked = document.getElementById('autoRefresh').checked;
@@ -1677,38 +1839,82 @@ function stanceBadge(s) {
   const allPositions = DATA.positions || [];
   const closed = allPositions.filter(p => p.status === 'closed' || p.status === 'cancelled');
   
-  // Merge orders and closed positions into unified trade list
+  let page = 0, pageSize = 20;
+  let filterSymbol = 'all', filterType = 'all';
+  let filterDateFrom = '', filterDateTo = '';
+
   const trades = [];
-  // Add cancelled/closed positions first (they serve as the "result" for each order)
   const closedPositions = closed.filter(x => x.status === 'closed' || x.status === 'cancelled');
   for (const p of closedPositions) {
     trades.push({ type: 'close', time: p.closedAt || p.openedAt, symbol: p.symbol, strike: p.strike, fillPrice: p.premium, bid: null, ask: null, spread: null, contracts: p.contracts, premium: p.premiumCollected || 0, annualizedReturn: p.annualizedReturn || 0, result: p.result, reason: p.closeNote || '', pnl: p.pnl || 0 });
   }
   for (const o of orders) {
-    // Check if this order matches a cancelled position
-    const matchedPosition = closedPositions.find(p => p.symbol === o.symbol && p.strike === o.strike && p.result === 'cancelled');
-    const orderResult = matchedPosition ? 'cancelled' : null;
-    trades.push({ type: 'open', time: o.createdAt, symbol: o.symbol, strike: o.strike, fillPrice: o.fillPrice, bid: o.bid, ask: o.ask, spread: o.spread, contracts: o.contracts, premium: o.premium, annualizedReturn: o.annualizedReturn, result: orderResult });
+    const matchedCancelled = closedPositions.find(p => p.symbol === o.symbol && p.strike === o.strike && p.result === 'cancelled');
+    trades.push({ type: 'open', time: o.createdAt, symbol: o.symbol, strike: o.strike, fillPrice: o.fillPrice, bid: o.bid, ask: o.ask, spread: o.spread, contracts: o.contracts, premium: o.premium, annualizedReturn: o.annualizedReturn, result: matchedCancelled ? 'cancelled' : null });
   }
   trades.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-  let html = '<h2>交易明细 (' + trades.length + ')</h2>';
-  if (!trades.length) { html += '<p class="muted">暂无记录</p>'; }
-  else {
-    html += '<table><thead><tr><th>时间</th><th>类型</th><th>标的</th><th>合约</th><th>成交价</th><th>数量</th><th>权利金</th><th>结果</th></tr></thead><tbody>';
-    for (const tr of trades) {
-      const t = typeof tr.time === 'string' ? new Date(tr.time).toLocaleString('zh-HK', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : tr.time;
-      const typeBadge = tr.type === 'open' ? '<span class="badge badge-green">开仓</span>' :
-        tr.result === 'cancelled' ? '<span class="badge badge-gray">取消</span>' :
-        tr.result === 'win' ? '<span class="badge badge-green">平仓</span>' : '<span class="badge badge-red">平仓</span>';
-      const resultStr = tr.type === 'open' ? (tr.result === 'cancelled' ? '<span class="badge badge-gray">已取消</span>' : '<span class="muted">待到期</span>') :
-        tr.result === 'cancelled' ? '<span class="badge badge-gray">'+ (tr.reason||'已取消') +'</span>' :
-        tr.result === 'win' ? '<span class="up">+$'+tr.pnl.toFixed(2)+'</span>' : '<span class="dn">-$'+tr.pnl.toFixed(2)+'</span>';
-      html += '<tr><td class="muted">'+t+'</td><td>'+typeBadge+'</td><td><b>'+tr.symbol+'</b></td><td>$'+tr.strike+'P</td><td>$'+(tr.fillPrice||0).toFixed(2)+'</td><td>'+tr.contracts+'张</td><td>$'+tr.premium.toFixed(2)+'</td><td>'+resultStr+'</td></tr>';
+  const symbolSet = [...new Set(trades.map(t => t.symbol))].sort();
+
+  function renderOrders() {
+    let filtered = trades;
+    if (filterSymbol !== 'all') filtered = filtered.filter(t => t.symbol === filterSymbol);
+    if (filterType === 'open') filtered = filtered.filter(t => t.type === 'open');
+    else if (filterType === 'close') filtered = filtered.filter(t => t.type === 'close');
+    if (filterDateFrom) filtered = filtered.filter(t => t.time && t.time.slice(0,10) >= filterDateFrom);
+    if (filterDateTo) filtered = filtered.filter(t => t.time && t.time.slice(0,10) <= filterDateTo);
+
+    const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+    if (page >= totalPages) page = 0;
+    const slice = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+    let html = '<h2>交易明细 <span style="font-weight:400;font-size:.85rem;color:#6b7fa3">('+filtered.length+'条'+(filtered.length !== trades.length ? '/共'+trades.length+'条' : '')+')</span></h2>';
+
+    html += '<div class="filter-bar">';
+    html += '<label>类型</label><select id="of-type" onchange="ordersFilterType()"><option value="all">全部</option><option value="open"'+(filterType==='open'?' selected':'')+'>开仓</option><option value="close"'+(filterType==='close'?' selected':'')+'>平仓/取消</option></select>';
+    html += '<label>标的</label><select id="of-symbol" onchange="ordersFilterSymbol()"><option value="all">全部</option>';
+    for (const s of symbolSet) html += '<option value="'+s+'"'+(filterSymbol===s?' selected':'')+'>'+s+'</option>';
+    html += '</select>';
+    html += '<label>日期</label><input id="of-datefrom" type="date" value="'+filterDateFrom+'" onchange="ordersFilterDate()" style="width:130px">';
+    html += ' <span class="muted">-</span> ';
+    html += '<input id="of-dateto" type="date" value="'+filterDateTo+'" onchange="ordersFilterDate()" style="width:130px">';
+    html += '</div>';
+
+    if (!slice.length) { html += '<p class="muted">无匹配记录</p>'; }
+    else {
+      html += '<table><thead><tr><th>时间</th><th>类型</th><th>标的</th><th>合约</th><th>成交价</th><th>数量</th><th>权利金</th><th>PnL</th><th>结果</th></tr></thead><tbody>';
+      for (const tr of slice) {
+        const t = typeof tr.time === 'string' ? new Date(tr.time).toLocaleString('zh-HK', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : tr.time;
+        const typeBadge = tr.type === 'open'
+          ? (tr.result === 'cancelled' ? '<span class="badge badge-gray">已取消</span>' : '<span class="badge badge-green">开仓</span>')
+          : '<span class="badge '+(tr.result==='win'?'badge-green':'badge-red')+'">平仓</span>';
+        const pnlStr = tr.type === 'close' ? (tr.pnl>=0?'<span class="up">+$'+tr.pnl.toFixed(2)+'</span>':'<span class="dn">$'+tr.pnl.toFixed(2)+'</span>') : (tr.result==='cancelled'?'<span class="muted">-</span>':'<span class="muted">-</span>');
+        const resultStr = tr.type === 'close'
+          ? (tr.result==='cancelled'?'<span class="badge badge-gray">已取消</span>': (tr.result==='win'?tr.reason||'✔':tr.reason||'✘'))
+          : (tr.result==='cancelled'?'<span class="badge badge-gray">已取消</span>':'<span class="muted">待到期</span>');
+        html += '<tr><td class="muted">'+t+'</td><td>'+typeBadge+'</td><td><b>'+tr.symbol+'</b></td><td>$'+tr.strike+'P</td><td>$'+(tr.fillPrice||0).toFixed(2)+'</td><td>'+tr.contracts+'张</td><td>$'+tr.premium.toFixed(2)+'</td><td>'+pnlStr+'</td><td>'+resultStr+'</td></tr>';
+      }
+      html += '</tbody></table>';
+
+      if (totalPages > 1 || filtered.length > 10) {
+        html += '<div class="pagination"><button onclick="ordersGo(0)"'+(page===0?' disabled':'')+'>|<</button><button onclick="ordersGo('+(page-1)+')"'+(page===0?' disabled':'')+'>←</button><span>第'+(page+1)+'/'+totalPages+'页 共'+filtered.length+'条</span><button onclick="ordersGo('+(page+1)+')"'+(page>=totalPages-1?' disabled':'')+'>→</button><button onclick="ordersGo('+(totalPages-1)+')"'+(page>=totalPages-1?' disabled':'')+'>>|</button>';
+        html += '<select onchange="ordersPageSize(this.value)" style="margin-left:8px;padding:4px 8px;background:#111d2f;border:1px solid #1f2b44;color:#cddbf7;border-radius:4px;font-size:.78rem">';
+        html += '<option value="10"'+(pageSize===10?' selected':'')+'>10条/页</option>';
+        html += '<option value="20"'+(pageSize===20?' selected':'')+'>20条/页</option>';
+        html += '<option value="50"'+(pageSize===50?' selected':'')+'>50条/页</option>';
+        html += '<option value="100"'+(pageSize===100?' selected':'')+'>100条/页</option>';
+        html += '</select></div>';
+      }
     }
-    html += '</tbody></table>';
+    document.getElementById('panel-orders').innerHTML = html;
   }
-  document.getElementById('panel-orders').innerHTML = html;
+  renderOrders();
+
+  window.ordersGo = function(p) { page = p; renderOrders(); };
+  window.ordersPageSize = function(v) { pageSize = parseInt(v); page = 0; renderOrders(); };
+  window.ordersFilterSymbol = function() { filterSymbol = document.getElementById('of-symbol').value; page = 0; renderOrders(); };
+  window.ordersFilterType = function() { filterType = document.getElementById('of-type').value; page = 0; renderOrders(); };
+  window.ordersFilterDate = function() { filterDateFrom = document.getElementById('of-datefrom').value; filterDateTo = document.getElementById('of-dateto').value; page = 0; renderOrders(); };
 })();
 
 // Journal panel (with filter + pagination)
@@ -1787,15 +1993,18 @@ function stanceBadge(s) {
 
     if (!slice.length) { html += '<p class="muted">无匹配记录</p>'; }
     else {
-      html += '<table><thead><tr><th>时间</th><th>标的</th><th>价格</th><th>合约</th><th>OTM</th><th>Δ</th><th>年化</th><th>结论</th><th>风险</th><th>操作</th><th>理由</th></tr></thead><tbody>';
+      html += '<table><thead><tr><th>时间</th><th>标的</th><th>价格</th><th>合约</th><th>中间价</th><th>OTM</th><th>Δ</th><th>年化</th><th>结论</th><th>风险</th><th>操作</th><th>理由</th></tr></thead><tbody>';
       for (const e of slice) {
         const t = new Date(e.timestamp).toLocaleString('zh-HK', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+        const midPrice = e.contract?.bid && e.contract?.ask ? (e.contract.bid + e.contract.ask) / 2 : (e.contract?.bid || 0);
+        const midPxStr = midPrice ? '$'+midPrice.toFixed(2) : '--';
         const contract = e.contract ? '$'+e.contract.strike+'P DTE'+e.contract.dte : '--';
         const otm = e.contract?.otm != null ? e.contract.otm.toFixed(1)+'%' : '--';
         const delta = e.contract?.delta != null ? e.contract.delta.toFixed(3) : '--';
-        const annual = e.factors?.rtnAnnualized != null ? e.factors.rtnAnnualized+'%' : (e.contract?.bid && e.contract?.strike && e.contract?.dte ? (e.contract.bid / e.contract.strike * 365 / e.contract.dte * 100).toFixed(0)+'%' : '--');
+        const midFallback = e.contract?.bid && e.contract?.ask ? (e.contract.bid + e.contract.ask) / 2 : (e.contract?.bid || 0);
+        const annual = e.factors?.rtnAnnualized != null ? e.factors.rtnAnnualized+'%' : (midPrice && e.contract?.strike && e.contract?.dte ? (midPrice / e.contract.strike * 365 / e.contract.dte * 100).toFixed(0)+'%' : '--');
         const reason = e.decision?.reasoning || '';
-        html += '<tr><td class="muted">'+t+'</td><td><b>'+e.symbol+'</b></td><td>$'+e.price+'</td><td>'+contract+'</td><td>'+otm+'</td><td>'+delta+'</td><td>'+annual+'</td><td>'+stanceBadge(e.decision?.stance)+'</td><td style="color:'+riskColor(e.decision?.riskScore)+';font-weight:700">'+e.decision?.riskScore+'/10</td><td>'+actionBadgeHTML(e.action)+'</td><td class="reason">'+reason+'</td></tr>';
+        html += '<tr><td class="muted">'+t+'</td><td><b><a href="https://donew-beta.vercel.app/sell-put-decision-tool.html?symbol='+encodeURIComponent(e.symbol)+'" target="_blank" style="color:#4d9eff;text-decoration:none">'+e.symbol+'</a></b></td><td>$'+e.price+'</td><td>'+contract+'</td><td>'+midPxStr+'</td><td>'+otm+'</td><td>'+delta+'</td><td>'+annual+'</td><td>'+stanceBadge(e.decision?.stance)+'</td><td style="color:'+riskColor(e.decision?.riskScore)+';font-weight:700">'+e.decision?.riskScore+'/10</td><td>'+actionBadgeHTML(e.action)+'</td><td class="reason">'+reason+'</td></tr>';
       }
       html += '</tbody></table>';
 
@@ -2010,7 +2219,9 @@ function calShift(n) {
 
 // Scan panel
 (function() {
-  const s = DATA.scan || { results: [], scannedAt: null };
+  const cached = localStorage.getItem('donew_scan_cache');
+  const cachedData = cached ? (() => { try { return JSON.parse(cached); } catch { return null; } })() : null;
+  const s = cachedData || DATA.scan || { results: [], scannedAt: null };
   const scanTargets = DATA.watchlist || DATA.targets || [];
   let scanResults = s.results || [];
   let scanTime = s.scannedAt;
@@ -2105,6 +2316,7 @@ function calShift(n) {
       });
       scanResults.sort((a,b) => b.score - a.score);
       scanTime = new Date().toISOString();
+      try { localStorage.setItem('donew_scan_cache', JSON.stringify({ results: scanResults, scannedAt: scanTime })); } catch {}
     } catch(e) {
       errorMsg = e.message || '网络错误';
       console.error('Scan refresh error:', e);
@@ -2113,7 +2325,7 @@ function calShift(n) {
     // Show status after DOM rebuild
     const statusEl = document.getElementById('scanStatus');
     if (statusEl) {
-      if (errorMsg) statusEl.innerHTML = '<span style="color:#ffd54a">浏览器跨域限制，请运行: <code>node scripts/sell-put-agent.mjs scan && node scripts/sell-put-agent.mjs dashboard</code></span>';
+      if (errorMsg) statusEl.innerHTML = '<span style="color:#ffd54a">⚠️ 浏览器打开此文件时无法直接调用API。<br>请运行终端命令刷新: <code>node scripts/sell-put-agent.mjs scan && node scripts/sell-put-agent.mjs dashboard</code></span>';
       else if (scanResults.length) { statusEl.textContent = '✅ 刷新完成 (' + scanResults.length + ' 个标的)'; setTimeout(() => { const el = document.getElementById('scanStatus'); if (el) el.textContent = ''; }, 3000); }
     }
   };
@@ -2236,9 +2448,9 @@ function addWatchlist() {
     });
 
     const candleSeries = chart.addCandlestickSeries({
-      upColor: '#45d483', downColor: '#ff6b7d',
-      borderUpColor: '#45d483', borderDownColor: '#ff6b7d',
-      wickUpColor: '#45d483', wickDownColor: '#ff6b7d',
+      upColor: '#ff6b7d', downColor: '#45d483',
+      borderUpColor: '#ff6b7d', borderDownColor: '#45d483',
+      wickUpColor: '#ff6b7d', wickDownColor: '#45d483',
     });
 
     const bars = data.bars.map(b => ({
@@ -2255,9 +2467,8 @@ function addWatchlist() {
         markers.push({
           time: pos.openedAt,
           position: 'belowBar',
-          color: pos.status === 'cancelled' ? '#6b7fa3' : '#45d483',
-          shape: 'arrowDown',
-          text: 'S ' + pos.strike + 'P×' + (pos.contracts || 1) + ' $' + pos.premium,
+          color: pos.status === 'cancelled' ? '#6b7fa3' : '#4fc3f7',
+          shape: 'circle',
           size: 3,
         });
       }
@@ -2485,7 +2696,7 @@ function showStats() {
 // ─── Main ─────────────────────────────────────────────────────
 
 function showVersion() {
-  console.log('Sell Put Agent v0.4.0');
+  console.log('Sell Put Agent v0.5.0');
   console.log(`Data: ${AGENT_DIR}`);
 }
 
