@@ -38,7 +38,7 @@ const DEFAULT_CONFIG = {
   symbols: ['QQQ', 'IBIT', 'MSTR'],
   capital: 100000,
   positionSize: 10000,
-  maxPositions: 3,
+  maxPositions: 5,
   model: 'deepseek-chat',
 };
 
@@ -147,6 +147,10 @@ function isMarketOpen() {
 function isMarketDay() {
   const et = etTimeParts();
   return et.weekday !== 'Sat' && et.weekday !== 'Sun';
+}
+
+function is24hSymbol(symbol) {
+  return /BTC|ETH|SOL|DOGE|USDT/i.test(symbol);
 }
 
 // ─── Data Management ───────────────────────────────────────────
@@ -821,16 +825,16 @@ async function run() {
   console.log(`监控标的: ${config.symbols.join(', ')}`);
   console.log(`资金: $${config.capital.toLocaleString()} | 单笔: $${config.positionSize.toLocaleString()} | 最大持仓: ${config.maxPositions}\n`);
 
-  // Market hours check
-  if (!isMarketOpen()) {
+  const marketOpen = isMarketOpen();
+  const has24h = config.symbols.some(is24hSymbol);
+  if (!marketOpen && !has24h) {
     const et = etNow();
     const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
     console.log(`⏸️  美股未开市（ET ${dayNames[et.getDay()]} ${et.toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false })}）`);
     console.log('   开市时间: 周一至周五 9:30 AM - 4:00 PM ET');
     return;
   }
-
-  console.log(`🟢 市场开市中 | ET ${fmtTimeShort(etNow())}\n`);
+  console.log(`${marketOpen ? '🟢 美股开市' : '⏸️ 美股休市（仅运行24h标的）'} | ET ${fmtTimeShort(etNow())} | 24h标的: ${config.symbols.filter(is24hSymbol).join(', ') || '无'}\n`);
 
   const positions = loadPositions();
   console.log(`当前持仓: ${positions.length}/${config.maxPositions}`);
@@ -839,6 +843,13 @@ async function run() {
   const signals = {};
 
   for (const symbol of config.symbols) {
+    // Skip non-24h symbols when US market is closed
+    if (!marketOpen && !is24hSymbol(symbol)) {
+      console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      console.log(`  ⏸️  美股休市，跳过`);
+      signals[symbol] = { decision: 'SKIP', reasoning: '美股休市' };
+      continue;
+    }
     console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     process.stdout.write(`  📡 获取5分钟K线...`);
 
