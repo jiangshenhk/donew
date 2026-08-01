@@ -8,8 +8,8 @@ import {
 } from '../lib/market-report-core.mjs';
 
 const reportType = String(process.argv[2] || '').toLowerCase();
-if (!['morning', 'evening'].includes(reportType)) {
-  throw new Error('Usage: node scripts/generate-market-daily-report.mjs morning|evening');
+if (!['morning', 'evening', 'weekly'].includes(reportType)) {
+  throw new Error('Usage: node scripts/generate-market-daily-report.mjs morning|evening|weekly');
 }
 
 const root = process.cwd();
@@ -25,7 +25,7 @@ if (!fs.existsSync(newsFile)) throw new Error(`Required file missing: ${path.rel
 const { strategy, strategySource } = loadStrategyBaseline(root);
 const newsPayload = JSON.parse(fs.readFileSync(newsFile, 'utf8'));
 
-const PRICE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const PRICE_MAX_AGE_MS = (reportType === 'weekly' ? 72 : 24) * 60 * 60 * 1000;
 const REQUIRED_PRICE_SYMBOLS = ['QQQ', '^VIX', 'QLD', 'MSTR', 'INTC'];
 if (!fs.existsSync(priceFile)) throw new Error(`Price cache missing: ${path.relative(root, priceFile)}`);
 const pricePayload = JSON.parse(fs.readFileSync(priceFile, 'utf8'));
@@ -38,19 +38,20 @@ for (const sym of REQUIRED_PRICE_SYMBOLS) {
 }
 
 const now = new Date();
-const cutoff = now.getTime() - 48 * 60 * 60 * 1000;
+const newsWindowH = reportType === 'weekly' ? 7 * 24 : 48;
+const cutoff = now.getTime() - newsWindowH * 60 * 60 * 1000;
 const news = (newsPayload.items || [])
   .filter(item => Date.parse(item.time) >= cutoff)
   .map(item => ({ time: item.time, categories: item.categories || [], content: item.content }))
-  .slice(0, 250);
-if (!news.length) throw new Error('No valid 48h news');
+  .slice(0, reportType === 'weekly' ? 400 : 250);
+if (!news.length) throw new Error('No valid news in window');
 
 const hkNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
 const hkDate = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Hong_Kong', year: 'numeric', month: '2-digit', day: '2-digit'
 }).format(now);
 const displayDate = `${hkDate.slice(5, 7)}月${Number(hkDate.slice(8, 10))}日`;
-const label = reportType === 'morning' ? '早报' : '晚报';
+const label = reportType === 'morning' ? '早报' : reportType === 'evening' ? '晚报' : '周报';
 const prompt = buildMarketReportPrompt({ strategy, reportType, news, marketSnapshot: pricePayload });
 
 async function callAI() {
@@ -103,10 +104,14 @@ function updateHistory(markdown) {
   const weekday = ['日', '一', '二', '三', '四', '五', '六'][hkNow.getDay()];
   const core = (extractSection(markdown, ['一句话结论', '本期市场在交易什么']) || '市场结构分析完成').replace(/\|/g, '｜').replace(/\n/g, ' ').slice(0, 120);
   const action = (extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行').replace(/\|/g, '｜').replace(/\n/g, ' ').slice(0, 120);
-  const link = `[📊 ${label}](/docs/市场/${hkDate}市场结构日报(${label}).md)`;
-  const newRow = `| **${displayDate}** | ${weekday} | 日报 | ${link} | ${core} | ${action} |`;
+  const kindLabel = reportType === 'weekly' ? '周报' : '日报';
+  const reportFile = reportType === 'weekly'
+    ? `${hkDate}市场结构周报.md`
+    : `${hkDate}市场结构日报(${label}).md`;
+  const link = `[📊 ${label}](/docs/市场/${reportFile})`;
+  const newRow = `| **${displayDate}** | ${weekday} | ${kindLabel} | ${link} | ${core} | ${action} |`;
 
-  const rowPrefix = `| **${displayDate}** | ${weekday} | 日报 |`;
+  const rowPrefix = `| **${displayDate}** | ${weekday} | ${kindLabel} |`;
   const existingRowIdx = text.indexOf(rowPrefix);
   if (existingRowIdx !== -1) {
     const lineEnd = text.indexOf('\n', existingRowIdx);
@@ -143,7 +148,10 @@ function updateToday(markdown) {
   const section1 = extractFullSection(markdown, '本期市场在交易什么');
   const section2 = extractFullSection(markdown, '资金流向异动');
   const action = extractSection(markdown, ['今日动作', '落到我的卖 put 策略', '卖Put策略']) || '按策略规则执行';
-  const link = `[📊 ${hkDate}市场结构日报（${label}）](/docs/市场/${hkDate}市场结构日报(${label}).md)`;
+  const reportFile = reportType === 'weekly'
+    ? `${hkDate}市场结构周报.md`
+    : `${hkDate}市场结构日报(${label}).md`;
+  const link = `[📊 ${hkDate}市场结构${reportType === 'weekly' ? '周报' : '日报'}（${label}）](/docs/市场/${reportFile})`;
 
   const existing = fs.existsSync(todayFile) ? fs.readFileSync(todayFile, 'utf8') : '';
   const gridStart = existing.indexOf('<div class="signal-grid">');
@@ -176,10 +184,16 @@ async function generateWithRetry(maxRetries = 3) {
       const markdown = sanitizeReport(rawMarkdown);
       validateCriticalRequirements(markdown);
       fs.mkdirSync(outputDir, { recursive: true });
-      fs.writeFileSync(path.join(outputDir, reportType === 'morning' ? '每日市场早报.md' : '每日市场晚报.md'), `${markdown}\n`);
-      fs.writeFileSync(path.join(outputDir, `${hkDate}市场结构日报(${label}).md`), `${markdown}\n`);
+      const mainFile = reportType === 'morning' ? '每日市场早报.md'
+        : reportType === 'evening' ? '每日市场晚报.md'
+        : '每日市场周报.md';
+      fs.writeFileSync(path.join(outputDir, mainFile), `${markdown}\n`);
+      const datedFile = reportType === 'weekly'
+        ? `${hkDate}市场结构周报.md`
+        : `${hkDate}市场结构日报(${label}).md`;
+      fs.writeFileSync(path.join(outputDir, datedFile), `${markdown}\n`);
       updateHistory(markdown);
-      updateToday(markdown);
+      if (reportType !== 'weekly') updateToday(markdown);
       fs.writeFileSync(statusPath,
         JSON.stringify({ status: 'success', reportType, generatedAt: new Date().toISOString(), strategySource }, null, 2),
       );
