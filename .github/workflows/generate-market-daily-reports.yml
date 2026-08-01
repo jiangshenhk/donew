@@ -2,14 +2,14 @@ name: Generate Market Morning and Evening Reports
 
 on:
   schedule:
-    # 北京时间 7:28（周一至周五）→ UTC 周日-周四 23:28
-    - cron: '28 23 * * 0-4'
-    # 北京时间 8:28 兜底（防止 7:28 被排队延迟）
-    - cron: '28 0 * * 1-5'
-    # 北京时间 20:28（周一至周五）→ UTC 周一至周五 12:28
+    # 香港时间 8:28 早报（周一至周五）→ UTC 周日-周四 00:28
+    - cron: '28 0 * * 0-4'
+    # 香港时间 8:58 早报兜底（防排队延迟）
+    - cron: '58 0 * * 1-5'
+    # 香港时间 20:28 晚报（周一至周五）→ UTC 周一至周五 12:28
     - cron: '28 12 * * 1-5'
-    # 北京时间 21:28 兜底（防止 20:28 被排队延迟）
-    - cron: '28 13 * * 1-5'
+    # 香港时间 20:58 晚报兜底（防排队延迟）
+    - cron: '58 12 * * 1-5'
   workflow_dispatch:
     inputs:
       report_type:
@@ -46,17 +46,15 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
           INPUT_REPORT_TYPE: ${{ inputs.report_type }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             echo "type=$INPUT_REPORT_TYPE" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_SCHEDULE" = "28 0 * * 0-4" ] || [ "$EVENT_SCHEDULE" = "58 0 * * 1-5" ]; then
+            echo "type=morning" >> "$GITHUB_OUTPUT"
           else
-            UTC_HOUR=$(date -u +%H)
-            if [ "$UTC_HOUR" = "23" ] || [ "$UTC_HOUR" = "00" ]; then
-              echo "type=morning" >> "$GITHUB_OUTPUT"
-            else
-              echo "type=evening" >> "$GITHUB_OUTPUT"
-            fi
+            echo "type=evening" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Verify strategy baseline
@@ -66,7 +64,25 @@ jobs:
           grep -q "MSTR" "docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md"
           grep -q "INTC" "docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md"
 
+      - name: Skip if report already generated
+        id: skip
+        shell: bash
+        env:
+          TYPE: ${{ steps.report.outputs.type }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          LABEL=$([ "$TYPE" = "morning" ] && echo "早报" || echo "晚报")
+          HK_DATE=$(TZ=Asia/Hong_Kong date +%F)
+          FILE="docs/市场/${HK_DATE}市场结构日报(${LABEL}).md"
+          if [ -f "$FILE" ] && [ "$EVENT_NAME" != "workflow_dispatch" ]; then
+            echo "已存在 $FILE，跳过生成（本次为调度触发的兜底检查）"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate and validate report
+        if: steps.skip.outputs.skip != 'true'
         run: node scripts/test-market-daily-report.mjs "${{ steps.report.outputs.type }}"
 
       - name: Commit report files
