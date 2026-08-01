@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
+import http from 'node:http';
 
 // ─── Constants ───────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 
-const VERSION = 'v0.1.0';
+const VERSION = 'v1.0.0';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
@@ -35,11 +36,13 @@ const NTFY_TOKEN = 'tk_yw31dbl7scelalsvk3rhc0fhqvei6';
 const NTFY_SERVER = 'https://ntfy.sh';
 
 const DEFAULT_CONFIG = {
-  symbols: ['QQQ', 'IBIT', 'MSTR'],
+  symbols: ['QQQ','IBIT','MSTR','TSLA','EEM','BTC-USD','UGL','FUTU','QLD','INTC'],
   capital: 100000,
   positionSize: 10000,
   maxPositions: 5,
-  model: 'deepseek-chat',
+  model: 'deepseek-v4-flash',
+  fxRate: 7.8,
+  watchlist: ['SPY','NVDA','IWM'],
 };
 
 const USA_MARKET_OPEN = { hour: 9, minute: 30 };
@@ -489,19 +492,21 @@ function calcAtrStopLevels(entryPrice, atr) {
 
 async function sendNotify(title, message, tags = '') {
   try {
-    await fetch(`${NTFY_SERVER}/${NTFY_TOPIC}`, {
+    const res = await fetch(`${NTFY_SERVER}/${NTFY_TOPIC}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${NTFY_TOKEN}`,
-        'Title': title,
+        'Title': title.replace(/[^\x00-\x7F]/g, '').trim() || 'donew',
         'Priority': '4',
         ...(tags ? { 'Tags': tags } : {}),
         'Markdown': 'yes',
       },
       body: message,
     });
-  } catch {
-    // silently ignore notification failures
+    if (!res.ok) throw new Error('ntfy ' + res.status);
+    console.log('  📲 通知: ' + title);
+  } catch (e) {
+    console.log('  ⚠️ 通知失败: ' + e.message);
   }
 }
 
@@ -511,7 +516,7 @@ async function callDeepSeek(systemPrompt, userMessage) {
   const apiKey = readApiKey();
   if (!apiKey) throw new Error('缺少 DEEPSEEK_API_KEY，请在环境变量或 ~/.donew-trader/.env 中设置');
 
-  const model = loadConfig().model || 'deepseek-chat';
+  const model = loadConfig().model || 'deepseek-v4-flash';
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), AI_TIMEOUT);
@@ -614,10 +619,11 @@ async function scoreSetup(symbol, indicators, openPos) {
 function openPosition(symbol, signal, currentBar, atr) {
   const config = loadConfig();
   const price = currentBar.c;
-  const shares = Math.floor(config.positionSize / price);
-
-  if (shares === 0) {
-    console.log(`  ⚠️ ${symbol} 仓位大小不足，跳过（价格: $${price}，仓位: $${config.positionSize}）`);
+  const rawShares = config.positionSize / price;
+  const shares = Math.round(rawShares * 100000) / 100000;
+  const cost = Math.round(shares * price * 100) / 100;
+  if (cost < 10) {
+    console.log(`  ⚠️ ${symbol} 仓位不足（$${cost}），跳过`);
     return null;
   }
 
@@ -627,7 +633,7 @@ function openPosition(symbol, signal, currentBar, atr) {
     symbol,
     entryPrice: price,
     shares,
-    cost: Math.round(shares * price * 100) / 100,
+    cost,
     stopLoss: levels.stopLoss,
     takeProfit: levels.takeProfit,
     entryTime: new Date(currentBar.t * 1000).toISOString(),
@@ -1021,7 +1027,7 @@ async function run() {
     }
 
     const klineCache = loadKlineCache(symbol);
-    if (!klineCache?.bars) continue;
+    if (!klineCache?.bars) { console.log(`  ⚠️ ${symbol}: 无法获取K线缓存，跳过`); continue; }
 
     const openPos = updatedPositions.find(p => p.symbol === symbol && p.status === 'OPEN');
     if (openPos) {
@@ -1035,11 +1041,15 @@ async function run() {
       newPositions++;
       console.log(`  ✅ ${symbol}: 开仓 $${pos.entryPrice.toFixed(2)} × ${pos.shares}股 = $${pos.cost.toFixed(2)}`);
       console.log(`     止损: $${pos.stopLoss.toFixed(2)} | 止盈: $${pos.takeProfit.toFixed(2)} | ATR评分: ${signal.score}/10`);
+      const risk = Math.round((pos.entryPrice - pos.stopLoss) * pos.shares * 100) / 100;
+      const reward = Math.round((pos.takeProfit - pos.entryPrice) * pos.shares * 100) / 100;
       await sendNotify(
-        `🟢 开仓 ${symbol} $${pos.entryPrice.toFixed(2)}`,
-        `**${symbol}** 买入 × ${pos.shares}股  $${pos.entryPrice.toFixed(2)}\n\n止损: $${pos.stopLoss.toFixed(2)} | 止盈: $${pos.takeProfit.toFixed(2)} | AI评分: ${signal.score}/10`,
+        `OPEN ${symbol} $${pos.entryPrice.toFixed(2)}`,
+        `**${symbol}** 买入 × ${pos.shares}股\n\n风险: -$${risk} | 预期收益: +$${reward} (1:2)\nAI评分: ${signal.score}/10`,
         'money_bag'
       );
+    } else {
+      console.log(`  ⚠️ ${symbol}: 开仓失败`);
     }
   }
 
@@ -1080,7 +1090,8 @@ function buildDashboardHtml() {
   // Load kline data
   const allKlines = {};
   for (const symbol of config.symbols) {
-    allKlines[symbol] = loadKlineCache(symbol);
+    const k = loadKlineCache(symbol);
+    allKlines[symbol] = k?.bars ? { ...k, bars: k.bars.slice(-500) } : k;
   }
 
   const data = { config, positions, orders, stats, signals: allSignals, klines: allKlines, generatedAt: new Date().toISOString() };
@@ -1666,7 +1677,7 @@ function renderKline() {
     const cnt = DATA.orders.filter(o => o.symbol === s).length;
     html += '<button class="symbol-btn' + (s === defaultSym ? ' active' : '') + '" onclick="switchKline(\\'' + s + '\\')">' + s + (cnt ? ' (' + cnt + '笔)' : '') + '</button>';
   });
-  html += '</div><div id="chart-container" class="chart-container"><div id="chart-root" style="width:100%;height:560px"></div></div>';
+  html += '</div><div id="chart-container" class="chart-container"><div id="chart-root" style="width:100%;height:410px"></div></div>';
   container.innerHTML = html;
   if (typeof LightweightCharts === 'undefined') {
     document.getElementById('chart-root').innerHTML = '<div class="empty" style="padding:60px">图表库加载中...请确保网络连接正常</div>';
@@ -1709,6 +1720,23 @@ function loadChart(symbol) {
     open: b.o, high: b.h, low: b.l, close: b.c,
   }));
   candleSeries.setData(chartData);
+
+  const sigs = (DATA.signals[symbol] || []).filter(s => s.aiScore != null && s.time);
+  if (sigs.length) {
+    const scoreData = [];
+    for (const s of sigs) {
+      const t = Math.round(new Date(s.time).getTime() / 1000 / 300) * 300;
+      if (t >= bars[0]?.t && t <= bars[bars.length - 1]?.t) {
+        scoreData.push({ time: t, value: s.aiScore,
+          color: s.aiScore >= 7 ? 'rgba(69,212,131,0.7)' : s.aiScore >= 5 ? 'rgba(255,213,74,0.6)' : 'rgba(255,107,125,0.5)' });
+      }
+    }
+    if (scoreData.length) {
+      const scoreSeries = _klineChart.addHistogramSeries({ priceScaleId: 'score', priceFormat: { type: 'volume' } });
+      scoreSeries.setData(scoreData);
+      _klineChart.priceScale('score').applyOptions({ scaleMargins: { top: 0.88, bottom: 0 }, visible: true, borderVisible: false });
+    }
+  }
 
   const orders = DATA.orders.filter(o => o.symbol === symbol);
   const openPositions = DATA.positions.filter(p => p.symbol === symbol);
@@ -2008,6 +2036,61 @@ function showVersion() {
   console.log(`Short-Term K-line Trader ${VERSION}`);
 }
 
+function editConfig() {
+  ensureDir(AGENT_DIR);
+  const cfgPath = CONFIG_FILE;
+  if (!fs.existsSync(cfgPath)) saveJson(cfgPath, DEFAULT_CONFIG);
+  execSync(`open "${cfgPath}"`);
+  console.log(`📝 配置文件已打开: ${cfgPath}`);
+}
+
+async function serveDashboard() {
+  const server = http.createServer(async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    if (req.url === '/api/config') {
+      if (req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(loadConfig(), null, 2));
+      } else if (req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+          try {
+            const newConfig = JSON.parse(body);
+            saveConfig(newConfig);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+          } catch (e) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+      } else {
+        res.writeHead(405);
+        res.end();
+      }
+    } else {
+      const html = buildDashboardHtml();
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+    }
+  });
+
+  const PORT = 8765;
+  server.listen(PORT, () => {
+    console.log(`🌐 仪表板服务已启动: http://localhost:${PORT}`);
+  });
+}
+
 async function showStats() {
   const stats = loadStats();
   const orders = loadOrders();
@@ -2067,6 +2150,8 @@ async function main() {
     case 'positions': await showPositions();      break;
     case 'setup':     await setupCron();          break;
     case 'env':       await setupEnv();           break;
+    case 'config':    editConfig();               break;
+    case 'serve':     await serveDashboard();      break;
     case 'version':   showVersion();              break;
     default:
       console.log('Usage: node scripts/short-term-trader.mjs [run|dashboard|stats|positions|setup|env|version]');
