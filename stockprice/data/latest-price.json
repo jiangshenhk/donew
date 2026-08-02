@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-08-02T03:47:10.369Z",
-  "checkedAt": "2026-08-02T03:47:10.369Z",
+  "updatedAt": "2026-08-02T06:21:44.657Z",
+  "checkedAt": "2026-08-02T06:21:44.657Z",
   "successCount": 24,
   "failCount": 1,
   "data": [
@@ -344,10 +344,10 @@
       "symbol": "BTC-USD",
       "category": "Bitcoin",
       "name": "Bitcoin USD",
-      "price": 63434.41,
+      "price": 63394.07,
       "previousClose": 62813.74609375,
-      "changePercent": "0.99",
-      "marketTime": "2026-08-02T03:46:52.000Z",
+      "changePercent": "0.92",
+      "marketTime": "2026-08-02T06:21:21.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
@@ -358,10 +358,10 @@
       "latestBarDate": "2026-08-02",
       "marketDate": "2026-08-02",
       "previousCloseGapNote": "previousClose来自2天前的K线，日变化可能跨多日",
-      "sma5": 63750.59921875,
-      "sma10": 64127.331640625,
-      "vs5Pct": "-0.50",
-      "vs10Pct": "-1.08",
+      "sma5": 63742.53125,
+      "sma10": 64123.29765625,
+      "vs5Pct": "-0.55",
+      "vs10Pct": "-1.14",
       "barCount": 20
     },
     {
@@ -401,7 +401,7 @@
       "marketState": null,
       "quoteSource": "yahoo-chart",
       "changePercentSource": "price-vs-previous-daily-close",
-      "previousCloseSource": "bar-derived-override-direct(101.05)",
+      "previousCloseSource": "bar-derived-override-direct(100.94)",
       "previousCloseDate": "2026-07-30",
       "latestBarDate": "2026-07-31",
       "marketDate": "2026-07-31",
@@ -410,7 +410,7 @@
       "sma10": 100.97100067138672,
       "vs5Pct": "-0.89",
       "vs10Pct": "-1.16",
-      "barCount": 18
+      "barCount": 17
     },
     {
       "symbol": "^TNX",
@@ -448,7 +448,7 @@
       "price": 157.4,
       "previousClose": 160.18299865722656,
       "changePercent": "-1.74",
-      "marketTime": "2026-08-01T04:21:18.000Z",
+      "marketTime": "2026-08-02T04:21:09.000Z",
       "currency": "JPY",
       "exchange": "CCY",
       "marketState": null,
@@ -456,9 +456,9 @@
       "changePercentSource": "price-vs-previous-daily-close",
       "previousCloseSource": "bar-derived-override-direct(161.449)",
       "previousCloseDate": "2026-07-31",
-      "latestBarDate": "2026-08-01",
-      "marketDate": "2026-08-01",
-      "previousCloseGapNote": null,
+      "latestBarDate": "2026-08-02",
+      "marketDate": "2026-08-02",
+      "previousCloseGapNote": "previousClose来自2天前的K线，日变化可能跨多日",
       "sma5": 161.70359802246094,
       "sma10": 162.47149810791015,
       "vs5Pct": "-2.66",
@@ -502,7 +502,7 @@
       "marketState": null,
       "quoteSource": "yahoo-chart",
       "changePercentSource": "price-vs-previous-daily-close",
-      "previousCloseSource": "bar-derived-override-direct(73.52)",
+      "previousCloseSource": "bar-derived-override-direct(72.08)",
       "previousCloseDate": "2026-07-30",
       "latestBarDate": "2026-07-31",
       "marketDate": "2026-07-31",
@@ -511,7 +511,7 @@
       "sma10": 85.10600051879882,
       "vs5Pct": "2.11",
       "vs10Pct": "-0.51",
-      "barCount": 18
+      "barCount": 17
     },
     {
       "symbol": "GC=F",
@@ -526,16 +526,16 @@
       "marketState": null,
       "quoteSource": "yahoo-chart",
       "changePercentSource": "price-vs-previous-daily-close",
-      "previousCloseSource": "bar-derived-override-direct(4070.9)",
+      "previousCloseSource": "bar-derived-override-direct(4130.6)",
       "previousCloseDate": "2026-07-30",
       "latestBarDate": "2026-07-31",
       "marketDate": "2026-07-31",
       "previousCloseGapNote": null,
-      "sma5": 4058.9400390625,
-      "sma10": 4063.7200439453127,
-      "vs5Pct": "1.18",
-      "vs10Pct": "1.07",
-      "barCount": 18
+      "sma5": 4070.52001953125,
+      "sma10": 4069.5100341796874,
+      "vs5Pct": "0.90",
+      "vs10Pct": "0.92",
+      "barCount": 17
     },
     {
       "symbol": "INTC",
