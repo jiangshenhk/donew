@@ -7,6 +7,9 @@ import marketReportV2Handler from '../api/market-report-v2.js';
 import newsSummaryHandler from '../api/news-summary.js';
 import baziAnalysisHandler from '../api/bazi-analysis.js';
 import putRatingHandler from '../api/put-rating.js';
+import barchartOverviewHandler from '../api/barchart-overview.js';
+import optionsRankingHandler from '../api/options-ranking.js';
+import optionsSignalsHandler from '../api/options-signals.js';
 
 const router = Router();
 
@@ -29,5 +32,8 @@ router.post('/api/ai/bazi-analysis', adaptAiRoute(baziAnalysisHandler));
 router.post('/api/bazi-analysis', adaptAiRoute(baziAnalysisHandler));
 router.post('/api/ai/put-rating', adaptAiRoute(putRatingHandler));
 router.post('/api/put-rating', adaptAiRoute(putRatingHandler));
+router.get('/api/barchart-overview', adaptAiRoute(barchartOverviewHandler));
+router.get('/api/options-ranking', adaptAiRoute(optionsRankingHandler));
+router.get('/api/options-signals', adaptAiRoute(optionsSignalsHandler));
 
 export default router;

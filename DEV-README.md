@@ -1037,6 +1037,17 @@ pm2 logs donew-backend
 | `OPENAI_API_KEY` | OpenAI API Key（可选） |
 | `ALLOWED_ORIGINS` | CORS 允许的源 |
 | `PORT` | 服务端口（默认 3000） |
+
+**API 部署分布**（部分数据源封 VPS IP，保留在 Vercel）：
+
+| API | 数据源 | 部署位置 | 原因 |
+|---|---|---|---|
+| report / sell-put-decision / put-rating / market-report-v2 / news-summary / bazi-analysis | DeepSeek + Yahoo | **VPS** | 独立直连 |
+| stock/prices | Yahoo Finance | **VPS** | 每5分钟抓取 |
+| news/latest | 金十（GitHub 中转） | **VPS** | 金十封 VPS IP |
+| options-ranking | Webull | **VPS** | 不封 IP |
+| barchart-overview | Barchart | **Vercel** | Barchart 封 VPS IP |
+| options-signals | Barchart | **Vercel** | Barchart 封 VPS IP |
 | `NEWS_SUMMARY_API` | 日报/晚报/周报 AI 端点（VPS 本地 `http://127.0.0.1:3000/api/ai/news-summary`） |
 
 ### 14.2 Vercel — 前端 CDN（冗余，待退役）
