@@ -5,6 +5,7 @@ import stockRoutes from './routes/stock.js';
 import newsRoutes from './routes/news.js';
 import healthRoutes from './routes/health.js';
 import aiRoutes from './routes/ai.js';
+import agentRoutes from './routes/agent.js';
 import { startCronJobs } from './cron.js';
 
 const app = express();
@@ -28,6 +29,8 @@ app.use('/api/news', corsMiddleware);
 app.use(healthRoutes);
 app.use(stockRoutes);
 app.use(newsRoutes);
+
+app.use(agentRoutes);
 
 app.use(aiRoutes);
 
@@ -53,6 +56,8 @@ app.get('/', corsMiddleware, (req, res) => {
       'POST /api/ai/news-summary            — 新闻摘要/日报',
       'POST /api/ai/bazi-analysis           — 八字命理分析',
       'POST /api/ai/put-rating              — 卖Put温度判断',
+      'GET  /api/agent/dashboard            — Sell Put Agent 仪表板',
+      'GET  /api/agent/status               — Sell Put Agent 状态',
     ]
   });
 });
