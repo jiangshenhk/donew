@@ -176,14 +176,21 @@ function saveKlineCache(symbol, newData) {
   const fpath = path.join(KLINE_DIR, symbol + '_5m.json');
   const existing = loadJson(fpath);
 
+  // Only keep 5-min aligned bars (drop Yahoo intermediate ticks)
+  const cleanBars = (bars) => (bars || [])
+    .filter(b => b.t % 300 === 0 && Number.isFinite(b.t))
+    .sort((a, b) => a.t - b.t)
+    .filter((b, i, arr) => i === 0 || b.t !== arr[i - 1].t);
+
   if (existing && existing.bars && existing.bars.length > 0 && newData.bars && newData.bars.length > 0) {
     const seen = new Set(existing.bars.map(b => b.t));
-    const fresh = newData.bars.filter(b => !seen.has(b.t));
+    const fresh = cleanBars(newData.bars).filter(b => !seen.has(b.t));
     if (fresh.length === 0) return;
     existing.bars = [...existing.bars, ...fresh].sort((a, b) => a.t - b.t);
     existing.date = new Date().toISOString();
     saveJson(fpath, existing);
   } else {
+    newData.bars = cleanBars(newData.bars);
     saveJson(fpath, newData);
   }
 }
@@ -1617,10 +1624,11 @@ function loadChart(symbol) {
     wickUpColor: '#ff6b7d', wickDownColor: '#45d483',
   });
 
-  const chartData = bars.map(b => ({
-    time: b.t,
-    open: b.o, high: b.h, low: b.l, close: b.c,
-  }));
+  const chartData = bars
+    .map(b => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c }))
+    .filter(b => Number.isFinite(b.time) && b.time > 0)
+    .sort((a, b) => a.time - b.time)
+    .filter((b, i, arr) => i === 0 || b.time !== arr[i - 1].time);
   candleSeries.setData(chartData);
 
   const sigs = (DATA.signals[symbol] || []).filter(s => s.aiScore != null && s.time);
