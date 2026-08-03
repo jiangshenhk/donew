@@ -36,8 +36,9 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
   行情+新闻 每5分钟（PM2 cron）
   日报 周一至五 8:28 / 晚报 20:28 / 周报 周六 9:00（香港时间，VPS 系统 cron，走本地 AI 端点）
   短线每5分钟 / 长线每日17:00 / SellPut每日08:00（系统cron）
-环境变量：DEEPSEEK_API_KEY 与 NEWS_SUMMARY_API（本地端点）在 VPS .env（已配），OpenAI 未使用
-金十新闻：VPS 本地抓取（GitHub Actions 已停，不再回传 GitHub）
+ 环境变量：DEEPSEEK_API_KEY 与 NEWS_SUMMARY_API（本地端点）在 VPS .env（已配），OpenAI 未使用
+ ⚠️ 金十新闻：VPS 直连 Jin10 被封锁（HTTP 502）→ 必须走 GitHub Actions 中转（GitHub IP 抓取 → commit 到仓库 → VPS 从 GitHub raw 读取）。`.github/workflows/` 的三份工作流文件不得删除。
+ ⚠️ NEWS_SUMMARY_API 必须指向 VPS 本地端点（日报/晚报/周报的 AI API），不能填公网地址。
 
 已知约定：改前端改 kline_robot_vercel/*.html，改后端改 vps-backend/src/，改后更新版本号，.env 不提交
 ```
@@ -1045,9 +1046,37 @@ pm2 logs donew-backend
 
 **配置文件**：`kline_robot_worker/wrangler.toml`
 
-### 14.4 GitHub Actions — 数据管道（冗余）
+### 14.4 GitHub Actions — 数据管道（**关键依赖，不可删除**）
 
-5 个流水线负责定时抓数据、生成报告，与 VPS cron 并行运行（双冗余）。
+⚠️ **这不是"冗余"，是新闻链路的必经中转。**
+
+**核心问题**：Jin10（金十数据）封锁了 RackNerd VPS 的 IP（`107.175.44.146`），直接搜索返回 HTTP 502。VPS 无法直连 Jin10 抓取新闻。
+
+**解决方案**：GitHub Actions 运行在 GitHub 的 IP 上（未被 Jin10 封锁）→ 定时抓取 Jin10 新闻并存入 `jin10news/data/latest-24h.json` → VPS 后端 `jin10News.js` 优先从 GitHub raw 读取该文件，作为新闻数据源。
+
+```
+GitHub Actions (GitHub IP, 未被封)
+    ↓ 每5分钟抓取
+jin10news/data/latest-24h.json (commit 到仓库)
+    ↓ VPS 从 GitHub raw 读取
+VPS jin10News.js → SQLite → /api/news/latest → Agent / 前端
+    ↓ 如果 GitHub 读取失败
+回退：Jin10 直接搜索（通常 502，但保底）
+```
+
+**依赖的 3 个 GitHub Actions 工作流（不可删除）**：
+
+| 工作流 | 文件 | 用途 |
+|---|---|---|
+| Jin10 新闻抓取 | `.github/workflows/update-jin10-news.yml` | 每 5 分钟抓一次，写入 `jin10news/data/` |
+| 行情快照更新 | `.github/workflows/update-stockprice.yml` | 每 5 分钟更新 `stockprice/data/latest-price.json` |
+| 市场报告自动生成 | `.github/workflows/generate-market-daily-reports.yml` | 早报/晚报/周报自动生成 |
+
+**历史教训**：2026-08-03 迁移 VPS 时误将这三个工作流标记为"停用"并删除（commit `9e002642`），随后 Jin10 直搜失效导致 VPS 新闻链路完全断裂，当天紧急恢复。**此后不得删除这些工作流。**
+
+**行情中心**：`stockprice/data/latest-price.json` 也由 GitHub Actions 维护。VPS stockPrice.js 直接从 Yahoo Finance 抓取行情（不受 IP 封锁），因此行情数据有 VPS 内网 + GitHub Actions 双路。但 Agent 已改为从 VPS API 读取行情（`/api/stock/prices`），不再依赖 GitHub raw 的行情文件。
+
+**VPS 新闻链路的特殊性**：`jin10News.js` 优先从 GitHub raw 读取并标记 `sourceMode: github-proxy`，仅在读取失败时回退到 Jin10 直接搜索。如果 GitHub Actions 停用，GitHub 文件将不更新，新闻逐渐过时（但 data 仍可读），Jin10 直搜回退由于 IP 封锁大概率 502。
 
 ### 14.5 GitHub Pages — 已迁移
 
