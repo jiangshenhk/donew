@@ -88,7 +88,7 @@ const FRED_SERIES = {
   "^2YR": "DGS2",
   "DX-Y.NYB": "DTWEXBGS",
 };
-const STOCKPRICE_SNAPSHOT_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
+const STOCKPRICE_SNAPSHOT_URL = "http://localhost:3000/api/stock/prices";
 const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
 const STRATEGY_BASELINE_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md";
 const STRATEGY_BASELINE_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -198,9 +198,7 @@ async function loadStockpriceSnapshot(forceRefresh = false) {
       cacheServedAt: new Date().toISOString(),
     };
   }
-  const res = await timedFetch(STOCKPRICE_SNAPSHOT_URL, {
-    headers: browserHeaders("https://raw.githubusercontent.com/"),
-  }, 8000);
+  const res = await timedFetch(STOCKPRICE_SNAPSHOT_URL + '?t=' + Date.now(), {}, 8000);
   if (!res.ok) throw new Error(`stockprice HTTP ${res.status}`);
   const payload = await res.json();
   if (!payload || !Array.isArray(payload.data)) throw new Error("stockprice snapshot invalid");

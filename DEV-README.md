@@ -32,9 +32,12 @@ VPS 目录：/home/ai_worker/stock_project/（对应仓库 vps-backend/）
 VPS 代码部署：
 ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && pm2 restart donew-backend"
 
-定时任务：行情+新闻每5分钟（PM2 cron），短线每5分钟/长线每日17:00/SellPut每日08:00（系统cron）
-环境变量：DEEPSEEK_API_KEY 在 VPS .env（已配），OpenAI 未使用
-金十新闻：GitHub Actions抓取 → VPS从GitHub raw读取（绕过IP封锁）
+定时任务（全部在 VPS，GitHub Actions 已停用）：
+  行情+新闻 每5分钟（PM2 cron）
+  日报 周一至五 8:28 / 晚报 20:28 / 周报 周六 9:00（香港时间，VPS 系统 cron，走本地 AI 端点）
+  短线每5分钟 / 长线每日17:00 / SellPut每日08:00（系统cron）
+环境变量：DEEPSEEK_API_KEY 与 NEWS_SUMMARY_API（本地端点）在 VPS .env（已配），OpenAI 未使用
+金十新闻：VPS 本地抓取（GitHub Actions 已停，不再回传 GitHub）
 
 已知约定：改前端改 kline_robot_vercel/*.html，改后端改 vps-backend/src/，改后更新版本号，.env 不提交
 ```

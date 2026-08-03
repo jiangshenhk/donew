@@ -5,7 +5,7 @@ import {
   calculateMarketRisk,
 } from './_lib/sell-put-decision-core.js';
 
-const STOCKPRICE_SNAPSHOT_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
+const STOCKPRICE_SNAPSHOT_URL = "http://localhost:3000/api/stock/prices";
 const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
 const FOCUS_SYMBOLS = [
   { symbol: "QQQ", market: "us" },

@@ -15,7 +15,7 @@ import {
 } from './_lib/sell-put-decision-core.js';
 import { fetchOptionsChain, selectBestContract } from './_lib/barchart-options-chain.js';
 
-const STOCKPRICE_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json";
+const STOCKPRICE_URL = "http://localhost:3000/api/stock/prices";
 const STOCKPRICE_CACHE_TTL = 5 * 60 * 1000;
 const FOCUS_SYMBOLS = [
   { symbol: "QQQ", market: "us" }, { symbol: "SPY", market: "us" }, { symbol: "IWM", market: "us" },

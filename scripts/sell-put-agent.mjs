@@ -39,8 +39,9 @@ async function sendNotify(title, message, tags = '') {
 
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
 const BARCHART = 'https://www.barchart.com';
-const STOCKPRICE_URL = 'https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json';
-const NEWS_URL = 'https://raw.githubusercontent.com/jiangshenhk/donew/main/jin10news/data/latest-24h.json';
+const VPS_BASE = 'http://107.175.44.146';
+const STOCKPRICE_URL = `${VPS_BASE}/api/stock/prices`;
+const NEWS_URL = `${VPS_BASE}/api/news/latest?limit=20`;
 
 const AGENT_DIR  = path.join(homedir(), '.donew-agent');
 const JOURNAL_DIR = path.join(AGENT_DIR, 'journal');
@@ -379,11 +380,11 @@ async function fetchPrices() {
   for (const item of (json.data || [])) {
     map[String(item.symbol || '').toUpperCase()] = {
       price: num(item.price),
-      prevClose: num(item.previousClose),
-      changePct: num(item.changePercent),
+      prevClose: num(item.previousClose ?? item.previous_close),
+      changePct: num(item.changePercent ?? item.change_percent),
       dailyAtr: num(item.dailyAtr),
       weeklyAtr: num(item.weeklyAtr),
-      marketTime: item.marketTime || '',
+      marketTime: item.marketTime || item.market_time || '',
     };
   }
   return map;
@@ -468,9 +469,10 @@ async function fetchNews() {
     });
     if (!res.ok) return [];
     const json = await res.json();
-    return (json.items || []).slice(0, 20).map(item => ({
+    const items = json.items || json.data || [];
+    return items.slice(0, 20).map(item => ({
       title: item.title || '',
-      content: (item.content || item.summary || '').slice(0, 200),
+      content: (item.content || item.title || item.summary || '').slice(0, 200),
       time: item.time || item.pubDate || '',
     }));
   } catch {

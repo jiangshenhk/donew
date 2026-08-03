@@ -18,10 +18,16 @@ function adaptAiRoute(handler) {
 }
 
 router.post('/api/ai/sell-put-decision', adaptAiRoute(sellPutDecisionHandler));
+router.post('/api/sell-put-decision', adaptAiRoute(sellPutDecisionHandler));
 router.post('/api/ai/report', adaptAiRoute(reportHandler));
+router.post('/api/report', adaptAiRoute(reportHandler));
 router.get('/api/ai/market-report', adaptAiRoute(marketReportV2Handler));
+router.get('/api/market-report-v2', adaptAiRoute(marketReportV2Handler));
 router.post('/api/ai/news-summary', adaptAiRoute(newsSummaryHandler));
+router.post('/api/news-summary', adaptAiRoute(newsSummaryHandler));
 router.post('/api/ai/bazi-analysis', adaptAiRoute(baziAnalysisHandler));
+router.post('/api/bazi-analysis', adaptAiRoute(baziAnalysisHandler));
 router.post('/api/ai/put-rating', adaptAiRoute(putRatingHandler));
+router.post('/api/put-rating', adaptAiRoute(putRatingHandler));
 
 export default router;

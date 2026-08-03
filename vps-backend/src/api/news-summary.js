@@ -1,7 +1,7 @@
 import { securityCheck } from './_lib/security.js';
 import { scanDecisionEventRisks } from './_lib/sell-put-decision-core.js';
 
-const NEWS_API = "https://api.github.com/repos/jiangshenhk/donew/contents/jin10news/data/latest-24h.json?ref=main";
+const NEWS_API = "http://localhost:3000/api/news/latest?limit=500";
 
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "*");
@@ -20,17 +20,16 @@ async function timedFetch(url, options = {}, timeoutMs = 110000) {
 
 export async function loadRecentMarketNews() {
   const response = await timedFetch(NEWS_API + "&t=" + Date.now(), {
-    headers: { Accept: "application/vnd.github+json", "User-Agent": "donew-news-summary" }
+    headers: { Accept: "application/json", "User-Agent": "donew-vps-news" }
   }, 12000);
-  if (!response.ok) throw new Error("读取24小时新闻失败：GitHub HTTP " + response.status);
-  const meta = await response.json();
-  const payload = JSON.parse(Buffer.from(String(meta.content || "").replace(/\n/g, ""), "base64").toString("utf8"));
+  if (!response.ok) throw new Error("读取24小时新闻失败：HTTP " + response.status);
+  const payload = await response.json();
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
   const items = (Array.isArray(payload.items) ? payload.items : [])
     .filter(item => Date.parse(item.time) >= cutoff)
     .sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
   if (!items.length) throw new Error("最近24小时新闻缓存为空");
-  return { ...payload, items, count: items.length, contentSha: meta.sha };
+  return { ...payload, items, count: items.length, contentSha: null };
 }
 
 const IMPORTANT = /美联储|央行|利率|降息|加息|通胀|CPI|PCE|非农|战争|导弹|袭击|制裁|霍尔木兹|特朗普|关税|原油|黄金|比特币|暴跌|暴涨|熔断|违约|破产|紧急|意外/u;
