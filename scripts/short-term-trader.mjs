@@ -1603,6 +1603,7 @@ window.switchKline = function(sym) {
 };
 
 function loadChart(symbol) {
+  try {
   const kdata = DATA.klines[symbol];
   const bars = kdata?.bars || [];
   if (!bars.length) return;
@@ -1788,6 +1789,11 @@ function loadChart(symbol) {
   const totalBars = bars.length;
   const startLogical = Math.max(0, totalBars - 100);
   _klineChart.timeScale().setVisibleLogicalRange({ from: startLogical, to: totalBars });
+  } catch (err) {
+    console.error('loadChart error for ' + symbol + ':', err.message);
+    const root = document.getElementById('chart-root');
+    if (root) root.innerHTML = '<div class="empty" style="padding:40px">图表渲染错误: ' + err.message + '</div>';
+  }
 }
 
 // ─── Auto-refresh ───
