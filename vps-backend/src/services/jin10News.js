@@ -2,6 +2,7 @@ import db from '../db.js';
 import config from '../config.js';
 import crypto from 'crypto';
 
+const GITHUB_RAW = 'https://raw.githubusercontent.com/jiangshenhk/donew/main/jin10news/data/latest-24h.json';
 const SEARCH_API = 'https://search-open-api.jin10.com/offset/search';
 const HOMEPAGE_URL = 'https://www.jin10.com/index.html';
 const CATEGORY_KEYWORD = '金十数据整理';
@@ -115,25 +116,57 @@ function classifyNews(content) {
   return categories.length ? [...new Set(categories)] : ['其他'];
 }
 
+async function fetchFromGitHub() {
+  try {
+    const res = await fetch(GITHUB_RAW + '?t=' + Date.now(), {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-vps/1.0)' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const items = (json.items || []).map(item => ({
+      id: item.id || crypto.createHash('sha1').update(item.time + '|' + item.content).digest('hex'),
+      time: item.time,
+      content: item.content,
+      url: item.url || null,
+      categories: classifyNews(item.content),
+    }));
+    return { items, sourceMode: 'github-' + (json.sourceMode || 'proxy') };
+  } catch (error) {
+    console.warn(`GitHub fetch failed: ${error.message}`);
+    return null;
+  }
+}
+
 export async function fetchAllNews() {
   const now = new Date();
   const cutoff = new Date(now.getTime() - config.newsWindowHours * 60 * 60 * 1000);
-  const fetched = [];
   let sourceMode = 'search';
 
-  for (let page = 1; page <= 12; page += 1) {
-    try {
-      const items = await fetchPage(page);
-      fetched.push(...items);
-      console.log(`Jin10 page=${page} parsed=${items.length}`);
-      if (!items.length) break;
-      const oldest = Math.min(...items.map(item => new Date(item.time).getTime()));
-      if (oldest < cutoff.getTime()) break;
-    } catch (error) {
-      console.warn(`Jin10 page=${page} failed: ${error.message}`);
-      break;
+  // 1. 优先从 GitHub 获取（绕过 Jin10 IP 封锁）
+  let fetched = [];
+  const githubResult = await fetchFromGitHub();
+  if (githubResult && githubResult.items.length > 0) {
+    fetched = githubResult.items;
+    sourceMode = githubResult.sourceMode;
+    console.log(`Jin10 via GitHub: ${fetched.length} items`);
+  } else {
+    // 2. 回退：直接抓 Jin10
+    for (let page = 1; page <= 12; page += 1) {
+      try {
+        const items = await fetchPage(page);
+        fetched.push(...items);
+        console.log(`Jin10 page=${page} parsed=${items.length}`);
+        if (!items.length) break;
+        const oldest = Math.min(...items.map(item => new Date(item.time).getTime()));
+        if (oldest < cutoff.getTime()) break;
+      } catch (error) {
+        console.warn(`Jin10 page=${page} failed: ${error.message}`);
+        break;
+      }
+      await sleep(1200);
     }
-    await sleep(1200);
+    sourceMode = 'direct-search';
   }
 
   if (!fetched.length) {
@@ -144,7 +177,7 @@ export async function fetchAllNews() {
 
   const categorized = fetched.map(item => ({
     ...item,
-    categories: JSON.stringify(classifyNews(item.content))
+    categories: JSON.stringify(item.categories || classifyNews(item.content))
   }));
 
   const insert = db.prepare(`
@@ -161,7 +194,7 @@ export async function fetchAllNews() {
   tx();
 
   const count = db.prepare('SELECT COUNT(*) as count FROM jin10_news').get().count;
-  logFetch('news', 'ok', `fetched ${categorized.length} items, total=${count}`);
+  logFetch('news', 'ok', `fetched ${categorized.length} items, total=${count}, source=${sourceMode}`);
   console.log(`Jin10 fetch done: added=${categorized.length} total=${count} sourceMode=${sourceMode}`);
   return categorized;
 }
