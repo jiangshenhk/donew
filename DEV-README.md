@@ -1018,6 +1018,7 @@ pm2 logs donew-backend
 | 短线K线交易 | 每 5 分钟 | 系统 cron |
 | 长线趋势交易 | 每日 17:00 HK | 系统 cron |
 | SellPut 纸面 | 每日 08:00 HK | 系统 cron |
+| 市场周报 | 周六 09:00 HK | 系统 cron（`run-weekly-report.sh`，走 VPS 本地 AI 端点） |
 
 **环境变量**（`/home/ai_worker/stock_project/.env`）：
 | 变量名 | 用途 |
@@ -1027,6 +1028,7 @@ pm2 logs donew-backend
 | `OPENAI_API_KEY` | OpenAI API Key（可选） |
 | `ALLOWED_ORIGINS` | CORS 允许的源 |
 | `PORT` | 服务端口（默认 3000） |
+| `NEWS_SUMMARY_API` | 日报/晚报/周报 AI 端点（VPS 本地 `http://127.0.0.1:3000/api/ai/news-summary`） |
 
 ### 14.2 Vercel — 前端 CDN（冗余，待退役）
 
