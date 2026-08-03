@@ -44,7 +44,7 @@ function marketSnapshot(root) {
 }
 
 async function callNewsSummary({ reportType, news, snapshot, prompt, strategySource }) {
-  const endpoint = process.env.NEWS_SUMMARY_API || 'https://donew-beta.vercel.app/api/news-summary';
+  const endpoint = process.env.NEWS_SUMMARY_API || 'https://sellput.top/api/news-summary';
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

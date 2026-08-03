@@ -5,8 +5,8 @@
 ## 核心入口
 
 - [首页](../../README.md)
-- [AI 看市场](https://donew-beta.vercel.app/market-analysis-tool.html)
-- [AI 看 K 线](https://donew-beta.vercel.app/kline-robot.html)
+- [AI 看市场](https://sellput.top/market-analysis-tool.html)
+- [AI 看 K 线](https://sellput.top/kline-robot.html)
 - [今日市场结构日报](../市场/今日.md)
 
 ## SEO 入口页

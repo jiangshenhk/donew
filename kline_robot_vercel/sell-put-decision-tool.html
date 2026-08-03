@@ -1507,7 +1507,7 @@
         const endpoint = rankingMode === 'volume'
           ? '/api/options-ranking?limit=100'
           : `/api/options-signals?type=${encodeURIComponent(rankingMode)}`;
-        const base = endpoint.includes('options-signals') ? 'https://donew-beta.vercel.app' : apiBase;
+        const base = endpoint.includes('options-signals') ? 'https://sellput.top' : apiBase;
         const url = `${base}${endpoint}${force ? `${endpoint.includes('?') ? '&' : '?'}force=1&_=${Date.now()}` : ''}`;
         const response = await fetch(url, { cache: force ? 'no-store' : 'default' });
         const json = await readApiJson(response, '榜单接口');

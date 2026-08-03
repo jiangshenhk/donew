@@ -25,7 +25,7 @@ GitHub Actions
 
 - 今日汇总页：`https://jiangshenhk.github.io/donew/#/docs/市场/今日.md`
 - 历史页：`https://jiangshenhk.github.io/donew/#/docs/市场/历史.md`
-- 前台即时工具页：`https://donew-beta.vercel.app/market-analysis-tool.html`
+- 前台即时工具页：`https://sellput.top/market-analysis-tool.html`
 
 注意：
 

@@ -4,12 +4,12 @@
 
 如果你是在改下面这些线上工具，通常首先应该看这里：
 
-- K线相识度：`https://donew-beta.vercel.app/kline-robot.html`
-- 24小时新闻中心：`https://donew-beta.vercel.app/jin10-news.html`
-- 最新每日/每周市场情况分析：`https://donew-beta.vercel.app/market-analysis-tool.html`
-- 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
-- 卖Put标的池扫描：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
-- 最新行情管理页：`https://donew-beta.vercel.app/price-test.html`
+- K线相识度：`https://sellput.top/kline-robot.html`
+- 24小时新闻中心：`https://sellput.top/jin10-news.html`
+- 最新每日/每周市场情况分析：`https://sellput.top/market-analysis-tool.html`
+- 综合卖Put决策：`https://sellput.top/sell-put-decision-tool.html`
+- 卖Put标的池扫描：`https://sellput.top/sell-put-pool-tool.html`
+- 最新行情管理页：`https://sellput.top/price-test.html`
 
 > **Sell Put Agent** 是本地 CLI 工具（`scripts/sell-put-agent.mjs`），不在 Vercel 上部署。文档见 `docs/tools/sell-put-agent/README.md`。
 > 标的池配置：`~/.donew-agent/pool.json`（`trading` 交易池 + `watchlist` 扫描池）。行情中心标的在 `stockprice/config/symbols.json`。

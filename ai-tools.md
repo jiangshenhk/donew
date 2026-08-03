@@ -11,7 +11,7 @@
 接口：
 
 ```http
-POST https://donew-beta.vercel.app/api/market/analyze
+POST https://sellput.top/api/market/analyze
 ```
 
 用途：
@@ -57,7 +57,7 @@ POST https://donew-beta.vercel.app/api/market/analyze
 接口：
 
 ```http
-POST https://donew-beta.vercel.app/api/kline/analyze
+POST https://sellput.top/api/kline/analyze
 ```
 
 用途：

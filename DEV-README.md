@@ -5,7 +5,7 @@
 | GitHub | `https://github.com/jiangshenhk/donew` |
 | 本地路径 | `/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
 | 线上域名 | **`https://sellput.top/`**（VPS 主站） |
-| VPS 冗余 | `https://donew-beta.vercel.app/`（Vercel，未主动更新） |
+| VPS 冗余 | `https://sellput.top/`（Vercel，未主动更新） |
 
 这份文件是给"新开的智能体对话 / 新接手的开发者"看的。
 
@@ -192,7 +192,7 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 
 | 项目 | 线上入口 | 说明 |
 | --- | --- | --- |
-| 航班实时跟踪 | `https://donew-beta.vercel.app/lucas/lucas_fly.html` | Leaflet + OpenSky API 实时航班面板 |
+| 航班实时跟踪 | `https://sellput.top/lucas/lucas_fly.html` | Leaflet + OpenSky API 实时航班面板 |
 
 ---
 
@@ -200,12 +200,12 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 
 ### 工具页
 
-- K线相识度：`https://donew-beta.vercel.app/kline-robot.html`
-- 24小时新闻中心：`https://donew-beta.vercel.app/jin10-news.html`
-- 最新每日 / 每周市场情况分析：`https://donew-beta.vercel.app/market-analysis-tool.html`
-- 综合卖Put决策：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
-- 卖Put标的池扫描：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
-- 最新行情管理页：`https://donew-beta.vercel.app/price-test.html`
+- K线相识度：`https://sellput.top/kline-robot.html`
+- 24小时新闻中心：`https://sellput.top/jin10-news.html`
+- 最新每日 / 每周市场情况分析：`https://sellput.top/market-analysis-tool.html`
+- 综合卖Put决策：`https://sellput.top/sell-put-decision-tool.html`
+- 卖Put标的池扫描：`https://sellput.top/sell-put-pool-tool.html`
+- 最新行情管理页：`https://sellput.top/price-test.html`
 
 ### 本地工具（CLI）
 
@@ -383,7 +383,7 @@ docs/tools/alpha-risk-tool/README.md
 
 新增工具时，页面风格、控件规格、结果页样式，统一参考：
 
-- [https://donew-beta.vercel.app/kline-robot.html](https://donew-beta.vercel.app/kline-robot.html)
+- [https://sellput.top/kline-robot.html](https://sellput.top/kline-robot.html)
 
 这是当前 donew 最成熟的交互页基准。
 
@@ -486,7 +486,7 @@ docs/tools/alpha-risk-tool/README.md
 仓库：https://github.com/jiangshenhk/donew
 本地：/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew
 
-我要修改这个工具：https://donew-beta.vercel.app/sell-put-decision-tool.html
+我要修改这个工具：https://sellput.top/sell-put-decision-tool.html
 
 你先读：
 1. DEV-README.md 第 13 章确认工具名称和文档位置
@@ -533,7 +533,7 @@ docs/tools/alpha-risk-tool/README.md
 
 #### K线相识度
 
-- 入口页：`https://donew-beta.vercel.app/kline-robot.html`
+- 入口页：`https://sellput.top/kline-robot.html`
 - 前端页面：
   - `kline-robot.html`
   - `kline_robot_vercel/kline-robot.html`
@@ -548,7 +548,7 @@ docs/tools/alpha-risk-tool/README.md
 
 #### 24小时新闻中心
 
-- 入口页：`https://donew-beta.vercel.app/jin10-news.html`
+- 入口页：`https://sellput.top/jin10-news.html`
 - 数据目录：
   - `jin10news/`
 - 展示页：
@@ -560,7 +560,7 @@ docs/tools/alpha-risk-tool/README.md
 
 #### 最新行情中心
 
-- 管理页：`https://donew-beta.vercel.app/price-test.html`
+- 管理页：`https://sellput.top/price-test.html`
 - 缓存文件：
   - `stockprice/data/latest-price.json`
 - 读取 API：
@@ -581,7 +581,7 @@ docs/tools/alpha-risk-tool/README.md
 
 #### 最新每日/每周市场情况分析
 
-- 入口页：`https://donew-beta.vercel.app/market-analysis-tool.html`
+- 入口页：`https://sellput.top/market-analysis-tool.html`
 - 前端页面：
   - `market-analysis-tool.html`
   - `kline_robot_vercel/market-analysis-tool.html`
@@ -616,7 +616,7 @@ docs/tools/alpha-risk-tool/README.md
 #### 卖 Put 温度判断 ⚠️ 已暂停维护
 
 > 功能已被 [综合卖Put决策](#35-综合卖-put-决策) 完全覆盖。该工具保留但不再更新。
-- 入口页：`https://donew-beta.vercel.app/sell-put-tool.html`
+- 入口页：`https://sellput.top/sell-put-tool.html`
 - 前端页面：
   - `sell-put-tool.html`
   - `kline_robot_vercel/sell-put-tool.html`
@@ -627,7 +627,7 @@ docs/tools/alpha-risk-tool/README.md
 
 #### 综合卖Put决策
 
-- 入口页：`https://donew-beta.vercel.app/sell-put-decision-tool.html`
+- 入口页：`https://sellput.top/sell-put-decision-tool.html`
 - 前端页面：
   - `sell-put-decision-tool.html`
   - `kline_robot_vercel/sell-put-decision-tool.html`
@@ -708,7 +708,7 @@ docs/tools/alpha-risk-tool/README.md
 
 #### 卖Put标的池扫描
 
-- 入口页：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
+- 入口页：`https://sellput.top/sell-put-pool-tool.html`
 - 前端页面：
   - `sell-put-pool-tool.html`
   - `kline_robot_vercel/sell-put-pool-tool.html`
@@ -729,7 +729,7 @@ docs/tools/alpha-risk-tool/README.md
 
 #### 八字命理分析
 
-- 入口页：`https://donew-beta.vercel.app/bazi-analysis-tool.html`
+- 入口页：`https://sellput.top/bazi-analysis-tool.html`
 - 前端页面：
   - `bazi-analysis-tool.html`
   - `kline_robot_vercel/bazi-analysis-tool.html`
@@ -742,7 +742,7 @@ docs/tools/alpha-risk-tool/README.md
 
 #### 内容总结分析（视频/文章）
 
-- 入口页：`https://donew-beta.vercel.app/video-summary-tool.html`
+- 入口页：`https://sellput.top/video-summary-tool.html`
 - 前端页面：
   - `video-summary-tool.html`
   - `kline_robot_vercel/video-summary-tool.html`

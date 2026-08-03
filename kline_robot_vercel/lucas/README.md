@@ -16,10 +16,10 @@
 
 | 项目 | 线上入口 | 类型 | 技术栈 | 最新版本 |
 | --- | --- | --- | --- | --- |
-| 航班实时跟踪 | [lucas_fly.html](https://donew-beta.vercel.app/lucas/lucas_fly.html) | 数据可视化 | Leaflet + OpenSky API | — |
-| 墨尔本活动地图 | [melbourne-events.html](https://donew-beta.vercel.app/lucas/melbourne-events.html) | 数据可视化 | Leaflet + DeepSeek API | — |
-| Sky Fighters 🛩️ | [lucas_flyplay.html](https://donew-beta.vercel.app/lucas/lucas_flyplay.html) | 3D 飞行射击 | Three.js | VER 1.0.5 |
-| 深渊守护者 | [lucas_zdgy.html](https://donew-beta.vercel.app/lucas/lucas_zdgy.html) | 2D 竖屏塔防射击 | Canvas 2D | VER 3.0.0 |
+| 航班实时跟踪 | [lucas_fly.html](https://sellput.top/lucas/lucas_fly.html) | 数据可视化 | Leaflet + OpenSky API | — |
+| 墨尔本活动地图 | [melbourne-events.html](https://sellput.top/lucas/melbourne-events.html) | 数据可视化 | Leaflet + DeepSeek API | — |
+| Sky Fighters 🛩️ | [lucas_flyplay.html](https://sellput.top/lucas/lucas_flyplay.html) | 3D 飞行射击 | Three.js | VER 1.0.5 |
+| 深渊守护者 | [lucas_zdgy.html](https://sellput.top/lucas/lucas_zdgy.html) | 2D 竖屏塔防射击 | Canvas 2D | VER 3.0.0 |
 | NEON//NOCTURNE Performance | [Download v10.11](./neon-nocturne-performance-v10.11.zip) | Optimized exploration with motion blur and AMD RSR fullscreen support | OpenGL | VER 10.11 |
 | NEON//NOCTURNE Cinematic | [Download v10.11](./neon-nocturne-cinematic-v10.11.zip) | Maximum-quality city with motion blur and AMD RSR fullscreen support | OpenGL | VER 10.11 |
 
