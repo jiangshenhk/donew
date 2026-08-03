@@ -1111,17 +1111,11 @@ async function runDaily() {
       console.log(`     $${c.strike?.toFixed(0)}P | DTE:${c.dte} | Δ:${c.delta?.toFixed(3)} | Bid:$${c.bid?.toFixed(2)} | OTM:${otm}%`);
     }
 
-    // ATR safety filter: use stockprice dailyAtr, fall back to 3% of price estimate
-    const dailyAtr = prices[symbol]?.dailyAtr;
-    const estAtr = (dailyAtr != null && dailyAtr > 0) ? dailyAtr : ((prices[symbol]?.price || 0) * 0.03);
-    const estSafePrice = prices[symbol]?.price && estAtr
-      ? prices[symbol].price - estAtr * Math.max(1.5, Math.sqrt(contracts[0].dte || 10))
-      : null;
-    const safeContracts = estSafePrice ? contracts.filter(c => c.strike <= estSafePrice) : contracts;
-    const contract = safeContracts.length ? safeContracts[0] : contracts[0];
-    if (!safeContracts.length && estSafePrice) {
-      console.log(`  ⚠️ 无ATR安全合约(安全价≤$${estSafePrice.toFixed(0)})，选OTM最大: $${contract.strike}P`);
-    }
+    // Pick best contract by delta + DTE score (already sorted).
+    // ATR safety is enforced later by hard downgrade rules — don't pre-filter here.
+    const contract = contracts[0];
+    const topThreeDelta = contracts.slice(0, 3).map(c => Math.abs(c.delta).toFixed(3)).join('/');
+    console.log(`  🎯 选中: $${contract.strike}P | Δ:${contract.delta?.toFixed(3)} | DTE:${contract.dte} | Top3 Δ: ${topThreeDelta}`);
 
     // Market data
     const priceInfo = prices[symbol] || {};
