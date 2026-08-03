@@ -27,8 +27,8 @@ const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 
-const VERSION = 'v1.1.0';
-const VERSION_NOTE = 'Linux兼容 + 时区HKT + jin10统计 + 限速修复';
+const VERSION = 'v2.0.0';
+const VERSION_NOTE = 'VPS部署稳定版';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
