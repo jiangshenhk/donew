@@ -21,8 +21,8 @@ const DASHBOARD_FILE = path.join(DATA_DIR, 'dashboard.html');
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
-const VERSION = 'v1.0.3';
-const VERSION_NOTE = '长线3时段 + 批量调用间隔8s防限速 + Linux兼容';
+const VERSION = 'v1.1.0';
+const VERSION_NOTE = '长线3时段 + 8s防限速 + Linux兼容 + jin10统计';
 
 // ─── ntfy ───────────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
