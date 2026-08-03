@@ -1064,13 +1064,18 @@ VPS jin10News.js → SQLite → /api/news/latest → Agent / 前端
 回退：Jin10 直接搜索（通常 502，但保底）
 ```
 
-**依赖的 3 个 GitHub Actions 工作流（不可删除）**：
+**依赖的 1 个关键 GitHub Actions 工作流（不可删除）**：
 
 | 工作流 | 文件 | 用途 |
 |---|---|---|
 | Jin10 新闻抓取 | `.github/workflows/update-jin10-news.yml` | 每 5 分钟抓一次，写入 `jin10news/data/` |
-| 行情快照更新 | `.github/workflows/update-stockprice.yml` | 每 5 分钟更新 `stockprice/data/latest-price.json` |
-| 市场报告自动生成 | `.github/workflows/generate-market-daily-reports.yml` | 早报/晚报/周报自动生成 |
+
+**已废弃（VPS cron 已接管，保留文件供参考）**：
+
+| 工作流 | 文件 | 替代方案 |
+|---|---|---|
+| 行情快照更新 | `.github/workflows/old.update-stockprice.yml` | VPS `stockPrice.js` 直连 Yahoo Finance |
+| 市场报告自动生成 | `.github/workflows/old.generate-market-daily-reports.yml` | VPS 系统 cron 脚本（`run-morning-report.sh` / `run-evening-report.sh` / `run-weekly-report.sh`）|
 
 **历史教训**：2026-08-03 迁移 VPS 时误将这三个工作流标记为"停用"并删除（commit `9e002642`），随后 Jin10 直搜失效导致 VPS 新闻链路完全断裂，当天紧急恢复。**此后不得删除这些工作流。**
 
