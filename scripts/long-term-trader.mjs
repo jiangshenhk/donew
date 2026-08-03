@@ -243,8 +243,8 @@ function calcWeeklyDirection(weeklyBars) {
     ema21: Math.round(ema21 * 100) / 100,
     lastPrice: Math.round(lastPrice * 100) / 100,
     reason: bullish
-      ? `周线多头（EMA9:${ema9.toFixed(2)} > EMA21:${ema21.toFixed(2)}，价>EMA9）`
-      : (ema9 > ema21 ? `周线中性（EMA多头但价略低于EMA9）` : `周线空头（EMA9:${ema9.toFixed(2)} < EMA21:${ema21.toFixed(2)}）`),
+      ? `日线多头（EMA9:${ema9.toFixed(2)} > EMA21:${ema21.toFixed(2)}，价>EMA9）`
+      : (ema9 > ema21 ? `周线中性（EMA多头但价略低于EMA9）` : `日线空头（EMA9:${ema9.toFixed(2)} < EMA21:${ema21.toFixed(2)}）`),
   };
 }
 
@@ -377,7 +377,7 @@ function buildScorePrompt(symbol, indicators, weekly) {
 - 量比: ${ind.volumeRatio}x${posSection}
 
 评分标准（1-10分）：
-- 1-3: 周线空头或日线趋势不明
+- 1-3: 日线空头或日线趋势不明
 - 4-6: 中性，信号不明确
 - 7-8: 日线趋势向上，MACD金叉，RSI配合
 - 9-10: 周线+日线共振，多指标完美
@@ -578,34 +578,32 @@ async function run(marketFilter = null) {
     }
 
     console.log(`\n  ${symbol}:`);
-    process.stdout.write(`    📡 周线...`);
+    process.stdout.write(`    📡 日线...`);
+    const dailyBars = await fetchBars(symbol, '1d', '3mo');
+    if (!dailyBars || dailyBars.length < 55) { console.log(` 数据不足`); continue; }
+    console.log(` ${dailyBars.length}根`);
+    saveJson(path.join(KLINES_DIR, symbol + '_daily.json'), { date: new Date().toISOString(), bars: dailyBars });
 
-    // Check weekly direction
-    const weekly = await getWeeklyDirection(symbol);
-    if (!weekly) { console.log(` 数据不足`); continue; }
-    console.log(` ${weekly.bullish ? '✅' : '❌'} ${weekly.reason}`);
-    if (!weekly.bullish) {
-      // Full analysis even for bearish (informational, no open)
-      process.stdout.write(`    📡 日线...`);
-      const dailyBars = await fetchBars(symbol, '1d', '3mo');
-      if (!dailyBars || dailyBars.length < 55) {
-        console.log(` 数据不足`);
-        saveSignals(symbol, [...loadSignals(symbol), {
-          time: new Date().toISOString(), price: weekly.lastPrice,
-          decision: 'SKIP', reasoning: weekly.reason + '（日线数据不足）',
-          weekly: { bullish: false, ema9: weekly.ema9, ema21: weekly.ema21 },
-        }]);
-        continue;
-      }
-      console.log(` ${dailyBars.length}根`);
-      saveJson(path.join(KLINES_DIR, symbol + '_daily.json'), { date: new Date().toISOString(), bars: dailyBars });
+    // Daily EMA direction filter (replaces weekly)
+    const closes = dailyBars.map(b => b.c);
+    const dema9 = calcEMA(closes, 9);
+    const dema21 = calcEMA(closes, 21);
+    const lastPrice = closes[closes.length - 1];
+    const dailyBullish = dema9 != null && dema21 != null && dema9 > dema21 && lastPrice > dema9;
+    const dailyMark = dailyBullish ? '✅' : '❌';
+    const dailyReason = dailyBullish
+      ? `日线多头（EMA9:${dema9.toFixed(2)} > EMA21:${dema21.toFixed(2)}，价>EMA9）`
+      : (dema9 > dema21 ? `日线中性（EMA多头但价略低于EMA9）` : `日线空头（EMA9:${dema9.toFixed(2)} < EMA21:${dema21.toFixed(2)}）`);
+    console.log(`    EMA ${dailyMark} ${dailyReason}`);
+    const weekly = { bullish: dailyBullish, ema9: dema9, ema21: dema21, lastPrice, reason: dailyReason };
 
+    if (!dailyBullish) {
       const indicators = computeDailyIndicators(dailyBars);
       if (!indicators) { continue; }
 
       const rules = checkEntryRules(indicators);
       const ruleIcons = `MACD:${rules.details.macd?'✅':'❌'} RSI:${rules.details.rsi?'✅':'❌'} EMA:${rules.details.ema?'✅':'❌'} Vol:${rules.details.volume?'✅':'❌'}`;
-      console.log(`    规则: ${ruleIcons} | ${rules.triggered ? '✅ 触发（若周线多则可开仓）' : '❌ 未触发'}`);
+      console.log(`    规则: ${ruleIcons} | ${rules.triggered ? '✅ 触发（若日线多则可开仓）' : '❌ 未触发'}`);
 
       process.stdout.write(`    🧠 AI评分...`);
       const ai = await scoreEntry(symbol, indicators, weekly);
@@ -615,7 +613,7 @@ async function run(marketFilter = null) {
 
       saveSignals(symbol, [...loadSignals(symbol), {
         time: new Date().toISOString(), price: dailyBars[dailyBars.length-1].c,
-        decision: 'SKIP', reasoning: `周线空头 | ${ai.reasoning}`,
+        decision: 'SKIP', reasoning: `日线空头 | ${ai.reasoning}`,
         rulesTriggered: rules.triggered, rules: rules.details, aiScore: ai.score,
         weekly: { bullish: false, ema9: weekly.ema9, ema21: weekly.ema21 },
         indicators: { ema9: indicators.ema9, ema21: indicators.ema21, rsi: indicators.rsi,
@@ -629,7 +627,7 @@ async function run(marketFilter = null) {
     const dailyBars = await fetchBars(symbol, '1d', '3mo');
     if (!dailyBars || dailyBars.length < 55) { console.log(` 数据不足`); continue; }
     console.log(` ${dailyBars.length}根`);
-    saveJson(path.join(KLINES_DIR, symbol + '_daily.json'), { date: new Date().toISOString(), bars: dailyBars });
+    }
 
     // Check if already holding
     if (openPositions.find(p => p.symbol === symbol)) {

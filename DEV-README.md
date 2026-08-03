@@ -5,7 +5,7 @@
 | GitHub | `https://github.com/jiangshenhk/donew` |
 | 本地路径 | `/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
 | 线上域名 | **`https://sellput.top/`**（VPS 主站） |
-| VPS 冗余 | `https://sellput.top/`（Vercel，未主动更新） |
+| Vercel（仅2个API） | `https://donew-beta.vercel.app/`（Barchart 数据，VPS IP被封） |
 
 这份文件是给"新开的智能体对话 / 新接手的开发者"看的。
 
