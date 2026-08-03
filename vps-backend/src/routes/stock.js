@@ -48,4 +48,13 @@ router.get('/api/stock/fetch-log', (req, res) => {
   res.json({ ok: true, data: logs });
 });
 
+router.get('/api/stock/stats', (req, res) => {
+  const totalRecords = db.prepare('SELECT COUNT(*) as c FROM stock_prices').get().c;
+  const uniqueDates = db.prepare("SELECT COUNT(DISTINCT DATE(updated_at)) as c FROM stock_prices").get().c;
+  const uniqueSymbols = db.prepare("SELECT COUNT(DISTINCT symbol) as c FROM stock_prices WHERE error IS NULL").get().c;
+  const firstDate = db.prepare("SELECT MIN(updated_at) as d FROM stock_prices").get().d;
+  const lastDate = db.prepare("SELECT MAX(updated_at) as d FROM stock_prices").get().d;
+  res.json({ ok: true, totalRecords, uniqueDates, uniqueSymbols, firstDate, lastDate });
+});
+
 export default router;

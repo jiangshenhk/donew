@@ -175,6 +175,41 @@ function latestClose(result) {
   return null;
 }
 
+function is24hSymbol(symbol) {
+  return /BTC|ETH|SOL|DOGE|USDT|crypto/i.test(symbol);
+}
+
+function isWeekday() {
+  const day = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+  return day !== 'Sat' && day !== 'Sun';
+}
+
+function etMinutes() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date());
+  const h = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+  const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+  return h * 60 + m;
+}
+
+function isUsMarketOpen() {
+  if (!isWeekday()) return false;
+  const m = etMinutes();
+  return m >= 570 && m < 960; // 9:30 - 16:00 ET
+}
+
+function isUsPostClose() {
+  if (!isWeekday()) return false;
+  const m = etMinutes();
+  return m >= 960 && m < 990; // 16:00 - 16:30 ET (close fix)
+}
+
+function shouldFetch(symbol) {
+  if (is24hSymbol(symbol)) return true;
+  return isUsMarketOpen() || isUsPostClose();
+}
+
 export async function fetchAllPrices() {
   const symbols = loadSymbols();
   if (!symbols.length) {
@@ -182,14 +217,31 @@ export async function fetchAllPrices() {
     logFetch('stock', 'fail', 'No symbols configured');
     return [];
   }
+
+  const now = new Date();
+  if (!isWeekday()) {
+    const activeCount = symbols.filter(s => is24hSymbol(s.symbol)).length;
+    if (activeCount === 0) {
+      console.log('US market closed (weekend), no 24h symbols, skip');
+      return [];
+    }
+    console.log(`US market closed (weekend), only ${activeCount} 24h symbols`);
+  }
+
   const data = [];
   for (const item of symbols) {
+    const symbol = typeof item === 'string' ? item : item.symbol;
+    if (!shouldFetch(symbol)) {
+      console.log(`  ⏸️ ${symbol}: market closed, skip`);
+      data.push({ symbol, category: item.category || 'Unknown', error: 'market closed' });
+      continue;
+    }
     data.push(await fetchOneSymbol(item));
     await sleep(1000);
   }
   const successCount = data.filter(x => !x.error).length;
   const failCount = data.length - successCount;
-  const now = new Date().toISOString();
+  const fetchTime = new Date().toISOString();
   const insert = db.prepare(`
     INSERT OR REPLACE INTO stock_prices (symbol, category, name, price, previous_close, change_percent,
       market_time, currency, exchange, market_state, sma5, sma10, vs5_pct, vs10_pct,
@@ -210,7 +262,7 @@ export async function fetchAllPrices() {
   };
   const tx = db.transaction(() => {
     for (const item of data) {
-      insert.run({ ...defaults, ...item, updatedAt: now, error: item.error || null });
+      insert.run({ ...defaults, ...item, updatedAt: fetchTime, error: item.error || null });
     }
   });
   tx();

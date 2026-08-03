@@ -172,6 +172,14 @@ let currentPage=1, pageSize=30;
 let sortKey=null, sortAsc=true;
 let refreshCount=0, loadSource='';
 let updatedAt='', checkedAt='', successCount=0, failCount=0;
+let dbStats={totalRecords: 0, uniqueDates: 0, uniqueSymbols: 0, firstDate: '', lastDate: ''};
+
+async function fetchDbStats() {
+  try {
+    const r = await fetch('http://107.175.44.146/api/stock/stats');
+    if (r.ok) dbStats = await r.json();
+  } catch {}
+}
 
 let openCol=null;
 let filterState={};
@@ -393,6 +401,9 @@ function renderSummaryBar(){
     <div class="card"><div class="label">成功 / 失败</div><div class="value">${successCount} / ${failCount}</div></div>
     <div class="card"><div class="label">缓存时间</div><div class="value" style="font-size:14px">${ft(updatedAt)||'—'}</div></div>
     <div class="card"><div class="label">缓存年龄</div><div class="value">${ageText}</div></div>
+    <div class="card"><div class="label">总记录数</div><div class="value">${dbStats.totalRecords.toLocaleString()}</div></div>
+    <div class="card"><div class="label">累计天数</div><div class="value">${dbStats.uniqueDates}</div></div>
+    <div class="card"><div class="label">标的数</div><div class="value">${dbStats.uniqueSymbols}</div></div>
     <div class="card"><div class="label">数据源</div><div class="sub-value">${esc(loadSource)}</div></div>
     <div class="card"><div class="label">刷新次数</div><div class="value">${refreshCount}</div><span id="changeIndicator" style="font-size:12px;margin-top:4px;${flashIds.size>0?'display:inline':'display:none'}">● 数据变更</span></div>`;
 }
@@ -437,6 +448,7 @@ async function loadPrice(silent=false){
     applyFilters(false);
     if(changed.length&&!silent){render()}
     refreshCount++;
+    await fetchDbStats();
     if(!silent)renderSummaryBar();
   }catch(e){
     $('summaryBar').innerHTML='<div class="card status-bad"><div class="label">状态</div><div class="value"><span class="status-dot"></span>读取失败</div><div class="sub-value">'+esc(e.message).slice(0,80)+'</div></div>';
