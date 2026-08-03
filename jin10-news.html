@@ -143,7 +143,7 @@ async function generate(){
  showError('');$('generate').disabled=true;let sec=0;$('progress').textContent='正在生成 0s';timer=setInterval(function(){sec++;$('progress').textContent='正在生成 '+sec+'s'},1000);
  $('report').innerHTML='<div class="empty">正在读取24小时新闻并分析市场主线…</div>';
  try{
-  const r=await fetch('http://107.175.44.146/api/ai/news-summary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('provider').value})});
+  const r=await fetch('https://sellput.top/api/ai/news-summary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('provider').value})});
   const data=await r.json();if(!r.ok||!data.ok)throw new Error(data.message||'生成失败');
   currentReport=data.report;currentReport.markdown=normalizeDisplayMarkdown(currentReport.markdown);$('report').innerHTML=renderMarkdown(currentReport.markdown);$('reportActions').style.display='flex';
   $('reportMeta').textContent='模型：'+currentReport.provider+'｜原始新闻：'+currentReport.totalItems+'条｜送入分析：'+currentReport.analyzedItems+'条｜生成：'+fmt.format(new Date(currentReport.generatedAt));

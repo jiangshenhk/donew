@@ -141,8 +141,8 @@ tr.row-flash{animation:rowFlash 2s ease-out}
 /* ═══════════════════════════════════════
    1. 常量与配置
    ═══════════════════════════════════════ */
-const PRICE_URL='http://107.175.44.146/api/stock/prices';
-const CONTENTS_API='http://107.175.44.146/api/stock/prices';
+const PRICE_URL='https://sellput.top/api/stock/prices';
+const CONTENTS_API='https://sellput.top/api/stock/prices';
 const $=id=>document.getElementById(id);
 const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 $('raw').href=PRICE_URL;
@@ -176,7 +176,7 @@ let dbStats={totalRecords: 0, uniqueDates: 0, uniqueSymbols: 0, firstDate: '', l
 
 async function fetchDbStats() {
   try {
-    const r = await fetch('http://107.175.44.146/api/stock/stats');
+    const r = await fetch('https://sellput.top/api/stock/stats');
     if (r.ok) dbStats = await r.json();
   } catch {}
 }

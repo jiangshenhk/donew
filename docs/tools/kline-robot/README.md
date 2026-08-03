@@ -2,7 +2,7 @@
 
 ## 线上入口
 
-`http://107.175.44.146/kline-robot.html`
+`https://sellput.top/kline-robot.html`
 
 ## 功能概述
 

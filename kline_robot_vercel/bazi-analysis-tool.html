@@ -215,7 +215,7 @@ document.getElementById("btnGo").addEventListener("click",function(){
   var st=0,timer=setInterval(function(){st++;document.getElementById("btnGo").textContent="⏳ "+st+"s"},1000);
   var sl=document.getElementById("statusLine");if(sl)sl.textContent="";
 
-  fetch("http://107.175.44.146/api/ai/bazi-analysis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+  fetch("https://sellput.top/api/ai/bazi-analysis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
     name:nameVal||undefined,gender:gender,year:y,month:m,day:d,hour:h,work:workVal||undefined
   })})
   .then(r=>r.json())

@@ -4,7 +4,7 @@
 
 ## 线上入口
 
-`http://107.175.44.146/bazi-analysis-tool.html`
+`https://sellput.top/bazi-analysis-tool.html`
 
 ## 功能概述
 

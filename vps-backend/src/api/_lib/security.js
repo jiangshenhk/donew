@@ -1,7 +1,7 @@
 const ALLOWED_ORIGINS = [
   'https://jiangshenhk.github.io',
   'https://donew-beta.vercel.app',
-  'http://107.175.44.146',
+  'https://sellput.top',
 ];
 
 const DAILY_LIMIT = 100;

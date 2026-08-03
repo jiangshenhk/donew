@@ -4,7 +4,7 @@
 |---|---|
 | GitHub | `https://github.com/jiangshenhk/donew` |
 | 本地路径 | `/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
-| 线上域名 | **`http://107.175.44.146/`**（VPS 主站） |
+| 线上域名 | **`https://sellput.top/`**（VPS 主站） |
 | VPS 冗余 | `https://donew-beta.vercel.app/`（Vercel，未主动更新） |
 
 这份文件是给"新开的智能体对话 / 新接手的开发者"看的。
@@ -25,7 +25,7 @@
 
 当前部署架构（2026-08-03 迁移后）：
 主部署 RackNerd VPS 107.175.44.146（Ubuntu 24.04，Node.js + PM2 + Nginx + SQLite）
-访问入口：http://107.175.44.146/
+访问入口：https://sellput.top/
 VPS 目录：/home/ai_worker/stock_project/（对应仓库 vps-backend/）
 重启命令：pm2 restart donew-backend
 
@@ -35,7 +35,7 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 定时任务（全部在 VPS，GitHub Actions 已停用）：
   行情+新闻 每5分钟（PM2 cron）
   日报 周一至五 8:28 / 晚报 20:28 / 周报 周六 9:00（香港时间，VPS 系统 cron，走本地 AI 端点）
-  短线每5分钟 / 长线每日17:00 / SellPut每日08:00（系统cron）
+  短线每5分钟 / 长线每日17:00 / SellPut每15分(美股时段)（系统cron+PM2后端内置）
  环境变量：DEEPSEEK_API_KEY 与 NEWS_SUMMARY_API（本地端点）在 VPS .env（已配），OpenAI 未使用
  ⚠️ 金十新闻：VPS 直连 Jin10 被封锁（HTTP 502）→ 必须走 GitHub Actions 中转（GitHub IP 抓取 → commit 到仓库 → VPS 从 GitHub raw 读取）。`.github/workflows/` 的三份工作流文件不得删除。
  ⚠️ NEWS_SUMMARY_API 必须指向 VPS 本地端点（日报/晚报/周报的 AI API），不能填公网地址。
@@ -998,7 +998,7 @@ donew 当前部署架构（2026-08-03 迁移清理后）：
 
 ### 14.1 VPS — 主部署层（前端 + 后端 + 定时任务）
 
-**线上地址**：`http://107.175.44.146`
+**线上地址**：`https://sellput.top`
 
 **项目目录**：`/home/ai_worker/stock_project/`（对应仓库 `vps-backend/`）
 
@@ -1033,9 +1033,9 @@ pm2 logs donew-backend
 | 市场周报 | 周六 09:00 HK | PM2 node-cron | 后端内置 |
 | 短线K线交易 | 每 5 分钟 | 系统 cron | `run-trader.sh` |
 | 长线趋势交易 | 每日 17:00 HK | 系统 cron | `run-long-trader.sh` |
-| SellPut 纸面 | 每日 08:00 HK | 系统 cron | `run-sellput-agent.sh` |
+| SellPut 纸面 | 每 15 分钟（美股时段） | PM2 node-cron | 后端内置（v2.0.1+），不再走系统 cron |
 
-> ⚠️ **系统 cron 陷阱**：此 VPS（RackNerd / Ubuntu 24.04 / vixie-cron 3.0pl1）存在一个严重 bug——**cron daemon 不执行 `crontab -l` 后续新增的任何条目**，只认初始部署时的旧任务。`systemctl restart cron` 无效。新增定时任务必须走 PM2 node-cron 或 `sudo crontab -e`，不要用 `crontab -e`（用户级）追加。已在 2026-08-03 实测确认：`*/5` trader 正常、但 `*/2`、`0 13`、`* * * * *` 测试任务全部 silence。
+> ⚠️ **系统 cron 陷阱**：此 VPS（RackNerd / Ubuntu 24.04 / vixie-cron 3.0pl1）存在严重 bug——**cron daemon 不执行 `crontab -l` 后续新增的任何条目**，只认初始部署时的旧任务。`systemctl restart cron` 无效。**SellPut Agent 已迁出（v2.0.1+），改为 PM2 node-cron 内置调度。** 其他新增定时任务必须走 PM2 node-cron 或 `sudo crontab -e`，不要用 `crontab -e`（用户级）追加。
 
 **环境变量**（`/home/ai_worker/stock_project/.env`）：
 | 变量名 | 用途 |
@@ -1110,4 +1110,4 @@ VPS jin10News.js → SQLite → /api/news/latest → Agent / 前端
 
 ### 14.5 GitHub Pages — 已迁移
 
-静态文档站已迁移到 VPS `http://107.175.44.146/docs/`。GitHub Pages 域名 `jiangshenhk.github.io/donew` 保留但不更新。
+静态文档站已迁移到 VPS `https://sellput.top/docs/`。GitHub Pages 域名 `jiangshenhk.github.io/donew` 保留但不更新。

@@ -1029,7 +1029,7 @@
       const params = new URLSearchParams(location.search);
       const override = params.get('apiBase');
       const origin = String(location.origin || '').replace(/\/$/, '');
-      const fallback = 'http://107.175.44.146';
+      const fallback = 'https://sellput.top';
       if (override) return override.replace(/\/$/, '');
       if (!origin || origin === 'null' || location.protocol === 'file:') return fallback;
       return origin;

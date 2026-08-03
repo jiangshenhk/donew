@@ -6,7 +6,7 @@
 
 ## 线上入口
 
-`http://107.175.44.146/sell-put-tool.html`
+`https://sellput.top/sell-put-tool.html`
 
 ## 设计思路
 

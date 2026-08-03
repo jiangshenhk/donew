@@ -22,7 +22,7 @@
 
 ## 入口
 
-- 线上页面：`http://107.175.44.146/video-summary-tool.html`
+- 线上页面：`https://sellput.top/video-summary-tool.html`
 - 根目录页面：`video-summary-tool.html`
 - API：`kline_robot_vercel/api/video-summary.js`
 

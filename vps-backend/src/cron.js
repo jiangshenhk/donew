@@ -21,6 +21,20 @@ function runReport(type) {
   });
 }
 
+function runSellPutAgent() {
+  const cmd = 'node scripts/sell-put-agent.mjs daily';
+  console.log('[cron] sellput agent start');
+  exec(cmd, (err, stdout, stderr) => {
+    if (stdout) console.log(stdout.trim());
+    if (stderr) console.error(stderr.trim());
+    if (err) {
+      console.error('[cron] sellput agent error:', err.message);
+    } else {
+      console.log('[cron] sellput agent done');
+    }
+  });
+}
+
 export function startCronJobs() {
   stopCronJobs();
 
@@ -53,7 +67,11 @@ export function startCronJobs() {
   const weeklyTask = cron.schedule('0 9 * * 6', () => runReport('weekly'));
   tasks.push(weeklyTask);
 
-  console.log(`Cron started: stock every ${config.stockIntervalMinutes}min, news every ${config.newsIntervalMinutes}min, reports morning/evening/weekly`);
+  // SellPut Agent: 美股时段每15分钟（21:30-04:30 HK, Mon-Fri）
+  const sellputTask = cron.schedule('*/15 21-23,0-4 * * 1-5', () => runSellPutAgent());
+  tasks.push(sellputTask);
+
+  console.log(`Cron started: stock every ${config.stockIntervalMinutes}min, news every ${config.newsIntervalMinutes}min, reports morning/evening/weekly, sellput agent every 15min market hours`);
 
   fetchAllPrices().catch(e => console.error('Initial stock fetch error:', e.message));
   fetchAllNews().catch(e => console.error('Initial news fetch error:', e.message));

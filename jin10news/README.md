@@ -8,7 +8,7 @@
 
 ## 1. 线上相关入口
 
-- 展示页：`http://107.175.44.146/jin10-news.html`
+- 展示页：`https://sellput.top/jin10-news.html`
 - 原始 JSON 缓存：`jin10news/data/latest-24h.json`
 - Markdown 缓存：`jin10news/data/latest-24h.md`
 

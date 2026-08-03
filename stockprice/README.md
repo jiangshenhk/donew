@@ -8,7 +8,7 @@
 
 ## 1. 入口与相关页面
 
-- 调试 / 管理页：`http://107.175.44.146/price-test.html`
+- 调试 / 管理页：`https://sellput.top/price-test.html`
 - 原始缓存文件：`stockprice/data/latest-price.json`
 - Vercel 读取 API：`kline_robot_vercel/api/latest-price.js`
 
