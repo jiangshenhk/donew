@@ -1015,14 +1015,19 @@ pm2 logs donew-backend
 ```
 
 **Cron 定时任务**：
-| 任务 | 频率 | 脚本 |
-|---|---|---|
-| 行情抓取 | 每 5 分钟 | PM2 内置 cron |
-| 金十新闻 | 每 5 分钟 | PM2 内置 cron |
-| 短线K线交易 | 每 5 分钟 | 系统 cron |
-| 长线趋势交易 | 每日 17:00 HK | 系统 cron |
-| SellPut 纸面 | 每日 08:00 HK | 系统 cron |
-| 市场周报 | 周六 09:00 HK | 系统 cron（`run-weekly-report.sh`，走 VPS 本地 AI 端点） |
+
+| 任务 | 频率 | 调度系统 | 备注 |
+|---|---|---|---|
+| 行情抓取 | 每 5 分钟 | PM2 node-cron | 后端内置 |
+| 金十新闻 | 每 5 分钟 | PM2 node-cron | 后端内置 |
+| 日报（早报） | 周一至五 08:28 HK | PM2 node-cron | 后端内置 |
+| 日报（晚报） | 周一至五 20:28 HK | PM2 node-cron | 后端内置 |
+| 市场周报 | 周六 09:00 HK | PM2 node-cron | 后端内置 |
+| 短线K线交易 | 每 5 分钟 | 系统 cron | `run-trader.sh` |
+| 长线趋势交易 | 每日 17:00 HK | 系统 cron | `run-long-trader.sh` |
+| SellPut 纸面 | 每日 08:00 HK | 系统 cron | `run-sellput-agent.sh` |
+
+> ⚠️ **系统 cron 陷阱**：此 VPS（RackNerd / Ubuntu 24.04 / vixie-cron 3.0pl1）存在一个严重 bug——**cron daemon 不执行 `crontab -l` 后续新增的任何条目**，只认初始部署时的旧任务。`systemctl restart cron` 无效。新增定时任务必须走 PM2 node-cron 或 `sudo crontab -e`，不要用 `crontab -e`（用户级）追加。已在 2026-08-03 实测确认：`*/5` trader 正常、但 `*/2`、`0 13`、`* * * * *` 测试任务全部 silence。
 
 **环境变量**（`/home/ai_worker/stock_project/.env`）：
 | 变量名 | 用途 |
