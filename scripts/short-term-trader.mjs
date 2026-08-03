@@ -1074,7 +1074,7 @@ tbody tr:hover { background: #1a2b42; }
 <div class="header">
     <h1><svg width="22" height="22" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="6" fill="#45d483"/><text x="16" y="23" font-size="20" font-family="PingFang SC,sans-serif" font-weight="bold" text-anchor="middle" fill="#ffffff">短</text></svg>短线K线交易机器人</h1>
     <span class="header-right">
-      <span style="color:#6b7fa3;font-size:.85rem">${data.config.symbols.join(' / ')} · 5m · ${VERSION}</span>      <span style="color:#4a5e7a;font-size:.75rem;margin-left:8px">${VERSION_NOTE}</span>      <span style="cursor:pointer;color:#4da8ff;margin-left:12px;font-size:.85rem" onclick="toggleAutoRefresh()" id="refresh-status">🔄 自动刷新: 关</span>
+      <span style="color:#6b7fa3;font-size:.85rem">5m · ${VERSION}</span>      <span style="color:#4a5e7a;font-size:.75rem;margin-left:8px">${VERSION_NOTE}</span>      <span style="cursor:pointer;color:#4da8ff;margin-left:12px;font-size:.85rem" onclick="toggleAutoRefresh()" id="refresh-status">🔄 自动刷新: 关</span>
       <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button>
     </span>
   </div>

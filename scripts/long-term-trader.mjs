@@ -813,7 +813,7 @@ tbody tr:hover{background:#1a2b42}
 <div class="header">
 <h1>长线交易机器人</h1>
 <span class="header-right">
-<span>${config.symbols.join(' / ')} · 日线 · ${VERSION}</span> <span style="color:#4a5e7a;font-size:.75rem">${VERSION_NOTE}</span>
+<span>日线 · ${VERSION}</span> <span style="color:#4a5e7a;font-size:.75rem">${VERSION_NOTE}</span>
 <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">刷新</button>
 </span>
 </div>
