@@ -2,7 +2,7 @@
 
 ## 线上入口
 
-`https://donew-beta.vercel.app/kline-robot.html`
+`http://107.175.44.146/kline-robot.html`
 
 ## 功能概述
 

@@ -6,7 +6,7 @@
 
 ## 线上入口
 
-`https://donew-beta.vercel.app/sell-put-tool.html`
+`http://107.175.44.146/sell-put-tool.html`
 
 ## 设计思路
 

@@ -19,7 +19,7 @@
 
 ## 入口
 
-- 线上页面：`https://donew-beta.vercel.app/sell-put-pool-tool.html`
+- 线上页面：`http://107.175.44.146/sell-put-pool-tool.html`
 - 根目录镜像：`sell-put-pool-tool.html`
 - Vercel 页面：`kline_robot_vercel/sell-put-pool-tool.html`
 - 数据接口：`GET /api/barchart-overview?symbols=QLD,MSTR,INTC`

@@ -970,23 +970,31 @@ donew/
 
 ## 14. 部署说明
 
-donew 当前部署架构：
+donew 当前部署架构（2026-08-03 迁移清理后）：
 
 ```text
                     donew 仓库 (github.com/jiangshenhk/donew)
                               │
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
-  RackNerd VPS (主)        Vercel (冗余)      Cloudflare Workers
-  Nginx + PM2 + Cron        静态页面托管          K线代理 Worker
-  107.175.44.146            donew-beta.vercel.app
-  ├── 前端页面 (所有工具)
-  ├── API /api/ai/* (6个AI接口)
-  ├── API /api/stock/* (行情)
-  ├── API /api/news/* (新闻)
-  ├── 交易机器人 (短线/长线/SellPut)
-  └── SQLite 数据存储
+  RackNerd VPS (主)        Vercel (仅2个API)    GitHub Actions (仅新闻)
+  107.175.44.146           barchart-overview     update-jin10-news.yml
+  ├── 全部前端页面           options-signals      金十IP封锁，Action中转
+  ├── 全部 AI API (8个)
+  ├── 行情+新闻数据
+  ├── 3台交易机器人
+  └── SQLite 存储
 ```
+
+**已删除的冗余部署：** Vercel 前端页面、Vercel AI API（8 个）、GitHub Pages 文档站、GitHub Actions 行情抓取
+
+**保留在外的原因：**
+
+| 组件 | 位置 | 原因 |
+|---|---|---|
+| barchart-overview | Vercel | Barchart.com 封 VPS IP |
+| options-signals | Vercel | Barchart.com 封 VPS IP |
+| 金十新闻抓取 | GitHub Actions | jin10.com 封 VPS IP |
 
 ### 14.1 VPS — 主部署层（前端 + 后端 + 定时任务）
 
@@ -1050,13 +1058,14 @@ pm2 logs donew-backend
 | options-signals | Barchart | **Vercel** | Barchart 封 VPS IP |
 | `NEWS_SUMMARY_API` | 日报/晚报/周报 AI 端点（VPS 本地 `http://127.0.0.1:3000/api/ai/news-summary`） |
 
-### 14.2 Vercel — 前端 CDN（冗余，待退役）
+### 14.2 Vercel — 仅保留 Barchart 相关 API（2个）
 
-**线上域名**：`https://donew-beta.vercel.app`
+**保留原因**：Barchart.com 封 RackNerd IP，这两个 API 无法在 VPS 运行。其余 8 个 AI API 已全部迁移 VPS 并删除源文件。
 
-**对应目录**：`kline_robot_vercel/`
-
-当前仅保留静态页面托管，所有 API 调用已指向 VPS。浏览器 HTTPS→HTTP 混合内容限制，推荐直接使用 VPS 访问。
+| API | 文件 | 用途 |
+|---|---|---|
+| `/api/barchart-overview` | `barchart-overview.js` | Barchart 期权概览数据 |
+| `/api/options-signals` | `options-signals.js` | Barchart IV异动/异常成交 |
 
 ### 14.3 Cloudflare Workers — K线代理
 

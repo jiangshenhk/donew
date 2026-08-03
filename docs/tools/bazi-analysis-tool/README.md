@@ -4,7 +4,7 @@
 
 ## 线上入口
 
-`https://donew-beta.vercel.app/bazi-analysis-tool.html`
+`http://107.175.44.146/bazi-analysis-tool.html`
 
 ## 功能概述
 
