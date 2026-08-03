@@ -766,7 +766,7 @@ async function generateDashboard() {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>长线交易机器人 — 仪表板</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='4' y='6' width='16' height='12' rx='3' fill='%234da8ff'/><polygon points='12,3 16,8 8,8' fill='%234da8ff'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' rx='6' fill='%234da8ff'/><text x='16' y='23' font-size='20' font-family='PingFang SC,sans-serif' font-weight='bold' text-anchor='middle' fill='white'>%E9%95%BF</text></svg>">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0d1522;color:#d4dae6;line-height:1.5}

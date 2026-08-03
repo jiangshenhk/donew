@@ -1102,7 +1102,7 @@ function buildDashboardHtml() {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>短线交易机器人 — 仪表板</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='4' y='6' width='16' height='12' rx='3' fill='%2345d483'/><circle cx='8.5' cy='11' r='1.5' fill='%230d1522'/><circle cx='15.5' cy='11' r='1.5' fill='%230d1522'/><rect x='9' y='14' width='6' height='2' rx='1' fill='%230d1522'/><rect x='10' y='3' width='4' height='4' rx='2' fill='%2345d483'/><circle cx='12' cy='5' r='1.5' fill='%23ff6b7d'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='2' width='28' height='28' rx='6' fill='%2345d483'/><text x='16' y='23' font-size='20' font-family='PingFang SC,sans-serif' font-weight='bold' text-anchor='middle' fill='white'>%E7%9F%AD</text></svg>">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1522; color: #d4dae6; line-height: 1.5; }
@@ -1162,7 +1162,7 @@ tbody tr:hover { background: #1a2b42; }
 </head>
 <body>
 <div class="header">
-    <h1><svg width="22" height="22" viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="3" fill="#45d483"/><circle cx="8.5" cy="11" r="1.5" fill="#0d1522"/><circle cx="15.5" cy="11" r="1.5" fill="#0d1522"/><rect x="9" y="14" width="6" height="2" rx="1" fill="#0d1522"/><rect x="10" y="3" width="4" height="4" rx="2" fill="#45d483"/><circle cx="12" cy="5" r="1.5" fill="#ff6b7d"/></svg>短线K线交易机器人</h1>
+    <h1><svg width="22" height="22" viewBox="0 0 32 32"><rect x="2" y="2" width="28" height="28" rx="6" fill="#45d483"/><text x="16" y="23" font-size="20" font-family="PingFang SC,sans-serif" font-weight="bold" text-anchor="middle" fill="#ffffff">短</text></svg>短线K线交易机器人</h1>
     <span class="header-right">
       <span style="color:#6b7fa3;font-size:.85rem">${data.config.symbols.join(' / ')} · 5m · ${VERSION}</span>
       <span style="cursor:pointer;color:#4da8ff;margin-left:12px;font-size:.85rem" onclick="toggleAutoRefresh()" id="refresh-status">🔄 自动刷新: 关</span>
@@ -1874,6 +1874,10 @@ function loadChart(symbol) {
   }
 
   _klineChart.timeScale().fitContent();
+  // 默认停靠最右（最新K线），只显示最近 ~100 根
+  const totalBars = bars.length;
+  const startLogical = Math.max(0, totalBars - 100);
+  _klineChart.timeScale().setVisibleLogicalRange({ from: startLogical, to: totalBars });
 }
 
 // ─── Auto-refresh ───

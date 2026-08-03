@@ -242,7 +242,7 @@
   <main class="shell">
     <header class="topbar">
       <h1>内容总结分析工具 <span class="version">v0.9.0｜2026-07-25｜完整发布</span></h1>
-      <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+      <a class="home-link" href="http://107.175.44.146/#/">返回十方斋首页</a>
     </header>
 
     <div class="layout">
@@ -306,7 +306,7 @@
       const params = new URLSearchParams(location.search);
       const override = params.get("apiBase");
       const origin = String(location.origin || "").replace(/\/$/, "");
-      const fallback = "https://donew-beta.vercel.app";
+      const fallback = "http://107.175.44.146";
       if (override) return override.replace(/\/$/, "");
       if (!origin || origin === "null" || location.protocol === "file:") return fallback;
       return origin;

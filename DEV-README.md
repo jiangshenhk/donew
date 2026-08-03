@@ -273,15 +273,16 @@ Vercel Hobby 计划每个 Deployment 最多 12 个 Serverless Functions（`api/`
 
 **模式**：在 handler 入口处判断 `req.query.action` 或 `req.body.mode`，分派到不同逻辑分支后提前 return。
 
-### 约定 7：部署时必须同时跑 `vercel --prod`
+### 约定 7：部署时 Push 到 GitHub，VPS 自动生效
 
-推送代码到 GitHub 后，从仓库根目录执行：
+推送代码到 GitHub 后，SSH 到 VPS 执行：
 
 ```bash
-vercel --prod --yes
+ssh ai_worker@107.175.44.146
+cd /home/ai_worker/stock_project && git pull && npm install && pm2 restart donew-backend
 ```
 
-Vercel 的 GitHub 自动集成有时不触发或延迟，手动部署确保代码立即上线。
+VPS 是主部署层，Vercel 仅作为冗余 CDN 保留。推送后不再需要 `vercel --prod`。
 
 ### 约定 8：标的池体系
 
@@ -940,171 +941,84 @@ donew/
 
 ## 14. 部署说明
 
-donew 有三层部署，协同工作：
+donew 当前部署架构：
 
 ```text
                     donew 仓库 (github.com/jiangshenhk/donew)
                               │
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
-  GitHub Pages         Vercel (主)          Cloudflare Workers
-  静态文档/HTML        Serverless + 静态页面    K线代理 Worker
-  jiangshenhk.github.io  donew-beta.vercel.app  kline-robot
+  RackNerd VPS (主)        Vercel (冗余)      Cloudflare Workers
+  Nginx + PM2 + Cron        静态页面托管          K线代理 Worker
+  107.175.44.146            donew-beta.vercel.app
+  ├── 前端页面 (所有工具)
+  ├── API /api/ai/* (6个AI接口)
+  ├── API /api/stock/* (行情)
+  ├── API /api/news/* (新闻)
+  ├── 交易机器人 (短线/长线/SellPut)
+  └── SQLite 数据存储
 ```
 
-### 14.1 GitHub Pages — 静态文档站
+### 14.1 VPS — 主部署层（前端 + 后端 + 定时任务）
 
-**用途**：展示 Markdown 文档（`docs/市场/今日.md`、`历史.md` 等），以及根目录 mirro
+**线上地址**：`http://107.175.44.146`
 
-**配置**：
-- GitHub Repo Settings → Pages → Source: `main` 分支, `/ (root)` 目录
-- 不需要 GitHub Actions 额外配置
-- 推送后自动刷新（几秒到几分钟）
+**项目目录**：`/home/ai_worker/stock_project/`（对应仓库 `vps-backend/`）
 
-**本地预览**：
+这是项目的核心部署层，承载全部工具前端、API 和定时任务。
+
+**部署流程**：
+
 ```bash
-# 使用 docsify（假设已安装）
-docsify serve docs
-# 或直接开任意静态服务器
-npx serve .
+# 1. SSH 到 VPS
+ssh ai_worker@107.175.44.146
+
+# 2. 拉取最新代码
+cd /home/ai_worker/stock_project
+git pull
+
+# 3. 安装依赖
+npm install
+
+# 4. 重启服务
+pm2 restart donew-backend
+pm2 logs donew-backend
 ```
 
-### 14.2 Vercel — 主部署层（Serverless API + 静态页面）
+**Cron 定时任务**：
+| 任务 | 频率 | 脚本 |
+|---|---|---|
+| 行情抓取 | 每 5 分钟 | PM2 内置 cron |
+| 金十新闻 | 每 5 分钟 | PM2 内置 cron |
+| 短线K线交易 | 每 5 分钟 | 系统 cron |
+| 长线趋势交易 | 每日 17:00 HK | 系统 cron |
+| SellPut 纸面 | 每日 08:00 HK | 系统 cron |
+
+**环境变量**（`/home/ai_worker/stock_project/.env`）：
+| 变量名 | 用途 |
+|---|---|
+| `DEEPSEEK_API_KEY` | DeepSeek API Key（必填） |
+| `DEEPSEEK_MODEL` | 默认模型（deepseek-v4-flash） |
+| `OPENAI_API_KEY` | OpenAI API Key（可选） |
+| `ALLOWED_ORIGINS` | CORS 允许的源 |
+| `PORT` | 服务端口（默认 3000） |
+
+### 14.2 Vercel — 前端 CDN（冗余，待退役）
 
 **线上域名**：`https://donew-beta.vercel.app`
 
 **对应目录**：`kline_robot_vercel/`
 
-这是项目的核心部署层，承载所有交互式工具和 API。
-
-#### 14.2.1 部署流程
-
-Vercel 通过 Git 集成，自动监听 `main` 分支变化。但 **`vercel.json` 和 `package.json` 都在 `kline_robot_vercel/` 子目录**，而非仓库根目录。
-
-**首次部署**：
-
-```bash
-# 1. 安装 Vercel CLI
-npm i -g vercel
-
-# 2. 进入 Vercel 子项目
-cd kline_robot_vercel
-
-# 3. 本地开发（模拟 Vercel Serverless 环境）
-npm run dev
-# → 监听 http://localhost:3000
-# → 静态文件映射到 /api/xxx.js 可直接调用
-
-# 4. 预览部署
-vercel
-# → 生成临时预览链接
-
-# 5. 生产部署
-npm run deploy
-# 等同于 vercel --prod
-```
-
-**Vercel 配置**（`kline_robot_vercel/vercel.json`）：
-- 部署区域：`iad1`（US East）
-- Serverless Function 超时：
-  - `api/report.js`、`api/put-rating.js`、`api/news-summary.js`、`api/market-report-v2.js`：120 秒
-  - `api/auth.js`：30 秒
-- 无需额外构建步骤（无 `buildCommand`）
-- 自动检测 `api/` 目录下的 `.js` 作为 Serverless Functions
-
-#### 14.2.2 环境变量（Vercel Dashboard 设置）
-
-Vercel 线上需要的所有环境变量（在 Vercel Dashboard → Project Settings → Environment Variables 设置）：
-
-**AI 接口（必选，至少配一组）：**
-
-| 变量名 | 用途 | 示例值 |
-|---|---|---|
-| `OPENAI_API_KEY` | OpenAI API Key（GPT 模型调用） | `sk-xxx` |
-| `OPENAI_MODEL` | OpenAI 默认模型 | `gpt-5`（默认） |
-| `OPENAI_VISION_MODEL` | 仅供独立 `sell-put-tool` 的后台截图识别使用；综合决策页已改为浏览器本地 OCR | `gpt-5` |
-| `DEEPSEEK_API_KEY` | DeepSeek API Key（DeepSeek 模型调用） | `sk-xxx` |
-| `DEEPSEEK_MODEL` | DeepSeek 默认模型 | `deepseek-chat` 或 `deepseek-v4-flash` |
-
-**AI 路由说明**：各 API 按自身用途选择模型，不应假定所有接口都具有双路由：
-- `sell-put-decision.js`：报告生成只调用 DeepSeek；不接收截图，只使用前台已确认的结构化期权字段。K线分析最多30秒、DeepSeek最多50秒，超时后返回预检查或规则版，不串行回退其他模型
-- `put-rating.js`：优先 OpenAI GPT，失败回退 DeepSeek；独立温度工具仍可使用 OpenAI Vision 识别截图
-- `market-report-v2.js` / `report.js`：两路都尝试，任意一路可用即可
-- `news-summary.js`：优先 DeepSeek，失败回退 OpenAI
-
-**CORS 与域名：**
-
-| 变量名 | 用途 | 示例值 |
-|---|---|---|
-| `ALLOWED_ORIGIN` | CORS 允许的源 | `https://jiangshenhk.github.io` |
-
-**认证相关（可选）：**
-
-| 变量名 | 用途 | 示例值 |
-|---|---|---|
-| `JWT_SECRET` | JWT 签名密钥 | 自定义随机字符串 |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob 读写 Token | Vercel Dashboard 生成 |
-| `GOOGLE_CLIENT_ID` | Google OAuth Client ID | Google Cloud Console 获取 |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret | Google Cloud Console 获取 |
-| `VERCEL_URL` | Vercel 自动注入，无需手动设置 | — |
-
-**GitHub Actions 专用（用于定时日报生成，在 Actions Secret 设置）：**
-
-| 变量名 | 用途 |
-|---|---|
-| `NEWS_SUMMARY_API` | 日报/晚报生成时调用的 AI 端点，指向 `https://donew-beta.vercel.app/api/news-summary` |
-
-本地开发时可以用 `.env` 文件（不提交到 Git），Vercel CLI 会自动加载。
+当前仅保留静态页面托管，所有 API 调用已指向 VPS。浏览器 HTTPS→HTTP 混合内容限制，推荐直接使用 VPS 访问。
 
 ### 14.3 Cloudflare Workers — K线代理
 
 **配置文件**：`kline_robot_worker/wrangler.toml`
 
-```toml
-name = "kline-robot"
-main = "src/worker.js"
-compatibility_date = "2025-12-01"
-[vars]
-OPENAI_MODEL = "gpt-5"
-ALLOWED_ORIGIN = "https://jiangshenhk.github.io"
-```
+### 14.4 GitHub Actions — 数据管道（冗余）
 
-**部署**（需要 Cloudflare 账号和 Wrangler CLI）：
+5 个流水线负责定时抓数据、生成报告，与 VPS cron 并行运行（双冗余）。
 
-```bash
-cd kline_robot_worker
-npx wrangler deploy src/worker.js
-```
+### 14.5 GitHub Pages — 已迁移
 
-这个 Worker 提供 CORS 限制的 K线数据代理，仅允许 `jiangshenhk.github.io` 域访问。
-
-### 14.4 GitHub Actions — 数据管道（不是部署）
-
-5 个流水线负责定时抓数据、生成报告，**都不触发 Vercel 部署**。
-
-部署到 Vercel 是手动操作（`vercel --prod`）或 Vercel Git 自动集成触发。
-
-### 14.5 CDN 版本的静态资源
-
-部分工具页（如 `sell-put-decision-tool.html`）引用的外部库推荐使用 CDN 加速版本：
-
-| 库 | CDN |
-|---|---|
-| Tesseract.js（OCR） | `https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js` |
-| html2canvas（图片导出） | `https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js` |
-
-### 14.6 从零部署检查清单
-
-1. **Fork/clone 仓库**到自己的 GitHub
-2. **GitHub Pages**：Settings → Pages → Source: `main` / `root`，等 1-2 分钟生效
-3. **Vercel 首次部署**：
-   - 在 Vercel 新建 Project，导入 GitHub 仓库
-   - **Root Directory** 设为 `kline_robot_vercel`（重要！）
-   - Framework Preset 选 "Other"
-   - 在 Settings → Environment Variables 添加 `OPENAI_API_KEY` 等
-   - 部署后，域名格式为 `xxx.vercel.app`
-4. **编辑域名**：将所有文件和代码中的 `donew-beta.vercel.app` 替换为自己的域名，包括：
-   - `NEWS_SUMMARY_API` 环境变量
-   - 各页面中的 fallback API base
-5. **Cloudflare Workers**（可选）：按 14.3 部署 K线代理
-6. **GitHub Actions**：如果是自己的 API Key，更新相关 workflow 中的 Secret
+静态文档站已迁移到 VPS `http://107.175.44.146/docs/`。GitHub Pages 域名 `jiangshenhk.github.io/donew` 保留但不更新。

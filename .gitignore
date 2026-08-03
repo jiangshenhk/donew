@@ -1,1 +1,5 @@
+.DS_Store
 scripts/deploy-win.ps1
+vps-backend/.env
+vps-backend/data/*.db*
+vps-backend/node_modules/

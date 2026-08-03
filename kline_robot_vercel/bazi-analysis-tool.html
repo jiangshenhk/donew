@@ -89,7 +89,7 @@ th{background:#252820;color:var(--rTitle);font-weight:600}
 </head>
 <body>
 <div class="shell">
-<div class="topbar"><div class="brand"><h1>🔮 八字命理 · 青瓷</h1><span class="version" id="ver">v1.0.8</span></div><div class="top-right"><span id="vc">—</span>&nbsp;&nbsp;<a href="https://donew-beta.vercel.app">← 十方斋</a></div></div>
+<div class="topbar"><div class="brand"><h1>🔮 八字命理 · 青瓷</h1><span class="version" id="ver">v1.0.9</span></div><div class="top-right"><span id="vc">—</span>&nbsp;&nbsp;<a href="https://donew-beta.vercel.app">← 十方斋</a></div></div>
 <div class="layout">
 <div class="panel">
   <div class="p-header"><div class="icon">◎</div><h2>命 盘 录 入</h2><p>请输入您的生辰信息</p></div>
@@ -101,7 +101,7 @@ th{background:#252820;color:var(--rTitle);font-weight:600}
   <div class="field"><label>当前职业 <span class="hint" data-tip="分析职业五行与八字契合度。不填跳过。">?</span></label><input type="text" id="in_work" placeholder="例如：互联网产品经理"></div>
   <button class="btn-submit" id="btnGo">◎ 推 演 命 盘</button>
   <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:10px" id="statusLine">输入信息后点击按钮，AI 将生成完整分析</p>
-  <div class="p-footer"><span id="pver">v1.0.8</span><span id="pvc">—</span></div>
+  <div class="p-footer"><span id="pver">v1.0.9</span><span id="pvc">—</span></div>
 </div>
 <div class="result" id="resultArea">
   <div class="r-toolbar hidden" id="rToolbar">
@@ -215,7 +215,7 @@ document.getElementById("btnGo").addEventListener("click",function(){
   var st=0,timer=setInterval(function(){st++;document.getElementById("btnGo").textContent="⏳ "+st+"s"},1000);
   var sl=document.getElementById("statusLine");if(sl)sl.textContent="";
 
-  fetch("/api/bazi-analysis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+  fetch("http://107.175.44.146/api/ai/bazi-analysis",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
     name:nameVal||undefined,gender:gender,year:y,month:m,day:d,hour:h,work:workVal||undefined
   })})
   .then(r=>r.json())
@@ -253,7 +253,7 @@ document.getElementById("btnGo").addEventListener("click",function(){
   document.getElementById("btnShare").onclick=shareImage;
   document.getElementById("rEmpty")&&document.getElementById("rEmpty").classList.add("hidden");
   }}}catch(e){}
-  document.getElementById("ver").textContent="v1.0.8";document.getElementById("pver").textContent="v1.0.8";
+  document.getElementById("ver").textContent="v1.0.9";document.getElementById("pver").textContent="v1.0.9";
   try{if(window.busuanzi){var sc=document.createElement("span");sc.id="busuanzi_container_site_pv";sc.innerHTML='访问 <span id="busuanzi_value_site_pv"></span>';document.getElementById("vc").appendChild(sc)}}catch(e){}
 })();
 </script>

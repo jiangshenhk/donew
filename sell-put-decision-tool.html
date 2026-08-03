@@ -817,7 +817,7 @@
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
-        <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+        <a class="home-link" href="http://107.175.44.146/#/">返回十方斋首页</a>
       </div>
     </div>
 
@@ -1029,7 +1029,7 @@
       const params = new URLSearchParams(location.search);
       const override = params.get('apiBase');
       const origin = String(location.origin || '').replace(/\/$/, '');
-      const fallback = 'https://donew-beta.vercel.app';
+      const fallback = 'http://107.175.44.146';
       if (override) return override.replace(/\/$/, '');
       if (!origin || origin === 'null' || location.protocol === 'file:') return fallback;
       return origin;

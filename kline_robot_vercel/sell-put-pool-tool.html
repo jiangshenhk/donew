@@ -92,7 +92,7 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI卖Put标的池扫描 <span class="version">v0.1.1｜2026-07-26｜统一AI浏览器图标</span></h1>
+      <h1>AI卖Put标的池扫描 <span class="version">v0.1.2｜2026-08-03｜切换VPS后端</span></h1>
       <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
     </header>
 
@@ -138,7 +138,7 @@
       const override = params.get('apiBase');
       const origin = String(location.origin || '').replace(/\/$/, '');
       if (override) return override.replace(/\/$/, '');
-      if (!origin || origin === 'null' || location.protocol === 'file:') return 'https://donew-beta.vercel.app';
+      if (!origin || origin === 'null' || location.protocol === 'file:') return 'http://107.175.44.146';
       return origin;
     })();
 
