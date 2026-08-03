@@ -234,25 +234,25 @@
 
 <div class="main-grid">
   
-  <a href="https://donew-beta.vercel.app/jin10-news.html" target="_blank" class="main-card weapon-two">
+  <a href="https://sellput.top/jin10-news.html" target="_blank" class="main-card weapon-two">
     <strong>AI看新闻</strong>
     <!-- <span>判断单票结构：趋势、动量、相似形态、关键位。</span> -->
     <span>顺大势</span> 
   </a>
   
-  <a href="https://donew-beta.vercel.app/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
+  <a href="https://sellput.top/market-analysis-tool.html" target="_blank" class="main-card weapon-one">
     <strong>AI看市场</strong>
     <span>选热点</span> 
   <!--  <span>先看大环境：利率、黄金、BTC、纳指、风险偏好。</span> -->
   </a>
 
-  <a href="https://donew-beta.vercel.app/kline-robot.html" target="_blank" class="main-card weapon-two">
+  <a href="https://sellput.top/kline-robot.html" target="_blank" class="main-card weapon-two">
     <strong>AI看K线</strong>
     <span>巧切入</span> 
    <!-- <span>判断单票结构：趋势、动量、相似形态、关键位。</span> -->
   </a>
 
-  <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html" class="main-card mindset">
+  <a href="https://sellput.top/sell-put-decision-tool.html" class="main-card mindset">
     <strong>AI看期权</strong>
     <span>稳收益</span> 
     <!--  <span>先把底层财富观理清楚：心态平、守正财、博偏财、长积累，做时间的朋友。</span> -->

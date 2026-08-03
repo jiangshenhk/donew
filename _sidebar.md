@@ -84,10 +84,10 @@
   - [大佬偏爱卖Put而不直接买股](/docs/SellPut/how-to-sell-put.md)
     
 - **[🤖 AI工具](/docs/sections/market-ai.md)**
-  - [AI看新闻](https://donew-beta.vercel.app/jin10-news.html)
-  - [AI看市场](https://donew-beta.vercel.app/market-analysis-tool.html)
-  - [AI看K线](https://donew-beta.vercel.app/kline-robot.html)
-  - [AI卖Put](https://donew-beta.vercel.app/sell-put-decision-tool.html)
+  - [AI看新闻](https://sellput.top/jin10-news.html)
+  - [AI看市场](https://sellput.top/market-analysis-tool.html)
+  - [AI看K线](https://sellput.top/kline-robot.html)
+  - [AI卖Put](https://sellput.top/sell-put-decision-tool.html)
 
 - **[🌿 心安复利](/docs/sections/compound.md)**
   - [树立正确的财富观](/docs/other/calm-wealth-mindset.md)
@@ -104,8 +104,8 @@
   - [大佬偏爱卖Put](/docs/SellPut/how-to-sell-put.md)
   - [用AI筛选Put](/docs/市场/卖Put评级说明.md)
   - [QLD操作框架](/docs/市场/QLD卖Put操作框架.md)
-  - <a href="https://donew-beta.vercel.app/sell-put-pool-tool.html">卖Put标的池扫描</a>
-  - <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html">综合卖Put决策</a>
+  - <a href="https://sellput.top/sell-put-pool-tool.html">卖Put标的池扫描</a>
+  - <a href="https://sellput.top/sell-put-decision-tool.html">综合卖Put决策</a>
 
 - **[🤖 AI看市场](/docs/sections/market-ai.md)**
   - [今日市场趋势](/docs/市场/今日.md)
