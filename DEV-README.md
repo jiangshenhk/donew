@@ -4,15 +4,40 @@
 |---|---|
 | GitHub | `https://github.com/jiangshenhk/donew` |
 | 本地路径 | `/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
-| 线上域名 | `https://donew-beta.vercel.app/`（Vercel 主站） |
+| 线上域名 | **`http://107.175.44.146/`**（VPS 主站） |
+| VPS 冗余 | `https://donew-beta.vercel.app/`（Vercel，未主动更新） |
 
-这份文件是给“新开的智能体对话 / 新接手的开发者”看的。
+这份文件是给"新开的智能体对话 / 新接手的开发者"看的。
 
 目标只有一个：
 
 > 用最少的阅读成本，快速理解 donew 这套工具系统，并且按现有风格继续开发，不乱改、不串层、不误推。
 
 这份文档是 **Codex 与 ChatGPT 共同读取的主开发说明**。两边接手 donew 任务时，都应先读本文件，再按任务类型补读对应目录的 README，避免不同智能体对仓库结构产生两套理解。
+
+---
+
+## 0. AI 接手快速卡（新对话直接粘贴）
+
+```
+项目：donew (github.com/jiangshenhk/donew)
+本地：/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew
+
+当前部署架构（2026-08-03 迁移后）：
+主部署 RackNerd VPS 107.175.44.146（Ubuntu 24.04，Node.js + PM2 + Nginx + SQLite）
+访问入口：http://107.175.44.146/
+VPS 目录：/home/ai_worker/stock_project/（对应仓库 vps-backend/）
+重启命令：pm2 restart donew-backend
+
+VPS 代码部署：
+ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && pm2 restart donew-backend"
+
+定时任务：行情+新闻每5分钟（PM2 cron），短线每5分钟/长线每日17:00/SellPut每日08:00（系统cron）
+环境变量：DEEPSEEK_API_KEY 在 VPS .env（已配），OpenAI 未使用
+金十新闻：GitHub Actions抓取 → VPS从GitHub raw读取（绕过IP封锁）
+
+已知约定：改前端改 kline_robot_vercel/*.html，改后端改 vps-backend/src/，改后更新版本号，.env 不提交
+```
 
 ---
 
