@@ -41,8 +41,6 @@ const DEFAULT_CONFIG = {
   positionSize: 10000,
   maxPositions: 5,
   model: 'deepseek-v4-flash',
-  fxRate: 7.8,
-  watchlist: ['SPY','NVDA','IWM'],
 };
 
 const USA_MARKET_OPEN = { hour: 9, minute: 30 };
@@ -72,28 +70,6 @@ function readApiKey() {
     const match = content.match(/DEEPSEEK_API_KEY\s*=\s*(.+)/);
     return match ? match[1].trim().replace(/["']/g, '') : null;
   } catch { return null; }
-}
-
-function readEnvVar(key) {
-  if (process.env[key]) return process.env[key];
-  try {
-    const content = fs.readFileSync(ENV_FILE, 'utf-8');
-    const match = content.match(new RegExp(key + '\\s*=\\s*(.+)'));
-    return match ? match[1].trim().replace(/["']/g, '') : null;
-  } catch { return null; }
-}
-
-function emailConfig() {
-  return {
-    user: readEnvVar('GMAIL_USER') || 'jiangshenhk@gmail.com',
-    pass: readEnvVar('GMAIL_PASS') || '',
-    to: readEnvVar('EMAIL_TO') || 'dudiaozhang@outlook.com',
-  };
-}
-
-function fmtTimeHK(ts) {
-  const d = new Date(ts instanceof Date ? ts : ts * 1000);
-  return d.toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false });
 }
 
 function fmtTimeET(ts) {
@@ -664,27 +640,7 @@ function openPosition(symbol, signal, currentBar, atr) {
   orders.push(order);
   saveOrders(orders);
 
-  // Send email
-  const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;border:1px solid #2a3a52;border-radius:8px;overflow:hidden">
-<div style="background:#0d1522;padding:16px;border-bottom:1px solid #2a3a52">
-  <span style="color:#ffd700;font-size:16px;font-weight:bold">🤖 K线短线交易机器人</span>
-  <span style="color:#6b7d99;font-size:11px;margin-left:8px">v0.1.0 | 5分钟级别</span>
-</div>
-<div style="padding:16px;background:#162234">
-<h2 style="color:#45d483;margin-top:0">🔵 开仓: ${symbol}</h2>
-<p><strong>时间:</strong> ${fmtTimeHK(new Date(position.entryTime))}</p>
-<p><strong>方向:</strong> 买入做多</p>
-<p><strong>价格:</strong> $${price.toFixed(2)}</p>
-<p><strong>数量:</strong> ${shares} 股</p>
-<p><strong>成本:</strong> $${position.cost.toFixed(2)}</p>
-<p><strong>止损:</strong> $${position.stopLoss.toFixed(2)}</p>
-<p><strong>止盈:</strong> $${position.takeProfit.toFixed(2)}</p>
-<p><strong>AI评分:</strong> ${signal.score}/10</p>
-<p style="color:#8ea3be;font-size:13px">${signal.reasoning}</p>
-</div>
-<div style="background:#0d1522;padding:10px 16px;font-size:11px;color:#4a5e7a">策略: 纯K线技术面 | 仅做多 | 止盈止损自动触发</div>
-</div>`;
-  sendEmail(`[开仓] ${symbol} $${price.toFixed(2)} | 止损$${position.stopLoss.toFixed(2)} 止盈$${position.takeProfit.toFixed(2)}`, emailHtml);
+  // (email notification removed; use ntfy)
 
   return position;
 }
@@ -727,27 +683,6 @@ function closePosition(position, reason, closePrice) {
   const stats = recalcStats(orders);
   saveStats(stats);
 
-  // Send email
-  const pnlEmoji = p.pnl > 0 ? '💰' : '🩸';
-  const pnlColor = p.pnl > 0 ? '#45d483' : '#ff6b7d';
-  const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;border:1px solid #2a3a52;border-radius:8px;overflow:hidden">
-<div style="background:#0d1522;padding:16px;border-bottom:1px solid #2a3a52">
-  <span style="color:#ffd700;font-size:16px;font-weight:bold">🤖 K线短线交易机器人</span>
-  <span style="color:#6b7d99;font-size:11px;margin-left:8px">v0.1.0 | 5分钟级别</span>
-</div>
-<div style="padding:16px;background:#162234">
-<h2 style="color:${pnlColor};margin-top:0">${pnlEmoji} 平仓: ${p.symbol}</h2>
-<p><strong>时间:</strong> ${fmtTimeHK(new Date())}</p>
-<p><strong>开仓价:</strong> $${p.entryPrice.toFixed(2)}</p>
-<p><strong>平仓价:</strong> $${closePrice.toFixed(2)}</p>
-<p><strong>数量:</strong> ${p.shares} 股</p>
-<p><strong>盈亏:</strong> <span style="color:${pnlColor};font-size:16px;font-weight:bold">$${p.pnl.toFixed(2)} (${p.pnlPct > 0 ? '+' : ''}${p.pnlPct}%)</span></p>
-<p><strong>原因:</strong> ${reason}</p>
-</div>
-<div style="background:#0d1522;padding:10px 16px;font-size:11px;color:#4a5e7a">策略: 纯K线技术面 | 仅做多 | 止盈止损自动触发</div>
-</div>`;
-  sendEmail(`[平仓] ${p.symbol} $${closePrice.toFixed(2)} | PnL: $${p.pnl.toFixed(2)} (${p.pnlPct > 0 ? '+' : ''}${p.pnlPct}%)`, emailHtml);
-
   return p;
 }
 
@@ -785,39 +720,6 @@ function checkExits(positions, bars) {
   }
 
   return closed;
-}
-
-// ─── Email Notification ───────────────────────────────────────
-
-function sendEmail(subject, htmlBody) {
-  const cfg = emailConfig();
-  if (!cfg.pass) return;
-  try {
-    const boundary = '----=_donew_' + Date.now();
-    const raw = [
-      'From: donew-trader <' + cfg.user + '>',
-      'To: ' + cfg.to,
-      'Subject: =?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=',
-      'MIME-Version: 1.0',
-      'Content-Type: text/html; charset=UTF-8',
-      'Content-Transfer-Encoding: base64',
-      '',
-      Buffer.from(htmlBody, 'utf-8').toString('base64'),
-    ].join('\r\n');
-
-    const tmpFile = path.join(AGENT_DIR, 'email-' + Date.now() + '.txt');
-    fs.writeFileSync(tmpFile, raw, 'utf-8');
-
-    execSync(
-      `curl -s --url 'smtps://smtp.gmail.com:465' --ssl-reqd --mail-from '${cfg.user}' --mail-rcpt '${cfg.to}' --user '${cfg.user}:${cfg.pass}' --upload-file '${tmpFile}'`,
-      { timeout: 15000 }
-    );
-
-    try { fs.unlinkSync(tmpFile); } catch { /* ok */ }
-    console.log('  ✉️  邮件已发送');
-  } catch (e) {
-    console.log('  ⚠️ 邮件发送失败: ' + e.message);
-  }
 }
 
 // ─── Main Run ────────────────────────────────────────────────────

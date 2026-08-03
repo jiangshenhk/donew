@@ -33,7 +33,6 @@ const DEFAULT_CONFIG = {
   capital: 100000,
   positionSize: 10000,
   maxPositions: 5,
-  watchlist: ['SPY','NVDA','IWM'],
   model: 'deepseek-v4-flash',
   fxRate: 7.8,
 };
@@ -1067,11 +1066,10 @@ _klineChart.timeScale().fitContent();
 }
 function renderConfig(){
 var c=document.getElementById('tab-config');
-var targets=DATA.config.symbols||[],watch=DATA.config.watchlist||[],fx=DATA.config.fxRate||7.8;
+var targets=DATA.config.symbols||[],fx=DATA.config.fxRate||7.8;
 function poolHtml(list,title){var h='<p style="color:#6b7fa3;font-size:12px;margin:8px 0">'+title+' ('+list.length+'个)</p><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';for(var i=0;i<list.length;i++){h+='<span style="background:#1a2b42;border:1px solid #2a3a52;padding:4px 10px;border-radius:4px;font-size:13px">'+list[i]+'</span>'}h+="</div>";return h}
-var h='<div class="card"><h2>标的池管理</h2>';
+var h='<div class="card"><h2>交易标的池</h2>';
 h+=poolHtml(targets,"交易池（可自动开仓）");
-h+=poolHtml(watch,"观察池（仅观察）");
 h+="</div>";
 h+='<div class="card"><h2>账户设置</h2><div class="stats-grid">';
 h+='<div class="stat-card"><div class="label">总资金</div><div class="value">\$'+DATA.config.capital.toLocaleString()+'</div></div>';
