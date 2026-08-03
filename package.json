@@ -1,12 +1,18 @@
 {
-  "name": "donew",
+  "name": "donew-vps-backend",
   "version": "2.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "uuid": "^9.0.0"
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.5"
   },
   "engines": {
     "node": ">=20"
