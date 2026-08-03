@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 长线交易机器人：周线定方向 + 日线进场 + ATR止损止盈
+// 长线交易机器人：日线趋势 + 日线进场 + ATR止损止盈
 // Usage: node scripts/long-term-trader.mjs run|dashboard|stats|positions|env|version
 //
 // Env: DEEPSEEK_API_KEY（必需）
@@ -244,7 +244,7 @@ function calcWeeklyDirection(weeklyBars) {
     lastPrice: Math.round(lastPrice * 100) / 100,
     reason: bullish
       ? `日线多头（EMA9:${ema9.toFixed(2)} > EMA21:${ema21.toFixed(2)}，价>EMA9）`
-      : (ema9 > ema21 ? `周线中性（EMA多头但价略低于EMA9）` : `日线空头（EMA9:${ema9.toFixed(2)} < EMA21:${ema21.toFixed(2)}）`),
+      : (ema9 > ema21 ? `日线中性（EMA多头但价略低于EMA9）` : `日线空头（EMA9:${ema9.toFixed(2)} < EMA21:${ema21.toFixed(2)}）`),
   };
 }
 
@@ -366,7 +366,7 @@ function buildScorePrompt(symbol, indicators, weekly) {
 
   return `评估 ${symbol} 当前的日线做多机会质量。
 
-长线背景（周线）：${weekly.reason}
+长线背景（日线）：${weekly.reason}
 
 日线技术指标：
 - EMA(9): $${ind.ema9}  |  价格位置: ${ind.price_vs_ema9 > 0 ? '+' : ''}${ind.price_vs_ema9}%
@@ -380,15 +380,15 @@ function buildScorePrompt(symbol, indicators, weekly) {
 - 1-3: 日线空头或日线趋势不明
 - 4-6: 中性，信号不明确
 - 7-8: 日线趋势向上，MACD金叉，RSI配合
-- 9-10: 周线+日线共振，多指标完美
+- 9-10: 日线+日线共振，多指标完美
 
 严格输出 JSON：
-{ "score": 1-10整数, "reasoning": "中文理由，提及周线方向和日线关键指标，不超过100字" }`;
+{ "score": 1-10整数, "reasoning": "中文理由，提及日线方向和日线关键指标，不超过100字" }`;
 }
 
 async function scoreEntry(symbol, indicators, weekly) {
   if (!indicators) return { score: 0, reasoning: '技术指标不足' };
-  const systemPrompt = '你是一个专业长线股票分析师。基于周线趋势和日线技术指标做评分判断，不参考新闻或基本面。';
+  const systemPrompt = '你是一个专业长线股票分析师。基于日线趋势和日线技术指标做评分判断，不参考新闻或基本面。';
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const result = await callDeepSeek(systemPrompt, buildScorePrompt(symbol, indicators, weekly));
@@ -505,7 +505,7 @@ async function run(marketFilter = null) {
   const marketLabel = marketFilter === 'hk' ? '港股+BTC' : marketFilter === 'us' ? '美股+BTC' : '全市场';
   console.log(`\n┌──────────────────────────────────────────┐`);
   console.log(`│  📈 Long-Term Trader ${VERSION}                    │`);
-  console.log(`│  周线定方向 + 日线进场 + ATR止盈止损  [${marketLabel}] │`);
+  console.log(`│  日线趋势 + 日线进场 + ATR止盈止损  [${marketLabel}] │`);
   console.log(`└──────────────────────────────────────────┘\n`);
 
   const config = loadConfig();
@@ -622,13 +622,6 @@ async function run(marketFilter = null) {
       continue;
     }
 
-    // Fetch daily bars
-    process.stdout.write(`    📡 日线...`);
-    const dailyBars = await fetchBars(symbol, '1d', '3mo');
-    if (!dailyBars || dailyBars.length < 55) { console.log(` 数据不足`); continue; }
-    console.log(` ${dailyBars.length}根`);
-    }
-
     // Check if already holding
     if (openPositions.find(p => p.symbol === symbol)) {
       const pos = openPositions.find(p => p.symbol === symbol);
@@ -704,7 +697,7 @@ async function run(marketFilter = null) {
     const rewardL = Math.round((pos.takeProfit - pos.entryPrice) * pos.shares * 100) / 100;
     await sendNotify(
       `OPEN ${symbol} $${pos.entryPrice.toFixed(2)}`,
-      `**${symbol}** 买入 × ${pos.shares}股  $${pos.entryPrice.toFixed(2)}\n\n止损: $${pos.stopLoss.toFixed(2)} | 止盈: $${pos.takeProfit.toFixed(2)}\n风险: -$${riskL.toFixed(2)} | 预期收益: +$${rewardL.toFixed(2)} (1:2)\nAI: ${ai.score}/10\n周线: ${weekly.reason}`,
+      `**${symbol}** 买入 × ${pos.shares}股  $${pos.entryPrice.toFixed(2)}\n\n止损: $${pos.stopLoss.toFixed(2)} | 止盈: $${pos.takeProfit.toFixed(2)}\n风险: -$${riskL.toFixed(2)} | 预期收益: +$${rewardL.toFixed(2)} (1:2)\nAI: ${ai.score}/10\n日线: ${weekly.reason}`,
       'money_bag'
     );
   }
@@ -915,7 +908,7 @@ var total=all.length;
 var pageSize=30;var totalPages=Math.max(1,Math.ceil(total/pageSize));
 var page=Math.max(1,(window._sigPage||1));if(page>totalPages)page=1;window._sigPage=page;
 var startIdx=(page-1)*pageSize;var signals=all.slice(startIdx,startIdx+pageSize);
-var h='<div class="card"><h2>信号记录</h2><table><thead><tr><th>时间</th><th>标的</th><th>决策</th><th>规则 (MRVE)</th><th>AI评分</th><th>周线方向</th><th>理由</th></tr></thead><tbody>';
+var h='<div class="card"><h2>信号记录</h2><table><thead><tr><th>时间</th><th>标的</th><th>决策</th><th>规则 (MRVE)</th><th>AI评分</th><th>日线方向</th><th>理由</th></tr></thead><tbody>';
 for(var i=0;i<signals.length;i++){
 var s=signals[i];
 var ruleStr=s.rules?((s.rules.macd?'M':'')+(s.rules.rsi?'R':'')+(s.rules.volume?'V':'')+(s.rules.ema?'E':'')):'-';
@@ -1209,7 +1202,7 @@ async function main() {
     case 'version':   showVersion();              break;
     default:
       console.log('Usage: node scripts/long-term-trader.mjs [run|dashboard|stats|positions|setup|env|version]');
-      console.log('  run       - 周线+日线分析 → 信号 → 模拟交易');
+      console.log('  run       - 日线+日线分析 → 信号 → 模拟交易');
       console.log('  dashboard - 生成 HTML 仪表板');
       console.log('  stats     - 统计面板');
       console.log('  positions - 当前持仓');
@@ -1217,7 +1210,7 @@ async function main() {
       console.log('  env       - 写入 API Key 到本地 .env');
       console.log('  version   - 版本');
       console.log('\n首次使用: export DEEPSEEK_API_KEY=sk-xxx && node scripts/long-term-trader.mjs env');
-      console.log(`标的: ${DEFAULT_CONFIG.symbols.join(' / ')} | 周线+日线 | 仅做多`);
+      console.log(`标的: ${DEFAULT_CONFIG.symbols.join(' / ')} | 日线+日线 | 仅做多`);
   }
 }
 
