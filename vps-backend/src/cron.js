@@ -44,13 +44,13 @@ export function startCronJobs() {
   });
   tasks.push(newsTask);
 
-  const morningTask = cron.schedule('28 0 * * 1-5', () => runReport('morning'));
+  const morningTask = cron.schedule('28 8 * * 1-5', () => runReport('morning'));
   tasks.push(morningTask);
 
-  const eveningTask = cron.schedule('28 12 * * 1-5', () => runReport('evening'));
+  const eveningTask = cron.schedule('28 20 * * 1-5', () => runReport('evening'));
   tasks.push(eveningTask);
 
-  const weeklyTask = cron.schedule('0 1 * * 6', () => runReport('weekly'));
+  const weeklyTask = cron.schedule('0 9 * * 6', () => runReport('weekly'));
   tasks.push(weeklyTask);
 
   console.log(`Cron started: stock every ${config.stockIntervalMinutes}min, news every ${config.newsIntervalMinutes}min, reports morning/evening/weekly`);
