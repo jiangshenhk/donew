@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sell-put-agent.mjs — Sell Put Decision Agent v0.5.0  (2026-07-30: +期权概览数据/+ATR预期区间/+中间价/+交易明细翻页/+邮件通知)
+// sell-put-agent.mjs — Sell Put Decision Agent v2.0.1  (2026-08-03: 全面迁移VPS/+IV均值回归/+波动率异动提醒/+ntfy邮件双通知)
 // 每日自动分析 QLD/MSTR/INTC 卖Put机会，记录纸面交易，跟踪胜率
 // 数据存储于 ~/.donew-agent/ (独立于仓库，不 commit)
 //
@@ -1668,7 +1668,7 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
 <body>
 <div class="header">
   <h1><svg width="24" height="24" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px"><rect x="3" y="7" width="18" height="13" rx="3" fill="#4d9eff"/><circle cx="9" cy="13" r="2" fill="#0d1522"/><circle cx="15" cy="13" r="2" fill="#0d1522"/><rect x="9" y="16" width="6" height="2" rx="1" fill="#0d1522"/><rect x="10" y="3" width="4" height="5" rx="2" fill="#4d9eff"/><circle cx="12" cy="6" r="1" fill="#ffd54a"/></svg>Sell Put 自动化机器人</h1>
-  <span style="font-size:.75rem;color:#6b7fa3;margin-left:8px;padding:2px 8px;background:#1a2942;border-radius:4px;border:1px solid #1f2b44">v0.5.0</span>
+  <span style="font-size:.75rem;color:#6b7fa3;margin-left:8px;padding:2px 8px;background:#1a2942;border-radius:4px;border:1px solid #1f2b44">v2.0.1</span>
   <span>Generated: <span id="genTime"></span>
   <label style="margin-left:12px;cursor:pointer;font-size:.8rem;color:#6b7fa3"><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" style="vertical-align:middle;margin-right:4px">自动刷新 <span id="refreshCountdown"></span></label>
   <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button></span>
@@ -2674,7 +2674,7 @@ function showStats() {
 // ─── Main ─────────────────────────────────────────────────────
 
 function showVersion() {
-  console.log('Sell Put Agent v0.5.0');
+  console.log('Sell Put Agent v2.0.1');
   console.log(`Data: ${AGENT_DIR}`);
 }
 

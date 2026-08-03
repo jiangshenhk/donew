@@ -117,7 +117,7 @@ stockprice/config/symbols.json          # 行情中心标的列表（GitHub Acti
 
 ## 版本
 
-v0.4.0 · 2026-07-28
+v2.0.1 · 2026-08-03（全面迁移VPS/+IV均值回归/+波动率异动提醒/+ntfy邮件双通知）
 
 ## 与 Web 工具（sell-put-decision-tool.html）差异
 

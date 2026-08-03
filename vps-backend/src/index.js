@@ -38,7 +38,7 @@ app.get('/', corsMiddleware, (req, res) => {
   res.json({
     ok: true,
     name: 'donew-vps-backend',
-    version: '1.0.0',
+    version: '2.0.1',
     endpoints: [
       'GET  /api/health',
       'GET  /api/stats',

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// short-term-trader.mjs — Short-Term K-line Trader v0.1.0
+// short-term-trader.mjs — Short-Term K-line Trader v2.0.1  (2026-08-03: 全面迁移VPS + 交易明细翻页/SLTP线时间限定)
 // 5分钟K线短线交易机器人，DeepSeek AI + 技术指标分析
 // 纸面模拟交易：QQQ / IBIT / MSTR
 // 数据存储：~/.donew-trader/（独立于仓库，不 commit）
@@ -27,7 +27,7 @@ const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 
-const VERSION = 'v2.0.0';
+const VERSION = 'v2.0.1';
 const VERSION_NOTE = 'VPS部署稳定版';
 const RANGE = '5d';
 const INTERVAL = '5m';

@@ -21,7 +21,7 @@ const DASHBOARD_FILE = path.join(DATA_DIR, 'dashboard.html');
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
-const VERSION = 'v2.0.0';
+const VERSION = 'v2.0.1';
 const VERSION_NOTE = 'VPS部署稳定版';
 
 // ─── ntfy ───────────────────────────────────────────────────────
