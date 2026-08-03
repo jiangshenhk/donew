@@ -1,9 +1,25 @@
 import cron from 'node-cron';
+import { exec } from 'child_process';
 import { fetchAllPrices } from './services/stockPrice.js';
 import { fetchAllNews } from './services/jin10News.js';
 import config from './config.js';
 
 let tasks = [];
+
+function runReport(type) {
+  const label = { morning: '早报', evening: '晚报', weekly: '周报' }[type] || type;
+  const cmd = `node scripts/generate-market-daily-report.mjs ${type}`;
+  console.log(`[cron] report ${label} start`);
+  exec(cmd, (err, stdout, stderr) => {
+    if (stdout) console.log(stdout.trim());
+    if (stderr) console.error(stderr.trim());
+    if (err) {
+      console.error(`[cron] report ${label} error:`, err.message);
+    } else {
+      console.log(`[cron] report ${label} done`);
+    }
+  });
+}
 
 export function startCronJobs() {
   stopCronJobs();
@@ -28,7 +44,16 @@ export function startCronJobs() {
   });
   tasks.push(newsTask);
 
-  console.log(`Cron started: stock every ${config.stockIntervalMinutes}min, news every ${config.newsIntervalMinutes}min`);
+  const morningTask = cron.schedule('28 0 * * 1-5', () => runReport('morning'));
+  tasks.push(morningTask);
+
+  const eveningTask = cron.schedule('28 12 * * 1-5', () => runReport('evening'));
+  tasks.push(eveningTask);
+
+  const weeklyTask = cron.schedule('0 1 * * 6', () => runReport('weekly'));
+  tasks.push(weeklyTask);
+
+  console.log(`Cron started: stock every ${config.stockIntervalMinutes}min, news every ${config.newsIntervalMinutes}min, reports morning/evening/weekly`);
 
   fetchAllPrices().catch(e => console.error('Initial stock fetch error:', e.message));
   fetchAllNews().catch(e => console.error('Initial news fetch error:', e.message));
