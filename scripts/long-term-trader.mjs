@@ -21,8 +21,8 @@ const DASHBOARD_FILE = path.join(DATA_DIR, 'dashboard.html');
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
-const VERSION = 'v1.0.2';
-const VERSION_NOTE = 'BTC K线修复 + 导航页 + 冗余清理';
+const VERSION = 'v1.0.3';
+const VERSION_NOTE = '长线3时段 + 批量调用间隔8s防限速 + Linux兼容';
 
 // ─── ntfy ───────────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -396,7 +396,7 @@ async function scoreEntry(symbol, indicators, weekly) {
     } catch (error) {
       if (attempt === 1) return { score: 0, reasoning: `AI失败: ${error.message}` };
       console.log(`（重试...）`);
-      await sleep(2000);
+      await sleep(5000);
     }
   }
 }
@@ -611,7 +611,7 @@ async function run(marketFilter = null) {
       const ai = await scoreEntry(symbol, indicators, weekly);
       console.log(` ${ai.score}/10`);
       console.log(`       ${ai.reasoning}`);
-      await sleep(4000);
+      await sleep(8000);
 
       saveSignals(symbol, [...loadSignals(symbol), {
         time: new Date().toISOString(), price: dailyBars[dailyBars.length-1].c,
@@ -653,7 +653,7 @@ async function run(marketFilter = null) {
       process.stdout.write(`    🧠 AI评分...`);
       const ai = await scoreEntry(symbol, indicators, weekly);
       console.log(` ${ai.score}/10 | ${ai.reasoning}`);
-      await sleep(4000);
+      await sleep(8000);
       saveSignals(symbol, [...loadSignals(symbol), {
         time: new Date().toISOString(), price: indicators.ema9 != null ? dailyBars[dailyBars.length-1].c : null,
         decision: 'SKIP', reasoning: ai.reasoning,
@@ -668,7 +668,7 @@ async function run(marketFilter = null) {
     const ai = await scoreEntry(symbol, indicators, weekly);
     console.log(` ${ai.score}/10`);
     console.log(`       ${ai.reasoning}`);
-    await sleep(4000);
+    await sleep(8000);
 
     if (ai.score < 6) {
       console.log(`    ⏸️  评分不足，跳过 (>=6开仓)`);
@@ -1090,7 +1090,9 @@ if(savedTab&&['positions','orders','signals','stats','kline','config'].indexOf(s
 
   fs.writeFileSync(DASHBOARD_FILE, html, 'utf-8');
   console.log('✅ 仪表板已生成: ' + DASHBOARD_FILE);
-  try { import('child_process').then(cp => cp.execSync(`open "${DASHBOARD_FILE}"`)); } catch {}
+  if (process.platform === 'darwin') {
+    try { import('child_process').then(cp => cp.execSync(`open "${DASHBOARD_FILE}"`)).catch(() => {}); } catch {}
+  }
 }
 
 async function showStats() {

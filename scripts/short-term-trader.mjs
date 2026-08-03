@@ -27,8 +27,8 @@ const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 
-const VERSION = 'v1.0.2';
-const VERSION_NOTE = 'BTC K线修复 + 导航页 + 冗余清理';
+const VERSION = 'v1.0.3';
+const VERSION_NOTE = 'Linux兼容 + 时区HKT';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
@@ -1854,9 +1854,11 @@ async function generateDashboard() {
   const html = buildDashboardHtml();
   fs.writeFileSync(DASHBOARD_FILE, html, 'utf-8');
   console.log(`✅ 仪表板已生成: ${DASHBOARD_FILE}`);
-  try {
-    execSync(`open "${DASHBOARD_FILE}"`);
-  } catch { /* ok */ }
+  if (process.platform === 'darwin') {
+    try {
+      execSync(`open "${DASHBOARD_FILE}"`);
+    } catch { /* ok */ }
+  }
 }
 
 // ─── Setup ───────────────────────────────────────────────────────
