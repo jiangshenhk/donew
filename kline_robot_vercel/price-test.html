@@ -141,8 +141,8 @@ tr.row-flash{animation:rowFlash 2s ease-out}
 /* ═══════════════════════════════════════
    1. 常量与配置
    ═══════════════════════════════════════ */
-const PRICE_URL='https://raw.githubusercontent.com/jiangshenhk/donew/main/stockprice/data/latest-price.json';
-const CONTENTS_API='https://api.github.com/repos/jiangshenhk/donew/contents/stockprice/data/latest-price.json?ref=main';
+const PRICE_URL='http://107.175.44.146/api/stock/prices';
+const CONTENTS_API='http://107.175.44.146/api/stock/prices';
 const $=id=>document.getElementById(id);
 const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 $('raw').href=PRICE_URL;
@@ -207,16 +207,11 @@ function transformItem(item){
 
 async function fetchLatestData(){
   try{
-    const r=await fetch(CONTENTS_API+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
-    if(!r.ok)throw new Error('GitHub API HTTP '+r.status);
-    const meta=await r.json();
-    if(!meta.content)throw new Error('GitHub API 未返回文件内容');
-    const bytes=Uint8Array.from(atob(meta.content.replace(/\n/g,'')),c=>c.charCodeAt(0));
-    return {json:JSON.parse(new TextDecoder().decode(bytes)),source:'GitHub main · '+(meta.sha||'').slice(0,7)};
-  }catch(apiErr){
-    const r=await fetch(PRICE_URL+'?t='+Date.now(),{cache:'reload'});
-    if(!r.ok)throw new Error('读取行情缓存失败：'+apiErr.message+'；Raw HTTP '+r.status);
-    return {json:await r.json(),source:'Raw 备用源'};
+    const r=await fetch(PRICE_URL+'?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('VPS API HTTP '+r.status);
+    return {json:await r.json(),source:'VPS 实时行情'};
+  }catch(e){
+    throw new Error('读取行情失败：'+e.message);
   }
 }
 
