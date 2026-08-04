@@ -37,7 +37,7 @@ const NTFY_TOKEN = 'tk_yw31dbl7scelalsvk3rhc0fhqvei6';
 const NTFY_SERVER = 'https://ntfy.sh';
 
 const DEFAULT_CONFIG = {
-  symbols: ['QQQ','IBIT','MSTR','TSLA','EEM','BTC-USD','UGL','FUTU','QLD','INTC','0700.HK','03032.HK','00883.HK'],
+  symbols: ['QQQ','IBIT','MSTR','TSLA','EEM','BTC-USD','UGL','FUTU','QLD','INTC','0700.HK','3032.HK','0883.HK'],
   capital: 100000,
   positionSize: 10000,
   maxPositions: 5,
