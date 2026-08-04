@@ -1816,7 +1816,6 @@ function loadChart(symbol) {
   _klineChart.timeScale().setVisibleLogicalRange({ from: startLogical, to: totalBars });
 }
 
-
 // ─── Auto-refresh ───
 let _autoRefreshTimer = null;
 let _autoRefreshSec = 300; // 5 minutes
@@ -1836,6 +1835,7 @@ window.toggleAutoRefresh = function() {
 };
 
 // ─── Init ───
+(function(){var e=document.getElementById("cfg-bar");var h="";for(var i=0;i<DATA.config.symbols.length;i++){var s=DATA.config.symbols[i],cls=/\\.HK$/i.test(s)?"hk":/BTC/i.test(s)?"btc":"";h+="<span class=\"sym "+cls+"\">"+s+"</span> "}h+=" <span class=\"label\">("+DATA.config.symbols.length+"个)</span>";e.innerHTML=h})();
 renderPositions();
 renderOrders();
 renderSignals();
