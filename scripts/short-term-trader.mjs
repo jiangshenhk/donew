@@ -1633,11 +1633,11 @@ function loadChart(symbol) {
   candleSeries.setData(chartData);
 
   const sigs = (DATA.signals[symbol] || []).filter(s => s.aiScore != null && s.time);
-  if (sigs.length && false) {
+  if (sigs.length) {
     const scoreData = [];
     for (const s of sigs) {
       const t = Math.round(new Date(s.time).getTime() / 1000 / 300) * 300;
-      if (t >= bars[0]?.t && t <= bars[bars.length - 1]?.t) {
+      if (t >= bars[0]?.t && t <= bars[bars.length - 1]?.t && scoreData.length < 100) {
         scoreData.push({ time: t, value: s.aiScore,
           color: s.aiScore >= 7 ? 'rgba(69,212,131,0.7)' : s.aiScore >= 5 ? 'rgba(255,213,74,0.6)' : 'rgba(255,107,125,0.5)' });
       }
