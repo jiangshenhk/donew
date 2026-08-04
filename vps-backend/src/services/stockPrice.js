@@ -232,8 +232,6 @@ export async function fetchAllPrices() {
   for (const item of symbols) {
     const symbol = typeof item === 'string' ? item : item.symbol;
     if (!shouldFetch(symbol)) {
-      console.log(`  ⏸️ ${symbol}: market closed, skip`);
-      data.push({ symbol, category: item.category || 'Unknown', error: 'market closed' });
       continue;
     }
     data.push(await fetchOneSymbol(item));
@@ -277,10 +275,9 @@ export async function getLatestStockPrices(symbols) {
       SELECT s.* FROM stock_prices s
       INNER JOIN (
         SELECT symbol, MAX(updated_at) as max_updated
-        FROM stock_prices
+        FROM stock_prices WHERE error IS NULL
         GROUP BY symbol
       ) latest ON s.symbol = latest.symbol AND s.updated_at = latest.max_updated
-      WHERE s.error IS NULL
     `).all();
     return rows;
   }
@@ -289,11 +286,9 @@ export async function getLatestStockPrices(symbols) {
     SELECT s.* FROM stock_prices s
     INNER JOIN (
       SELECT symbol, MAX(updated_at) as max_updated
-      FROM stock_prices
-      WHERE symbol IN (${placeholders})
+      FROM stock_prices WHERE symbol IN (${placeholders}) AND error IS NULL
       GROUP BY symbol
     ) latest ON s.symbol = latest.symbol AND s.updated_at = latest.max_updated
-    WHERE s.error IS NULL
   `).all(...symbols);
   return rows;
 }
