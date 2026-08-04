@@ -100,6 +100,18 @@
     {
       "symbol": "HOOD",
       "category": "Stock"
+    },
+    {
+      "symbol": "0700.HK",
+      "category": "HK Stock"
+    },
+    {
+      "symbol": "03032.HK",
+      "category": "HK Stock"
+    },
+    {
+      "symbol": "00883.HK",
+      "category": "HK Stock"
     }
   ]
 }
