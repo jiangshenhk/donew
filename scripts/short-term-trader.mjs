@@ -1698,9 +1698,11 @@ function loadChart(symbol) {
   // ── Trade lines + arrows for all positions (open + closed) ──
   const gray = '#808080';
   const firstBarTime = bars[0].t;
+  const lastBarTime = bars[bars.length - 1].t;
   const invBars = [];
   const invMarkers = [];
 
+  for (const pos of allPositions) {
     const entryTime = Math.round(Math.floor(new Date(pos.entryTime).getTime() / 1000) / 300) * 300;
     if (entryTime < firstBarTime - 86400 * 3) continue;
     const isClosed = pos.status === 'CLOSED';
@@ -1783,7 +1785,10 @@ function loadChart(symbol) {
   }
 
   _klineChart.timeScale().fitContent();
+  // 默认停靠最右（最新K线），只显示最近 ~100 根
   const totalBars = bars.length;
+  const startLogical = Math.max(0, totalBars - 100);
+  _klineChart.timeScale().setVisibleLogicalRange({ from: startLogical, to: totalBars });
 }
 
 // ─── Auto-refresh ───
