@@ -184,6 +184,7 @@ function saveKlineCache(symbol, newData) {
     .filter((b, i, arr) => i === 0 || b.t !== arr[i - 1].t);
 
   if (existing && existing.bars && existing.bars.length > 0 && newData.bars && newData.bars.length > 0) {
+    existing.bars = cleanBars(existing.bars);
     const seen = new Set(existing.bars.map(b => b.t));
     const fresh = cleanBars(newData.bars).filter(b => !seen.has(b.t));
     if (fresh.length === 0) return;
