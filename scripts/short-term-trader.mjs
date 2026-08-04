@@ -1002,7 +1002,7 @@ function buildDashboardHtml() {
   const allKlines = {};
   for (const symbol of config.symbols) {
     const k = loadKlineCache(symbol);
-    allKlines[symbol] = k?.bars ? { ...k, bars: k.bars.slice(-500) } : k;
+    allKlines[symbol] = k?.bars ? k : null;
   }
 
   const data = { config, positions, orders, stats, signals: allSignals, klines: allKlines, generatedAt: new Date().toISOString() };
