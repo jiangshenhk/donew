@@ -1701,7 +1701,8 @@ function loadChart(symbol) {
   const invBars = [];
   const invMarkers = [];
 
-  for (const pos of allPositions) {
+  // Position lines disabled (causing rendering issues)
+  if (false) for (const pos of allPositions) {
     const entryTime = Math.round(Math.floor(new Date(pos.entryTime).getTime() / 1000) / 300) * 300;
     if (entryTime < firstBarTime - 86400 * 3) continue;
     const isClosed = pos.status === 'CLOSED';
