@@ -27,8 +27,8 @@ const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 
-const VERSION = 'v2.0.2';
-const VERSION_NOTE = '港股(0700/3032/0883) + HK时段判断';
+const VERSION = 'v2.0.1';
+const VERSION_NOTE = 'VPS部署稳定版';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
@@ -37,7 +37,7 @@ const NTFY_TOKEN = 'tk_yw31dbl7scelalsvk3rhc0fhqvei6';
 const NTFY_SERVER = 'https://ntfy.sh';
 
 const DEFAULT_CONFIG = {
-  symbols: ['QQQ','IBIT','MSTR','TSLA','EEM','BTC-USD','UGL','FUTU','QLD','INTC','0700.HK','3032.HK','0883.HK'],
+  symbols: ['QQQ','IBIT','MSTR','TSLA','EEM','BTC-USD','UGL','FUTU','QLD','INTC'],
   capital: 100000,
   positionSize: 10000,
   maxPositions: 5,
@@ -131,14 +131,6 @@ function isMarketDay() {
 
 function is24hSymbol(symbol) {
   return /BTC|ETH|SOL|DOGE|USDT/i.test(symbol);
-}
-
-function isHKMarketOpen() {
-  const now = new Date();
-  const hk = new Date(now.getTime() + 8 * 3600 * 1000); // UTC→HKT
-  if (hk.getUTCDay() === 0 || hk.getUTCDay() === 6) return false;
-  const totalMin = hk.getUTCHours() * 60 + hk.getUTCMinutes();
-  return totalMin >= 570 && totalMin < 960; // 09:30-16:00 HKT
 }
 
 // ─── Data Management ───────────────────────────────────────────
@@ -750,17 +742,15 @@ async function run() {
   console.log(`资金: $${config.capital.toLocaleString()} | 单笔: $${config.positionSize.toLocaleString()} | 最大持仓: ${config.maxPositions}\n`);
 
   const marketOpen = isMarketOpen();
-  const hkOpen = isHKMarketOpen();
   const has24h = config.symbols.some(is24hSymbol);
-  const hasHk = config.symbols.some(s => /\.HK$/i.test(s));
-  if (!marketOpen && !has24h && !(hkOpen && hasHk)) {
+  if (!marketOpen && !has24h) {
     const et = etNow();
     const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
     console.log(`⏸️  美股未开市（ET ${dayNames[et.getDay()]} ${et.toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false })}）`);
     console.log('   开市时间: 周一至周五 9:30 AM - 4:00 PM ET');
     return;
   }
-  console.log(`${marketOpen ? '🟢 美股开市' : '⏸️ 美股休市'} | ${hkOpen ? '🟢 港股开市' : '⏸️ 港股休市'} | ET ${fmtTimeShort(etNow())} | 24h标的: ${config.symbols.filter(is24hSymbol).join(', ') || '无'}\n`);
+  console.log(`${marketOpen ? '🟢 美股开市' : '⏸️ 美股休市（仅运行24h标的）'} | ET ${fmtTimeShort(etNow())} | 24h标的: ${config.symbols.filter(is24hSymbol).join(', ') || '无'}\n`);
 
   const positions = loadPositions();
   console.log(`当前持仓: ${positions.length}/${config.maxPositions}`);
@@ -769,21 +759,12 @@ async function run() {
   const signals = {};
 
   for (const symbol of config.symbols) {
-    // Skip based on market hours: US for US stocks, HK for HK stocks, BTC always runs
-    const isHk = /\.HK$/i.test(symbol);
-    if (!is24hSymbol(symbol)) {
-      if (isHk && !hkOpen) {
-        console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        console.log(`  ⏸️  港股休市，跳过`);
-        signals[symbol] = { decision: 'SKIP', reasoning: '港股休市' };
-        continue;
-      }
-      if (!isHk && !marketOpen) {
-        console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        console.log(`  ⏸️  美股休市，跳过`);
-        signals[symbol] = { decision: 'SKIP', reasoning: '美股休市' };
-        continue;
-      }
+    // Skip non-24h symbols when US market is closed
+    if (!marketOpen && !is24hSymbol(symbol)) {
+      console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      console.log(`  ⏸️  美股休市，跳过`);
+      signals[symbol] = { decision: 'SKIP', reasoning: '美股休市' };
+      continue;
     }
     console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     process.stdout.write(`  📡 获取5分钟K线...`);
@@ -1086,11 +1067,6 @@ tbody tr:hover { background: #1a2b42; }
 .flex-1 { flex: 1; min-width: 280px; }
 .version { font-size: 10px; color: #4a5e7a; }
 .refresh-info { font-size: 11px; color: #6b7d99; margin-top: 8px; }
-.config-bar { padding: 8px 24px; background: #0f1828; border-bottom: 1px solid #1f2b44; display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
-.config-bar .label { color: #4a5e7a; font-size: 11px; white-space: nowrap }
-.config-bar .sym { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #1a2b42; border: 1px solid #2a3a52; color: #8ea3be }
-.config-bar .sym.hk { border-color: #b8860b; color: #ffd54a }
-.config-bar .sym.btc { border-color: #d32f2f; color: #ff6b7d }
 </style>
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 </head>
@@ -1102,8 +1078,6 @@ tbody tr:hover { background: #1a2b42; }
       <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button>
     </span>
   </div>
-
-<div class="config-bar"><span class="label">📋 跟踪标的</span><span id="cfg-bar"></span></div>
 
 <div class="tabs">
   <button class="tab active" onclick="switchTab('positions')">持仓</button>
@@ -1663,7 +1637,7 @@ function loadChart(symbol) {
     for (const s of sigs) {
       const t = Math.round(new Date(s.time).getTime() / 1000 / 300) * 300;
       if (t >= bars[0]?.t && t <= bars[bars.length - 1]?.t) {
-        if(scoreData.length<100) scoreData.push({ time: t, value: s.aiScore,
+        scoreData.push({ time: t, value: s.aiScore,
           color: s.aiScore >= 7 ? 'rgba(69,212,131,0.7)' : s.aiScore >= 5 ? 'rgba(255,213,74,0.6)' : 'rgba(255,107,125,0.5)' });
       }
     }
@@ -1835,7 +1809,6 @@ window.toggleAutoRefresh = function() {
 };
 
 // ─── Init ───
-(function(){var e=document.getElementById("cfg-bar");var h="";for(var i=0;i<DATA.config.symbols.length;i++){var s=DATA.config.symbols[i],cls=/\\.HK$/i.test(s)?"hk":/BTC/i.test(s)?"btc":"";h+="<span class=\"sym "+cls+"\">"+s+"</span> "}h+=" <span class=\"label\">("+DATA.config.symbols.length+"个)</span>";e.innerHTML=h})();
 renderPositions();
 renderOrders();
 renderSignals();
