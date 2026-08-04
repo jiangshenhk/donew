@@ -37,7 +37,7 @@ const NTFY_TOKEN = 'tk_yw31dbl7scelalsvk3rhc0fhqvei6';
 const NTFY_SERVER = 'https://ntfy.sh';
 
 const DEFAULT_CONFIG = {
-  symbols: ['QQQ','IBIT','MSTR','TSLA','EEM','BTC-USD','UGL','FUTU','QLD','INTC'],
+  symbols: ['QQQ','IBIT','MSTR','TSLA','EEM','BTC-USD','UGL','FUTU','QLD','INTC','0700.HK','03032.HK','00883.HK'],
   capital: 100000,
   positionSize: 10000,
   maxPositions: 5,
@@ -131,6 +131,14 @@ function isMarketDay() {
 
 function is24hSymbol(symbol) {
   return /BTC|ETH|SOL|DOGE|USDT/i.test(symbol);
+}
+
+function isHKMarketOpen() {
+  const now = new Date();
+  const hk = new Date(now.getTime() + 8 * 3600 * 1000); // UTC→HKT
+  if (hk.getUTCDay() === 0 || hk.getUTCDay() === 6) return false;
+  const totalMin = hk.getUTCHours() * 60 + hk.getUTCMinutes();
+  return totalMin >= 570 && totalMin < 960; // 09:30-16:00 HKT
 }
 
 // ─── Data Management ───────────────────────────────────────────
@@ -742,15 +750,17 @@ async function run() {
   console.log(`资金: $${config.capital.toLocaleString()} | 单笔: $${config.positionSize.toLocaleString()} | 最大持仓: ${config.maxPositions}\n`);
 
   const marketOpen = isMarketOpen();
+  const hkOpen = isHKMarketOpen();
   const has24h = config.symbols.some(is24hSymbol);
-  if (!marketOpen && !has24h) {
+  const hasHk = config.symbols.some(s => /\.HK$/i.test(s));
+  if (!marketOpen && !has24h && !(hkOpen && hasHk)) {
     const et = etNow();
     const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
     console.log(`⏸️  美股未开市（ET ${dayNames[et.getDay()]} ${et.toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false })}）`);
     console.log('   开市时间: 周一至周五 9:30 AM - 4:00 PM ET');
     return;
   }
-  console.log(`${marketOpen ? '🟢 美股开市' : '⏸️ 美股休市（仅运行24h标的）'} | ET ${fmtTimeShort(etNow())} | 24h标的: ${config.symbols.filter(is24hSymbol).join(', ') || '无'}\n`);
+  console.log(`${marketOpen ? '🟢 美股开市' : '⏸️ 美股休市'} | ${hkOpen ? '🟢 港股开市' : '⏸️ 港股休市'} | ET ${fmtTimeShort(etNow())} | 24h标的: ${config.symbols.filter(is24hSymbol).join(', ') || '无'}\n`);
 
   const positions = loadPositions();
   console.log(`当前持仓: ${positions.length}/${config.maxPositions}`);
@@ -759,12 +769,21 @@ async function run() {
   const signals = {};
 
   for (const symbol of config.symbols) {
-    // Skip non-24h symbols when US market is closed
-    if (!marketOpen && !is24hSymbol(symbol)) {
-      console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-      console.log(`  ⏸️  美股休市，跳过`);
-      signals[symbol] = { decision: 'SKIP', reasoning: '美股休市' };
-      continue;
+    // Skip based on market hours: US for US stocks, HK for HK stocks, BTC always runs
+    const isHk = /\.HK$/i.test(symbol);
+    if (!is24hSymbol(symbol)) {
+      if (isHk && !hkOpen) {
+        console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`  ⏸️  港股休市，跳过`);
+        signals[symbol] = { decision: 'SKIP', reasoning: '港股休市' };
+        continue;
+      }
+      if (!isHk && !marketOpen) {
+        console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`  ⏸️  美股休市，跳过`);
+        signals[symbol] = { decision: 'SKIP', reasoning: '美股休市' };
+        continue;
+      }
     }
     console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     process.stdout.write(`  📡 获取5分钟K线...`);
