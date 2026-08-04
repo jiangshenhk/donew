@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import db from '../db.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const router = Router();
 
@@ -36,6 +39,20 @@ router.get('/api/stats', (req, res) => {
     fetchLogs: db.prepare('SELECT COUNT(*) as count FROM fetch_log').get().count,
   };
   res.json({ ok: true, data: stats });
+});
+
+router.get('/api/config', (req, res) => {
+  function readConfig(dir) {
+    try {
+      const file = path.join(os.homedir(), dir, 'config.json');
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch { return null; }
+  }
+  res.json({
+    ok: true,
+    short: readConfig('.donew-trader'),
+    long: readConfig('.donew-trader-long'),
+  });
 });
 
 export default router;
