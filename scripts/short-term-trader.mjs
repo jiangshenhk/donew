@@ -1586,7 +1586,7 @@ function renderKline() {
     const cnt = DATA.orders.filter(o => o.symbol === s).length;
     html += '<button class="symbol-btn' + (s === defaultSym ? ' active' : '') + '" onclick="switchKline(\\'' + s + '\\')">' + s + (cnt ? ' (' + cnt + '笔)' : '') + '</button>';
   });
-  html += '</div><div id="chart-container" class="chart-container"><div id="chart-root" style="width:100%;height:410px"></div></div>';
+  html += '</div><div id="chart-container" class="chart-container"><div id="chart-root" style="width:100%;height:545px"></div></div>';
   container.innerHTML = html;
   if (typeof LightweightCharts === 'undefined') {
     document.getElementById('chart-root').innerHTML = '<div class="empty" style="padding:60px">图表库加载中...请确保网络连接正常</div>';
