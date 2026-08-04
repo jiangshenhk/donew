@@ -1786,10 +1786,7 @@ function loadChart(symbol) {
   }
 
   _klineChart.timeScale().fitContent();
-  // 默认停靠最右（最新K线），只显示最近 ~100 根
   const totalBars = bars.length;
-  const startLogical = Math.max(0, totalBars - 100);
-  _klineChart.timeScale().setVisibleLogicalRange({ from: startLogical, to: totalBars });
 }
 
 // ─── Auto-refresh ───
