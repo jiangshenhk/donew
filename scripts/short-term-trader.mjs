@@ -1111,7 +1111,6 @@ tbody tr:hover { background: #1a2b42; }
   <button class="tab" onclick="switchTab('signals')">信号记录</button>
   <button class="tab" onclick="switchTab('stats')">统计</button>
   <button class="tab" onclick="switchTab('kline')">K线图</button>
-  <button class="tab" onclick="switchTab('config')">配置</button>
 </div>
 
 <div class="content">
@@ -1120,7 +1119,6 @@ tbody tr:hover { background: #1a2b42; }
   <div id="tab-signals" class="tab-content" style="display:none"></div>
   <div id="tab-stats" class="tab-content" style="display:none"></div>
   <div id="tab-kline" class="tab-content" style="display:none"></div>
-  <div id="tab-config" class="tab-content" style="display:none"></div>
   <div class="refresh-info">数据生成: ${new Date(data.generatedAt).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' })}</div>
 </div>
 
@@ -1153,7 +1151,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + name).style.display = 'block';
-  document.querySelector('.tab:nth-child(' + (['positions','orders','signals','stats','kline','config'].indexOf(name)+1) + ')').classList.add('active');
+  document.querySelector('.tab:nth-child(' + (['positions','orders','signals','stats','kline'].indexOf(name)+1) + ')').classList.add('active');
   localStorage.setItem('trader_active_tab', name);
   if (name === 'kline') renderKline();
   if (name === 'stats') renderStats();
@@ -1818,20 +1816,6 @@ function loadChart(symbol) {
   _klineChart.timeScale().setVisibleLogicalRange({ from: startLogical, to: totalBars });
 }
 
-// ─── Config Tab ───
-function renderConfig() {
-  var c = document.getElementById('tab-config');
-  var syms = DATA.config.symbols || [];
-  var h = '<div class="card"><h2>跟踪标的 (' + syms.length + ')</h2><div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">';
-  for (var i = 0; i < syms.length; i++) {
-    var s = syms[i], cls = /\\.HK$/i.test(s) ? 'border-color:#b8860b;color:#ffd54a' : /BTC/i.test(s) ? 'border-color:#d32f2f;color:#ff6b7d' : '';
-    h = h + '<span style="background:#1a2b42;border:1px solid #2a3a52;padding:6px 12px;border-radius:6px;font-size:13px;' + cls + '">' + s + '</span>';
-  }
-  h = h + '</div>';
-  h = h + '<p style="color:#6b7fa3;font-size:12px">资金: $' + DATA.config.capital.toLocaleString() + ' | 单笔: $' + DATA.config.positionSize.toLocaleString() + ' | 最大持仓: ' + DATA.config.maxPositions + ' | 模型: ' + DATA.config.model + '</p>';
-  h = h + '</div>';
-  c.innerHTML = h;
-}
 
 // ─── Auto-refresh ───
 let _autoRefreshTimer = null;
@@ -1856,14 +1840,13 @@ renderPositions();
 renderOrders();
 renderSignals();
 renderStats();
-renderConfig();
 // Auto-refresh: default ON unless explicitly turned off
 if (localStorage.getItem('trader_auto_refresh') !== 'off') {
   toggleAutoRefresh();
 }
 // Restore last active tab
 const savedTab = localStorage.getItem('trader_active_tab');
-if (savedTab && ['positions','orders','signals','stats','kline','config'].includes(savedTab)) {
+if (savedTab && ['positions','orders','signals','stats','kline'].includes(savedTab)) {
   switchTab(savedTab);
 }
 // Alert on new BUY signals
