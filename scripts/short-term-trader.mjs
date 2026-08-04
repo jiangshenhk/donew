@@ -1633,7 +1633,7 @@ function loadChart(symbol) {
   candleSeries.setData(chartData);
 
   const sigs = (DATA.signals[symbol] || []).filter(s => s.aiScore != null && s.time);
-  if (sigs.length) {
+  if (sigs.length && false) {
     const scoreData = [];
     for (const s of sigs) {
       const t = Math.round(new Date(s.time).getTime() / 1000 / 300) * 300;
