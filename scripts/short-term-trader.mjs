@@ -1644,7 +1644,7 @@ function loadChart(symbol) {
     if (scoreData.length) {
       const scoreSeries = _klineChart.addHistogramSeries({ priceScaleId: 'score', priceFormat: { type: 'volume' } });
       scoreSeries.setData(scoreData);
-      _klineChart.priceScale('score').applyOptions({ scaleMargins: { top: 0.95, bottom: 0 }, visible: true, borderVisible: false });
+      _klineChart.priceScale('score').applyOptions({ scaleMargins: { top: 0.98, bottom: 0 }, visible: true, borderVisible: false });
     }
   }
 
