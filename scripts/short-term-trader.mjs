@@ -1086,6 +1086,11 @@ tbody tr:hover { background: #1a2b42; }
 .flex-1 { flex: 1; min-width: 280px; }
 .version { font-size: 10px; color: #4a5e7a; }
 .refresh-info { font-size: 11px; color: #6b7d99; margin-top: 8px; }
+.config-bar { padding: 8px 24px; background: #0f1828; border-bottom: 1px solid #1f2b44; display: flex; align-items: center; gap: 8px; flex-wrap: wrap }
+.config-bar .label { color: #4a5e7a; font-size: 11px; white-space: nowrap }
+.config-bar .sym { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #1a2b42; border: 1px solid #2a3a52; color: #8ea3be }
+.config-bar .sym.hk { border-color: #b8860b; color: #ffd54a }
+.config-bar .sym.btc { border-color: #d32f2f; color: #ff6b7d }
 </style>
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 </head>
@@ -1097,6 +1102,8 @@ tbody tr:hover { background: #1a2b42; }
       <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button>
     </span>
   </div>
+
+<div class="config-bar"><span class="label">📋 跟踪标的</span><span id="cfg-bar"></span></div>
 
 <div class="tabs">
   <button class="tab active" onclick="switchTab('positions')">持仓</button>
@@ -1828,6 +1835,7 @@ window.toggleAutoRefresh = function() {
 };
 
 // ─── Init ───
+(function(){var e=document.getElementById("cfg-bar");var h="";for(var i=0;i<DATA.config.symbols.length;i++){var s=DATA.config.symbols[i],cls=/\\.HK$/i.test(s)?"hk":/BTC/i.test(s)?"btc":"";h+="<span class=\"sym "+cls+"\">"+s+"</span> "}h+=" <span class=\"label\">("+DATA.config.symbols.length+"个)</span>";e.innerHTML=h})();
 renderPositions();
 renderOrders();
 renderSignals();
