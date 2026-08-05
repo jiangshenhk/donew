@@ -8,12 +8,12 @@ router.get('/api/stock/prices', async (req, res) => {
   try {
     const symbols = req.query.symbols ? req.query.symbols.split(',').map(s => s.trim().toUpperCase()) : null;
     const prices = await getLatestStockPrices(symbols);
-    const lastFetch = db.prepare("SELECT created_at, message FROM fetch_log WHERE type='stock' ORDER BY created_at DESC LIMIT 1").get();
+    const lastDataUpdate = db.prepare("SELECT MAX(updated_at) as d FROM stock_prices WHERE error IS NULL").get();
     const now = new Date().toISOString();
     res.json({
       ok: true,
       count: prices.length,
-      updatedAt: lastFetch?.created_at || now,
+      updatedAt: lastDataUpdate?.d || now,
       checkedAt: now,
       successCount: prices.length,
       failCount: 0,
