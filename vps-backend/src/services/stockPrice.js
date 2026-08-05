@@ -175,13 +175,10 @@ function latestClose(result) {
   return null;
 }
 
+let lastPostCloseDate = ''; // track "YYYY-MM-DD" of last post-close fetch
+
 function is24hSymbol(symbol) {
   return /BTC|ETH|SOL|DOGE|USDT|crypto/i.test(symbol);
-}
-
-function isWeekday() {
-  const day = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
-  return day !== 'Sat' && day !== 'Sun';
 }
 
 function etMinutes() {
@@ -193,21 +190,40 @@ function etMinutes() {
   return h * 60 + m;
 }
 
-function isUsMarketOpen() {
-  if (!isWeekday()) return false;
-  const m = etMinutes();
-  return m >= 570 && m < 960; // 9:30 - 16:00 ET
+function etDate() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
-function isUsPostClose() {
-  if (!isWeekday()) return false;
+function isMarketOpen(symbol) {
+  if (is24hSymbol(symbol)) return true;
+  // US market: Mon-Fri 9:30-16:00 ET
   const m = etMinutes();
-  return m >= 960 && m < 990; // 16:00 - 16:30 ET (close fix)
+  return m >= 570 && m < 960;
+}
+
+function isPostCloseWindow(symbol) {
+  if (is24hSymbol(symbol)) return false;
+  const m = etMinutes();
+  return m >= 960 && m < 1050; // 16:00 - 17:30 ET (30 min + extra buffer)
+}
+
+function isWeekday() {
+  const day = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+  return day !== 'Sat' && day !== 'Sun';
 }
 
 function shouldFetch(symbol) {
   if (is24hSymbol(symbol)) return true;
-  return isUsMarketOpen() || isUsPostClose();
+  if (!isWeekday()) return false; // weekend: only 24h symbols
+  if (isMarketOpen(symbol)) return true;
+  if (isPostCloseWindow(symbol)) {
+    const today = etDate();
+    if (lastPostCloseDate !== today) {
+      lastPostCloseDate = today;
+      return true; // one extra fetch after close
+    }
+  }
+  return false;
 }
 
 export async function fetchAllPrices() {
@@ -218,27 +234,17 @@ export async function fetchAllPrices() {
     return [];
   }
 
-  const now = new Date();
-  if (!isWeekday()) {
-    const activeCount = symbols.filter(s => is24hSymbol(s.symbol)).length;
-    if (activeCount === 0) {
-      console.log('US market closed (weekend), no 24h symbols, skip');
-      return [];
-    }
-    console.log(`US market closed (weekend), only ${activeCount} 24h symbols`);
-  }
-
-  const data = [];
+  const fetched = [];
   for (const item of symbols) {
     const symbol = typeof item === 'string' ? item : item.symbol;
     if (!shouldFetch(symbol)) {
       continue;
     }
-    data.push(await fetchOneSymbol(item));
+    fetched.push(await fetchOneSymbol(item));
     await sleep(1000);
   }
-  const successCount = data.filter(x => !x.error).length;
-  const failCount = data.length - successCount;
+  const successCount = fetched.filter(x => !x.error).length;
+  const failCount = fetched.length - successCount;
   const fetchTime = new Date().toISOString();
   const insert = db.prepare(`
     INSERT OR REPLACE INTO stock_prices (symbol, category, name, price, previous_close, change_percent,
@@ -259,14 +265,14 @@ export async function fetchAllPrices() {
     previousCloseGapNote: null,
   };
   const tx = db.transaction(() => {
-    for (const item of data) {
+    for (const item of fetched) {
       insert.run({ ...defaults, ...item, updatedAt: fetchTime, error: item.error || null });
     }
   });
   tx();
-  logFetch('stock', 'ok', `fetched ${data.length} symbols, success=${successCount} fail=${failCount}`);
+  logFetch('stock', 'ok', `fetched ${fetched.length} symbols, success=${successCount} fail=${failCount}`);
   console.log(`Stock fetch done: success=${successCount} fail=${failCount}`);
-  return data;
+  return fetched;
 }
 
 export async function getLatestStockPrices(symbols) {
