@@ -1666,6 +1666,10 @@ tr:last-child td{border-bottom:none}
 .filter-bar select,.filter-bar input{padding:6px 12px;background:#111d2f;border:1px solid #1f2b44;color:#cddbf7;border-radius:6px;font-size:.82rem;outline:none}
 .filter-bar select:focus,.filter-bar input:focus{border-color:#4d9eff}
 .filter-bar label{font-size:.8rem;color:#6b7fa3}
+.symbol-selector{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.symbol-btn{padding:6px 14px;border:1px solid #2a3a52;border-radius:6px;background:#1a2b42;color:#8ea3be;cursor:pointer;font-size:13px;transition:all .2s}
+.symbol-btn:hover{border-color:#4da8ff;color:#4da8ff}
+.symbol-btn.active{background:rgba(77,168,255,.15);border-color:#4da8ff;color:#4da8ff}
 .pagination{display:flex;gap:6px;justify-content:center;margin:16px 0}
 .pagination button{padding:6px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;font-size:.82rem}
 .pagination button:hover{background:#22304d}
