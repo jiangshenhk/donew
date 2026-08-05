@@ -935,7 +935,7 @@ async function callAI(prompt) {
         model,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.2,
-        max_tokens: 6000,
+        max_tokens: 8192,
       }),
     }, 50000);
     if (!res.ok) {
