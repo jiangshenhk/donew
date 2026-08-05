@@ -615,8 +615,8 @@
     const defaultApiBase = query.get('apiBase')
       || (window.location.protocol === 'file:'
         ? 'http://127.0.0.1:8794'
-        : (window.location.hostname.endsWith('github.io') ? 'https://sellput.top' : window.location.origin));
-    const appVersionText = '3.0.0.10｜2026-07-26｜统一AI浏览器图标';
+        : window.location.origin);
+    const appVersionText = '3.0.0.11｜2026-08-05 14:12｜统一切换sellput.top';
     appVersion.textContent = `版本 ${appVersionText}`;
 
     const historyKey = 'klineRobotHistory.v1';

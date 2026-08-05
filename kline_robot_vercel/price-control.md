@@ -3,21 +3,21 @@
 ## 当前阶段
 
 - price-test.html 用于测试行情缓存
-- latest-price.js 提供行情读取
-- 缓存周期 3 分钟
+- `https://sellput.top/api/stock/prices` 提供行情读取
+- VPS 行情服务默认每 5 分钟刷新
 
 ## 后续自动刷新
 
-GitHub Actions 每5分钟运行一次：
+VPS PM2 node-cron 每 5 分钟运行一次：
 
 ```
-GitHub Actions
+VPS PM2 node-cron
       |
       v
-行情更新程序
+vps-backend/src/services/stockPrice.js
       |
       v
-latest-price-cache.json
+SQLite 行情缓存
       |
       v
 网页读取
@@ -25,7 +25,7 @@ latest-price-cache.json
 
 ## 控制状态
 
-未来增加：
+控制接口可提供：
 
 - 启动自动刷新
 - 停止自动刷新

@@ -2,7 +2,7 @@
 
 ## 策略基线（系统角色）
 
-> 运行时从 GitHub 读取：`docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md`
+> 运行时从 sellput.top 文档路径读取：`docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md`
 
 该文件是完整的 AI 系统提示词，包含：
 - 角色定位：卖Put交易者市场分析助手
@@ -53,7 +53,7 @@
 
 ## 调用方式
 
-- 文件: `kline_robot_vercel/api/market-report-v2.js`
-- 策略基线通过 `loadStrategyBaseline()` 从 GitHub 读取
-- 支持手工网页生成 + GitHub Actions 自动生成双链路
+- 生产文件: `vps-backend/src/api/market-report-v2.js`
+- 策略基线通过 `loadStrategyBaseline()` 从 sellput.top 文档路径读取
+- 支持手工网页生成 + VPS 定时自动生成双链路
 - DeepSeek / OpenAI 双路由

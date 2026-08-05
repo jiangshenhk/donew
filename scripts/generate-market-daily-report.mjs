@@ -19,7 +19,7 @@ const outputDir = path.join(root, 'docs/市场');
 const statusDir = path.join(outputDir, 'data');
 const historyFile = path.join(outputDir, '历史.md');
 const todayFile = path.join(outputDir, '今日.md');
-const aiEndpoint = process.env.NEWS_SUMMARY_API || 'https://donew-beta.vercel.app/api/news-summary';
+const aiEndpoint = process.env.NEWS_SUMMARY_API || 'https://sellput.top/api/news-summary';
 
 if (!fs.existsSync(newsFile)) throw new Error(`Required file missing: ${path.relative(root, newsFile)}`);
 const { strategy, strategySource } = loadStrategyBaseline(root);
@@ -60,7 +60,7 @@ async function callAI() {
   try {
     const response = await fetch(aiEndpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Origin': 'https://donew-beta.vercel.app' },
+      headers: { 'Content-Type': 'application/json', 'Origin': 'https://sellput.top' },
       body: JSON.stringify({
         mode: 'daily-report',
         reportType,

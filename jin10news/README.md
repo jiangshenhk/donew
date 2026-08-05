@@ -55,22 +55,22 @@ jin10news/
 - `data/latest-24h.json`
   - 给程序和 AI 读的结构化缓存
 - `data/latest-24h.md`
-  - 给 GitHub / Docsify / 人类直接看的 Markdown 缓存
+  - 给网站文档页和人类直接看的 Markdown 缓存
 
 ---
 
 ## 4. 处理流程
 
 ```text
-GitHub Actions 定时触发
-  -> node jin10news/scripts/update-jin10-news.js
+VPS PM2 node-cron 定时触发
+  -> vps-backend/src/services/jin10News.js
   -> 拉取金十搜索结果
   -> 分页抓取
   -> 兼容多种响应结构
   -> 按新闻 ID / 时间 / 正文去重
   -> 只保留最近24小时
-  -> 生成 JSON + Markdown
-  -> commit 回 main
+  -> 写入 VPS SQLite 新闻缓存
+  -> 提供给同源 API 和自动报告任务
 ```
 
 注意：
@@ -82,24 +82,9 @@ GitHub Actions 定时触发
 
 ## 5. 自动更新
 
-工作流文件：
+生产读取与存储由 `vps-backend/src/cron.js`、`vps-backend/src/services/jin10News.js` 和 VPS SQLite 负责。由于金十可能封锁 VPS IP，服务优先读取 GitHub Actions 生成的 `jin10news/data/latest-24h.json`，失败后才尝试 VPS 直连金十。
 
-- `.github/workflows/update-jin10-news.yml`
-
-当前触发方式：
-
-- 每 5 分钟左右一次
-- 支持 `workflow_dispatch` 手工触发
-
-关键设计：
-
-- `concurrency.group = update-jin10-news`
-- `cancel-in-progress = false`
-
-这表示：
-
-- 不会让同一工作流相互覆盖；
-- 定时任务允许顺序完成。
+这只是上游采集回退。浏览器页面不得直接访问 GitHub，必须统一读取 `https://sellput.top/api/news/latest`。
 
 ---
 
@@ -137,11 +122,13 @@ GitHub Actions 定时触发
 ### 上游
 
 - 金十搜索页 / 金十搜索接口
+- GitHub Actions 新闻采集缓存（VPS IP 被限制时使用）
 
 ### 下游
 
-- Vercel API：`kline_robot_vercel/api/news-summary.js`
-- 自动日报生成器：`scripts/generate-market-daily-report.mjs`
+- VPS API：`vps-backend/src/api/news-summary.js`
+- 市场分析 API：`vps-backend/src/api/market-report-v2.js`
+- VPS 自动日报任务
 
 ---
 
@@ -153,22 +140,23 @@ GitHub Actions 定时触发
 
 先看：
 
-- `jin10news/scripts/update-jin10-news.js`
-- GitHub Actions 日志：`update-jin10-news.yml`
+- `vps-backend/src/services/jin10News.js`
+- `vps-backend/src/cron.js`
+- PM2 服务日志
 
 ### B. 页面能打开，但总结内容为空
 
 先看：
 
-- `jin10news/data/latest-24h.json`
-- `kline_robot_vercel/api/news-summary.js`
+- VPS SQLite 新闻缓存
+- `vps-backend/src/api/news-summary.js`
 
 ### C. 自动日报没有新闻
 
 先看：
 
-- `scripts/generate-market-daily-report.mjs`
-- 它从 `jin10news/data/latest-24h.json` 取的是最近 48 小时窗口
+- VPS 自动报告任务与日志
+- `vps-backend/src/api/market-report-v2.js`
 
 ---
 
@@ -198,7 +186,7 @@ GitHub Actions 定时触发
 
 AI 总结应放在 API 层，例如：
 
-- `kline_robot_vercel/api/news-summary.js`
+- `vps-backend/src/api/news-summary.js`
 
 ---
 

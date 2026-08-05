@@ -6,8 +6,8 @@
 
 - 所有修改、新增、测试**仅限此目录**，不得修改正式项目任何文件
 - 同一个页面需同步维护两个位置：
-  1. `lucas/xxx.html`（本地预览 / GitHub Pages）
-  2. `kline_robot_vercel/lucas/xxx.html`（Vercel 线上）
+  1. `lucas/xxx.html`（本地预览源）
+  2. `kline_robot_vercel/lucas/xxx.html`（sellput.top 页面镜像）
 - 不得引用正式项目的 API、样式、工具库（除非显式注明）
 
 ---

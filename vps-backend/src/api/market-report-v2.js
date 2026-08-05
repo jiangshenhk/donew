@@ -90,10 +90,10 @@ const FRED_SERIES = {
 };
 const STOCKPRICE_SNAPSHOT_URL = "http://localhost:3000/api/stock/prices";
 const STOCKPRICE_SNAPSHOT_CACHE_TTL_MS = 10 * 60 * 1000;
-const STRATEGY_BASELINE_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md";
+const STRATEGY_BASELINE_URL = "https://sellput.top/docs/SellPut/日报周报/策略_每日市场判断怎么看GPT提示词.md";
 const STRATEGY_BASELINE_CACHE_TTL_MS = 60 * 60 * 1000;
 let strategyBaselineCache = { text: "", fetchedAt: 0 };
-const FOCUS_POOL_URL = "https://raw.githubusercontent.com/jiangshenhk/donew/main/docs/SellPut/sell-put-focus.json";
+const FOCUS_POOL_URL = "https://sellput.top/docs/SellPut/sell-put-focus.json";
 const FOCUS_POOL_CACHE_TTL_MS = 10 * 60 * 1000;
 let focusPoolCache = { symbols: [], fetchedAt: 0 };
 
@@ -1145,7 +1145,7 @@ async function legacyHandler(req, res) {
     } catch (e) { return sendJson(res, 500, { error: e.message, message: "行情缓存获取失败" }); }
   }
   if (action === "status") return sendJson(res, 200, { service: "market-price-cache", enabled: true, intervalMinutes: 5, message: "行情服务运行中" });
-  if (action === "refresh") return sendJson(res, 200, { ok: true, message: "手动刷新已触发，Worker 通过 GitHub Actions 运行。" });
+  if (action === "refresh") return sendJson(res, 200, { ok: true, message: "行情服务由 VPS 每 5 分钟自动更新。" });
   if (action === "start") return sendJson(res, 200, { enabled: true, message: "自动更新已开启" });
   if (action === "stop") return sendJson(res, 200, { enabled: false, message: "自动更新已关闭" });
 

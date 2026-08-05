@@ -14,17 +14,17 @@
 这里对应的是一条自动化链路：
 
 ```text
-GitHub Actions
+VPS PM2 node-cron
   -> scripts/generate-market-daily-report.mjs
   -> lib/market-report-core.mjs
-  -> Vercel AI 接口 / 新闻缓存 / 行情缓存
+  -> VPS AI 接口 / SQLite 新闻缓存 / SQLite 行情缓存
   -> 输出到 docs/市场/
 ```
 
 相关公开入口：
 
-- 今日汇总页：`https://jiangshenhk.github.io/donew/#/docs/市场/今日.md`
-- 历史页：`https://jiangshenhk.github.io/donew/#/docs/市场/历史.md`
+- 今日汇总页：`https://sellput.top/docs/市场/今日.md`
+- 历史页：`https://sellput.top/docs/市场/历史.md`
 - 前台即时工具页：`https://sellput.top/market-analysis-tool.html`
 
 注意：
@@ -49,7 +49,7 @@ GitHub Actions
 
 ### 上游脚本
 
-- `.github/workflows/generate-market-daily-reports.yml`
+- `vps-backend/src/cron.js`
 - `scripts/generate-market-daily-report.mjs`
 - `scripts/test-market-daily-report.mjs`
 - `scripts/validate-market-report.mjs`
@@ -66,35 +66,35 @@ GitHub Actions
 ## 3. 自动化处理流程
 
 ```text
-工作流按时间触发
+VPS 定时任务按时间触发
   -> 判断当前生成 morning 还是 evening
   -> 校验策略基线文档是否存在
-  -> 读取新闻缓存 jin10news/data/latest-24h.json
-  -> 读取行情缓存 stockprice/data/latest-price.json
+  -> 读取 VPS 新闻与行情缓存
   -> 由 market-report-core.mjs 组装 prompt
   -> 调用 /api/news-summary 的 daily-report 模式
   -> 产出 Markdown
   -> validate-market-report.mjs 校验关键结构
   -> 写回 docs/市场/
   -> 更新 今日.md / 历史.md
-  -> commit 回 main
+  -> 网站直接读取最新产物
 ```
 
 ---
 
-## 4. 工作流触发时间
+## 4. VPS 调度时间
 
-工作流文件：
+生产调度文件：
 
-- `.github/workflows/generate-market-daily-reports.yml`
+- `vps-backend/src/cron.js`
 
 当前调度：
 
 - 工作日早报
 - 工作日晚报
-- 支持 `workflow_dispatch` 手动指定 `morning` / `evening`
+- 周六周报
+- 可在 VPS 上手工执行生成脚本并指定 `morning` / `evening` / `weekly`
 
-如果以后新增“周报自动生成器”，建议直接沿用这一套：
+如果以后新增自动生成器，建议沿用这一套并注册到 `vps-backend/src/cron.js`：
 
 - `generate-xxx.mjs`
 - `test-xxx.mjs`
@@ -107,13 +107,13 @@ GitHub Actions
 
 ### 新闻
 
-- `jin10news/data/latest-24h.json`
+- VPS SQLite 新闻缓存，由 `vps-backend/src/services/jin10News.js` 更新
 
-脚本内部会再做最近 48 小时窗口筛选。
+生成流程按需要筛选最近 24 或 48 小时窗口。
 
 ### 行情
 
-- `stockprice/data/latest-price.json`
+- VPS SQLite 行情缓存，由 `vps-backend/src/services/stockPrice.js` 更新
 
 ### 模板 / 策略基线
 
@@ -180,7 +180,7 @@ GitHub Actions
 ### `market-analysis-tool.html`
 
 - 用户手工点击即时生成；
-- API 在 `kline_robot_vercel/api/market-report-v2.js`；
+- 生产 API 在 `vps-backend/src/api/market-report-v2.js`；
 - 主要服务“此刻临时看一眼市场”。
 
 两者关系：
@@ -197,8 +197,8 @@ GitHub Actions
 
 先看：
 
-- `generate-market-daily-reports.yml`
-- Actions 日志
+- `vps-backend/src/cron.js`
+- PM2 服务日志
 
 ### B. 报告结构不对
 
@@ -218,8 +218,8 @@ GitHub Actions
 
 先看：
 
-- `stockprice/data/latest-price.json`
-- `jin10news/data/latest-24h.json`
+- `GET https://sellput.top/api/stock/prices`
+- `GET https://sellput.top/api/news/latest`
 
 ---
 
@@ -234,7 +234,7 @@ scripts/generate-weekly-review.mjs
 scripts/test-weekly-review.mjs
 scripts/validate-weekly-review.mjs
 lib/weekly-review-core.mjs
-.github/workflows/generate-weekly-review.yml
+vps-backend/src/cron.js
 docs/市场/README.md
 ```
 
@@ -243,4 +243,4 @@ docs/市场/README.md
 1. 先把输入源定好；
 2. 再把 prompt 组装抽到 `lib/*-core.mjs`；
 3. 再补 `validate-*.mjs`；
-4. 最后接入工作流。
+4. 最后接入 VPS 定时任务。

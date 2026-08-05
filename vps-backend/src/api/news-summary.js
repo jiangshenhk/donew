@@ -154,7 +154,7 @@ function fileTimestamp(date = new Date()) {
 /* ═══════════════════ AI 调用（共用） ═══════════════════ */
 
 async function callDeepSeek(payload, instructions, maxTokens = 7000) {
-  if (!process.env.DEEPSEEK_API_KEY) throw new Error("Vercel 尚未配置 DEEPSEEK_API_KEY");
+  if (!process.env.DEEPSEEK_API_KEY) throw new Error("VPS 尚未配置 DEEPSEEK_API_KEY");
   const response = await timedFetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: { Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY, "Content-Type": "application/json" },
@@ -170,7 +170,7 @@ async function callDeepSeek(payload, instructions, maxTokens = 7000) {
 }
 
 async function callOpenAI(payload, instructions, maxTokens = 7000) {
-  if (!process.env.OPENAI_API_KEY) throw new Error("Vercel 尚未配置 OPENAI_API_KEY");
+  if (!process.env.OPENAI_API_KEY) throw new Error("VPS 尚未配置 OPENAI_API_KEY");
   const response = await timedFetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: "Bearer " + process.env.OPENAI_API_KEY, "Content-Type": "application/json" },

@@ -1,5 +1,4 @@
 const ALLOWED_ORIGINS = [
-  'https://jiangshenhk.github.io',
   'https://sellput.top',
 ];
 

@@ -13,7 +13,7 @@
 |:---|:---|:---|:---|
 | **交易池** | `pool.json` → `trading` | 可自动开仓的标的 | `symbols add/remove/list` |
 | **扫描池** | `pool.json` → `watchlist` | IV溢价排名观察 | `watchlist add/remove/list` |
-| **行情中心** | `stockprice/config/symbols.json` | 实时价格/K线数据源 | GitHub Actions 管理 |
+| **行情中心** | `stockprice/config/symbols.json` | 实时价格/K线数据源 | VPS 行情服务管理 |
 
 > 交易池 ⊆ 扫描池：交易池的标的必须也在扫描池中才能获取完整数据。
 
@@ -40,7 +40,7 @@ Barchart 期权链 → 筛选 DTE 5–25, Δ≈0.15 的 Put
        ↓
 Yahoo Finance K线 → ATR / SMA 计算
        ↓
-GitHub stockprice → 行情快照
+sellput.top `/api/stock/prices` → 行情快照
        ↓
 DeepSeek API → 生成决策（可卖/谨慎/不卖）
        ↓
@@ -108,11 +108,11 @@ launchctl load ~/Library/LaunchAgents/com.donew.sellput.plist  # 启用
 
 ```
 scripts/sell-put-agent.mjs              # 单文件 Agent (~2400 行)
-kline_robot_vercel/api/_lib/
+vps-backend/src/api/_lib/
   └─ barchart-options-chain.js          # Barchart 期权链模块（Agent 和 API 共用）
 
 部署依赖（Agent 本身不直接修改）：
-stockprice/config/symbols.json          # 行情中心标的列表（GitHub Actions 驱动）
+stockprice/config/symbols.json          # 行情中心标的列表（VPS 行情服务读取）
 ```
 
 ## 版本

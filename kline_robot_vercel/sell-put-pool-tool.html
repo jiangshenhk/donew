@@ -92,8 +92,8 @@
 <body>
   <main class="shell">
     <header class="topbar">
-      <h1>AI卖Put标的池扫描 <span class="version">v0.1.3｜2026-08-03｜数据全面迁移VPS</span></h1>
-      <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+      <h1>AI卖Put标的池扫描 <span class="version">v0.1.4｜2026-08-05 14:12｜统一切换sellput.top</span></h1>
+      <a class="home-link" href="https://sellput.top/">返回十方斋首页</a>
     </header>
 
     <div class="layout">
@@ -403,7 +403,7 @@
         statusEl.textContent = '正在依次读取 ' + symbols.length + ' 个标的的Barchart期权概览…';
       }, 1000);
       try {
-        const response = await fetch('https://donew-beta.vercel.app/api/barchart-overview?symbols=' + encodeURIComponent(symbols.join(',')));
+        const response = await fetch(apiBase + '/api/barchart-overview?symbols=' + encodeURIComponent(symbols.join(',')));
         const json = await response.json();
         if (!response.ok || !json.ok) throw new Error(json.message || '批量读取失败');
         const generatedAt = new Date().toISOString();

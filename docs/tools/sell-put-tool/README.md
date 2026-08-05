@@ -22,7 +22,7 @@
 
 ## API
 
-`kline_robot_vercel/api/put-rating.js`
+`vps-backend/src/api/put-rating.js`
 
 - 前端 POST 传入 OCR 字段 + 行情快照 + 用户自定义参数
 - 优先调用 OpenAI Vision / GPT 模型
@@ -32,7 +32,7 @@
 ## 前端入口
 
 - `sell-put-tool.html`（根目录镜像）
-- `kline_robot_vercel/sell-put-tool.html`（Vercel 部署）
+- `kline_robot_vercel/sell-put-tool.html`（sellput.top 页面镜像）
 
 ## 标准功能
 

@@ -7,8 +7,8 @@
 ## 入口
 
 - 页面：`sell-put-decision-tool.html`
-- Vercel 页面：`kline_robot_vercel/sell-put-decision-tool.html`
-- API：`kline_robot_vercel/api/sell-put-decision.js`
+- VPS 页面镜像：`kline_robot_vercel/sell-put-decision-tool.html`
+- 生产 API：`vps-backend/src/api/sell-put-decision.js`
 
 ## 与现有工具的关系
 

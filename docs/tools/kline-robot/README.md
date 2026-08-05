@@ -67,7 +67,7 @@ name = "kline-robot"
 main = "src/worker.js"
 [vars]
 OPENAI_MODEL = "gpt-5"
-ALLOWED_ORIGIN = "https://jiangshenhk.github.io"
+ALLOWED_ORIGIN = "https://sellput.top"
 ```
 
 ## 标准功能

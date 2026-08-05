@@ -37,7 +37,7 @@ echo "=== 配置 Nginx ==="
 sudo tee /etc/nginx/sites-available/stock > /dev/null << 'NGINX'
 server {
     listen 80;
-    server_name 107.175.44.146;
+    server_name sellput.top www.sellput.top;
 
     location / {
         proxy_pass http://127.0.0.1:3000;

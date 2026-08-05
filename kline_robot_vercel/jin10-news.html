@@ -25,7 +25,7 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 </style>
 </head>
 <body><main>
-<section class="head"><div class="head-title"><h1>AI 24小时市场要闻整理</h1><span class="version">v1.0.5｜2026-08-03｜数据全面迁移VPS</span></div><div class="head-actions"><span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span><a class="home" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a></div></section>
+<section class="head"><div class="head-title"><h1>AI 24小时市场要闻整理</h1><span class="version">v2.0.1｜2026-08-05 14:12｜统一切换sellput.top</span></div><div class="head-actions"><span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span><a class="home" href="https://sellput.top/">返回十方斋首页</a></div></section>
 <section class="summary">
 <div class="card" style="display:none"><div class="label">数据状态</div><div class="value status" id="status"><span class="dot"></span><span>读取中</span></div></div>
 <div class="card"><div class="label">24小时新闻</div><div class="value" id="count">—</div></div>
@@ -43,7 +43,7 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 </div></section>
 </main>
 <script>
-const API_URL='https://api.github.com/repos/jiangshenhk/donew/contents/jin10news/data/latest-24h.json?ref=main';
+const API_URL='https://sellput.top/api/news/latest?limit=500';
 const REPORT_URL='https://sellput.top/jin10-news.html';
 const $=id=>document.getElementById(id);
 const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
@@ -112,10 +112,10 @@ function renderMarkdown(md){
 async function loadNews(){
  showError('');
  try{
-  const r=await fetch(API_URL+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github+json'}});
-  if(!r.ok)throw new Error('GitHub HTTP '+r.status);
-  const meta=await r.json(),bytes=Uint8Array.from(atob(String(meta.content||'').replace(/\n/g,'')),function(c){return c.charCodeAt(0)});
-  newsData=JSON.parse(new TextDecoder().decode(bytes));
+  const r=await fetch(API_URL+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/json'}});
+  if(!r.ok)throw new Error('新闻 API HTTP '+r.status);
+  newsData=await r.json();
+  if(!newsData.ok)throw new Error(newsData.error||'新闻 API 返回异常');
   const cutoff24=Date.now()-24*60*60*1000,items=(Array.isArray(newsData.items)?newsData.items:[]).filter(function(item){return Date.parse(item.time)>=cutoff24}),stats={};items.forEach(function(item){(item.categories||['待分类']).forEach(function(category){stats[category]=(stats[category]||0)+1})});
   $('count').textContent=items.length;$('categoryCount').textContent=Object.keys(stats).length;$('updated').textContent=newsData.updatedAt?fmt.format(new Date(newsData.updatedAt)):'—';
   const updatedMs=Date.parse(newsData.updatedAt||''),ageMinutes=Number.isFinite(updatedMs)?Math.floor((Date.now()-updatedMs)/60000):Infinity;

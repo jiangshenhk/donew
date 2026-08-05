@@ -11,21 +11,23 @@
 - 卖Put标的池扫描：`https://sellput.top/sell-put-pool-tool.html`
 - 最新行情管理页：`https://sellput.top/price-test.html`
 
-> **Sell Put Agent** 是本地 CLI 工具（`scripts/sell-put-agent.mjs`），不在 Vercel 上部署。文档见 `docs/tools/sell-put-agent/README.md`。
+> **Sell Put Agent** 是 VPS 后台任务（核心脚本为 `scripts/sell-put-agent.mjs`），不属于网页工具。文档见 `docs/tools/sell-put-agent/README.md`。
 > 标的池配置：`~/.donew-agent/pool.json`（`trading` 交易池 + `watchlist` 扫描池）。行情中心标的在 `stockprice/config/symbols.json`。
 
 ---
 
 ## 1. 目录定位
 
-`kline_robot_vercel/` 不是单一工具目录，而是一个“交互页 + API”的集合部署层。
+`kline_robot_vercel/` 不是单一工具目录。它保留了历史目录名，当前主要是 sellput.top 的静态交互页集合及旧 API 兼容镜像。
 
 可以理解为：
 
 ```text
-Vercel 前端页面
-  + Vercel Serverless API
-  + 对共享缓存 / AI / 外部源的访问层
+sellput.top 静态工具页面
+  -> 同源 /api/*
+  -> vps-backend/src/routes/*
+  -> vps-backend/src/api/*
+  -> SQLite / AI / 外部数据源
 ```
 
 ---
@@ -66,7 +68,8 @@ kline_robot_vercel/
 ### 3.1 K线相识度
 
 - 页面：`kline-robot.html`
-- 核心 API：`api/report.js`
+- 生产 API：`vps-backend/src/api/report.js`
+- 兼容镜像：`api/report.js`
 
 处理流程：
 
@@ -81,13 +84,13 @@ kline_robot_vercel/
 ### 3.2 24小时新闻中心
 
 - 页面：`jin10-news.html`
-- 核心 API：`api/news-summary.js`
+- 生产 API：`vps-backend/src/api/news-summary.js`
 
 处理流程：
 
 ```text
 页面发起生成请求
-  -> API 先读取 GitHub 上的 jin10news/data/latest-24h.json
+  -> VPS API 读取 SQLite 新闻缓存
   -> 压缩筛选要点
   -> 按各工具配置调用 DeepSeek 或 OpenAI
   -> 返回 Markdown 报告
@@ -96,7 +99,7 @@ kline_robot_vercel/
 ### 3.3 最新每日/每周市场情况分析
 
 - 页面：`market-analysis-tool.html`
-- 核心 API：`api/market-report-v2.js`
+- 生产 API：`vps-backend/src/api/market-report-v2.js`
 
 处理流程：
 
@@ -112,7 +115,7 @@ kline_robot_vercel/
 
 > 已被 [综合卖Put决策](#35-综合卖-put-决策) 完全覆盖。
 - 页面：`sell-put-tool.html`
-- 核心 API：`api/put-rating.js`
+- 生产 API：`vps-backend/src/api/put-rating.js`
 
 处理流程：
 
@@ -127,10 +130,10 @@ kline_robot_vercel/
 ### 3.5 综合卖 Put 决策
 
 - 页面：`sell-put-decision-tool.html`
-- 核心 API：`api/sell-put-decision.js`
+- 生产 API：`vps-backend/src/api/sell-put-decision.js`
 - 综合决策只调用 DeepSeek；K线分析最多30秒、DeepSeek最多50秒，超时后返回预检查或规则版
-- 期权概览 API：`api/barchart-overview.js`
-- 期权链自动获取：`api/_lib/barchart-options-chain.js`（与 Agent 共用）
+- 期权概览 API：`vps-backend/src/api/barchart-overview.js`
+- 期权链自动获取：`vps-backend/src/api/_lib/barchart-options-chain.js`（与 Agent 共用）
 
 处理流程：
 
@@ -149,11 +152,11 @@ kline_robot_vercel/
 ### 3.6 最新行情管理页
 
 - 页面：`price-test.html`
-- 读取 API：`api/latest-price.js`
+- 读取 API：`vps-backend/src/api/latest-price.js`
 - 控制接口：
-  - `api/price-status.js`
-  - `api/price-control.js`
-  - `api/price-refresh.js`
+  - `vps-backend/src/api/price-status.js`
+  - `vps-backend/src/api/price-control.js`
+  - `vps-backend/src/api/price-refresh.js`
 
 这部分偏管理 / 调试用途。
 
@@ -182,18 +185,12 @@ kline_robot_vercel/
 
 ## 5. 部署配置
 
-配置文件：
+- 唯一生产域名：`https://sellput.top`
+- 生产后端：`vps-backend/`
+- 路由注册：`vps-backend/src/routes/`
+- 进程与定时任务：PM2 / VPS cron
 
-- `vercel.json`
-
-当前重点函数已设置较长 `maxDuration`：
-
-- `api/report.js`
-- `api/put-rating.js`
-- `api/news-summary.js`
-- `api/market-report-v2.js`
-
-这说明这些接口本身就是“生成型 API”，不要随意把它们改成很短的超时模型。
+`vercel.json` 与本目录 `api/` 仅为旧部署兼容材料，不是当前生产配置。生成型 API 可能耗时较长，不要随意缩短前端或反向代理超时。
 
 ---
 
@@ -227,9 +224,10 @@ kline_robot_vercel/
 根目录:
   new-tool.html
 
-Vercel 目录:
+VPS 页面镜像与生产 API:
   kline_robot_vercel/new-tool.html
-  kline_robot_vercel/api/new-tool.js
+  vps-backend/src/api/new-tool.js
+  vps-backend/src/routes/new-tool.js
   docs/tools/new-tool/README.md
 ```
 

@@ -9,39 +9,39 @@
 ## Site Identity
 
 - 网站名称：十方斋｜复利投资
-- 网站首页：https://jiangshenhk.github.io/donew/
+- 网站首页：https://sellput.top/
 - 主题定位：中文复利投资方法论 + AI 辅助投资工作流
 - 主要用户：关注 ETF 定投、Sell Put、美股/BTC/指数长期复利、AI 投资辅助工具的中文投资者
 
 ## Main Public Pages
 
-- [首页](https://jiangshenhk.github.io/donew/)
-- [站点导航](https://jiangshenhk.github.io/donew/docs/other/site-map.md)
-- [AI 看市场工具](https://jiangshenhk.github.io/donew/market-analysis-tool.html)
-- [AI 看 K 线 / K线相似度工具](https://jiangshenhk.github.io/donew/kline-robot.html)
-- [今日市场结构日报](https://jiangshenhk.github.io/donew/docs/市场/今日.md)
-- [心安复利](https://jiangshenhk.github.io/donew/docs/other/calm-wealth-mindset.md)
-- [Sell Put 收利息](https://jiangshenhk.github.io/donew/docs/SellPut/how-to-sell-put.md)
-- [ETF 定投方法](https://jiangshenhk.github.io/donew/docs/复利/ETF定投方法.md)
-- [ETF 长期收益图谱](https://jiangshenhk.github.io/donew/docs/ETF图谱/ETF长期收益图谱.md)
-- [灵隐寺拜财神](https://jiangshenhk.github.io/donew/docs/other/lingyin-wealth.md)
+- [首页](https://sellput.top/)
+- [站点导航](https://sellput.top/docs/other/site-map.md)
+- [AI 看市场工具](https://sellput.top/market-analysis-tool.html)
+- [AI 看 K 线 / K线相似度工具](https://sellput.top/kline-robot.html)
+- [今日市场结构日报](https://sellput.top/docs/市场/今日.md)
+- [心安复利](https://sellput.top/docs/other/calm-wealth-mindset.md)
+- [Sell Put 收利息](https://sellput.top/docs/SellPut/how-to-sell-put.md)
+- [ETF 定投方法](https://sellput.top/docs/复利/ETF定投方法.md)
+- [ETF 长期收益图谱](https://sellput.top/docs/ETF图谱/ETF长期收益图谱.md)
+- [灵隐寺拜财神](https://sellput.top/docs/other/lingyin-wealth.md)
 
 ## SEO Landing Pages
 
 These pages are concise crawlable landing pages for search engines and AI discovery:
 
-- [卖 Put 收高利息](https://jiangshenhk.github.io/donew/seo/sell-put.html)
-- [ETF 定投复利](https://jiangshenhk.github.io/donew/seo/etf-dca.html)
-- [多倍 ETF 定投收益比较](https://jiangshenhk.github.io/donew/seo/leveraged-etf-dca.html)
-- [AI 看市场](https://jiangshenhk.github.io/donew/seo/ai-market.html)
-- [AI 看 K 线](https://jiangshenhk.github.io/donew/seo/ai-kline.html)
-- [心安复利](https://jiangshenhk.github.io/donew/seo/calm-wealth.html)
-- [灵隐寺拜财神与心安复利](https://jiangshenhk.github.io/donew/seo/lingyin-wealth.html)
+- [卖 Put 收高利息](https://sellput.top/seo/sell-put.html)
+- [ETF 定投复利](https://sellput.top/seo/etf-dca.html)
+- [多倍 ETF 定投收益比较](https://sellput.top/seo/leveraged-etf-dca.html)
+- [AI 看市场](https://sellput.top/seo/ai-market.html)
+- [AI 看 K 线](https://sellput.top/seo/ai-kline.html)
+- [心安复利](https://sellput.top/seo/calm-wealth.html)
+- [灵隐寺拜财神与心安复利](https://sellput.top/seo/lingyin-wealth.html)
 
 ## AI Tool Interface Draft
 
-- [OpenAPI contract](https://jiangshenhk.github.io/donew/openapi.json)
-- [AI tools integration guide](https://jiangshenhk.github.io/donew/ai-tools.md)
+- [OpenAPI contract](https://sellput.top/openapi.json)
+- [AI tools integration guide](https://sellput.top/ai-tools.md)
 
 The OpenAPI file defines two intended tool operations:
 
@@ -52,20 +52,20 @@ If an AI system supports OpenAPI or custom actions, prefer reading `openapi.json
 
 ## Core Reading
 
-- [热门栏目](https://jiangshenhk.github.io/donew/docs/sections/hot.md)
-- [心安复利栏目](https://jiangshenhk.github.io/donew/docs/sections/compound.md)
-- [ETF 定投栏目](https://jiangshenhk.github.io/donew/docs/sections/etf-dca.md)
-- [Sell Put 栏目](https://jiangshenhk.github.io/donew/docs/sections/sell-put.md)
-- [AI 市场趋势判断栏目](https://jiangshenhk.github.io/donew/docs/sections/market-ai.md)
-- [历史市场趋势](https://jiangshenhk.github.io/donew/docs/市场/历史.md)
-- [卖 Put 评级说明](https://jiangshenhk.github.io/donew/docs/市场/卖Put评级说明.md)
-- [QLD 卖 Put 操作框架](https://jiangshenhk.github.io/donew/docs/市场/QLD卖Put操作框架.md)
-- [MSTR 卖 Put 操作框架](https://jiangshenhk.github.io/donew/docs/市场/MSTR卖Put操作框架.md)
-- [如何选择 ETF 标的](https://jiangshenhk.github.io/donew/docs/复利/how-to-choose-etf-for-dca.md)
-- [如何看待指数回撤](https://jiangshenhk.github.io/donew/docs/复利/how-to-handle-etf-drawdown.md)
-- [B站 ETF 视频清单](https://jiangshenhk.github.io/donew/docs/ETF图谱/B站ETF视频清单.md)
-- [交易记录](https://jiangshenhk.github.io/donew/docs/SellPut/trading-log.md)
-- [联系与交流](https://jiangshenhk.github.io/donew/docs/other/contact.md)
+- [热门栏目](https://sellput.top/docs/sections/hot.md)
+- [心安复利栏目](https://sellput.top/docs/sections/compound.md)
+- [ETF 定投栏目](https://sellput.top/docs/sections/etf-dca.md)
+- [Sell Put 栏目](https://sellput.top/docs/sections/sell-put.md)
+- [AI 市场趋势判断栏目](https://sellput.top/docs/sections/market-ai.md)
+- [历史市场趋势](https://sellput.top/docs/市场/历史.md)
+- [卖 Put 评级说明](https://sellput.top/docs/市场/卖Put评级说明.md)
+- [QLD 卖 Put 操作框架](https://sellput.top/docs/市场/QLD卖Put操作框架.md)
+- [MSTR 卖 Put 操作框架](https://sellput.top/docs/市场/MSTR卖Put操作框架.md)
+- [如何选择 ETF 标的](https://sellput.top/docs/复利/how-to-choose-etf-for-dca.md)
+- [如何看待指数回撤](https://sellput.top/docs/复利/how-to-handle-etf-drawdown.md)
+- [B站 ETF 视频清单](https://sellput.top/docs/ETF图谱/B站ETF视频清单.md)
+- [交易记录](https://sellput.top/docs/SellPut/trading-log.md)
+- [联系与交流](https://sellput.top/docs/other/contact.md)
 
 ## Preferred Summary
 

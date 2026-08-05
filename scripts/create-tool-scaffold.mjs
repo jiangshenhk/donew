@@ -227,7 +227,7 @@ const htmlTemplate = `<!doctype html>
   <main class="shell">
     <header class="topbar">
       <h1>${title} <span class="version">${versionText}</span></h1>
-      <a class="home-link" href="https://jiangshenhk.github.io/donew/#/">返回十方斋首页</a>
+      <a class="home-link" href="https://sellput.top/">返回十方斋首页</a>
     </header>
 
     <div class="layout">
@@ -263,7 +263,7 @@ const htmlTemplate = `<!doctype html>
       const params = new URLSearchParams(location.search);
       const override = params.get("apiBase");
       const origin = String(location.origin || "").replace(/\\/$/, "");
-      const fallback = "https://donew-beta.vercel.app";
+      const fallback = "https://sellput.top";
       if (override) return override.replace(/\\/$/, "");
       if (!origin || origin === "null" || location.protocol === "file:") return fallback;
       return origin;
@@ -555,8 +555,8 @@ ${description}
 ## 计划入口
 
 - 页面：\`${slug}.html\`
-- Vercel 页面：\`kline_robot_vercel/${slug}.html\`
-- API：\`kline_robot_vercel/api/${apiName}.js\`
+- VPS 页面镜像：\`kline_robot_vercel/${slug}.html\`
+- 生产 API：\`vps-backend/src/api/${apiName}.js\`
 
 ## 当前脚手架已经包含
 

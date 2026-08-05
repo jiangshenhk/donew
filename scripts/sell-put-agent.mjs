@@ -39,7 +39,7 @@ async function sendNotify(title, message, tags = '') {
 
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
 const BARCHART = 'https://www.barchart.com';
-const VPS_BASE = 'http://107.175.44.146';
+const VPS_BASE = 'https://sellput.top';
 const STOCKPRICE_URL = `${VPS_BASE}/api/stock/prices`;
 const NEWS_URL = `${VPS_BASE}/api/news/latest?limit=20`;
 
@@ -343,7 +343,7 @@ async function fetchOptionsChain(symbol, opts = {}) {
 
 async function fetchOptionsOverview(symbol) {
   try {
-    const res = await fetch(`https://donew-beta.vercel.app/api/barchart-overview?symbols=${symbol}`, {
+    const res = await fetch(`https://sellput.top/api/barchart-overview?symbols=${symbol}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-agent/1.0)' },
       signal: AbortSignal.timeout(10000),
     });
@@ -1976,7 +1976,7 @@ function stanceBadge(s) {
         const midFallback = e.contract?.bid && e.contract?.ask ? (e.contract.bid + e.contract.ask) / 2 : (e.contract?.bid || 0);
         const annual = e.factors?.rtnAnnualized != null ? e.factors.rtnAnnualized+'%' : (midPrice && e.contract?.strike && e.contract?.dte ? (midPrice / e.contract.strike * 365 / e.contract.dte * 100).toFixed(0)+'%' : '--');
         const reason = e.decision?.reasoning || '';
-        html += '<tr><td class="muted">'+t+'</td><td><b><a href="https://donew-beta.vercel.app/sell-put-decision-tool.html?symbol='+encodeURIComponent(e.symbol)+'" target="_blank" style="color:#4d9eff;text-decoration:none">'+e.symbol+'</a></b></td><td>$'+e.price+'</td><td>'+contract+'</td><td>'+midPxStr+'</td><td>'+otm+'</td><td>'+delta+'</td><td>'+annual+'</td><td>'+stanceBadge(e.decision?.stance)+'</td><td style="color:'+riskColor(e.decision?.riskScore)+';font-weight:700">'+e.decision?.riskScore+'/10</td><td>'+actionBadgeHTML(e.action)+'</td><td class="reason">'+reason+'</td></tr>';
+        html += '<tr><td class="muted">'+t+'</td><td><b><a href="https://sellput.top/sell-put-decision-tool.html?symbol='+encodeURIComponent(e.symbol)+'" target="_blank" style="color:#4d9eff;text-decoration:none">'+e.symbol+'</a></b></td><td>$'+e.price+'</td><td>'+contract+'</td><td>'+midPxStr+'</td><td>'+otm+'</td><td>'+delta+'</td><td>'+annual+'</td><td>'+stanceBadge(e.decision?.stance)+'</td><td style="color:'+riskColor(e.decision?.riskScore)+';font-weight:700">'+e.decision?.riskScore+'/10</td><td>'+actionBadgeHTML(e.action)+'</td><td class="reason">'+reason+'</td></tr>';
       }
       html += '</tbody></table>';
 
@@ -2216,7 +2216,7 @@ function calShift(n) {
         const premiumStyle = r.premium >= 3 ? 'up' : r.premium < 0 ? 'dn' : '';
         html += '<tr>';
         html += '<td>' + (i + 1) + '</td>';
-        html += '<td><b>' + r.symbol + '</b> <a href="https://donew-beta.vercel.app/sell-put-decision-tool.html?symbol='+r.symbol+'" target="_blank" style="font-size:.7rem;color:#4d9eff">→决策</a></td>';
+        html += '<td><b>' + r.symbol + '</b> <a href="https://sellput.top/sell-put-decision-tool.html?symbol='+r.symbol+'" target="_blank" style="font-size:.7rem;color:#4d9eff">→决策</a></td>';
         html += '<td style="font-weight:700;font-size:1.1rem;color:#ffd54a">' + r.score + '</td>';
         html += '<td style="' + toneStyle + '">' + toneEmoji + ' ' + r.state + '</td>';
         html += '<td>' + (r.iv?.toFixed(1) || '--') + '%</td>';
@@ -2245,7 +2245,7 @@ function calShift(n) {
     if (btn) { btn.disabled = true; btn.textContent = '⏳ 扫描中...'; }
     let errorMsg = null;
     try {
-      const apiUrl = 'https://donew-beta.vercel.app/api/barchart-overview?symbols=' + scanTargets.join(',');
+      const apiUrl = 'https://sellput.top/api/barchart-overview?symbols=' + scanTargets.join(',');
       const res = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
@@ -2504,8 +2504,8 @@ async function runScan() {
   const symbols = loadWatchlist();
   console.log(`🔍 扫描 ${symbols.length} 个标的...`);
 
-  const VERCEL_API = 'https://donew-beta.vercel.app';
-  const res = await fetch(`${VERCEL_API}/api/barchart-overview?symbols=${symbols.join(',')}`, {
+  const SITE_API_BASE = 'https://sellput.top';
+  const res = await fetch(`${SITE_API_BASE}/api/barchart-overview?symbols=${symbols.join(',')}`, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-agent/1.0)' },
     signal: AbortSignal.timeout(60000),
   });

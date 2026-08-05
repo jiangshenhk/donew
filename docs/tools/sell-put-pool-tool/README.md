@@ -21,7 +21,7 @@
 
 - 线上页面：`https://sellput.top/sell-put-pool-tool.html`
 - 根目录镜像：`sell-put-pool-tool.html`
-- Vercel 页面：`kline_robot_vercel/sell-put-pool-tool.html`
+- VPS 页面镜像：`kline_robot_vercel/sell-put-pool-tool.html`
 - 数据接口：`GET /api/barchart-overview?symbols=QLD,MSTR,INTC`
 
 ## 默认标的池

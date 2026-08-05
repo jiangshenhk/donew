@@ -2,6 +2,8 @@ import db from '../db.js';
 import config from '../config.js';
 import crypto from 'crypto';
 
+// Jin10 blocks some VPS ranges. This producer cache is an upstream data source,
+// while all browser and application traffic still goes through sellput.top.
 const GITHUB_RAW = 'https://raw.githubusercontent.com/jiangshenhk/donew/main/jin10news/data/latest-24h.json';
 const SEARCH_API = 'https://search-open-api.jin10.com/offset/search';
 const HOMEPAGE_URL = 'https://www.jin10.com/index.html';
@@ -143,15 +145,16 @@ export async function fetchAllNews() {
   const cutoff = new Date(now.getTime() - config.newsWindowHours * 60 * 60 * 1000);
   let sourceMode = 'search';
 
-  // 1. 优先从 GitHub 获取（绕过 Jin10 IP 封锁）
+  // Prefer the producer cache because Jin10 blocks some VPS IP ranges.
   let fetched = [];
+
   const githubResult = await fetchFromGitHub();
   if (githubResult && githubResult.items.length > 0) {
     fetched = githubResult.items;
     sourceMode = githubResult.sourceMode;
     console.log(`Jin10 via GitHub: ${fetched.length} items`);
   } else {
-    // 2. 回退：直接抓 Jin10
+    // Fall back to direct Jin10 search when the producer cache is unavailable.
     for (let page = 1; page <= 12; page += 1) {
       try {
         const items = await fetchPage(page);

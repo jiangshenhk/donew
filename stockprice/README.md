@@ -10,7 +10,7 @@
 
 - 调试 / 管理页：`https://sellput.top/price-test.html`
 - 原始缓存文件：`stockprice/data/latest-price.json`
-- Vercel 读取 API：`kline_robot_vercel/api/latest-price.js`
+- VPS 读取 API：`GET https://sellput.top/api/stock/prices`
 
 ---
 
@@ -70,14 +70,13 @@ stockprice/
 ## 4. 处理流程
 
 ```text
-GitHub Actions 定时触发
-  -> node stockprice/scripts/update-price.js
+VPS PM2 node-cron 定时触发
+  -> vps-backend/src/services/stockPrice.js
   -> 依次读取 symbols.json 中的标的
   -> 从外部行情源抓取数据
   -> 标准化字段
-  -> 写入 latest-price.json
-  -> commit 回 main
-  -> Vercel / GitHub / 页面读取缓存
+  -> 写入 VPS SQLite 行情缓存
+  -> 同源 API 与页面读取缓存
 ```
 
 当前核心设计思路：
@@ -90,19 +89,7 @@ GitHub Actions 定时触发
 
 ## 5. 自动更新
 
-工作流文件：
-
-- `.github/workflows/update-stockprice.yml`
-
-特点：
-
-- 定时任务约每 5 分钟运行一次；
-- 支持手工触发；
-- 先 `fetch/reset` 到最新 `origin/main`；
-- 生成缓存后 commit；
-- push 失败会自动重新同步并重试。
-
-这条工作流是目前最需要“少改动、稳运行”的基础设施之一。
+生产读取与存储由 `vps-backend/src/cron.js`、`vps-backend/src/services/stockPrice.js` 和 VPS SQLite 负责。Yahoo 可能封锁 VPS IP，因此上游采集是否需要保留 GitHub Actions 回退，必须结合 `/api/stock/fetch-log` 验证；浏览器页面无论如何都只能读取 `https://sellput.top/api/stock/prices`。
 
 ---
 
@@ -169,22 +156,22 @@ GitHub Actions 定时触发
 
 先看：
 
-- `stockprice/data/latest-price.json`
-- `stockprice/scripts/update-price.js`
-- Actions 日志：`update-stockprice.yml`
+- `GET https://sellput.top/api/stock/prices?symbols=QLD`
+- `vps-backend/src/services/stockPrice.js`
+- PM2 服务日志
 
 ### B. 页面读不到行情
 
 先看：
 
-- `kline_robot_vercel/api/latest-price.js`
+- `vps-backend/src/routes/stock.js`
 - `kline_robot_vercel/price-test.html`
 
 ### C. 市场分析或卖 Put 工具里价格怪异
 
 先确认：
 
-1. `latest-price.json` 里是否已经错了；
+1. `/api/stock/prices` 返回的数据是否已经错了；
 2. 如果缓存是对的，再看：
    - `kline_robot_vercel/api/market-report-v2.js`
    - `kline_robot_vercel/api/put-rating.js`
@@ -214,7 +201,7 @@ GitHub Actions 定时触发
 
 原则上：
 
-- 新工具优先读 `stockprice/data/latest-price.json`
+- 新工具优先读 sellput.top 同源 `/api/stock/prices`
 - 只有像 K 线相识度这种“单标的即时拉取”场景，才单独抓外部行情
 
 ---

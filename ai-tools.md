@@ -114,7 +114,7 @@ POST https://sellput.top/api/kline/analyze
 机器可读接口说明：
 
 ```text
-https://jiangshenhk.github.io/donew/openapi.json
+https://sellput.top/openapi.json
 ```
 
 后续可以把该文件用于：

@@ -9,6 +9,8 @@ router.get('/api/news/latest', async (req, res) => {
     const limit = parseInt(req.query.limit) || 100;
     const items = await getLatestNews(limit);
     const lastFetch = db.prepare("SELECT created_at FROM fetch_log WHERE type='news' ORDER BY created_at DESC LIMIT 1").get();
+    const sourceLog = db.prepare("SELECT message FROM fetch_log WHERE type='news' AND status='ok' ORDER BY created_at DESC LIMIT 1").get();
+    const sourceMode = String(sourceLog?.message || '').match(/source=([^,\s]+)/)?.[1] || 'vps-cache';
     const catStats = {};
     for (const item of items) {
       try { const cats = JSON.parse(item.categories || '[]'); for (const c of cats) catStats[c] = (catStats[c] || 0) + 1; } catch {}
@@ -17,8 +19,8 @@ router.get('/api/news/latest', async (req, res) => {
       ok: true,
       count: items.length,
       source: 'Jin10',
-      sourceMode: 'github-proxy',
-      sourceLabel: '金十数据（GitHub中转）',
+      sourceMode,
+      sourceLabel: '金十数据（VPS统一缓存）',
       windowHours: 48,
       updatedAt: lastFetch?.created_at || new Date().toISOString(),
       checkedAt: new Date().toISOString(),

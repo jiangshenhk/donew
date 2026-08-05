@@ -59,7 +59,7 @@ const CANDLE_PATTERN_LIBRARY = PATTERN_CATALOG.map((pattern) => pattern.name);
 
 function corsHeaders() {
   return {
-    "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN || "https://jiangshenhk.github.io",
+    "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN || "https://sellput.top",
     "Access-Control-Allow-Methods": "POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,Authorization",
   };

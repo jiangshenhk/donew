@@ -5,7 +5,7 @@
 | GitHub | `https://github.com/jiangshenhk/donew` |
 | 本地路径 | `/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
 | 线上域名 | **`https://sellput.top/`**（VPS 主站） |
-| Vercel（仅2个API） | `https://donew-beta.vercel.app/`（Barchart 数据，VPS IP被封） |
+| 生产部署 | RackNerd VPS（前端、API、数据、定时任务统一部署） |
 
 这份文件是给"新开的智能体对话 / 新接手的开发者"看的。
 
@@ -23,7 +23,7 @@
 项目：donew (github.com/jiangshenhk/donew)
 本地：/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew
 
-当前部署架构（2026-08-03 迁移后）：
+当前部署架构（2026-08-05 完成统一迁移后）：
 主部署 RackNerd VPS 107.175.44.146（Ubuntu 24.04，Node.js + PM2 + Nginx + SQLite）
 访问入口：https://sellput.top/
 VPS 目录：/home/ai_worker/stock_project/（对应仓库 vps-backend/）
@@ -32,12 +32,13 @@ VPS 目录：/home/ai_worker/stock_project/（对应仓库 vps-backend/）
 VPS 代码部署：
 ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && pm2 restart donew-backend"
 
-定时任务（全部在 VPS，GitHub Actions 已停用）：
+业务定时任务（VPS；受限外部源采集例外见下方）：
   行情+新闻 每5分钟（PM2 cron）
   日报 周一至五 8:28 / 晚报 20:28 / 周报 周六 9:00（香港时间，VPS 系统 cron，走本地 AI 端点）
   短线每5分钟 / 长线每日17:00 / SellPut每15分(美股时段)（系统cron+PM2后端内置）
  环境变量：DEEPSEEK_API_KEY 与 NEWS_SUMMARY_API（本地端点）在 VPS .env（已配），OpenAI 未使用
- ⚠️ 金十新闻：VPS 直连 Jin10 被封锁（HTTP 502）→ 必须走 GitHub Actions 中转（GitHub IP 抓取 → commit 到仓库 → VPS 从 GitHub raw 读取）。`.github/workflows/` 的三份工作流文件不得删除。
+ ⚠️ 金十新闻：VPS 直连可能被封锁，`update-jin10-news.yml` 仍是必要的上游采集器；VPS 从 GitHub 数据文件同步到 SQLite，但浏览器只访问 sellput.top。
+ ⚠️ Yahoo 行情：VPS 行情任务仅在美股交易时段及收盘后窗口更新普通美股，非交易时段通常只更新 BTC，不能仅凭“本轮 fetched 1”判断 Yahoo 被封。
  ⚠️ NEWS_SUMMARY_API 必须指向 VPS 本地端点（日报/晚报/周报的 AI API），不能填公网地址。
 
 已知约定：改前端改 kline_robot_vercel/*.html，改后端改 vps-backend/src/，改后更新版本号，.env 不提交
@@ -88,8 +89,8 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 
 作用：
 
-- 理解哪些页面是 Vercel 线上主入口
-- 理解页面与 API 的对应关系
+- 理解哪些页面是 sellput.top 的线上入口
+- 理解静态页面与 VPS API 的对应关系
 
 ---
 
@@ -129,18 +130,19 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 
 - 根目录镜像
 - 本地预览
-- GitHub Pages 保底页面
+- VPS 静态页面同步源
 
-### 第二层：`kline_robot_vercel/` 线上部署层
+### 第二层：`kline_robot_vercel/` 线上页面兼容层
 
-这是最重要的一层。
+这是历史目录名，当前仍保存 sellput.top 实际发布的静态工具页面；目录名不代表仍部署在 Vercel。
 
 这里放：
 
 - 线上页面
-- 线上 API
-- AI 接口
-- 工具主逻辑
+- 旧 Serverless API 的兼容镜像
+- 页面端工具逻辑
+
+当前生产 API、AI 调用和共享数据服务统一维护在 `vps-backend/`。修改 API 时应先改 `vps-backend/src/api/`，不要把 `kline_robot_vercel/api/` 当成生产入口。
 
 ### 第三层：数据中心
 
@@ -157,16 +159,15 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 
 不要把业务页面逻辑硬塞进这里。
 
-### 第四层：自动生成器
+### 第四层：VPS 后端与自动生成器
 
 主要是：
 
-- `.github/workflows/generate-market-daily-reports.yml`
+- `vps-backend/`
 - `scripts/generate-market-daily-report.mjs`
 - `lib/market-report-core.mjs`
-- `.github/workflows/verify-market-generation-paths.yml`
 
-这层负责定时内容生产。
+这层负责 API、共享缓存、AI 调用和定时内容生产。生产调度由 PM2 / VPS cron 执行。对会封锁 VPS IP 的外部源，可保留 GitHub Actions 作为上游采集器，但页面与业务 API 仍只能访问 sellput.top。
 
 ---
 
@@ -176,8 +177,8 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 
 ### 位置
 
-- `lucas/` — 本地预览 / GitHub Pages
-- `kline_robot_vercel/lucas/` — Vercel 线上部署（与根目录版本保持一致）
+- `lucas/` — 本地预览源
+- `kline_robot_vercel/lucas/` — sellput.top 静态页面镜像（与根目录版本保持一致）
 
 ### 约定
 
@@ -207,19 +208,19 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 - 卖Put标的池扫描：`https://sellput.top/sell-put-pool-tool.html`
 - 最新行情管理页：`https://sellput.top/price-test.html`
 
-### 本地工具（CLI）
+### VPS 后台工具（CLI）
 
 - **Sell Put Agent**：`node scripts/sell-put-agent.mjs daily` — 自动分析交易池标的的卖Put机会，纸面交易 + 可视化仪表板，数据存 `~/.donew-agent/`
   - 文档：`docs/tools/sell-put-agent/README.md`
   - 标的池：`~/.donew-agent/pool.json`（`trading` 交易池 + `watchlist` 扫描池）
-  - 行情依赖：`stockprice/config/symbols.json`（GitHub Actions 管理，需与扫描池对齐）
+  - 行情依赖：`stockprice/config/symbols.json`（VPS 行情服务管理，需与扫描池对齐）
 
 以上正式工具入口统一使用仓库根目录或 `kline_robot_vercel/` 下的 `ai-icon.svg` 作为浏览器标签图标。新增工具时必须在 `<head>` 中同时声明 `rel="icon"` 和 `rel="shortcut icon"`，并使用相对于当前入口页可访问的静态路径。
 
 ### Docs / 公共阅读页
 
-- 今日：`https://jiangshenhk.github.io/donew/#/docs/市场/今日.md`
-- 历史：`https://jiangshenhk.github.io/donew/#/docs/市场/历史.md`
+- 今日：`https://sellput.top/docs/市场/今日.md`
+- 历史：`https://sellput.top/docs/市场/历史.md`
 
 ---
 
@@ -287,11 +288,9 @@ DEV-README.md                    ← 总入口：列所有工具，链接各工�
 
 接手任何工具时：先读 `DEV-README.md` 找工具 → 打开 `docs/tools/<slug>/README.md` 理解架构 → 打开 `README-FOR-AI.md` 理解 AI 行为。
 
-### 约定 6：Vercel Hobby 上限 12 Functions，优先用 action 路由合并
+### 约定 6：VPS API 优先复用现有路由
 
-Vercel Hobby 计划每个 Deployment 最多 12 个 Serverless Functions（`api/` 目录下每个 .js 算一个，`_lib/` 不计入）。
-
-新增功能时优先评估是否可以挂到已有 JS 上，通过 `action` 或 `mode` 参数路由，而不是新建文件。
+生产 API 统一放在 `vps-backend/src/api/`，并通过 `vps-backend/src/routes/` 注册。新增功能时优先评估是否可以挂到已有处理器，通过 `action` 或 `mode` 参数路由，避免重复实现相同数据抓取和判断逻辑。
 
 **已合并案例**：
 
@@ -311,7 +310,7 @@ ssh ai_worker@107.175.44.146
 cd /home/ai_worker/stock_project && git pull && npm install && pm2 restart donew-backend
 ```
 
-VPS 是主部署层，Vercel 仅作为冗余 CDN 保留。推送后不再需要 `vercel --prod`。
+VPS 是唯一生产部署层。推送后不运行 Vercel 部署命令。
 
 ### 约定 8：标的池体系
 
@@ -493,7 +492,7 @@ docs/tools/alpha-risk-tool/README.md
 2. 打开对应的 README.md 理解架构和数据流
 3. 打开对应的 README-FOR-AI.md 理解 AI 提示词和行为约束
 
-遵守 DEV-README 全部约定：不要默认推送、改后更新版本号、不加新 API 文件（用 action 路由）、推送后 vercel --prod --yes。
+遵守 DEV-README 全部约定：不要默认推送、改后更新版本号、优先复用现有 API 路由；明确要求上线后，再通过 SSH 在 VPS 执行 git pull、npm install 和 pm2 restart donew-backend。
 ```
 
 把 `sell-put-decision-tool.html` 替换成实际要改的工具入口。
@@ -586,7 +585,7 @@ docs/tools/alpha-risk-tool/README.md
   - `market-analysis-tool.html`
   - `kline_robot_vercel/market-analysis-tool.html`
 - 主要 API：
-  - `kline_robot_vercel/api/market-report-v2.js`
+  - `vps-backend/src/api/market-report-v2.js`
 
 这是“多资产快照 + AI整理 + HTML/Markdown展示”的代表模板。
 
@@ -597,7 +596,7 @@ docs/tools/alpha-risk-tool/README.md
 ```text
 同一套策略基线 / 市场判断原则 / 风险字段
   ├── 网页手工生成：market-analysis-tool.html -> /api/market-report-v2
-  └── 自动生成：GitHub Actions -> scripts/generate-market-daily-report.mjs
+  └── 自动生成：VPS PM2 node-cron -> scripts/generate-market-daily-report.mjs
 ```
 
 两条链路的职责不同：
@@ -610,7 +609,7 @@ docs/tools/alpha-risk-tool/README.md
 - 两条链路应共享同一套核心判断思路、关键字段和策略口径。
 - 可以有不同的执行入口和输出格式，但不能出现相互矛盾的市场结论标准。
 - 修改市场报告规则、风险列、黑天鹅判断、卖 Put 动作约束时，必须同时检查手工与自动两条链路。
-- 使用 `.github/workflows/verify-market-generation-paths.yml` 做双链路结构校验，避免只修好网页或只修好自动生成。
+- 使用 `scripts/validate-market-report.mjs` 做结构校验，避免只修好网页或只修好自动生成。
 - 不要让网页 API 依赖一个看似废弃的 `_old` 文件；正式入口应保持依赖关系清晰、可独立部署。
 
 #### 卖 Put 温度判断 ⚠️ 已暂停维护
@@ -882,27 +881,24 @@ docs/tools/alpha-risk-tool/README.md
 donew/
 ├── macroevents/
 │   ├── README.md
-│   ├── config/
-│   │   └── events-config.json
-│   ├── scripts/
-│   │   └── update-events.js
-│   └── data/
-│       ├── latest-events.json
-│       └── latest-events.md
-└── .github/workflows/
-    └── update-macroevents.yml
+│   └── config/
+│       └── events-config.json
+└── vps-backend/src/
+    ├── services/macroEvents.js
+    ├── routes/macroEvents.js
+    └── cron.js
 ```
 
 处理流程：
 
 ```text
-GitHub Actions 定时触发
-  -> scripts/update-events.js
+VPS PM2 node-cron 定时触发
+  -> services/macroEvents.js
   -> 读取外部源
   -> 清洗 / 去重 / 截窗
-  -> 写入 data/latest-events.json
-  -> commit 回 main
-  -> 交互页 / API 读取这份缓存
+  -> 写入 SQLite 缓存
+  -> /api/macro-events 输出稳定结构
+  -> 交互页读取同源 API
 ```
 
 ### 13.6 新增自动生成器的标准模板
@@ -941,8 +937,8 @@ donew/
 
 - 页面文件：`xxx-tool.html`
 - 数据目录：`xxxcenter/` 或 `xxxdata/`
-- API：`kline_robot_vercel/api/xxx.js`
-- 定时任务：`.github/workflows/update-xxx.yml` 或 `generate-xxx.yml`
+- API：`vps-backend/src/api/xxx.js`，并在 `vps-backend/src/routes/` 注册
+- 定时任务：优先使用 `vps-backend/src/cron.js` 或 VPS 已配置的系统任务
 
 #### 结果落地
 
@@ -963,38 +959,25 @@ donew/
 
 1. 先确认两条真实调用链。
 2. 同步检查策略字段、风险列和输出口径。
-3. 分别验证网页手工生成与 GitHub Actions 自动生成。
+3. 分别验证网页手工生成与 VPS 自动生成任务。
 4. 任何一条链路失败，都不能视为任务完成。
 
 ---
 
 ## 14. 部署说明
 
-donew 当前部署架构（2026-08-03 迁移清理后）：
+donew 当前生产架构（2026-08-05 完成统一迁移后）：
 
 ```text
-                    donew 仓库 (github.com/jiangshenhk/donew)
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        ▼                     ▼                     ▼
-  RackNerd VPS (主)        Vercel (仅2个API)    GitHub Actions (仅新闻)
-  107.175.44.146           barchart-overview     update-jin10-news.yml
-  ├── 全部前端页面           options-signals      金十IP封锁，Action中转
-  ├── 全部 AI API (8个)
-  ├── 行情+新闻数据
-  ├── 3台交易机器人
-  └── SQLite 存储
+donew 仓库 (github.com/jiangshenhk/donew)
+  -> RackNerd VPS 107.175.44.146
+     -> https://sellput.top/（全部前端页面与文档）
+     -> vps-backend（全部 API）
+     -> SQLite（行情、新闻与任务状态）
+     -> PM2 / VPS cron（全部定时任务与交易机器人）
 ```
 
-**已删除的冗余部署：** Vercel 前端页面、Vercel AI API（8 个）、GitHub Pages 文档站、GitHub Actions 行情抓取
-
-**保留在外的原因：**
-
-| 组件 | 位置 | 原因 |
-|---|---|---|
-| barchart-overview | Vercel | Barchart.com 封 VPS IP |
-| options-signals | Vercel | Barchart.com 封 VPS IP |
-| 金十新闻抓取 | GitHub Actions | jin10.com 封 VPS IP |
+Vercel 和 GitHub Pages 不属于当前生产调用链。GitHub Actions 仅可作为 Yahoo、金十等会封锁 VPS IP 的上游采集器；所有浏览器页面、业务 API、文档和自有回退地址仍必须统一使用 sellput.top。
 
 ### 14.1 VPS — 主部署层（前端 + 后端 + 定时任务）
 
@@ -1046,68 +1029,53 @@ pm2 logs donew-backend
 | `ALLOWED_ORIGINS` | CORS 允许的源 |
 | `PORT` | 服务端口（默认 3000） |
 
-**API 部署分布**（部分数据源封 VPS IP，保留在 Vercel）：
+**API 部署分布**：
 
-| API | 数据源 | 部署位置 | 原因 |
-|---|---|---|---|
-| report / sell-put-decision / put-rating / market-report-v2 / news-summary / bazi-analysis | DeepSeek + Yahoo | **VPS** | 独立直连 |
-| stock/prices | Yahoo Finance | **VPS** | 每5分钟抓取 |
-| news/latest | 金十（GitHub 中转） | **VPS** | 金十封 VPS IP |
-| options-ranking | Webull | **VPS** | 不封 IP |
-| barchart-overview | Barchart | **Vercel** | Barchart 封 VPS IP |
-| options-signals | Barchart | **Vercel** | Barchart 封 VPS IP |
-| `NEWS_SUMMARY_API` | 日报/晚报/周报 AI 端点（VPS 本地 `http://127.0.0.1:3000/api/ai/news-summary`） |
-
-### 14.2 Vercel — 仅保留 Barchart 相关 API（2个）
-
-**保留原因**：Barchart.com 封 RackNerd IP，这两个 API 无法在 VPS 运行。其余 8 个 AI API 已全部迁移 VPS 并删除源文件。
-
-| API | 文件 | 用途 |
+| API | 数据源 | 部署位置 |
 |---|---|---|
-| `/api/barchart-overview` | `barchart-overview.js` | Barchart 期权概览数据 |
-| `/api/options-signals` | `options-signals.js` | Barchart IV异动/异常成交 |
+| report / sell-put-decision / put-rating / market-report-v2 / news-summary / bazi-analysis | DeepSeek + Yahoo | **VPS** |
+| stock/prices | Yahoo Finance | **VPS** |
+| news/latest | 金十 | **VPS** |
+| options-ranking | Webull | **VPS** |
+| barchart-overview | Barchart | **VPS** |
+| options-signals | Barchart | **VPS** |
+| `NEWS_SUMMARY_API` | 日报/晚报/周报 AI 端点 | VPS 本地 `http://127.0.0.1:3000/api/ai/news-summary` |
 
-### 14.3 Cloudflare Workers — K线代理
+### 14.2 旧部署目录
 
-**配置文件**：`kline_robot_worker/wrangler.toml`
+- `kline_robot_vercel/` 继续作为线上页面镜像与历史部署结构保留，但页面 API 必须指向 `https://sellput.top` 或当前同源地址。
+- `kline_robot_worker/` 不属于当前生产调用链；`.github/workflows/` 仅保留必要的受限外部源采集任务。
+- 新代码不得新增 `vercel.app`、`github.io/donew` 或 GitHub Raw 作为自有服务回退地址。
 
-### 14.4 GitHub Actions — 数据管道（**关键依赖，不可删除**）
+### 14.3 受限外部源的上游采集
 
-⚠️ **这不是"冗余"，是新闻链路的必经中转。**
+公开页面和业务 API 全部使用 sellput.top，不等于所有第三方源都能由 VPS 直接抓取。
 
-**核心问题**：Jin10（金十数据）封锁了 RackNerd VPS 的 IP（`107.175.44.146`），直接搜索返回 HTTP 502。VPS 无法直连 Jin10 抓取新闻。
+> **强制规则：统一域名只针对 donew 自有入口。** 浏览器页面、站内链接、文档链接、CORS、自有 API 和回退地址必须使用 `https://sellput.top`；Yahoo、金十、Barchart、DeepSeek 等第三方上游仍使用各自的真实接口地址。不得把第三方接口字符串机械替换成 sellput.top，也不得因为 VPS 直连失败就让浏览器重新直连旧 Vercel、GitHub Pages 或 GitHub Raw 地址。
 
-**解决方案**：GitHub Actions 运行在 GitHub 的 IP 上（未被 Jin10 封锁）→ 定时抓取 Jin10 新闻并存入 `jin10news/data/latest-24h.json` → VPS 后端 `jin10News.js` 优先从 GitHub raw 读取该文件，作为新闻数据源。
-
-```
-GitHub Actions (GitHub IP, 未被封)
-    ↓ 每5分钟抓取
-jin10news/data/latest-24h.json (commit 到仓库)
-    ↓ VPS 从 GitHub raw 读取
-VPS jin10News.js → SQLite → /api/news/latest → Agent / 前端
-    ↓ 如果 GitHub 读取失败
-回退：Jin10 直接搜索（通常 502，但保底）
+```text
+GitHub Actions（仅上游采集）
+  -> 抓取会限制 VPS IP 的第三方源
+  -> 写入仓库数据文件
+  -> VPS 服务同步到 SQLite
+  -> sellput.top 同源 API
+  -> 浏览器工具
 ```
 
-**依赖的 1 个关键 GitHub Actions 工作流（不可删除）**：
+- 金十：`update-jin10-news.yml` 与 `jin10news/data/latest-24h.json` 是当前必要回退，不得删除。
+- Yahoo：`vps-backend/src/services/stockPrice.js` 当前仍直接调用 Yahoo chart API；是否被限流应查看美股交易时段内的 `/api/stock/fetch-log`，非交易时段只更新 BTC 属于正常调度。
+- Barchart：页面只调用 sellput.top 的 `/api/barchart-overview` 与 `/api/options-signals`；如 VPS 无法直连，应在 Nginx/服务端处理上游代理，不得把 Vercel 地址重新写回页面。
 
-| 工作流 | 文件 | 用途 |
-|---|---|---|
-| Jin10 新闻抓取 | `.github/workflows/update-jin10-news.yml` | 每 5 分钟抓一次，写入 `jin10news/data/` |
+遇到 VPS IP 被第三方拒绝时，按以下顺序处理：
 
-**已废弃（VPS cron 已接管，保留文件供参考）**：
+1. 先确认是真正的 HTTP 403、429、502 或连接超时，而不是非交易时段、缓存命中或任务未到调度窗口。
+2. 保留最后一次成功且带行情时间的数据，不得用 `0`、空涨跌幅或自行推算值覆盖。
+3. 优先使用后台采集器、可信代理或服务器端中转，把结果写入 VPS SQLite。
+4. 浏览器仍只请求 sellput.top 同源 API；不要把受限上游地址或历史部署地址暴露回前端。
+5. 在 `/api/*/fetch-log`、数据来源表或错误字段中记录实际来源、抓取时间、行情时间和失败原因。
 
-| 工作流 | 文件 | 替代方案 |
-|---|---|---|
-| 行情快照更新 | `.github/workflows/old.update-stockprice.yml` | VPS `stockPrice.js` 直连 Yahoo Finance |
-| 市场报告自动生成 | `.github/workflows/old.generate-market-daily-reports.yml` | VPS 系统 cron 脚本（`run-morning-report.sh` / `run-evening-report.sh` / `run-weekly-report.sh`）|
+### 14.4 静态页面与文档
 
-**历史教训**：2026-08-03 迁移 VPS 时误将这三个工作流标记为"停用"并删除（commit `9e002642`），随后 Jin10 直搜失效导致 VPS 新闻链路完全断裂，当天紧急恢复。**此后不得删除这些工作流。**
-
-**行情中心**：`stockprice/data/latest-price.json` 也由 GitHub Actions 维护。VPS stockPrice.js 直接从 Yahoo Finance 抓取行情（不受 IP 封锁），因此行情数据有 VPS 内网 + GitHub Actions 双路。但 Agent 已改为从 VPS API 读取行情（`/api/stock/prices`），不再依赖 GitHub raw 的行情文件。
-
-**VPS 新闻链路的特殊性**：`jin10News.js` 优先从 GitHub raw 读取并标记 `sourceMode: github-proxy`，仅在读取失败时回退到 Jin10 直接搜索。如果 GitHub Actions 停用，GitHub 文件将不更新，新闻逐渐过时（但 data 仍可读），Jin10 直搜回退由于 IP 封锁大概率 502。
-
-### 14.5 GitHub Pages — 已迁移
-
-静态文档站已迁移到 VPS `https://sellput.top/docs/`。GitHub Pages 域名 `jiangshenhk.github.io/donew` 保留但不更新。
+- 工具入口统一使用 `https://sellput.top/<tool>.html`。
+- 文档入口统一使用 `https://sellput.top/docs/`。
+- 首页按钮统一返回 `https://sellput.top/`。
