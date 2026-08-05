@@ -751,7 +751,7 @@ async function callDeepSeek(payload, snapshot, risk) {
     };
   }
   const model = process.env.DEEPSEEK_VISION_MODEL || process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
-  const res = await timedFetch("https://api.deepseek.com/chat/completions", {
+  const res = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,

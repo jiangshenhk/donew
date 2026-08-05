@@ -155,7 +155,7 @@ function fileTimestamp(date = new Date()) {
 
 async function callDeepSeek(payload, instructions, maxTokens = 7000) {
   if (!process.env.DEEPSEEK_API_KEY) throw new Error("VPS 尚未配置 DEEPSEEK_API_KEY");
-  const response = await timedFetch("https://api.deepseek.com/chat/completions", {
+  const response = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -195,7 +195,7 @@ async function callOpenAIChat(prompt, maxTokens = 8000) {
 
 async function callDeepSeekSimple(prompt, maxTokens = 8000) {
   if (!process.env.DEEPSEEK_API_KEY) throw new Error("未配置 DEEPSEEK_API_KEY");
-  const resp = await timedFetch("https://api.deepseek.com/chat/completions", {
+  const resp = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: { "Authorization": `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: process.env.DEEPSEEK_MODEL || "deepseek-v4-pro", messages: [{ role: "system", content: "你是一个专业的内容总结助手。请用中文回复。" }, { role: "user", content: prompt }], max_tokens: maxTokens, temperature: 0.3 })

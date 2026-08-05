@@ -927,15 +927,16 @@ async function callAI(prompt) {
     return { provider: "规则版", html: "", warning: "未配置DEEPSEEK_API_KEY" };
   }
   try {
-    const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
-    const res = await timedFetch("https://api.deepseek.com/chat/completions", {
+    const model = process.env.DEEPSEEK_MODEL || "deepseek-chat";
+    const maxTokens = model.includes('v4') ? 16000 : 8192;
+    const res = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.2,
-        max_tokens: 8192,
+        max_tokens: maxTokens,
       }),
     }, 50000);
     if (!res.ok) {

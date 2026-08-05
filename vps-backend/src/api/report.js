@@ -1605,7 +1605,7 @@ async function callDeepSeek(payload) {
       html: aiFailureHtml("DeepSeek", "未配置 DEEPSEEK_API_KEY。"),
     };
   }
-  const res = await fetch("https://api.deepseek.com/chat/completions", {
+  const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,

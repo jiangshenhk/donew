@@ -41,7 +41,7 @@ function analyze(d){
 async function callDS(messages){
   var key=process.env.DEEPSEEK_API_KEY;if(!key)return null;
   try{
-    var res=await fetch("https://api.deepseek.com/chat/completions",{
+    var res=await fetch("https://api.deepseek.com/v1/chat/completions",{
       method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},
       body:JSON.stringify({model:process.env.DEEPSEEK_MODEL||"deepseek-v4-pro",messages:messages,temperature:0.7,max_tokens:1500})
     });

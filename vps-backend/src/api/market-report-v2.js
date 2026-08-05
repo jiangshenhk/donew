@@ -1111,7 +1111,7 @@ async function callOpenAI(systemPrompt, userInput) {
 
 async function callDeepSeek(systemPrompt, userInput) {
   if (!process.env.DEEPSEEK_API_KEY) return { used: false, provider: "DeepSeek", text: "" };
-  const res = await timedFetch("https://api.deepseek.com/chat/completions", {
+  const res = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
