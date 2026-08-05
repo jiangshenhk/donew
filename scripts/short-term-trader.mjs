@@ -27,8 +27,8 @@ const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 
-const VERSION = 'v2.0.3';
-const VERSION_NOTE = 'K线545px + 柱状图缩小';
+const VERSION = 'v2.0.4';
+const VERSION_NOTE = '时间MMdd HHMMSS 24h + K线全量历史';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
