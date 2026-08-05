@@ -58,6 +58,7 @@ function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.round(n * 10000) / 10000 : null;
 }
+function fmtNodeDate(t){var d=new Date(t),p=function(n){return(n<10?'0':'')+n};return p(d.getMonth()+1)+p(d.getDate())+' '+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
 function fmtUSD(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2); }
 function fmtPct(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%'; }
 
@@ -520,7 +521,7 @@ async function run(marketFilter = null) {
   else activeSymbols = [...config.symbols];
   console.log(`标的 (${activeSymbols.length}): ${activeSymbols.join(', ')}`);
   console.log(`资金: $${config.capital.toLocaleString()} | 单笔: $${config.positionSize.toLocaleString()} | 最大持仓: ${config.maxPositions}`);
-  console.log(`运行时间: ${new Date().toLocaleString('zh-HK', { hour12: false })}\n`);
+  console.log(`运行时间: ${fmtNodeDate(new Date())}\n`);
 
   const positions = loadPositions();
   console.log(`当前持仓: ${positions.filter(p => p.status === 'OPEN').length}/${config.maxPositions}`);
@@ -823,14 +824,14 @@ tbody tr:hover{background:#1a2b42}
 <div id="tab-stats" class="tab-content" style="display:none"></div>
 <div id="tab-kline" class="tab-content" style="display:none"></div>
 <div id="tab-config" class="tab-content" style="display:none"></div>
-<div class="version-info">数据生成: ${new Date().toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false })}</div>
+<div class="version-info">数据生成: ${fmtNodeDate(new Date())}</div>
 </div>
 <script>
 const DATA = ${dataJson};
 const SYMBOLS = ${symList};
 function fmtUSD(v){return (v>=0?'+':'')+Number(v).toFixed(2);}
 function fmtPct(v){return (v>=0?'+':'')+Number(v).toFixed(2)+'%';}
-function fmtDate(t){return new Date(t).toLocaleString('zh-HK',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});}
+function fmtDate(t){var d=new Date(t),p=function(n){return(n<10?'0':'')+n};return p(d.getMonth()+1)+p(d.getDate())+' '+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
 function getLatestPrice(symbol){var k=DATA.klines[symbol];if(!k||!k.length)return null;return k[k.length-1].c;}
 function calcUnrealizedPnL(){var total=0;for(var i=0;i<DATA.positions.length;i++){var p=DATA.positions[i];if(p.status!=='OPEN')continue;var price=getLatestPrice(p.symbol);if(price==null)continue;total+=(price-p.entryPrice)*p.shares;}return total;}
 function switchTab(name){
