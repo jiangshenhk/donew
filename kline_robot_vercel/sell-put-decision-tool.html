@@ -2337,7 +2337,7 @@
         if (hasMetrics) payload.optionMetrics = optionMetrics;
         if (optionOverviewMeta) payload.optionMetricsMeta = optionOverviewMeta;
 
-        const res = await fetch(`${apiBase}/api/sell-put-decision`, {
+        const res = await fetch(`http://api.sellput.top/api/sell-put-decision`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

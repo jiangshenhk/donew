@@ -1,5 +1,5 @@
 const ALLOWED_ORIGINS = [
-  'https://sellput.top',
+  'https://sellput.top', 'http://api.sellput.top',
 ];
 
 const DAILY_LIMIT = 100;
