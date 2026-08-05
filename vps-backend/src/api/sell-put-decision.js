@@ -920,6 +920,71 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 建议条：background:#1a2338;border-radius:16px;padding:16px
 
 记住：直接输出 HTML 片段，不要任何包装标记！`;
+
+function buildAnalysisPrompt(data) {
+  return buildPrompt(data).replace(/直接输出 HTML 片段[\s\S]*$/m, `输出 JSON 格式的分析数据，不要输出 HTML。
+{
+  "conclusion": "可卖Put|谨慎卖Put|暂不卖Put",
+  "riskScore": 1-10,
+  "putStance": "有利|谨慎|不利",
+  "temperature": "高温|中温|低温",
+  "blackSwan": "绿灯|黄灯|红灯",
+  "marketSummary": "2-3句话市场环境总结",
+  "optionAnalysis": "期权温度解读",
+  "klineSignals": "K线技术信号",
+  "sellPutAdvice": {
+    "action": "具体行动建议",
+    "keyRisks": ["风险1","风险2","风险3"],
+    "ifMustOperate": "如果必须操作的仓位建议",
+    "strikeRange": "建议行权价区间描述",
+    "specialWarning": "特别提醒"
+  },
+  "watchlist": ["未来关注信号1","信号2","信号3"]
+}`);
+}
+
+async function callAIRender(jsonAnalysis, symbol, market) {
+  const renderPrompt = `根据以下JSON分析数据，生成一篇卖Put决策HTML报告。
+
+JSON分析数据：
+${JSON.stringify(jsonAnalysis, null, 2)}
+
+${buildPrompt({
+  symbol, market,
+  optionMetricsText: '', optionTemperature: {},
+  stockpriceSnapshot: [], newsText: '',
+  klineStatsFormatted: '', klineStructureFormatted: '',
+  notes: '', targetStrike: null, expiryDate: '',
+  klineStats: {}, risk: {}, rawRisk: {},
+  eventRisksText: '', contractDecision: null,
+}).split('## 报告生成要求')[1] || ''}`;
+
+  if (!process.env.DEEPSEEK_API_KEY) {
+    return { provider: "规则版", html: "", warning: "未配置DEEPSEEK_API_KEY" };
+  }
+  try {
+    const model = process.env.DEEPSEEK_MODEL || "deepseek-chat";
+    const maxTokens = model.includes('v4') ? 16000 : 8192;
+    const res = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: renderPrompt }],
+        temperature: 0.2,
+        max_tokens: maxTokens,
+      }),
+    }, 50000);
+    if (!res.ok) return { provider: "规则版", html: "", warning: `DeepSeek HTTP ${res.status}` };
+    const json = await res.json();
+    const html = json?.choices?.[0]?.message?.content?.trim() || "";
+    return html
+      ? { provider: "DeepSeek", html, warning: "" }
+      : { provider: "规则版", html: "", warning: "DeepSeek未返回报告内容" };
+  } catch (error) {
+    return { provider: "规则版", html: "", warning: error.message };
+  }
+}
 }
 
 async function callAI(prompt) {
@@ -1283,7 +1348,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const prompt = buildPrompt({
+    const prompt = buildAnalysisPrompt({
       symbol, market, optionMetricsText,
       optionTemperature: putRating.temperature,
       stockpriceSnapshot, newsText,
@@ -1293,7 +1358,17 @@ export default async function handler(req, res) {
     });
 
     const aiStartedAt = Date.now();
-    const ai = await callAI(prompt);
+    const aiAnalysis = await callAI(prompt);
+    let ai = { provider: "规则版", html: "", warning: aiAnalysis.warning };
+
+    if (aiAnalysis.html) {
+      try {
+        const jsonAnalysis = JSON.parse(aiAnalysis.html.replace(/```json\n?|```/g, '').trim());
+        ai = await callAIRender(jsonAnalysis, symbol, market);
+      } catch {
+        ai = { provider: "规则版", html: "", warning: "AI分析JSON解析失败" };
+      }
+    }
     const aiElapsedMs = Date.now() - aiStartedAt;
     const cleanHtml = ensureKlineMatchLine(
       sanitizeAiHtml(stripCodeFenceAndExtract(ai.html)),
