@@ -813,7 +813,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v2.0.4.4｜2026-08-05 21:00｜修复行情休市丢失+AI最大token</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v2.1.0｜2026-08-06｜分阶段并行生成综合报告</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -2343,19 +2343,77 @@
         if (hasMetrics) payload.optionMetrics = optionMetrics;
         if (optionOverviewMeta) payload.optionMetricsMeta = optionOverviewMeta;
 
-        const res = await fetch(`${apiBase}/api/sell-put-decision`, {
+        // Phase 1: Prepare
+        const prepRes = await fetch(`${apiBase}/api/sell-put-decision`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, action: 'prepare' }),
         });
-        const json = await readApiJson(res, '报告生成接口');
-        if (!res.ok || !json.ok) throw new Error(json.message || `生成失败（HTTP ${res.status}）`);
+        const prepJson = await readApiJson(prepRes, '数据准备');
+        if (!prepRes.ok || !prepJson.ok) throw new Error(prepJson.message || '数据准备失败');
+        const reportId = prepJson.reportId;
+
+        // Phase 2: Parallel module analysis
+        setStatus('🔍 数据准备完成，正在进行AI分析…');
+        const moduleEl = document.createElement('div');
+        moduleEl.style.cssText = 'margin:8px 0;font-size:13px;color:#94a3b8';
+        moduleEl.innerHTML = '<span id="mod-market">◌</span> 市场 <span id="mod-kline">◌</span> K线 <span id="mod-option">◌</span> 期权';
+        statusEl.appendChild(moduleEl);
+
+        const updateMod = (mod, icon, msg) => {
+          const el = document.getElementById('mod-' + mod);
+          if (el) el.innerHTML = icon + ' ' + msg || '';
+        };
+
+        const modResults = await Promise.allSettled([
+          (async () => {
+            updateMod('market', '◌', '市场中');
+            const r = await fetch(`${apiBase}/api/sell-put-decision`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'analyze-market', reportId }),
+            });
+            const j = await readApiJson(r, '市场分析');
+            updateMod('market', j.ok && j.status !== 'fallback' ? '✅' : '⚠️', '市场');
+            return j;
+          })(),
+          (async () => {
+            updateMod('kline', '◌', 'K线中');
+            const r = await fetch(`${apiBase}/api/sell-put-decision`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'analyze-kline', reportId }),
+            });
+            const j = await readApiJson(r, 'K线分析');
+            updateMod('kline', j.ok && j.status !== 'fallback' ? '✅' : '⚠️', 'K线');
+            return j;
+          })(),
+          (async () => {
+            updateMod('option', '◌', '期权中');
+            const r = await fetch(`${apiBase}/api/sell-put-decision`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'analyze-option', reportId }),
+            });
+            const j = await readApiJson(r, '期权分析');
+            updateMod('option', j.ok && j.status !== 'fallback' ? '✅' : '⚠️', '期权');
+            return j;
+          })(),
+        ]);
+
+        // Phase 3: Finalize
+        setStatus('📝 生成最终报告中…');
+        const finRes = await fetch(`${apiBase}/api/sell-put-decision`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'finalize', reportId }),
+        });
+        const json = await readApiJson(finRes, '报告生成');
+        if (!finRes.ok || !json.ok) throw new Error(json.message || '报告生成失败');
 
         updateLatestBlob(json.html || '', json.filename || 'sell-put-decision.html');
         rememberPayload(payload);
         const meta = { ...json, generatedAt: json.generatedAt || new Date().toISOString(), savedAt: new Date().toISOString() };
         renderLatestReport(meta, false);
         saveLatestReportCache(meta);
+        setStatus('✅ 生成完成');
       } catch (error) {
         resultHead.style.display = 'none';
         statusEl.style.display = '';
