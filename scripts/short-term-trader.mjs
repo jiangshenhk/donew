@@ -73,6 +73,8 @@ function readApiKey() {
   } catch { return null; }
 }
 
+function fmtNodeDate(t) { var d = new Date(t), p = function(n){ return (n < 10 ? '0' : '') + n; }; return p(d.getMonth()+1) + p(d.getDate()) + ' ' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
+
 function fmtTimeET(ts) {
   const d = new Date(ts instanceof Date ? ts : ts * 1000);
   return d.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
@@ -986,11 +988,13 @@ async function run() {
 
 // ─── Dashboard ───────────────────────────────────────────────────
 
-function buildDashboardHtml() {
+ function buildDashboardHtml() {
   const config = loadConfig();
   const positions = loadPositions();
   const orders = loadOrders();
   const stats = loadStats();
+  function fmtNodeDate(t) { var d = new Date(t), p = function(n){ return (n < 10 ? '0' : '') + n; }; return p(d.getMonth()+1) + p(d.getDate()) + ' ' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
+
 
   // Load signals
   const allSignals = {};
@@ -1102,7 +1106,6 @@ const DATA = ${JSON.stringify(data, null, 2)};
 
 function fmtUSD(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2); }
 function fmtPct(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%'; }
-function fmtNodeDate(t) { var d = new Date(t), p = function(n){ return (n < 10 ? '0' : '') + n; }; return p(d.getMonth()+1) + p(d.getDate()) + ' ' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
 function fmtTime(t) { return new Date(t).toLocaleString('zh-HK', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); }
 function fmtDate(t) {
   var d = new Date(t), p = function(n){ return (n < 10 ? '0' : '') + n; };
