@@ -920,6 +920,7 @@ ${notes ? `## 用户补充关注点\n${notes}` : ""}
 - 建议条：background:#1a2338;border-radius:16px;padding:16px
 
 记住：直接输出 HTML 片段，不要任何包装标记！`;
+}
 
 function buildAnalysisPrompt(data) {
   return buildPrompt(data).replace(/直接输出 HTML 片段[\s\S]*$/m, `输出 JSON 格式的分析数据，不要输出 HTML。
@@ -984,7 +985,6 @@ ${buildPrompt({
   } catch (error) {
     return { provider: "规则版", html: "", warning: error.message };
   }
-}
 }
 
 async function callAI(prompt) {
