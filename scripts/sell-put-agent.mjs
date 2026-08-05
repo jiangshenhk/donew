@@ -2405,23 +2405,30 @@ function addWatchlist() {
   const openSym = positions.find(p => p.status === 'open')?.symbol;
   const defaultSym = openSym || symbolKeys[0];
 
-  html += '<div class="filter-bar"><label>标的</label><select id="kc-symbol" onchange="renderKlineChart()">';
+  html += '<div class="symbol-selector">';
   for (const s of symbolKeys) {
     const posCount = positions.filter(p => p.symbol === s && (p.status === 'open' || p.status === 'closed' || p.status === 'cancelled')).length;
-    html += '<option value="'+s+'"'+(s===defaultSym?' selected':'')+'>'+s+(posCount?' ('+posCount+'笔)':'')+'</option>';
+    html += '<button class="symbol-btn' + (s === defaultSym ? ' active' : '') + '" onclick="switchKlineStock(\\'' + s + '\\')">' + s + (posCount ? ' (' + posCount + '笔)' : '') + '</button>';
   }
-  html += '</select></div>';
-  html += '<div id="kline-chart-container" style="width:100%;height:560px;border:1px solid #1f2b44;border-radius:8px;overflow:hidden"></div>';
+  html += '</div>';
+  html += '<div id="kline-chart-container" style="width:100%;height:545px;border:1px solid #1f2b44;border-radius:8px;overflow:hidden"></div>';
   document.getElementById('panel-kline').innerHTML = html;
 
   let chart = null;
+  window.currentKcSymbol = defaultSym;
+  window.switchKlineStock = function(sym) {
+    window.currentKcSymbol = sym;
+    document.querySelectorAll('#panel-kline .symbol-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+    renderKlineChart();
+  };
   window.renderKlineChart = function() {
     if (typeof LightweightCharts === 'undefined') {
       document.getElementById('kline-chart-container').innerHTML = '<p class="muted" style="padding:40px;text-align:center">图表库加载中...请确保网络连接正常</p>';
       return;
     }
     try {
-    const sym = document.getElementById('kc-symbol').value;
+    const sym = window.currentKcSymbol;
     const data = klineData[sym];
     if (!data || !data.bars || !data.bars.length) return;
 

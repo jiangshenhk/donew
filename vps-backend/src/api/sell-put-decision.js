@@ -1248,7 +1248,14 @@ async function handlePrepare(req, res, body, startTime) {
     task.snapshot = { ...stockpriceBaseSnapshot, data: stockpriceBaseSnapshot.data || [], cachedAt: Date.now() };
     task.newsData = newsData;
     task.optionMetrics = sanitizeOptionMetrics(body.optionMetrics || {});
-    task.input = body;
+    task.input = {
+      ...body,
+      targetStrike: body.optionMetrics?.targetStrike || body.targetStrike || '',
+      delta: body.optionMetrics?.delta || body.delta || '',
+      bid: body.optionMetrics?.bid || body.bid || '',
+      ask: body.optionMetrics?.ask || body.ask || '',
+      expiryDate: body.optionMetrics?.expiryDate || body.expiryDate || '',
+    };
     task.updatedAt = Date.now();
 
     return sendJson(res, 200, {
