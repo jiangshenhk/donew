@@ -975,7 +975,7 @@ async function run() {
   if (finalPositions.length > 0) {
     console.log(`  持仓: ${finalPositions.length}个 | ${finalPositions.map(p => p.symbol).join(', ')}`);
   }
-  console.log(`  ${new Date().toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' })}\n`);
+  console.log(`  ${new Date().toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false })}\n`);
 
   // Auto-regenerate dashboard
   try {
@@ -1094,7 +1094,7 @@ tbody tr:hover { background: #1a2b42; }
   <div id="tab-signals" class="tab-content" style="display:none"></div>
   <div id="tab-stats" class="tab-content" style="display:none"></div>
   <div id="tab-kline" class="tab-content" style="display:none"></div>
-  <div class="refresh-info">数据生成: ${new Date(data.generatedAt).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' })}</div>
+  <div class="refresh-info">数据生成: ${new Date(data.generatedAt).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false })}</div>
 </div>
 
 <script>
@@ -1103,7 +1103,7 @@ const DATA = ${JSON.stringify(data, null, 2)};
 function fmtUSD(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2); }
 function fmtPct(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%'; }
 function fmtTime(t) { return new Date(t).toLocaleString('zh-HK', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}); }
-function fmtDate(t) { return new Date(t).toLocaleString('zh-HK', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(t) { return new Date(t).toLocaleString('zh-HK', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}); }
 
 function getLatestPrice(symbol) {
   const k = DATA.klines[symbol];
