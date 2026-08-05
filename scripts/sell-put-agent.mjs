@@ -1347,6 +1347,23 @@ async function runDaily() {
       console.log(`   ${p.symbol} $${p.strike}P | 到期:${p.expireDate}(${daysLeft}天) | 权利金:$${p.premium}×${p.contracts}张`);
     }
   }
+  // Refresh kline for watchlist symbols too (so K-line tab shows fresh data)
+  const watchlistSyms = loadWatchlist();
+  const refreshedSet = new Set(decisions.map(d => d.symbol));
+  let wlCount = 0;
+  for (const wlSym of new Set(watchlistSyms)) {
+    if (refreshedSet.has(wlSym)) continue;
+    try {
+      const wlBars = await fetchKline(wlSym);
+      if (wlBars && wlBars.length >= 5) {
+        ensureDir(KLINE_DIR);
+        saveJson(path.join(KLINE_DIR, wlSym + '.json'), { symbol: wlSym, date: todayStr(), bars: wlBars, ...calcKlineStats(wlBars) });
+        wlCount++;
+      }
+    } catch { /* ok */ }
+  }
+  console.log(`\n  观察池K线刷新: ${wlCount} 个标的`);
+
   const dashPath = generateDashboard();
   console.log(`🖥 Dashboard: ${dashPath}`);
   console.log('');
