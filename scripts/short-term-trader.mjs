@@ -92,15 +92,25 @@ function acquireRunLock() {
     if (error?.code !== 'EEXIST') throw error;
     const existing = loadJson(RUN_LOCK_FILE) || {};
     const age = Date.now() - (Date.parse(existing.startedAt) || fs.statSync(RUN_LOCK_FILE).mtimeMs);
-    if (age <= staleMs) {
-      try { process.kill(Number(existing.pid), 0); } catch { fs.unlinkSync(RUN_LOCK_FILE); create(); return () => { try { if (process.existsSync && fs.existsSync(RUN_LOCK_FILE)) fs.unlinkSync(RUN_LOCK_FILE); } catch {} }; }
-      console.log(`⚠ 已有任务运行中 (PID ${existing.pid}, ${Math.floor(age/1000)}s前)`);
+    const liveProcess = processExists(Number(existing.pid));
+    if (liveProcess || (!existing.pid && age <= staleMs)) {
+      console.log(`\u26A0 \u5DF2\u6709\u4EFB\u52A1\u8FD0\u884C\u4E2D (PID ${existing.pid}, ${Math.floor(age/1000)}s\u524D)`);
       return null;
     }
     fs.unlinkSync(RUN_LOCK_FILE);
     create();
   }
-  return () => { try { if (fs.existsSync(RUN_LOCK_FILE)) fs.unlinkSync(RUN_LOCK_FILE); } catch {} };
+  return () => {
+    try {
+      const current = loadJson(RUN_LOCK_FILE);
+      if (!current || Number(current.pid) === process.pid) fs.unlinkSync(RUN_LOCK_FILE);
+    } catch {}
+  };
+}
+
+function processExists(pid) {
+  if (!pid || pid <= 0) return false;
+  try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
 function fmtNodeDate(t) { var d = new Date(t), p = function(n){ return (n < 10 ? '0' : '') + n; }; return p(d.getMonth()+1) + p(d.getDate()) + ' ' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
@@ -1107,7 +1117,9 @@ async function run() {
   // Auto-regenerate dashboard
   try {
     const html = buildDashboardHtml();
-    fs.writeFileSync(DASHBOARD_FILE, html, 'utf-8');
+    const tmp = `${DASHBOARD_FILE}.${process.pid}.${Date.now()}.tmp`;
+    fs.writeFileSync(tmp, html, 'utf-8');
+    fs.renameSync(tmp, DASHBOARD_FILE);
   } catch { /* silent */ }
 
   } finally { releaseLock(); }
@@ -2000,7 +2012,9 @@ async function generateDashboard() {
   console.log('📊 生成仪表板...');
   ensureDir(AGENT_DIR);
   const html = buildDashboardHtml();
-  fs.writeFileSync(DASHBOARD_FILE, html, 'utf-8');
+  const tmp = `${DASHBOARD_FILE}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, html, 'utf-8');
+  fs.renameSync(tmp, DASHBOARD_FILE);
   console.log(`✅ 仪表板已生成: ${DASHBOARD_FILE}`);
   if (process.platform === 'darwin') {
     try {

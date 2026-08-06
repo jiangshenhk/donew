@@ -596,34 +596,33 @@ function isDailyKlineStale(symbol, bars, now = new Date()) {
   if (!bars || bars.length < 1) return { stale: true, reason: '无K线数据' };
   const lastBar = bars.at(-1).date;
   if (!lastBar) return { stale: true, reason: 'K线日期缺失' };
-  const lastBarDate = new Date(lastBar);
-  const nowStr = now.toISOString().split('T')[0];
-  const lastStr = lastBar;
-  if (lastStr === nowStr) return { stale: false, reason: '', lastBarDate: lastBar };
-  // 跨周末容忍: 若当前是周一且最后K线是上周五 → 不标过期
-  const today = new Date(nowStr);
-  const lastDay = new Date(lastStr);
-  const dayDiff = Math.floor((today - lastDay) / 86400000);
-  // BTC/加密货币 24h 标的: 超过 1 天 = 过期
+  // BTC/加密货币 24h 标的: 超过 1 天 = 过期 (UTC)
   const isCrypto = /^(BTC|ETH|SOL|XRP)-/.test(symbol) || ['BTC-USD', 'ETH-USD'].includes(symbol);
   if (isCrypto) {
+    const lastDay = new Date(lastBar);
+    const dayDiff = Math.floor((new Date(now.toISOString().split('T')[0]) - new Date(lastBar)) / 86400000);
     if (dayDiff > 1) return { stale: true, reason: `超过1天未更新（${dayDiff}天）`, lastBarDate: lastBar };
     return { stale: false, reason: '', lastBarDate: lastBar };
   }
-  // 美股标的: 最后K线早于最近一个交易日
-  if (dayDiff <= 1 && lastStr === nowStr.split('T')[0]) return { stale: false, reason: '', lastBarDate: lastBar };
-  // 如果是周一盘前(pm)，允许上周五的K线
+  // 美股标的: 用 ET 日期判断
   const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const etHour = etNow.getHours();
+  const etDateStr = `${etNow.getFullYear()}-${String(etNow.getMonth()+1).padStart(2,'0')}-${String(etNow.getDate()).padStart(2,'0')}`;
+  if (lastBar === etDateStr) return { stale: false, reason: '', lastBarDate: lastBar };
   const etDay = etNow.getDay();
-  const isEstWeekday = etDay >= 1 && etDay <= 5;
-  const isAfterClose = etHour >= 16;
-  if (isEstWeekday && isAfterClose && dayDiff >= 1) return { stale: true, reason: `已有交易日收盘K线缺失`, lastBarDate: lastBar };
-  // 周末特殊处理
-  const dow = today.getDay();
-  if (dow === 1 && dayDiff <= 3) return { stale: false, reason: '周末', lastBarDate: lastBar };
-  if (dow === 0 && dayDiff <= 2) return { stale: false, reason: '周末', lastBarDate: lastBar };
-  return { stale: true, reason: `超过1个交易日未更新（${dayDiff}天）`, lastBarDate: lastBar };
+  const lastDayEt = new Date(lastBar);
+  const dayDiffEt = Math.floor((new Date(etDateStr) - lastDayEt) / 86400000);
+  // 周末容忍
+  if (etDay === 1 && dayDiffEt <= 3) return { stale: false, reason: '周末', lastBarDate: lastBar };
+  if (etDay === 0 && dayDiffEt <= 2) return { stale: false, reason: '周末', lastBarDate: lastBar };
+  // 周一凌晨 ET: 允许上周五
+  if (etDay === 1 && etNow.getHours() < 9 && dayDiffEt <= 3) return { stale: false, reason: '', lastBarDate: lastBar };
+  // 交易日收盘后: 必须有今天的 K线
+  const isWeekday = etDay >= 1 && etDay <= 5;
+  const isAfterClose = etNow.getHours() >= 16;
+  if (isWeekday && isAfterClose && dayDiffEt >= 1) return { stale: true, reason: '已有交易日收盘K线缺失', lastBarDate: lastBar };
+  // 一般情况: 允许 1 天差异
+  if (dayDiffEt <= 1) return { stale: false, reason: '', lastBarDate: lastBar };
+  return { stale: true, reason: `超过1个交易日未更新（${dayDiffEt}天）`, lastBarDate: lastBar };
 }
 
 function klineStatusLabel(staleResult) {
