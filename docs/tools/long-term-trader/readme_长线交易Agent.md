@@ -50,3 +50,17 @@
 - 不把 AI 评分当作硬规则的替代品。
 - 调整默认标的、仓位或风险参数时，检查已有持仓数据的向后兼容。
 
+## 可靠性机制（v2.0.5）
+
+| 机制 | 说明 |
+|:---|:---|
+| **运行锁** | `~/.donew-trader-long/long-term-trader.lock`，内容为 `pid/mode/startedAt`。`run` / `dashboard` 写入前先拿锁，防止并发写坏文件。锁仅在同 pid 且未超时（10 分钟）时有效；进程不存在或超时后自动清理。 |
+| **原子写** | `saveJson` / `atomicWriteText` 先写临时文件再 `rename` 覆盖，中断不会产生半截 JSON 或 HTML。适用于 `positions/orders/stats/signals/kline/dashboard.html`。 |
+| **统一超时** | `fetchWithTimeout(url, options, timeoutMs, label)`：Yahoo 15s、DeepSeek 30s、ntfy 10s。超时报错带 label（如 `Yahoo K线超时(15000ms)`），脚本不会卡死。 |
+| **K线新鲜度前置** | 日线最后一个 bar 距今 >4 天视为过期（周末/节假日宽限）。过期时不生成 BUY、不开仓，dashboard 标注 `旧K线 / 仅供历史查看`。 |
+| **数据来源元数据** | K线缓存、信号文件、dashboard 数据写入 `source / fetchedAt / lastDataTime / ok / error / stale / staleReason`。 |
+
+## 版本
+
+v2.0.5 · 2026-08-06 · 运行锁 / 原子写 / Yahoo超时 / K线新鲜度前置
+

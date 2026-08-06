@@ -21,13 +21,16 @@ const DASHBOARD_FILE = path.join(DATA_DIR, 'dashboard.html');
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
-const VERSION = 'v2.0.4';
-const VERSION_NOTE = '时间MMdd HHMMSS 24h + 日线EMA';
+const VERSION = 'v2.0.5';
+const VERSION_NOTE = '2026-08-06 | 运行锁/原子写/Yahoo超时/K线新鲜度前置';
 
 // ─── ntfy ───────────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
 const NTFY_TOKEN = 'tk_yw31dbl7scelalsvk3rhc0fhqvei6';
 const NTFY_SERVER = 'https://ntfy.sh';
+
+const LOCK_FILE = path.join(DATA_DIR, 'long-term-trader.lock');
+const LOCK_STALE_MS = 10 * 60 * 1000; // 锁超过 10 分钟视为过期（正常运行不应这么久）
 
 const DEFAULT_CONFIG = {
   symbols: ['QQQ', 'IBIT', 'MSTR', 'TSLA', 'EEM', 'BTC-USD', 'UGL', 'FUTU', '0700.HK', '9988.HK', '0883.HK', '3032.HK', 'QLD', 'INTC'],
@@ -41,7 +44,7 @@ const DEFAULT_CONFIG = {
 // ─── Helpers ──────────────────────────────────────────────────
 
 function ensureDir(dir) {
-  try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { throw new Error(`mkdir ${dir} 失败: ${e.message}`); }
 }
 ensureDir(DATA_DIR);
 ensureDir(KLINES_DIR);
@@ -50,9 +53,76 @@ ensureDir(SIGNALS_DIR);
 function loadJson(fpath) {
   try { return JSON.parse(fs.readFileSync(fpath, 'utf-8')); } catch { return null; }
 }
-function saveJson(fpath, data) {
-  try { fs.writeFileSync(fpath, JSON.stringify(data, null, 2), 'utf-8'); } catch {}
+
+// 原子写：先写临时文件，再 rename 覆盖，避免半截文件
+function atomicWriteText(fpath, content) {
+  const tmp = fpath + '.tmp-' + process.pid;
+  try {
+    fs.writeFileSync(tmp, content, 'utf-8');
+    fs.renameSync(tmp, fpath);
+  } finally {
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
+  }
 }
+
+function saveJson(fpath, data) {
+  atomicWriteText(fpath, JSON.stringify(data, null, 2));
+}
+
+// ─── Run Lock ─────────────────────────────────────────────────
+
+function acquireLock(mode) {
+  const now = Date.now();
+  try {
+    if (fs.existsSync(LOCK_FILE)) {
+      const lock = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf-8'));
+      const alive = lock && Number.isInteger(lock.pid) && isPidAlive(lock.pid);
+      const stale = !alive || (now - (lock.startedAt || 0)) > LOCK_STALE_MS;
+      if (!stale) {
+        throw new Error(`已有运行实例 (pid=${lock.pid}, mode=${lock.mode || '?'}, startedAt=${lock.startedAt || '?'})，跳过本次`);
+      }
+      // 过期锁：进程不存在或超时，清理
+      try { fs.unlinkSync(LOCK_FILE); } catch {}
+    }
+    atomicWriteText(LOCK_FILE, JSON.stringify({ pid: process.pid, mode, startedAt: now }));
+    return true;
+  } catch (e) {
+    if (e.message.includes('已有运行实例')) throw e;
+    // 其他错误（写入失败等）不阻塞，仅提示
+    console.log(`  ⚠️ 运行锁写入失败: ${e.message}`);
+    return false;
+  }
+}
+
+function isPidAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch { return false; }
+}
+
+function releaseLock() {
+  try {
+    const lock = loadJson(LOCK_FILE);
+    if (lock && lock.pid === process.pid) {
+      try { fs.unlinkSync(LOCK_FILE); } catch {}
+    }
+  } catch {}
+}
+
+// ─── Unified fetch with timeout ───────────────────────────────
+
+async function fetchWithTimeout(url, options = {}, timeoutMs, label = 'HTTP') {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error(`${label}超时(${timeoutMs}ms)`);
+    throw new Error(`${label}请求失败: ${e.message}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function num(v) {
   if (v == null) return null;
   const n = Number(v);
@@ -119,7 +189,7 @@ function saveSignals(symbol, data) {
 async function fetchBars(symbol, interval, range) {
   const url = `${YAHOO_BASE}/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&events=history&includePrePost=false`;
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-long/1.0)' } });
+    const res = await fetchWithTimeout(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-long/1.0)' } }, 15000, 'Yahoo K线');
     if (!res.ok) return null;
     const json = await res.json();
     const result = json?.chart?.result?.[0];
@@ -139,7 +209,36 @@ async function fetchBars(symbol, interval, range) {
       });
     }
     return bars;
-  } catch { return null; }
+  } catch (e) {
+    console.log(`    ⚠️ ${e.message} (${symbol})`);
+    return null;
+  }
+}
+
+// ─── K-line Freshness ─────────────────────────────────────────
+
+// 日线新鲜度：最后一个 bar 距离今天超过 maxDays 视为过期。
+// 周末/节假日允许保留上一交易日，故给 4 天宽限（周一跑时最后bar是上周五≈3天前）。
+function checkKlineFreshness(bars, interval, maxDays = 4) {
+  if (!bars || !bars.length) {
+    return { ok: false, stale: true, staleReason: '无K线数据' };
+  }
+  const lastT = bars[bars.length - 1].t;
+  const lastDate = new Date(lastT * 1000);
+  const now = new Date();
+  const daysOld = (now - lastDate) / 86400000;
+  const stale = daysOld > maxDays;
+  return {
+    ok: !stale,
+    stale,
+    staleReason: stale ? `最后K线 ${fmtNodeDate(lastDate)}，距今 ${daysOld.toFixed(1)} 天 (>${maxDays}天)` : `K线新鲜(${daysOld.toFixed(1)}天)`,
+    lastDataTime: new Date(lastT * 1000).toISOString(),
+    lastDate,
+  };
+}
+
+function checkDailyBarsFresh(dailyBars) {
+  return checkKlineFreshness(dailyBars, '1d', 4);
 }
 
 // ─── Technical Indicators ─────────────────────────────────────
@@ -309,7 +408,7 @@ function calcLongTermStopLevels(entryPrice, atr) {
 
 async function sendNotify(title, message, tags = '') {
   try {
-    const res = await fetch(`${NTFY_SERVER}/${NTFY_TOPIC}`, {
+    const res = await fetchWithTimeout(`${NTFY_SERVER}/${NTFY_TOPIC}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${NTFY_TOKEN}`,
@@ -319,7 +418,7 @@ async function sendNotify(title, message, tags = '') {
         'Markdown': 'yes',
       },
       body: message,
-    });
+    }, 10000, 'ntfy');
     if (!res.ok) throw new Error(`ntfy ${res.status}`);
     console.log(`  📲 通知: ${title}`);
   } catch (e) {
@@ -334,12 +433,11 @@ async function callDeepSeek(systemPrompt, userMessage) {
   if (!apiKey) throw new Error('缺少 DEEPSEEK_API_KEY');
 
   const model = loadConfig().model || 'deepseek-v4-flash';
-  const res = await fetch(DEEPSEEK_API, {
+  const res = await fetchWithTimeout(DEEPSEEK_API, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }], temperature: 0.3, max_tokens: 500 }),
-    signal: AbortSignal.timeout(30000),
-  });
+  }, 30000, 'DeepSeek');
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(`DeepSeek ${res.status}: ${err.error?.message || res.statusText}`);
@@ -583,7 +681,29 @@ async function run(marketFilter = null) {
     const dailyBars = await fetchBars(symbol, '1d', '3mo');
     if (!dailyBars || dailyBars.length < 55) { console.log(` 数据不足`); continue; }
     console.log(` ${dailyBars.length}根`);
-    saveJson(path.join(KLINES_DIR, symbol + '_daily.json'), { date: new Date().toISOString(), bars: dailyBars });
+
+    // 新鲜度校验：过期则不开仓、不生成 BUY
+    const freshness = checkDailyBarsFresh(dailyBars);
+    const klineMeta = {
+      source: 'yahoo-chart',
+      fetchedAt: new Date().toISOString(),
+      lastDataTime: freshness.lastDataTime || null,
+      ok: freshness.ok,
+      stale: freshness.stale,
+      staleReason: freshness.staleReason,
+      error: null,
+    };
+    saveJson(path.join(KLINES_DIR, symbol + '_daily.json'), { date: new Date().toISOString(), bars: dailyBars, meta: klineMeta });
+    if (freshness.stale) {
+      console.log(`    ⚠️ ${freshness.staleReason} → 旧K线，仅作参考，不开仓`);
+      saveSignals(symbol, [...loadSignals(symbol), {
+        time: new Date().toISOString(), price: dailyBars[dailyBars.length-1].c,
+        decision: 'SKIP', reasoning: `旧K线 | ${freshness.staleReason}`,
+        rulesTriggered: false, aiScore: 0, stale: true, staleReason: freshness.staleReason,
+        klineMeta,
+      }]);
+      continue;
+    }
 
     // Daily EMA direction filter (replaces weekly)
     const closes = dailyBars.map(b => b.c);
@@ -736,18 +856,20 @@ async function generateDashboard() {
 
   // Load daily kline data
   const klines = {};
+  const klinesMeta = {};
   try {
     for (const f of fs.readdirSync(KLINES_DIR)) {
       if (f.endsWith('_daily.json')) {
         const sym = f.replace('_daily.json', '');
         const d = loadJson(path.join(KLINES_DIR, f));
         if (d && d.bars) klines[sym] = d.bars.map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c }));
+        if (d && d.meta) klinesMeta[sym] = d.meta;
       }
     }
   } catch {}
 
   const dataJson = JSON.stringify({
-    config, stats, positions, orders: orders.reverse(), signals, klines, generatedAt: new Date().toISOString(),
+    config, stats, positions, orders: orders.reverse(), signals, klines, klinesMeta, generatedAt: new Date().toISOString(),
   });
 
   const symList = JSON.stringify(config.symbols);
@@ -967,21 +1089,32 @@ var s=symbols[i];
 var cnt=DATA.orders.filter(function(o){return o.symbol===s;}).length;
 h+='<button class="symbol-btn'+(s===defaultSym?' active':'')+'" onclick="switchKline(\\''+s+'\\')">'+s+(cnt?' ('+cnt+'笔)':'')+'</button>';
 }
-h+='</div><div class="chart-container"><div id="chart-root" style="width:100%;height:420px"></div></div>';
-container.innerHTML=h;
-if(typeof LightweightCharts==='undefined'){document.getElementById('chart-root').innerHTML='<div class="empty" style="padding:60px">图表库加载中...</div>';return;}
-if(defaultSym)setTimeout(function(){loadChart(defaultSym);},200);
-}
-window.switchKline=function(sym){
-var btns=document.querySelectorAll('#tab-kline .symbol-btn');
-for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
-event.target.classList.add('active');
-localStorage.setItem('lt_kline_symbol',sym);
-loadChart(sym);
-};
+ h+='</div><div class="chart-container"><div id="chart-root" style="width:100%;height:420px"></div><div id="kline-stale-note"></div></div>';
+ container.innerHTML=h;
+ if(typeof LightweightCharts==='undefined'){document.getElementById('chart-root').innerHTML='<div class="empty" style="padding:60px">图表库加载中...</div>';return;}
+ if(defaultSym)setTimeout(function(){loadChart(defaultSym);},200);
+ }
+ window.switchKline=function(sym){
+ var btns=document.querySelectorAll('#tab-kline .symbol-btn');
+ for(var i=0;i<btns.length;i++)btns[i].classList.remove('active');
+ event.target.classList.add('active');
+ localStorage.setItem('lt_kline_symbol',sym);
+ loadChart(sym);
+ };
+ function updateKlineStaleNote(symbol){
+ var note=document.getElementById('kline-stale-note');
+ if(!note)return;
+ var meta=DATA.klinesMeta[symbol];
+ if(meta&&meta.stale){
+   note.innerHTML='<div style="margin-top:8px;padding:8px 12px;border:1px solid #ff6b7d;border-radius:6px;background:rgba(255,107,125,.08);color:#ff6b7d;font-size:12px">⚠️ '+meta.staleReason+' — 旧K线 / 仅供历史查看</div>';
+ }else{
+   note.innerHTML='';
+ }
+ }
 function loadChart(symbol){
 var bars=DATA.klines[symbol]||[];
 if(!bars.length)return;
+updateKlineStaleNote(symbol);
 if(_klineChart){_klineChart.remove();_klineChart=null;}
 document.getElementById('chart-root').innerHTML='';
 _klineChart=LightweightCharts.createChart(document.getElementById('chart-root'),{
@@ -1080,7 +1213,7 @@ if(savedTab&&['positions','orders','signals','stats','kline','config'].indexOf(s
 </body>
 </html>`;
 
-  fs.writeFileSync(DASHBOARD_FILE, html, 'utf-8');
+  atomicWriteText(DASHBOARD_FILE, html);
   console.log('✅ 仪表板已生成: ' + DASHBOARD_FILE);
   if (process.platform === 'darwin') {
     try { import('child_process').then(cp => cp.execSync(`open "${DASHBOARD_FILE}"`)).catch(() => {}); } catch {}
@@ -1193,25 +1326,42 @@ function showVersion() {
 async function main() {
   const cmd = process.argv[2] || 'run';
   const filterArg = process.argv[3] === '--filter' ? process.argv[4] : null;
-  switch (cmd) {
-    case 'run':       await run(filterArg);                break;
-    case 'dashboard': await generateDashboard();  break;
-    case 'stats':     await showStats();          break;
-    case 'positions': await showPositions();      break;
-    case 'setup':     await setupLaunchd();        break;
-    case 'env':       await setupEnv();           break;
-    case 'version':   showVersion();              break;
-    default:
-      console.log('Usage: node scripts/long-term-trader.mjs [run|dashboard|stats|positions|setup|env|version]');
-      console.log('  run       - 日线+日线分析 → 信号 → 模拟交易');
-      console.log('  dashboard - 生成 HTML 仪表板');
-      console.log('  stats     - 统计面板');
-      console.log('  positions - 当前持仓');
-      console.log('  setup     - 安装 launchd 每天 08:30 自动运行');
-      console.log('  env       - 写入 API Key 到本地 .env');
-      console.log('  version   - 版本');
-      console.log('\n首次使用: export DEEPSEEK_API_KEY=sk-xxx && node scripts/long-term-trader.mjs env');
-      console.log(`标的: ${DEFAULT_CONFIG.symbols.join(' / ')} | 日线+日线 | 仅做多`);
+
+  // run / dashboard 都会写文件，需要拿锁防止并发
+  if (cmd === 'run' || cmd === 'dashboard') {
+    try {
+      acquireLock(cmd);
+    } catch (e) {
+      console.log(`⛔ 已存在运行实例，本次退出: ${e.message}`);
+      process.exit(0);
+    }
+  }
+
+  try {
+    switch (cmd) {
+      case 'run':       await run(filterArg);                break;
+      case 'dashboard': await generateDashboard();  break;
+      case 'stats':     await showStats();          break;
+      case 'positions': await showPositions();      break;
+      case 'setup':     await setupLaunchd();        break;
+      case 'env':       await setupEnv();           break;
+      case 'version':   showVersion();              break;
+      default:
+        console.log('Usage: node scripts/long-term-trader.mjs [run|dashboard|stats|positions|setup|env|version]');
+        console.log('  run       - 日线+日线分析 → 信号 → 模拟交易');
+        console.log('  dashboard - 生成 HTML 仪表板');
+        console.log('  stats     - 统计面板');
+        console.log('  positions - 当前持仓');
+        console.log('  setup     - 安装 launchd 每天 08:30 自动运行');
+        console.log('  env       - 写入 API Key 到本地 .env');
+        console.log('  version   - 版本');
+        console.log('\n首次使用: export DEEPSEEK_API_KEY=sk-xxx && node scripts/long-term-trader.mjs env');
+        console.log(`标的: ${DEFAULT_CONFIG.symbols.join(' / ')} | 日线+日线 | 仅做多`);
+    }
+  } finally {
+    if (cmd === 'run' || cmd === 'dashboard') {
+      releaseLock();
+    }
   }
 }
 
