@@ -21,8 +21,8 @@ const DASHBOARD_FILE = path.join(DATA_DIR, 'dashboard.html');
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
-const VERSION = 'v2.0.5';
-const VERSION_NOTE = '2026-08-06 | 运行锁/原子写/Yahoo超时/K线新鲜度前置';
+const VERSION = 'v2.0.6';
+const VERSION_NOTE = '2026-08-06 | 锁原子创建(openSync wx) + ET交易日新鲜度 + 离场也防旧K线';
 
 // ─── ntfy ───────────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -73,24 +73,40 @@ function saveJson(fpath, data) {
 
 function acquireLock(mode) {
   const now = Date.now();
+  // 原子创建：'wx' 标志确保只有第一个进程能创建成功
+  let fd;
   try {
-    if (fs.existsSync(LOCK_FILE)) {
-      const lock = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf-8'));
+    fd = fs.openSync(LOCK_FILE, 'wx');
+  } catch (e) {
+    if (e.code === 'EEXIST') {
+      // 锁已存在：判断是否过期
+      let lock = null;
+      try { lock = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf-8')); } catch {}
       const alive = lock && Number.isInteger(lock.pid) && isPidAlive(lock.pid);
       const stale = !alive || (now - (lock.startedAt || 0)) > LOCK_STALE_MS;
       if (!stale) {
-        throw new Error(`已有运行实例 (pid=${lock.pid}, mode=${lock.mode || '?'}, startedAt=${lock.startedAt || '?'})，跳过本次`);
+        throw new Error(`已有运行实例 (pid=${lock.pid || '?'}, mode=${lock.mode || '?'}, startedAt=${lock.startedAt || '?'})，跳过本次`);
       }
-      // 过期锁：进程不存在或超时，清理
+      // 过期锁：尝试删除后重试一次原子创建
       try { fs.unlinkSync(LOCK_FILE); } catch {}
+      try {
+        fd = fs.openSync(LOCK_FILE, 'wx');
+      } catch (e2) {
+        if (e2.code === 'EEXIST') throw new Error('锁竞争：另一进程正在获取锁，本次退出');
+        throw e2;
+      }
+    } else {
+      throw e;
     }
-    atomicWriteText(LOCK_FILE, JSON.stringify({ pid: process.pid, mode, startedAt: now }));
+  }
+  try {
+    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, mode, startedAt: now }));
+    fs.closeSync(fd);
     return true;
   } catch (e) {
-    if (e.message.includes('已有运行实例')) throw e;
-    // 其他错误（写入失败等）不阻塞，仅提示
-    console.log(`  ⚠️ 运行锁写入失败: ${e.message}`);
-    return false;
+    try { fs.closeSync(fd); } catch {}
+    try { fs.unlinkSync(LOCK_FILE); } catch {}
+    throw new Error(`运行锁写入失败: ${e.message}`);
   }
 }
 
@@ -217,28 +233,67 @@ async function fetchBars(symbol, interval, range) {
 
 // ─── K-line Freshness ─────────────────────────────────────────
 
-// 日线新鲜度：最后一个 bar 距离今天超过 maxDays 视为过期。
-// 周末/节假日允许保留上一交易日，故给 4 天宽限（周一跑时最后bar是上周五≈3天前）。
-function checkKlineFreshness(bars, interval, maxDays = 4) {
-  if (!bars || !bars.length) {
-    return { ok: false, stale: true, staleReason: '无K线数据' };
+// 最近一个"应有交易日"的 ET 日期（考虑周末；节假日需调用方单独校验）
+function latestExpectedTradingDateET(now = new Date()) {
+  const fmtET = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+  const weekday = fmtET.format(now);
+  // 周一(Mon)期待上上个交易日；其余工作日期待上一个交易日；周末期待上周五
+  if (weekday === 'Mon') return 3;      // 期待上周五（3天前）
+  if (weekday === 'Sun') return 2;      // 期待上周五（2天前）
+  if (weekday === 'Sat') return 1;      // 期待上周五（1天前）
+  return 1;                             // Tue-Fri：期待前一个交易日（1天前）
+}
+
+// 日线新鲜度：按 ET 交易日判断。
+// - 美股开盘前/盘中：期待最近交易日（昨日或更早）
+// - 美股收盘后（16:00 ET 之后）：必须看到当日或最近应有交易日
+// - 周末/节假日：允许保留上一个交易日，但超过 4 天宽限仍视为过期
+function checkDailyBarsFresh(dailyBars) {
+  if (!dailyBars || !dailyBars.length) {
+    return { ok: false, stale: true, staleReason: '无K线数据', lastDataTime: null };
   }
-  const lastT = bars[bars.length - 1].t;
+  const lastT = dailyBars[dailyBars.length - 1].t;
   const lastDate = new Date(lastT * 1000);
   const now = new Date();
-  const daysOld = (now - lastDate) / 86400000;
-  const stale = daysOld > maxDays;
+  const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+
+  const getET = (d) => new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const etLast = getET(lastDate);
+  const etToday = getET(now);
+
+  // 美股是否已收盘（ET 16:00 后）
+  const etHourMin = etNow.getHours() * 60 + etNow.getMinutes();
+  const afterClose = etHourMin >= 16 * 60;
+
+  // 期待的最晚 K线日期（ET 自然日）
+  const expectedDiffDays = latestExpectedTradingDateET(now);
+  const expectedDate = new Date(etToday);
+  expectedDate.setDate(expectedDate.getDate() - expectedDiffDays);
+  expectedDate.setHours(0, 0, 0, 0);
+
+  const lastDayStart = new Date(etLast);
+  lastDayStart.setHours(0, 0, 0, 0);
+
+  const daysOld = Math.floor((etToday - lastDayStart) / 86400000);
+
+  let stale = false;
+  let reason;
+  if (daysOld > 4) {
+    stale = true;
+    reason = `最后K线 ${fmtNodeDate(etLast)}，距今 ${daysOld} 天 (>4天宽限)`;
+  } else if (afterClose && lastDayStart.getTime() < expectedDate.getTime()) {
+    // 美股已收盘，但还没看到应有的最近交易日 → 过期
+    stale = true;
+    reason = `美股已收盘但K线仍停在 ${fmtNodeDate(etLast)}，应为 ${fmtNodeDate(expectedDate)} 或更新`;
+  } else {
+    reason = `K线新鲜(${daysOld}天, ET收盘${afterClose ? '后' : '前'})`;
+  }
   return {
     ok: !stale,
     stale,
-    staleReason: stale ? `最后K线 ${fmtNodeDate(lastDate)}，距今 ${daysOld.toFixed(1)} 天 (>${maxDays}天)` : `K线新鲜(${daysOld.toFixed(1)}天)`,
+    staleReason: reason,
     lastDataTime: new Date(lastT * 1000).toISOString(),
-    lastDate,
   };
-}
-
-function checkDailyBarsFresh(dailyBars) {
-  return checkKlineFreshness(dailyBars, '1d', 4);
 }
 
 // ─── Technical Indicators ─────────────────────────────────────
@@ -630,6 +685,12 @@ async function run(marketFilter = null) {
     if (pos.status !== 'OPEN') continue;
     const dailyBars = await fetchBars(pos.symbol, '1d', '3mo');
     if (dailyBars && dailyBars.length > 1) {
+      // 离场也用新鲜度保护：旧K线不触发自动止盈/止损
+      const exitFresh = checkDailyBarsFresh(dailyBars);
+      if (exitFresh.stale) {
+        console.log(`  ⚠️ ${pos.symbol}: ${exitFresh.staleReason} → 跳过自动平仓（避免旧K线误判）`);
+        continue;
+      }
       const exits = checkExits([pos], dailyBars);
       if (exits.length) {
         for (const exit of exits) {
