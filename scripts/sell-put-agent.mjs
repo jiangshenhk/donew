@@ -586,6 +586,46 @@ function calcKlineStats(bars) {
   return { latest, previousClose, dailyChangePct, sma5, sma10, sma20, atr, high20, low20, barCount: n };
 }
 
+// ─── Kline Staleness Check ────────────────────────────────────
+
+function lastBarDateOfDaily(bars) {
+  return bars?.at(-1)?.date || null;
+}
+
+function isDailyKlineStale(symbol, bars, now = new Date()) {
+  if (!bars || bars.length < 1) return { stale: true, reason: '无K线数据' };
+  const lastBar = bars.at(-1).date;
+  if (!lastBar) return { stale: true, reason: 'K线日期缺失' };
+  const lastBarDate = new Date(lastBar);
+  const nowStr = now.toISOString().split('T')[0];
+  const lastStr = lastBar;
+  if (lastStr === nowStr) return { stale: false, reason: '', lastBarDate: lastBar };
+  // 跨周末容忍: 若当前是周一且最后K线是上周五 → 不标过期
+  const today = new Date(nowStr);
+  const lastDay = new Date(lastStr);
+  const dayDiff = Math.floor((today - lastDay) / 86400000);
+  // BTC/加密货币 24h 标的: 超过 1 天 = 过期
+  const isCrypto = /^(BTC|ETH|SOL|XRP)-/.test(symbol) || ['BTC-USD', 'ETH-USD'].includes(symbol);
+  if (isCrypto) {
+    if (dayDiff > 1) return { stale: true, reason: `超过1天未更新（${dayDiff}天）`, lastBarDate: lastBar };
+    return { stale: false, reason: '', lastBarDate: lastBar };
+  }
+  // 美股标的: 最后K线早于最近一个交易日
+  if (dayDiff <= 1) return { stale: false, reason: '', lastBarDate: lastBar };
+  // 周末特殊处理
+  const dow = today.getDay();
+  if (dow === 1 && dayDiff <= 3) return { stale: false, reason: '周末', lastBarDate: lastBar };
+  if (dow === 0 && dayDiff <= 2) return { stale: false, reason: '周末', lastBarDate: lastBar };
+  return { stale: true, reason: `超过1个交易日未更新（${dayDiff}天）`, lastBarDate: lastBar };
+}
+
+function klineStatusLabel(staleResult) {
+  if (!staleResult) return { text: 'K线状态未知', cls: 'red' };
+  if (!staleResult.stale) return { text: `K线正常 (${staleResult.lastBarDate || '--'})`, cls: 'green' };
+  return { text: `K线已过期: ${staleResult.reason} (最后K线 ${staleResult.lastBarDate || '--'})`, cls: 'red' };
+}
+// ─── News ──────────────────────────────────────────────────────
+
 async function fetchNews() {
   try {
     const res = await fetchWithTimeout(NEWS_URL, {
@@ -1277,20 +1317,48 @@ async function runDaily() {
     // Market data
     const priceInfo = prices[symbol] || {};
     let klineStats = {};
-
     let bars = null;
+    let klineError = null;
+    let klineStale = null;
     try {
       console.log('  📈 获取K线...');
       bars = await fetchKline(symbol);
       if (bars) {
         klineStats = calcKlineStats(bars) || {};
+        klineStale = isDailyKlineStale(symbol, bars);
+      } else {
+        klineError = 'Yahoo K线返回空';
       }
-    } catch { /* ok */ }
+    } catch (err) {
+      klineError = err.message || 'K线获取失败';
+      console.log(`  ⚠️ K线获取失败: ${klineError}`);
+    }
 
-    // Save K-line data for chart display
-    if (bars && bars.length >= 5) {
+    // Save K-line data for chart display (always save with status meta)
+    if (bars && bars.length >= 2) {
       ensureDir(KLINE_DIR);
-      saveJson(path.join(KLINE_DIR, symbol + '.json'), { symbol, date: todayStr(), bars, ...klineStats });
+      saveJson(path.join(KLINE_DIR, symbol + '.json'), {
+        symbol, date: todayStr(), bars, ...klineStats,
+        klineFetchedAt: new Date().toISOString(),
+        klineFetchOk: !klineError,
+        klineError: klineError || null,
+        klineStale: klineStale?.stale || false,
+        klineStaleReason: klineStale?.reason || '',
+        klineLastBarDate: klineStale?.lastBarDate || (bars.at(-1)?.date || null),
+      });
+    } else if (klineError) {
+      // Kline failed: save error-only record (don't overwrite existing bars)
+      const existing = loadJson(path.join(KLINE_DIR, symbol + '.json'));
+      if (existing?.bars) {
+        saveJson(path.join(KLINE_DIR, symbol + '.json'), {
+          ...existing,
+          klineFetchedAt: new Date().toISOString(),
+          klineFetchOk: false,
+          klineError,
+          klineStale: true,
+          klineStaleReason: `获取失败后沿用旧数据 (${klineError})`,
+        });
+      }
     }
 
     // Options overview (IV Rank / PCR / HV / etc.)
@@ -1329,6 +1397,9 @@ async function runDaily() {
           })()
         : null,
       ...overview ? { weightedIv: overview.iv, ivHvDiff: overview.iv != null && overview.hv != null ? overview.iv - overview.hv : null, ivRank: overview.ivRank, ivPercentile: overview.ivPercentile, hv: overview.hv, putCallVolRatio: overview.putCallVolRatio, putCallOiRatio: overview.putCallOiRatio, totalVolume: overview.totalVolume, totalOi: overview.totalOi, expectedMovePct: overview.expectedMovePct } : {},
+      klineError: klineError || null,
+      klineStale: klineStale?.stale || false,
+      klineStaleReason: klineStale?.reason || (klineError ? 'K线获取失败' : ''),
     };
 
     // AI decision
@@ -1363,10 +1434,18 @@ async function runDaily() {
     let tradeDetail = null;
 
     if (alreadyHolding) actionNote = '已有持仓';
+    else if (klineError) actionNote = `K线失败: ${klineError}`;
+    else if (klineStale?.stale) actionNote = `K线过期: ${klineStale.reason}`;
     else if (!currentGates.canOpen) actionNote = '风控阻断';
     else if (!entryGate.ok) actionNote = `合约门槛阻断: ${entryGate.reasons.join('；')}`;
     else if (decision.stance === '谨慎卖Put') actionNote = '谨慎不下单';
     else if (decision.stance === '暂不卖Put') actionNote = '信号不利';
+
+    // K线数据不可靠时阻断开仓
+    if (willOpen && (klineError || klineStale?.stale)) {
+      willOpen = false;
+      if (!actionNote.startsWith('K线')) actionNote = klineError ? `K线失败: ${klineError}` : `K线过期: ${klineStale?.reason}`;
+    }
 
     if (willOpen) {
       const capitalPerContract = contract.strike * 100;
@@ -1416,6 +1495,9 @@ async function runDaily() {
         sma10: market.sma10,
         sma20: market.sma20,
         changePct: market.changePct,
+        klineError: market.klineError || null,
+        klineStale: market.klineStale || false,
+        klineStaleReason: market.klineStaleReason || '',
       },
       decision,
       factors,
@@ -1513,9 +1595,10 @@ async function runDaily() {
     if (refreshedSet.has(wlSym)) continue;
     try {
       const wlBars = await fetchKline(wlSym);
-      if (wlBars && wlBars.length >= 5) {
+      if (wlBars && wlBars.length >= 2) {
         ensureDir(KLINE_DIR);
-        saveJson(path.join(KLINE_DIR, wlSym + '.json'), { symbol: wlSym, date: todayStr(), bars: wlBars, ...calcKlineStats(wlBars) });
+        const wlStale = isDailyKlineStale(wlSym, wlBars);
+        saveJson(path.join(KLINE_DIR, wlSym + '.json'), { symbol: wlSym, date: todayStr(), bars: wlBars, ...calcKlineStats(wlBars), klineFetchedAt: new Date().toISOString(), klineFetchOk: true, klineError: null, klineStale: wlStale?.stale || false, klineStaleReason: wlStale?.reason || '', klineLastBarDate: wlStale?.lastBarDate || (wlBars.at(-1)?.date || null) });
         wlCount++;
       }
     } catch { /* ok */ }
@@ -2584,6 +2667,19 @@ function addWatchlist() {
     html += '<button class="symbol-btn' + (s === defaultSym ? ' active' : '') + '" onclick="switchKlineStock(\\'' + s + '\\')">' + s + (posCount ? ' (' + posCount + '笔)' : '') + '</button>';
   }
   html += '</div>';
+
+  // Show K-line status for default symbol
+  const kf = klineData[defaultSym];
+  const statusClr = kf?.klineStale ? '#ff6b7d' : (kf?.klineError ? '#ffd54a' : '#45d483');
+  const statusText = kf?.klineStale
+    ? '\u26A0 K\u7EBF\u5DF2\u8FC7\u671F: ' + (kf.klineStaleReason || '\u672A\u77E5') + ' | \u6700\u540EK\u7EBF: ' + (kf.klineLastBarDate || '--')
+    : (kf?.klineError
+      ? '\u26A0 K\u7EBF\u83B7\u53D6\u5931\u8D25: ' + kf.klineError
+      : (kf?.klineLastBarDate
+        ? 'K\u7EBF\u6B63\u5E38 | \u6700\u540EK\u7EBF: ' + kf.klineLastBarDate + ' | \u83B7\u53D6\u65F6\u95F4: ' + (kf.klineFetchedAt ? new Date(kf.klineFetchedAt).toLocaleString('zh-HK') : '--')
+        : 'K\u7EBF\u72B6\u6001\u672A\u77E5'));
+  html += '<div style="margin:6px 0 10px;font-size:.78rem;color:' + statusClr + '">' + statusText + '</div>';
+
   html += '<div id="kline-chart-container" style="width:100%;height:545px;border:1px solid #1f2b44;border-radius:8px;overflow:hidden"></div>';
   document.getElementById('panel-kline').innerHTML = html;
 

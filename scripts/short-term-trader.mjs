@@ -230,7 +230,42 @@ function saveKlineCache(symbol, newData) {
     date: new Date().toISOString(),
     interval: INTERVAL,
     bars: merged,
+    klineFetchedAt: new Date().toISOString(),
+    klineFetchOk: true,
+    klineError: null,
   });
+}
+
+// ─── Kline Staleness (5-min) ──────────────────────────────────
+
+function lastBarTimeOfIntraday(bars) {
+  return bars?.at(-1)?.t || null;
+}
+
+function isFiveMinuteKlineStale(symbol, bars, now = new Date()) {
+  if (!bars || bars.length < 1) return { stale: true, reason: '\u65E0K\u7EBF\u6570\u636E' };
+  const lastBarT = Number(bars.at(-1).t);
+  if (!lastBarT || lastBarT <= 0) return { stale: true, reason: 'K\u7EBF\u65F6\u95F4\u5F02\u5E38' };
+  const lastBarMs = lastBarT < 1e12 ? lastBarT * 1000 : lastBarT;
+  const nowMs = now.getTime();
+  const diffMin = Math.floor((nowMs - lastBarMs) / 60000);
+  const isCrypto = /^(BTC|ETH|SOL|XRP)-/.test(symbol);
+  if (isCrypto) {
+    if (diffMin > 30) return { stale: true, reason: `${diffMin}\u5206\u949F\u672A\u66F4\u65B0`, lastBarTime: new Date(lastBarMs).toISOString() };
+    return { stale: false, reason: '', lastBarTime: new Date(lastBarMs).toISOString() };
+  }
+  const nowEst = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const estHour = nowEst.getHours();
+  const estMin = nowEst.getMinutes();
+  const estDay = nowEst.getDay();
+  const isWeekday = estDay >= 1 && estDay <= 5;
+  const inMarketHours = isWeekday && ((estHour > 9 || (estHour === 9 && estMin >= 30)) && estHour < 16);
+  if (inMarketHours) {
+    if (diffMin > 15) return { stale: true, reason: `${diffMin}\u5206\u949F\u672A\u66F4\u65B0`, lastBarTime: new Date(lastBarMs).toISOString() };
+    return { stale: false, reason: '', lastBarTime: new Date(lastBarMs).toISOString() };
+  }
+  if (diffMin > 600) return { stale: true, reason: '\u975E\u4EA4\u6613\u65F6\u6BB510h+', lastBarTime: new Date(lastBarMs).toISOString() };
+  return { stale: false, reason: '\u975E\u4EA4\u6613\u65F6\u6BB5', lastBarTime: new Date(lastBarMs).toISOString() };
 }
 
 function recalcStats(orders) {
@@ -815,7 +850,13 @@ async function run() {
     }
 
     console.log(` ✅ ${data.bars.length}根K线`);
-    saveKlineCache(symbol, { date: new Date().toISOString(), bars: data.bars, meta: data.meta });
+    saveKlineCache(symbol, {
+      date: new Date().toISOString(), bars: data.bars, meta: data.meta,
+      klineFetchedAt: new Date().toISOString(),
+      klineFetchOk: true,
+      klineError: null,
+      klineStale: isFiveMinuteKlineStale(symbol, data.bars),
+    });
 
     const lastBar = data.bars[data.bars.length - 1];
     const openPos = positions.find(p => p.symbol === symbol && p.status === 'OPEN');
@@ -976,6 +1017,13 @@ async function run() {
 
     const klineCache = loadKlineCache(symbol);
     if (!klineCache?.bars) { console.log(`  ⚠️ ${symbol}: 无法获取K线缓存，跳过`); continue; }
+
+    // Check kline staleness
+    const klineStale = isFiveMinuteKlineStale(symbol, klineCache.bars);
+    if (klineStale?.stale) {
+      console.log(`  ⚠️ ${symbol}: K线过期 (${klineStale.reason})，跳过信号生成`);
+      continue;
+    }
 
     const openPos = updatedPositions.find(p => p.symbol === symbol && p.status === 'OPEN');
     if (openPos) {
@@ -1629,7 +1677,16 @@ function renderKline() {
     const cnt = DATA.orders.filter(o => o.symbol === s).length;
     html += '<button class="symbol-btn' + (s === defaultSym ? ' active' : '') + '" onclick="switchKline(\\'' + s + '\\')">' + s + (cnt ? ' (' + cnt + '笔)' : '') + '</button>';
   });
-  html += '</div><div id="chart-container" class="chart-container"><div id="chart-root" style="width:100%;height:545px"></div></div>';
+  html += '</div>';
+  // K-line status for default symbol
+  const kf = DATA.klines[defaultSym];
+  const statusClr = kf?.klineStale?.stale ? '#ff6b7d' : (kf?.klineError ? '#ffd54a' : '#45d483');
+  const lastTime = kf?.klineStale?.lastBarTime ? kf.klineStale.lastBarTime.slice(0,19) : (kf?.bars?.at(-1)?.t ? new Date(Number(kf.bars.at(-1).t) * 1000).toLocaleString() : '--');
+  const statusText = kf?.klineStale?.stale
+    ? 'K线已过期: ' + (kf.klineStale.reason || '--') + ' | 最后: ' + lastTime
+    : (kf?.klineError ? 'K线失败: ' + kf.klineError : (lastTime !== '--' ? 'K线正常 | 最后: ' + lastTime : 'K线状态未知'));
+  html += '<div style="margin:6px 0 10px;font-size:.78rem;color:' + statusClr + '">' + statusText + '</div>';
+  html += '<div id="chart-container" class="chart-container"><div id="chart-root" style="width:100%;height:545px"></div></div>';
   container.innerHTML = html;
   if (typeof LightweightCharts === 'undefined') {
     document.getElementById('chart-root').innerHTML = '<div class="empty" style="padding:60px">图表库加载中...请确保网络连接正常</div>';
