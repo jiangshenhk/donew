@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sell-put-agent.mjs — Sell Put Decision Agent v2.0.3  (2026-08-06: K线过期检测/旧K线阻断交易/dashboard K线状态显示)
+// sell-put-agent.mjs — Sell Put Decision Agent v2.0.4  (2026-08-06: K线过期检测收紧+短线运行锁/原子写同步)
 // 每日自动分析 QLD/MSTR/INTC 卖Put机会，记录纸面交易，跟踪胜率
 // 数据存储于 ~/.donew-agent/ (独立于仓库，不 commit)
 //
@@ -57,8 +57,8 @@ const KLINE_DIR       = path.join(AGENT_DIR, 'kline');
 const WATCHLIST_FILE  = path.join(AGENT_DIR, 'watchlist.json');
 const POOL_FILE       = path.join(AGENT_DIR, 'pool.json');
 const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'sell-put-agent.lock');
-const AGENT_VERSION   = 'v2.0.3';
-const AGENT_VERSION_NOTE = '2026-08-06 21:12 | K线过期检测/旧K线阻断/dashboard K线状态';
+const AGENT_VERSION   = 'v2.0.4';
+const AGENT_VERSION_NOTE = '2026-08-06 | K线过期检测收紧+短线运行锁/原子写同步';
 
 const DEFAULT_TRADING   = ['QLD', 'MSTR', 'INTC'];
 const DEFAULT_WATCHLIST = ['QLD', 'MSTR', 'INTC', 'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'HOOD', 'SOXL', 'AMD', 'TLT', 'GLD', 'XLE'];

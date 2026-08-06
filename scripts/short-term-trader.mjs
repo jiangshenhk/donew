@@ -28,8 +28,8 @@ const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'short-term-trader.lock');
 
-const VERSION = 'v2.0.6';
-const VERSION_NOTE = '2026-08-06 | K线过期检测/旧K线阻断信号';
+const VERSION = 'v2.0.7';
+const VERSION_NOTE = '2026-08-06 | 运行锁/原子写/Yahoo超时/K线过期前置';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
