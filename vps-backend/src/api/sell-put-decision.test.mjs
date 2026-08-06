@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 const apiSource = fs.readFileSync(new URL("./sell-put-decision.js", import.meta.url), "utf8");
+const klineApiSource = fs.readFileSync(new URL("./report.js", import.meta.url), "utf8");
 const pageSource = fs.readFileSync(
   new URL("../../../kline_robot_vercel/sell-put-decision-tool.html", import.meta.url),
   "utf8",
@@ -17,7 +18,19 @@ test("finalize applies the strict completeness and contract gates", () => {
   assert.match(apiSource, /assessDecisionReadiness\s*\(\s*\{/);
   assert.match(apiSource, /atr:\s*task\.klineStats\?\.atr/);
   assert.match(apiSource, /if \(!readiness\.canIssueDecision\)/);
-  assert.match(apiSource, /optionResult\.contractApproved = contractDecision\.approved/);
+  assert.match(apiSource, /reconcileOptionResult\(task\.modules\.option\.result, contractDecision\)/);
+});
+
+test("final contract rules override stale or contradictory option analysis", () => {
+  assert.match(apiSource, /function reconcileOptionResult/);
+  assert.match(apiSource, /normalized\.premiumWorth = "not-worth"/);
+  assert.match(apiSource, /normalized\.keyRisks = \[\.\.\.new Set\(\[\.\.\.blockers, \.\.\.warnings\]\)\]/);
+  assert.match(apiSource, /task\.modules\.option\.result = optionResult/);
+});
+
+test("option analysis waits for K-line data before evaluating the contract", () => {
+  assert.match(apiSource, /while \(!task\.klinePrepared/);
+  assert.match(apiSource, /task\.klinePrepared = true/);
 });
 
 test("the K-line module keeps similarity and structure evidence", () => {
@@ -30,6 +43,12 @@ test("missing market data is not converted to zero", () => {
   assert.match(apiSource, /不得把“未取到”解释为0/);
   assert.doesNotMatch(apiSource, /changePct\s*\|\|\s*["']0/);
   assert.doesNotMatch(apiSource, /weightedIv/);
+});
+
+test("daily quote change uses the latest two K-line closes", () => {
+  assert.match(klineApiSource, /useDailyBars = interval === "1d"/);
+  assert.match(klineApiSource, /quotePreviousClose = useDailyBars/);
+  assert.match(klineApiSource, /\(quoteLast \/ quotePreviousClose - 1\) \* 100/);
 });
 
 test("the final report retains all six decision sections", () => {
@@ -61,11 +80,13 @@ test("module contracts preserve the historical report depth", () => {
 });
 
 test("the browser checks every module response before finalizing", () => {
-  assert.match(pageSource, /v2\.1\.3｜2026-08-06 16:10/);
+  assert.match(pageSource, /v2\.1\.5｜2026-08-06 17:59/);
   assert.match(pageSource, /if \(response\.ok && json\.ok\) return json/);
   assert.match(pageSource, /async function postDecision/);
   assert.match(pageSource, /action: 'status'/);
   assert.match(pageSource, /await wait\(2000\)/);
+  assert.match(pageSource, /poll < 90/);
+  assert.match(pageSource, /模块已降级为规则版/);
   assert.match(pageSource, /Promise\.all\(/);
   assert.match(pageSource, /runModule\('market'/);
   assert.match(pageSource, /runModule\('kline'/);
@@ -77,6 +98,13 @@ test("long-running modules use background execution and polling", () => {
   assert.match(apiSource, /runModuleInBackground\(task, moduleName\)/);
   assert.match(apiSource, /status: "running"/);
   assert.match(apiSource, /done: Object\.values\(modules\)\.every/);
+});
+
+test("degraded AI modules are disclosed in both the page and report", () => {
+  assert.match(apiSource, /AI分析降级提示/);
+  assert.match(apiSource, /module\.status !== "completed"/);
+  assert.match(apiSource, /模块降级原因/);
+  assert.match(pageSource, /degradedModules\.length/);
 });
 
 test("VPS routing does not double-count handlers that secure themselves", () => {

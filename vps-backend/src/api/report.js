@@ -3148,13 +3148,22 @@ export async function analyzeKlineStructure({
   const metaChangePct = numericMeta(resolved.meta?.regularMarketChangePercent);
   const latestBar = bars.at(-1);
   const previousBar = bars.at(-2);
-  const quoteLast = Number.isFinite(metaLast) ? metaLast : Number(latestBar?.close);
-  const quotePreviousClose = Number.isFinite(metaPreviousClose) ? metaPreviousClose : Number(previousBar?.close);
-  const quoteChangePct = Number.isFinite(metaChangePct)
-    ? metaChangePct
-    : Number.isFinite(quoteLast) && Number.isFinite(quotePreviousClose) && quotePreviousClose !== 0
-      ? (quoteLast / quotePreviousClose - 1) * 100
-      : null;
+  const latestBarClose = Number(latestBar?.close);
+  const previousBarClose = Number(previousBar?.close);
+  const useDailyBars = interval === "1d" && Number.isFinite(latestBarClose) && Number.isFinite(previousBarClose);
+  // Yahoo metadata can retain a stale corporate-action previous close. Daily bars are
+  // internally consistent and match the K-line analysis shown in the same report.
+  const quoteLast = useDailyBars ? latestBarClose : Number.isFinite(metaLast) ? metaLast : latestBarClose;
+  const quotePreviousClose = useDailyBars
+    ? previousBarClose
+    : Number.isFinite(metaPreviousClose) ? metaPreviousClose : previousBarClose;
+  const quoteChangePct = useDailyBars
+    ? (quoteLast / quotePreviousClose - 1) * 100
+    : Number.isFinite(metaChangePct)
+      ? metaChangePct
+      : Number.isFinite(quoteLast) && Number.isFinite(quotePreviousClose) && quotePreviousClose !== 0
+        ? (quoteLast / quotePreviousClose - 1) * 100
+        : null;
   const quoteTime = Number(resolved.meta?.regularMarketTime) || Number(latestBar?.ts) || null;
   return {
     symbol: displayName,

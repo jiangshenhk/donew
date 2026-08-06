@@ -60,6 +60,7 @@ function initTask(symbol, market, input) {
     optionMetricsText: '',
     klineStructure: null,
     klineStats: null,
+    klinePrepared: false,
     rules: { risk: null, rawRisk: null, readiness: null, contractDecision: null },
     modules: {
       market: { status: 'pending', result: null, error: '' },
@@ -1356,9 +1357,13 @@ function runModuleInBackground(task, moduleName) {
         result: result.result || result,
         error: result.error || "",
       };
+      if (result.error) {
+        console.warn(`[sell-put-decision] ${task.reportId} ${moduleName} ${result.status || "fallback"}: ${result.error}`);
+      }
       task.updatedAt = Date.now();
     })
     .catch((error) => {
+      console.warn(`[sell-put-decision] ${task.reportId} ${moduleName} failed: ${error.message || "模块分析失败"}`);
       task.modules[moduleName] = {
         status: "failed",
         result: null,
@@ -1387,6 +1392,39 @@ function handleTaskStatus(req, res, body, startTime) {
 }
 
 // ─── FINALIZE ────────────────────────────────────
+
+export function reconcileOptionResult(result, contractDecision) {
+  const normalized = { ...(result || {}) };
+  const blockers = [...new Set(contractDecision?.blockers || [])];
+  const warnings = [...new Set(contractDecision?.warnings || [])];
+  const safeStrike = contractDecision?.strictSafeStrike;
+  const safeStrikeText = Number.isFinite(safeStrike) ? safeStrike.toFixed(2) : "未取到";
+
+  normalized.contractApproved = Boolean(contractDecision?.approved);
+  normalized.blockers = blockers;
+  normalized.warnings = warnings;
+  normalized.strikeAssessment = contractDecision?.approved
+    ? "具体合约通过统一执行硬门槛。"
+    : `具体合约未通过统一执行硬门槛：${blockers.join("；") || "规则条件不完整"}`;
+
+  if (!contractDecision?.approved) {
+    normalized.premiumWorth = "not-worth";
+    normalized.premiumWorthReason = `合约未通过硬门槛：${blockers.join("；") || "规则条件不完整"}。当前权利金不值得承担该执行风险。`;
+    normalized.keyRisks = [...new Set([...blockers, ...warnings])];
+    normalized.ifMustOperate = "当前合约不可执行；必须降低行权价并重新通过全部硬门槛后再评估。";
+    normalized.strikeRange = `严格安全行权价上限为${safeStrikeText}；当前Strike ${contractDecision?.strike?.toFixed(2) ?? "未取到"}高于该上限。`;
+    normalized.specialWarning = "合约硬门槛未通过，不应执行。";
+  } else {
+    normalized.premiumWorth ||= "caution";
+    normalized.premiumWorthReason ||= "合约通过硬门槛，但仍需结合市场与K线风险。";
+    normalized.keyRisks = [...new Set([...(normalized.keyRisks || []), ...warnings])];
+    normalized.ifMustOperate ||= "控制仓位，并在下单前复核事件风险与流动性。";
+    normalized.strikeRange ||= `严格安全行权价上限为${safeStrikeText}。`;
+    normalized.specialWarning ||= "通过门槛不等于低风险，仍需复核事件与流动性。";
+  }
+
+  return normalized;
+}
 
 async function handleFinalize(req, res, body, startTime) {
   try {
@@ -1466,13 +1504,8 @@ async function handleFinalize(req, res, body, startTime) {
 
     const marketResult = task.modules.market.result || {};
     const klineResult = task.modules.kline.result || {};
-    const optionResult = task.modules.option.result || {};
-    optionResult.contractApproved = contractDecision.approved;
-    optionResult.blockers = contractDecision.blockers || [];
-    optionResult.warnings = contractDecision.warnings || [];
-    optionResult.strikeAssessment = contractDecision.approved
-      ? "具体合约通过统一执行硬门槛。"
-      : `具体合约未通过统一执行硬门槛：${(contractDecision.blockers || []).join("；")}`;
+    const optionResult = reconcileOptionResult(task.modules.option.result, contractDecision);
+    task.modules.option.result = optionResult;
     const finalDecision = resolveFinalDecision(task);
 
     const html = buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult, finalDecision, generatedAt });
@@ -1598,6 +1631,7 @@ async function analyzeKlineModule(task) {
   klineStatsFormatted = formatKlineStats(klineStats);
   task.klineStructure = klineStructure;
   task.klineStats = klineStats;
+  task.klinePrepared = true;
   task.snapshot = preferDirectTargetQuote(snapshot, task.symbol, klineStructure);
   task.rules.rawRisk = marketRisk(task.snapshot, task.symbol, task.optionMetrics);
   task.rules.risk = adjustedRisk(task.rules.rawRisk, klineStats, klineStructure);
@@ -1666,6 +1700,10 @@ ${structureFormatted}
 }
 
 async function analyzeOptionModule(task) {
+  const waitStartedAt = Date.now();
+  while (!task.klinePrepared && Date.now() - waitStartedAt < 35000) {
+    await sleep(250);
+  }
   const snapshot = task.snapshot || { data: [] };
   const target = row(snapshot, task.symbol);
   const metrics = task.optionMetrics || {};
@@ -1934,8 +1972,16 @@ function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult,
     ["K线", task.klineStructure?.dataSource || task.klineStructure?.source || "共享K线相似度引擎", task.klineStructure?.latestQuote?.marketTime || generatedAt],
     ["期权", task.optionMetricsMeta.source || "Barchart Options Overview", task.optionMetricsMeta.retrievedAt || generatedAt],
   ].map(([name, source, time]) => `<tr><td>${safeHtml(name)}</td><td>${safeHtml(source)}</td><td>${safeHtml(formatDateTime(time))}</td></tr>`).join("");
+  const moduleErrors = moduleWarnings(task);
+  const degradedModules = Object.entries(task.modules)
+    .filter(([, module]) => module.status !== "completed")
+    .map(([name]) => ({ market: "市场", kline: "K线", option: "期权" }[name] || name));
+  const degradationBanner = degradedModules.length
+    ? `<section class="section section-note"><strong class="warn">AI分析降级提示：</strong>${safeHtml(degradedModules.join("、"))}模块未完成AI分析，本报告对应部分已使用规则引擎生成；请结合数据来源与时间中的降级原因复核。</section>`
+    : "";
 
   const analysisHtml = `
+${degradationBanner}
 <section class="section hero-judgement">
   <h2>1. 综合结论</h2>
   <div class="metric-grid action-bar"><span class="judge-badge ${decisionBadge}">${safeHtml(finalDecision.stance)}</span><span class="tag">风险评分 ${safeHtml(finalDecision.riskScore)}/10</span></div>
@@ -1999,6 +2045,7 @@ function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult,
 <details><summary>数据来源与时间</summary><div class="section">
   <table class="report-table"><thead><tr><th>类型</th><th>来源</th><th>数据时间</th></tr></thead><tbody>${sourceRows}</tbody></table>
   <p class="meta">报告生成时间：${safeHtml(formatDateTime(generatedAt))}。AI模块状态：市场 ${safeHtml(task.modules.market.status)}，K线 ${safeHtml(task.modules.kline.status)}，期权 ${safeHtml(task.modules.option.status)}。</p>
+  ${moduleErrors.length ? `<p class="meta">模块降级原因：${safeHtml(moduleErrors.join("；"))}</p>` : ""}
 </div></details>`;
 
   const normalized = normalizeReportSections(ensureKlineMatchLine(analysisHtml, task.klineStructure));
@@ -2011,20 +2058,34 @@ async function callAIJson(prompt, requiredKeys = [], timeoutMs = 40000) {
   if (!process.env.DEEPSEEK_API_KEY) throw new Error("未配置DEEPSEEK_API_KEY");
   const model = process.env.DEEPSEEK_MODEL || "deepseek-chat";
   const maxTokens = model.includes('v4') ? 8000 : 4096;
-  const res = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model, messages: [{ role: "user", content: prompt + '\n只返回JSON，不要Markdown代码块。' }], temperature: 0.2, max_tokens: maxTokens }),
-  }, timeoutMs);
-  if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}`);
-  const json = await res.json();
-  const text = (json?.choices?.[0]?.message?.content || "").replace(/```json\n?|```/g, "").trim();
-  if (!text) throw new Error("AI返回内容为空");
-  const result = JSON.parse(text);
-  for (const key of requiredKeys) {
-    if (result[key] === undefined) throw new Error(`缺少必要字段: ${key}`);
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const res = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages: [{ role: "user", content: prompt + '\n只返回JSON，不要Markdown代码块。' }], temperature: 0.2, max_tokens: maxTokens }),
+      }, timeoutMs);
+      if (!res.ok) throw new Error(`DeepSeek HTTP ${res.status}`);
+      const json = await res.json();
+      const text = (json?.choices?.[0]?.message?.content || "").replace(/```json\n?|```/g, "").trim();
+      if (!text) throw new Error("AI返回内容为空");
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch (error) {
+        throw new Error(`AI JSON解析失败: ${error.message}`);
+      }
+      for (const key of requiredKeys) {
+        if (result[key] === undefined) throw new Error(`缺少必要字段: ${key}`);
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await sleep(800);
+    }
   }
-  return result;
+  throw lastError || new Error("DeepSeek调用失败");
 }
 
 // ─── LEGACY (backward compatible single-shot) ────

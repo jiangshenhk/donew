@@ -813,7 +813,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v2.1.3｜2026-08-06 16:10｜后台任务轮询并修复偶发Fetch失败</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v2.1.5｜2026-08-06 17:59｜增加AI降级提示</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -2399,7 +2399,7 @@
 
         const moduleLabels = { market: '市场', kline: 'K线', option: '期权' };
         let taskStatus = null;
-        for (let poll = 0; poll < 60; poll += 1) {
+        for (let poll = 0; poll < 90; poll += 1) {
           taskStatus = await postDecision({ action: 'status', reportId }, '分析进度查询', 2);
           Object.entries(taskStatus.modules || {}).forEach(([mod, status]) => {
             const label = moduleLabels[mod] || mod;
@@ -2411,7 +2411,7 @@
           if (taskStatus.done) break;
           await wait(2000);
         }
-        if (!taskStatus?.done) throw new Error('后台分析超过2分钟，请稍后重新生成。');
+        if (!taskStatus?.done) throw new Error('后台分析超过3分钟，请稍后重新生成。');
 
         // Phase 3: Finalize
         setStatus('📝 生成最终报告中…');
@@ -2422,7 +2422,15 @@
         const meta = { ...json, generatedAt: json.generatedAt || new Date().toISOString(), savedAt: new Date().toISOString() };
         renderLatestReport(meta, false);
         saveLatestReportCache(meta);
-        setStatus('✅ 生成完成');
+        const degradedModules = Object.entries(json.modules || {})
+          .filter(([, moduleStatus]) => moduleStatus !== 'completed')
+          .map(([moduleName]) => ({ market: '市场', kline: 'K线', option: '期权' }[moduleName] || moduleName));
+        if (degradedModules.length) {
+          const reason = (json.warnings || []).join('；');
+          setStatus(`⚠️ 报告已生成，但${degradedModules.join('、')}模块已降级为规则版${reason ? `：${reason}` : '。'}`, true);
+        } else {
+          setStatus('✅ 三个AI模块均已完成，报告生成成功。');
+        }
       } catch (error) {
         resultHead.style.display = 'none';
         statusEl.style.display = '';
