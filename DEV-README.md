@@ -6,7 +6,7 @@
 | 本地路径 | `/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
 | 线上域名 | **`https://sellput.top/`**（VPS 主站） |
 | 生产部署 | RackNerd VPS（前端、API、数据、定时任务统一部署） |
-| 文档版本 | `v1.0.1；2026-08-06 22:33；增加 Agent 工程规范与文档版本要求` |
+| 文档版本 | `v1.0.2；2026-08-06 23:25；增加自动任务数据文件本地处理规则` |
 
 这份文件是给"新开的智能体对话 / 新接手的开发者"看的。
 
@@ -470,6 +470,45 @@ K线过期或获取失败时：
 - K线过期时不会产生新交易信号
 - K线失败原因能在日志或 dashboard 中看到
 - README 和脚本版本一致
+
+### 约定 10：自动任务数据文件的本地处理规则
+
+下列文件由 GitHub Actions / VPS 自动任务定期生成并提交到 Git，属于“运行数据”，不是人工开发时应该合并的业务代码：
+
+- `stockprice/data/latest-price.json`
+- `jin10news/data/latest-24h.json`
+- `jin10news/data/latest-24h.md`
+- `docs/市场/data/latest-evening.json`
+- `docs/市场/data/latest-morning.json`
+- `docs/市场/data/latest-weekly.json`
+
+本地开发时，除非任务明确要求修复自动任务输出格式，否则不要手工编辑这些文件，也不要把旧缓存混进代码提交。
+
+如果这些文件在 `git pull --rebase`、`stash pop` 或合并时发生冲突，默认处理原则是：
+
+- 保留远端 / 上游最新版本；
+- 丢弃本地旧缓存；
+- 不人工合并新闻、行情、日报状态 JSON 的内容；
+- 代码冲突和数据冲突分开处理，不要为了处理代码而带入旧数据。
+
+如果本地开发经常被这些文件干扰，可以在本机执行：
+
+```bash
+git update-index --skip-worktree stockprice/data/latest-price.json
+git update-index --skip-worktree jin10news/data/latest-24h.json
+git update-index --skip-worktree jin10news/data/latest-24h.md
+git update-index --skip-worktree docs/市场/data/latest-evening.json
+git update-index --skip-worktree docs/市场/data/latest-morning.json
+git update-index --skip-worktree docs/市场/data/latest-weekly.json
+```
+
+需要恢复跟踪时执行：
+
+```bash
+git update-index --no-skip-worktree <文件路径>
+```
+
+注意：`.gitignore` 对这些文件无效，因为它们已经被 Git 跟踪。`skip-worktree` 只是本机开发辅助规则，不改变远端仓库和自动任务。
 
 ---
 
