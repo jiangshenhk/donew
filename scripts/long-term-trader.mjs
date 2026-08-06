@@ -21,8 +21,8 @@ const DASHBOARD_FILE = path.join(DATA_DIR, 'dashboard.html');
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
-const VERSION = 'v2.0.6';
-const VERSION_NOTE = '2026-08-06 | 锁原子创建(openSync wx) + ET交易日新鲜度 + 离场也防旧K线';
+const VERSION = 'v2.1.0';
+const VERSION_NOTE = '2026-08-07 | 阶段1: 修复MACD完整序列DEA + RSI Wilder平滑 + 指标单元测试';
 
 // ─── ntfy ───────────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -298,7 +298,7 @@ function checkDailyBarsFresh(dailyBars) {
 
 // ─── Technical Indicators ─────────────────────────────────────
 
-function calcEMA(values, period) {
+export function calcEMA(values, period) {
   if (!values || values.length < period) return values?.[values.length - 1] || null;
   const k = 2 / (period + 1);
   let ema = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
@@ -306,27 +306,60 @@ function calcEMA(values, period) {
   return Math.round(ema * 100) / 100;
 }
 
-function calcMACD(closes) {
-  const shortPeriod = 12, longPeriod = 26, signalPeriod = 9;
-  const emaShort = calcEMA(closes, shortPeriod);
-  const emaLong = calcEMA(closes, longPeriod);
-  if (emaShort == null || emaLong == null) return null;
-  const dif = Math.round((emaShort - emaLong) * 100) / 100;
-  const deaPeriod = Math.min(signalPeriod, closes.length);
-  const dea = calcEMA(Array(closes.length).fill(dif).slice(-deaPeriod), deaPeriod) || 0;
-  return { dif, dea, hist: Math.round((dif - dea) * 100) / 100 };
+// 返回完整 EMA 序列，前 period-1 位为 null
+export function calcEMAForSeries(values, period) {
+  if (!values || values.length < period) return new Array(values?.length || 0).fill(null);
+  const result = new Array(values.length).fill(null);
+  const k = 2 / (period + 1);
+  let ema = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  result[period - 1] = ema;
+  for (let i = period; i < values.length; i++) {
+    ema = values[i] * k + ema * (1 - k);
+    result[i] = ema;
+  }
+  return result.map(v => v == null ? null : Math.round(v * 100) / 100);
 }
 
-function calcRSI(closes, period = 14) {
-  if (closes.length < period + 1) return 50;
-  let gains = 0, losses = 0;
-  for (let i = closes.length - period; i < closes.length; i++) {
+export function calcMACD(closes) {
+  if (!closes || closes.length < 26) return null;
+  const ema12 = calcEMAForSeries(closes, 12);
+  const ema26 = calcEMAForSeries(closes, 26);
+  const difSeries = closes.map((_, i) => {
+    if (ema12[i] == null || ema26[i] == null) return null;
+    return ema12[i] - ema26[i];
+  });
+  const validDif = difSeries.filter(v => v != null);
+  if (!validDif.length) return null;
+  const deaSeries = calcEMAForSeries(validDif, 9);
+  const lastDif = validDif[validDif.length - 1];
+  const lastDea = deaSeries[deaSeries.length - 1];
+  return {
+    dif: Math.round(lastDif * 100) / 100,
+    dea: lastDea == null ? 0 : Math.round(lastDea * 100) / 100,
+    hist: Math.round((lastDif - (lastDea ?? 0)) * 100) / 100,
+  };
+}
+
+export function calcRSI(closes, period = 14) {
+  if (!closes || closes.length < period + 1) return null;
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
     const delta = closes[i] - closes[i - 1];
-    if (delta > 0) gains += delta; else losses -= delta;
+    if (delta >= 0) avgGain += delta; else avgLoss -= delta;
   }
-  const avgGain = gains / period, avgLoss = losses / period;
+  avgGain /= period;
+  avgLoss /= period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const delta = closes[i] - closes[i - 1];
+    const gain = delta > 0 ? delta : 0;
+    const loss = delta < 0 ? -delta : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+  }
   if (avgLoss === 0) return 100;
-  return Math.round(100 - 100 / (1 + avgGain / avgLoss) * 10) / 10;
+  const rs = avgGain / avgLoss;
+  const rsi = 100 - 100 / (1 + rs);
+  return Math.round(Math.max(0, Math.min(100, rsi)) * 10) / 10;
 }
 
 function calcATR(bars, period = 14) {
@@ -1426,7 +1459,15 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  console.error(`\n💥 异常: ${error.message}`);
-  process.exit(1);
-});
+const isMainModule = process.argv[1] && (
+  process.argv[1].endsWith('long-term-trader.mjs')
+);
+
+if (isMainModule) {
+  main().catch(error => {
+    console.error(`\n💥 异常: ${error.message}`);
+    process.exit(1);
+  });
+}
+
+export { main };
