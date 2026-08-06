@@ -2,7 +2,7 @@ const ALLOWED_ORIGINS = [
   'https://sellput.top', 'http://api.sellput.top',
 ];
 
-const DAILY_LIMIT = 100;
+const DAILY_LIMIT = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const rateLimitMap = new Map();
 
