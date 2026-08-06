@@ -26,6 +26,7 @@ const STATS_FILE = path.join(AGENT_DIR, 'stats.json');
 const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
+const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'short-term-trader.lock');
 
 const VERSION = 'v2.0.6';
 const VERSION_NOTE = '2026-08-06 | K线过期检测/旧K线阻断信号';
@@ -60,7 +61,13 @@ function loadJson(fpath) {
 
 function saveJson(fpath, data) {
   ensureDir(path.dirname(fpath));
-  fs.writeFileSync(fpath, JSON.stringify(data, null, 2), 'utf-8');
+  const tmp = `${fpath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmp, fpath);
+  } finally {
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
+  }
 }
 
 function readApiKey() {
@@ -71,6 +78,29 @@ function readApiKey() {
     const match = content.match(/DEEPSEEK_API_KEY\s*=\s*(.+)/);
     return match ? match[1].trim().replace(/["']/g, '') : null;
   } catch { return null; }
+}
+
+function acquireRunLock() {
+  const staleMs = 30 * 60 * 1000;
+  const create = () => {
+    const fd = fs.openSync(RUN_LOCK_FILE, 'wx');
+    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }));
+    fs.closeSync(fd);
+  };
+  try { create(); }
+  catch (error) {
+    if (error?.code !== 'EEXIST') throw error;
+    const existing = loadJson(RUN_LOCK_FILE) || {};
+    const age = Date.now() - (Date.parse(existing.startedAt) || fs.statSync(RUN_LOCK_FILE).mtimeMs);
+    if (age <= staleMs) {
+      try { process.kill(Number(existing.pid), 0); } catch { fs.unlinkSync(RUN_LOCK_FILE); create(); return () => { try { if (process.existsSync && fs.existsSync(RUN_LOCK_FILE)) fs.unlinkSync(RUN_LOCK_FILE); } catch {} }; }
+      console.log(`⚠ 已有任务运行中 (PID ${existing.pid}, ${Math.floor(age/1000)}s前)`);
+      return null;
+    }
+    fs.unlinkSync(RUN_LOCK_FILE);
+    create();
+  }
+  return () => { try { if (fs.existsSync(RUN_LOCK_FILE)) fs.unlinkSync(RUN_LOCK_FILE); } catch {} };
 }
 
 function fmtNodeDate(t) { var d = new Date(t), p = function(n){ return (n < 10 ? '0' : '') + n; }; return p(d.getMonth()+1) + p(d.getDate()) + ' ' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
@@ -328,9 +358,13 @@ function recalcStats(orders) {
 async function fetchYahooBars(symbol) {
   const resolvedSymbol = yahooSymbol(symbol);
   const url = `${YAHOO_BASE}/${encodeURIComponent(resolvedSymbol)}?range=${RANGE}&interval=${INTERVAL}&events=history&includePrePost=false`;
+  let timer;
   try {
+    const ctrl = new AbortController();
+    timer = setTimeout(() => ctrl.abort(), 20000);
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-trader/1.0)' },
+      signal: ctrl.signal,
     });
     if (!res.ok) return null;
     const json = await res.json();
@@ -360,6 +394,8 @@ async function fetchYahooBars(symbol) {
     return { bars, meta: result.meta };
   } catch {
     return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -825,6 +861,11 @@ async function run() {
   }
   console.log(`${marketOpen ? '🟢 美股开市' : '⏸️ 美股休市（仅运行24h标的）'} | ET ${fmtTimeShort(etNow())} | 24h标的: ${config.symbols.filter(is24hSymbol).join(', ') || '无'}\n`);
 
+  const releaseLock = acquireRunLock();
+  if (!releaseLock) { console.log('⛔ 已有任务运行中，跳过本轮调度'); return; }
+
+  try {
+
   const positions = loadPositions();
   console.log(`当前持仓: ${positions.length}/${config.maxPositions}`);
 
@@ -857,6 +898,14 @@ async function run() {
       klineError: null,
       klineStale: isFiveMinuteKlineStale(symbol, data.bars),
     });
+
+    // Check kline staleness BEFORE generating any signals
+    const klineStale = isFiveMinuteKlineStale(symbol, data.bars);
+    if (klineStale?.stale) {
+      console.log(`  ⚠️  K线过期 (${klineStale.reason})，跳过AI分析`);
+      signals[symbol] = { decision: 'SKIP', reasoning: `K线过期: ${klineStale.reason}` };
+      continue;
+    }
 
     const lastBar = data.bars[data.bars.length - 1];
     const openPos = positions.find(p => p.symbol === symbol && p.status === 'OPEN');
@@ -1018,13 +1067,6 @@ async function run() {
     const klineCache = loadKlineCache(symbol);
     if (!klineCache?.bars) { console.log(`  ⚠️ ${symbol}: 无法获取K线缓存，跳过`); continue; }
 
-    // Check kline staleness
-    const klineStale = isFiveMinuteKlineStale(symbol, klineCache.bars);
-    if (klineStale?.stale) {
-      console.log(`  ⚠️ ${symbol}: K线过期 (${klineStale.reason})，跳过信号生成`);
-      continue;
-    }
-
     const openPos = updatedPositions.find(p => p.symbol === symbol && p.status === 'OPEN');
     if (openPos) {
       console.log(`  ⚠️  ${symbol}: 已有持仓，跳过`);
@@ -1067,6 +1109,8 @@ async function run() {
     const html = buildDashboardHtml();
     fs.writeFileSync(DASHBOARD_FILE, html, 'utf-8');
   } catch { /* silent */ }
+
+  } finally { releaseLock(); }
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────

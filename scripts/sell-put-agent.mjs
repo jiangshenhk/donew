@@ -611,7 +611,14 @@ function isDailyKlineStale(symbol, bars, now = new Date()) {
     return { stale: false, reason: '', lastBarDate: lastBar };
   }
   // 美股标的: 最后K线早于最近一个交易日
-  if (dayDiff <= 1) return { stale: false, reason: '', lastBarDate: lastBar };
+  if (dayDiff <= 1 && lastStr === nowStr.split('T')[0]) return { stale: false, reason: '', lastBarDate: lastBar };
+  // 如果是周一盘前(pm)，允许上周五的K线
+  const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const etHour = etNow.getHours();
+  const etDay = etNow.getDay();
+  const isEstWeekday = etDay >= 1 && etDay <= 5;
+  const isAfterClose = etHour >= 16;
+  if (isEstWeekday && isAfterClose && dayDiff >= 1) return { stale: true, reason: `已有交易日收盘K线缺失`, lastBarDate: lastBar };
   // 周末特殊处理
   const dow = today.getDay();
   if (dow === 1 && dayDiff <= 3) return { stale: false, reason: '周末', lastBarDate: lastBar };
