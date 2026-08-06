@@ -16,13 +16,16 @@ ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && git pull"
 echo "=== 3. 同步规范后端到 PM2 运行目录 ==="
 ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && rsync -a vps-backend/src/ src/ && cp vps-backend/package.json package.json"
 
-echo "=== 4. 安装依赖 ==="
+echo "=== 4. 同步静态工具页到 Nginx public 目录 ==="
+ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && find . -maxdepth 1 -type f -name '*.html' -exec cp {} public/ \\;"
+
+echo "=== 5. 安装依赖 ==="
 ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && npm install"
 
-echo "=== 5. 重启 PM2 进程 ==="
+echo "=== 6. 重启 PM2 进程 ==="
 ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && pm2 restart donew-backend && pm2 save"
 
-echo "=== 6. 验证 ==="
+echo "=== 7. 验证 ==="
 sleep 3
 ssh "${VPS_USER}@${VPS_HOST}" "curl -s http://localhost:3000/api/health | python3 -m json.tool || echo 'API 未响应，检查 PM2 日志: pm2 logs donew-backend'"
 

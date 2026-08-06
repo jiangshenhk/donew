@@ -30,9 +30,9 @@ VPS 目录：/home/ai_worker/stock_project/（Git 仓库根目录；PM2 实际�
 重启命令：pm2 restart donew-backend
 
 VPS 代码部署：
-ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && rsync -a vps-backend/src/ src/ && cp vps-backend/package.json package.json && npm install && pm2 restart donew-backend"
+ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && rsync -a vps-backend/src/ src/ && cp vps-backend/package.json package.json && find . -maxdepth 1 -type f -name '*.html' -exec cp {} public/ \\; && npm install && pm2 restart donew-backend"
 
-⚠️ 仓库规范后端在 `vps-backend/src/`，PM2 当前运行 `/home/ai_worker/stock_project/src/index.js`。只执行 `git pull` 不会更新 PM2 正在使用的 API；部署时必须执行上面的 `rsync`。否则会出现前端版本已经更新、后台仍生成旧报告的情况。
+⚠️ 仓库规范后端在 `vps-backend/src/`，PM2 当前运行 `/home/ai_worker/stock_project/src/index.js`；Nginx 静态根目录是 `/home/ai_worker/stock_project/public/`。只执行 `git pull` 既不会更新 PM2 正在使用的 API，也不会更新 Nginx 实际提供的根目录HTML。部署时必须同时执行后端 `rsync` 和根目录HTML到 `public/` 的同步。
 
 业务定时任务（VPS；受限外部源采集例外见下方）：
   行情+新闻 每5分钟（PM2 cron）
@@ -1058,15 +1058,18 @@ git pull
 rsync -a vps-backend/src/ src/
 cp vps-backend/package.json package.json
 
-# 4. 安装依赖
+# 4. 同步根目录工具页到 Nginx 实际静态目录
+find . -maxdepth 1 -type f -name '*.html' -exec cp {} public/ \;
+
+# 5. 安装依赖
 npm install
 
-# 5. 重启服务
+# 6. 重启服务
 pm2 restart donew-backend
 pm2 logs donew-backend
 ```
 
-> 不能省略第 3 步。Nginx 静态页面可以随 `git pull` 更新，但 PM2 不直接运行 `vps-backend/src/index.js`；漏掉同步会造成页面版本与 API 版本不一致。同步命令不使用 `--delete`，避免删除 VPS 上的运行数据、日志和本地脚本。
+> 不能省略第 3、4 步。PM2 不直接运行 `vps-backend/src/index.js`，Nginx 也不直接读取仓库根目录HTML；漏掉任一同步都会造成线上仍显示旧版本。同步命令不使用 `--delete`，避免删除 VPS 上的运行数据、日志和本地脚本。
 
 **Cron 定时任务**：
 
