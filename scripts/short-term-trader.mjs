@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// short-term-trader.mjs — Short-Term K-line Trader v2.0.5  (2026-08-06: 修复5分钟K线清洗、更新与BTC代码映射)
+// short-term-trader.mjs — Short-Term K-line Trader v2.0.6  (2026-08-06: K线过期检测/dashboard K线状态显示/旧K线阻断信号)
 // 5分钟K线短线交易机器人，DeepSeek AI + 技术指标分析
 // 纸面模拟交易：QQQ / IBIT / MSTR
 // 数据存储：~/.donew-trader/（独立于仓库，不 commit）
@@ -27,8 +27,8 @@ const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 
-const VERSION = 'v2.0.5';
-const VERSION_NOTE = '2026-08-06 | 修复5分钟K线缺失与BTC显示';
+const VERSION = 'v2.0.6';
+const VERSION_NOTE = '2026-08-06 | K线过期检测/旧K线阻断信号';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
