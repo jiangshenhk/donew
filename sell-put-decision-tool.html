@@ -813,7 +813,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v2.1.1｜2026-08-06 01:56｜恢复完整四维决策与六节报告</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v2.1.3｜2026-08-06 16:10｜后台任务轮询并修复偶发Fetch失败</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -1043,6 +1043,32 @@
         const detail = text.trim().replace(/\s+/g, ' ').slice(0, 180);
         throw new Error(`${label}返回异常（HTTP ${response.status}）${detail ? `：${detail}` : ''}`);
       }
+    }
+
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    async function postDecision(payload, label, attempts = 3) {
+      let lastError;
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+          const response = await fetch(`${apiBase}/api/sell-put-decision`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const json = await readApiJson(response, label);
+          if (response.ok && json.ok) return json;
+          const error = new Error(json.message || `${label}失败（HTTP ${response.status}）`);
+          error.retryable = [409, 502, 503, 504].includes(response.status);
+          throw error;
+        } catch (error) {
+          lastError = error;
+          const networkFailure = error instanceof TypeError || /fetch|network|连接|超时/i.test(error.message || '');
+          if (attempt >= attempts || (!networkFailure && !error.retryable)) break;
+          await wait(700 * attempt);
+        }
+      }
+      throw lastError || new Error(`${label}失败`);
     }
 
     const form = document.getElementById('toolForm');
@@ -2338,13 +2364,7 @@
         if (optionOverviewMeta) payload.optionMetricsMeta = optionOverviewMeta;
 
         // Phase 1: Prepare
-        const prepRes = await fetch(`${apiBase}/api/sell-put-decision`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...payload, action: 'prepare' }),
-        });
-        const prepJson = await readApiJson(prepRes, '数据准备');
-        if (!prepRes.ok || !prepJson.ok) throw new Error(prepJson.message || '数据准备失败');
+        const prepJson = await postDecision({ ...payload, action: 'prepare' }, '数据准备');
         const reportId = prepJson.reportId;
 
         // Phase 2: Parallel module analysis
@@ -2362,36 +2382,40 @@
         const runModule = async (mod, action, label) => {
           updateMod(mod, '◌', `${label}中`);
           try {
-            const response = await fetch(`${apiBase}/api/sell-put-decision`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action, reportId }),
-            });
-            const json = await readApiJson(response, `${label}分析`);
-            if (!response.ok || !json.ok) throw new Error(json.message || `${label}分析失败`);
-            updateMod(mod, json.status === 'fallback' ? '⚠️' : '✅', label);
+            const json = await postDecision({ action, reportId }, `${label}任务启动`);
+            updateMod(mod, '→', `${label}已发送`);
             return json;
           } catch (error) {
-            updateMod(mod, '⚠️', `${label}规则版`);
+            updateMod(mod, '⚠️', `${label}发送失败`);
             throw error;
           }
         };
 
-        await Promise.allSettled([
+        await Promise.all([
           runModule('market', 'analyze-market', '市场'),
           runModule('kline', 'analyze-kline', 'K线'),
           runModule('option', 'analyze-option', '期权'),
         ]);
 
+        const moduleLabels = { market: '市场', kline: 'K线', option: '期权' };
+        let taskStatus = null;
+        for (let poll = 0; poll < 60; poll += 1) {
+          taskStatus = await postDecision({ action: 'status', reportId }, '分析进度查询', 2);
+          Object.entries(taskStatus.modules || {}).forEach(([mod, status]) => {
+            const label = moduleLabels[mod] || mod;
+            if (status === 'completed') updateMod(mod, '✅', label);
+            else if (status === 'fallback') updateMod(mod, '⚠️', `${label}规则版`);
+            else if (status === 'failed') updateMod(mod, '⚠️', `${label}失败`);
+            else updateMod(mod, '◌', `${label}中`);
+          });
+          if (taskStatus.done) break;
+          await wait(2000);
+        }
+        if (!taskStatus?.done) throw new Error('后台分析超过2分钟，请稍后重新生成。');
+
         // Phase 3: Finalize
         setStatus('📝 生成最终报告中…');
-        const finRes = await fetch(`${apiBase}/api/sell-put-decision`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'finalize', reportId }),
-        });
-        const json = await readApiJson(finRes, '报告生成');
-        if (!finRes.ok || !json.ok) throw new Error(json.message || '报告生成失败');
+        const json = await postDecision({ action: 'finalize', reportId }, '报告生成');
 
         updateLatestBlob(json.html || '', json.filename || 'sell-put-decision.html');
         rememberPayload(payload);

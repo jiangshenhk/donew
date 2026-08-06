@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>INTC 综合卖Put决策</title>
+<style>
+  :root { --bg:#0f172a; --panel:#17233a; --line:#314566; --text:#e8eefc; --muted:#94a3b8; --gold:#ffd54a; --blue:#60a5fa; --green:#45d483; --red:#ff6b7d; --dn:#45d483; --up:#ff6b7d; }
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+  .page{max-width:1160px;margin:0 auto;padding:28px}
+  h1{font-size:38px;line-height:1.1;margin:0 0 12px;color:var(--gold)}
+  h2{font-size:24px;margin:24px 0 14px;color:var(--gold);padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:18px;margin:18px 0 8px;padding-left:10px;border-left:3px solid var(--blue);color:#86b7ff;font-weight:800}
+  p{margin:0 0 10px;line-height:1.7}
+  .meta{color:var(--muted);font-size:14px}
+  .hero{background:linear-gradient(180deg,#17233a 0%,#131d31 100%);border:1px solid var(--line);border-radius:24px;padding:28px;margin-bottom:20px}
+  .section{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:18px}
+  .hero-judgement{border-left:6px solid var(--up);background:#1b2741}
+  .up{color:var(--up);font-weight:700} .dn{color:var(--dn);font-weight:700} .warn{color:var(--gold);font-weight:700}
+  .good{color:var(--dn);font-weight:800} .bad{color:var(--up);font-weight:800}
+  .highlight{color:var(--blue);font-weight:800}
+  .signal-label,.section li>strong,.section p>strong:first-child{color:#86b7ff;font-weight:800}
+  .highlight-green{color:var(--dn);font-weight:600} .highlight-red{color:var(--up);font-weight:600} .highlight-yellow{color:var(--gold);font-weight:600}
+  .badge-green{background:#1b3a2a;color:var(--dn);padding:2px 12px;border-radius:30px;display:inline-block}
+  .badge-red{background:#3d1e2a;color:var(--up);padding:2px 12px;border-radius:30px;display:inline-block}
+  .badge-yellow{background:#3d3520;color:var(--gold);padding:2px 12px;border-radius:30px;display:inline-block}
+  .tag{background:#1f2b44;border-radius:30px;padding:2px 14px;font-size:0.8rem;color:#b0c4e8;display:inline-block}
+  .data-grid{display:flex;flex-wrap:wrap;gap:12px 20px;margin:12px 0}
+  .data-item{background:#1a2338;padding:6px 16px 6px 12px;border-radius:40px;border-left:3px solid #314566;font-size:0.95rem}
+  .bullet-list{list-style:none;padding-left:0} .bullet-list li{padding:6px 0 6px 8px;position:relative;border-bottom:1px solid #1f2b44}
+  .judge-badge{display:inline-block;font-weight:700;padding:6px 24px;border-radius:60px;font-size:1.5rem;margin-right:18px;letter-spacing:1px}
+  .judge-reason{font-size:1.1rem;opacity:0.9;margin-top:6px}
+  .flex-between{display:flex;justify-content:space-between;align-items:center}
+  .mt-2{margin-top:12px} .mb-1{margin-bottom:6px}
+  hr{border:0.5px solid var(--line);margin:16px 0;opacity:0.5}
+  .inline-icon{margin-right:6px}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  .chip{border:1px solid #334155;background:#1d2943;color:#dce7fb;border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px}
+  .chip-good{border-color:rgba(69,212,131,.48);background:rgba(69,212,131,.14);color:#45d483}
+  .chip-warn{border-color:rgba(255,213,74,.5);background:rgba(255,213,74,.14);color:#ffd54a}
+  .chip-bad{border-color:rgba(255,107,125,.52);background:rgba(255,107,125,.14);color:#ff6b7d}
+  table{width:100%;border-collapse:collapse;margin:12px 0;border-radius:12px;overflow:hidden;font-size:14px}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left}
+  th{background:#22304d}
+  ul{margin:8px 0;padding-left:20px} li{margin-bottom:6px}
+  details{margin:16px 0} details>summary{cursor:pointer;font-size:15px;font-weight:700;color:var(--muted);padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;list-style:none}
+  details>summary::-webkit-details-marker{display:none} details>summary::before{content:"▸ "} details[open]>summary::before{content:"▾ "}
+
+  .report-section{padding:22px;margin-bottom:18px}
+  .report-section>h2{margin:0 0 14px;font-size:24px;line-height:1.35;color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:9px}
+  .section-summary{margin:0 0 14px;padding:12px 14px;background:#1a2338;border-left:3px solid var(--blue);border-radius:8px;color:var(--text);font-weight:600;line-height:1.65}
+  .metric-grid{display:flex;align-items:center;flex-wrap:wrap;gap:10px 18px;margin:0 0 14px;padding:12px 14px;background:#131d31;border:1px solid var(--line);border-radius:10px}
+  .action-bar{background:#1a2338}
+  .report-table{width:100%;margin:0 0 14px;font-size:14px;border-collapse:collapse}
+  .report-table th,.report-table td{padding:10px 12px;border:1px solid var(--line);text-align:left;vertical-align:top}
+  .report-table th{background:#22304d;color:var(--text)}
+  .bullet-list{list-style:none;padding:0;margin:0}
+  .bullet-list li{position:relative;margin:0;padding:9px 8px 9px 18px;border-bottom:1px solid #263653;line-height:1.7}
+  .bullet-list li:last-child{border-bottom:0}
+  .bullet-list li::before{content:"";position:absolute;left:2px;top:18px;width:6px;height:6px;border-radius:50%;background:var(--blue)}
+  .section-note{margin-top:14px;padding:12px 14px;background:#1f2b44;border-left:3px solid var(--gold);border-radius:8px;color:var(--text)}
+  .report-section pre{margin:0 0 14px;background:#0f172a!important;border:1px solid var(--line);border-radius:10px;padding:14px!important;color:var(--muted)!important}
+  @media(max-width:720px){.report-section{padding:16px}.report-section>h2{font-size:21px}.metric-grid{align-items:flex-start;flex-direction:column}.flex-between{align-items:flex-start;gap:8px}}
+
+</style></head>
+<body><div class="page">
+<section class="hero report-section">
+  <h1>INTC 综合卖Put决策</h1>
+  <p class="meta">报告生成时间：30/7/2026 18:44:28</p>
+  <p class="meta">US · 综合新闻/行情/K线/期权数据</p>
+  <div class="chips">
+    <span class="chip chip-bad">卖Put环境：不利</span>
+    <span class="chip chip-bad">综合结论：暂不卖Put</span>
+    <span class="chip chip-bad">合约执行门槛：阻断</span>
+    <span class="chip chip-bad">尾部风险灯号（启发式）：🔴 高警戒</span>
+    <span class="chip chip-bad">风险评分：9.5/10</span> <span class="chip chip-warn">⚠️ 单票调整: ATR极高(&gt;8%)、20日暴跌&gt;20%、5日跌幅&gt;5%、高匹配度偏空K线形态</span>
+  </div>
+</section>
+
+<section class="section contract-gate report-section">
+  <h2>具体合约执行门槛</h2>
+  <p class="section-summary"><span class="highlight">代码结论：</span><span class="bad">不通过，禁止自动下单</span></p>
+  <table class="report-table">
+    <thead><tr><th>项目</th><th>数值</th><th>规则</th><th>结果</th></tr></thead>
+    <tbody>
+      <tr><td>Delta</td><td>0.151</td><td>0.10-0.25</td><td class="good">通过</td></tr>
+      <tr><td>Bid / Ask / Mid</td><td>0.63 / 0.76 / 0.70</td><td>价差 ≤ max($0.10, Mid×15%)</td><td class="bad">阻断</td></tr>
+      <tr><td>价差</td><td>0.13（18.71%）</td><td>流动性硬门槛</td><td class="bad">过宽</td></tr>
+      <tr><td>行权价安全</td><td>Strike 74.00 / 安全价 64.94</td><td>Strike ≤ min(现价-ATR×sqrt(DTE), Expected Range Low)</td><td class="bad">阻断</td></tr>
+      <tr><td>OTM安全垫</td><td>9.62%</td><td>信息项</td><td>-</td></tr>
+      <tr><td>年化收益</td><td>现金担保 85.70% / 净接货成本 86.51%</td><td>不含手续费</td><td>-</td></tr>
+    </tbody>
+  </table>
+  <ul class="bullet-list"><li class="bad">市场风险规则判定为不利</li><li class="bad">Bid/Ask价差过宽</li><li class="bad">行权价高于严格安全价64.94</li></ul>
+</section>
+<section class="section hero-judgement report-section">
+<h2>综合结论</h2>
+<span class="judge-badge" style='background:#1a3a2a;color:#ff6b7d;'>暂不卖Put</span>
+<p class="section-summary"><strong class="signal-label">本节结论：</strong><span class="judge-reason">合约硬门槛不通过，市场风险极高，即使IV高位，此刻卖Put等同于徒手接飞刀。</span></p>
+<p class="highlight">这是不是恐慌溢价？<span class="up">不是</span></p>
+<p class="highlight">未来3-5个交易日的大跌/跳空风险？<span class="up">高</span></p>
+<p class="highlight">权利金值不值得冒尾部风险？<span class="up">不值得</span></p>
+<span class="highlight-red">⚠️ 近期事件风险：微软(MSFT)、Meta(META)、高通(QCOM)、ARM(ARM) 已于2026-07-29盘后公布财报，市场剧烈反应正在延续。</span>
+<div class="metric-grid">
+  <span class="data-item">ATR 10.35% <span class="highlight-red">历史极值</span></span>
+  <span class="data-item">20日跌幅 -41.36% <span class="highlight-red">腰斩级下跌</span></span>
+  <span class="data-item">市场风险评分 9.5/10 <span class="highlight-red">极高</span></span>
+</div>
+</section>
+
+<section class="section report-section">
+<h2>市场环境</h2>
+<p class="section-summary"><strong class="signal-label">本节结论：</strong>市场陷入对芯片行业盈利可持续性的深度恐慌，半导体板块领跌，宏观紧缩预期雪上加霜，卖Put环境极度<span class="highlight-red">不利</span>。</p>
+<div class="metric-grid">
+  <span class="data-item">QQQ <span class="highlight-red">-2.04%</span></span>
+  <span class="data-item">SPY <span class="highlight-red">-1.56%</span></span>
+  <span class="data-item">SMH <span class="highlight-red">-4.79%</span></span>
+  <span class="data-item">VIX <span class="highlight-red">-5.57%</span></span>
+  <span class="data-item">10Y <span class="highlight-green">+0.39%</span></span>
+</div>
+<ul class="bullet-list">
+  <li><strong class="signal-label">半导体/科技情绪：</strong>极度悲观。SMH单日暴跌4.79%，微软盘后指引虽一度提振情绪，但Meta大跌10%完全逆转，芯片与AI叙事面临全面清算。INTC作为基本面较弱的芯片股处于风暴中心。</li>
+  <li><strong class="signal-label">利率与宏观：</strong>美联储昨日虽未加息，但鹰派信号强烈，10年期国债收益率飙升至4.66%以上，30年期触及2007年来最高。利率走高直接压制成长股估值，市场流动性收缩。</li>
+  <li><strong class="signal-label">地缘与情绪：</strong>特朗普言论增加政策不确定性，VIX虽短暂回落但仍在极度恐慌区间。市场风险评分9.5/10，属于年内最高警戒级别，并非单纯的恐慌性回调，而是系统性风险释放。</li>
+  <li><strong class="signal-label">近期事件风险：</strong>微软、Meta、高通、ARM已于昨日盘后公布财报，微软云指引稳定，但Meta现实实验室亏损扩大46.2亿美元，AI回报不及预期引发抛售。此事件风险正在当前市场外溢，且尚未完全消化。</li>
+</ul>
+</section>
+
+<section class="section report-section">
+<h2>期权温度解读</h2>
+<p class="section-summary"><strong class="signal-label">本节结论：</strong>IV虽位于高位，但这并非单纯的恐慌溢价，而是对已实现极端下跌的定价确认。卖Put看似有高权利金，实则面临极高的接货风险。</p>
+<div style="display:flex;flex-wrap:wrap;gap:16px 30px;margin-bottom:12px;">
+  <div><span class="tag">IV 85.32%</span> vs <span class="tag">HV 82.67%</span> <span class="highlight-yellow">溢价微弱，仅2.65个百分点</span></div>
+  <div><span class="tag">IV Percentile 86%</span> <span class="highlight-red">一年高位区间</span></div>
+  <div><span class="tag">IV Rank 71.37%</span> <span class="highlight-yellow">偏高但未达极值</span></div>
+  <div><span class="tag">Put/Call Vol 0.48</span> <span class="highlight-yellow">短线偏多</span> / OI 0.96 <span class="warn">中性平衡</span></div>
+  <div><span class="tag">Expected Move 5.70%</span> (±4.67点) <span class="highlight-red">远超正常波动</span></div>
+</div>
+<ul class="bullet-list">
+  <li><strong class="signal-label">IV 与 HV：</strong>当前IV仅比HV高出2.65个百分点，溢价极薄。这意味着期权定价几乎完全反映了已经被发生的暴跌。这是<span class="highlight-red">风险定价</span>，而非错误定价的恐慌机会。卖Put无法获得错价保护。</li>
+  <li><strong class="signal-label">IV Rank / Percentile：</strong>IV Percentile 86%显示当前IV处于一年高位，但这是伴随着股价腰斩式下跌创出的高位。高位IV只有在趋势减缓或反转时才是卖出良机，而目前趋势仍在加速恶化。</li>
+  <li><strong class="signal-label">Put/Call Ratio：</strong>成交量PCR仅0.48，低比率看似偏多，但这往往是因为大量投机性买Call在抄底，而非市场真看涨。持仓量PCR 0.96中性，说明大资金并未大规模净卖出Put，机构仍在谨慎观望。</li>
+  <li><strong class="signal-label">Expected Move 安全垫：</strong>4天的预期波动为±5.70%，对应区间77.21-86.55美元。用户选择的74美元行权价虽然在此区间下方，但考虑到近期日ATR已高达10.35%，单日即可吃掉9.6%的OTM安全垫，保护能力极其有限。</li>
+  <li><strong class="signal-label">恐慌溢价判断：</strong>这<span class="highlight-red">不是</span>常规恐慌溢价。HV已接近IV，说明市场用实际波动验证了期权的定价。真正的恐慌溢价是IV脱离HV飙高，而当前是IV与HV同步拉升，说明这是<span class="highlight-red">事件驱动的高风险定价</span>。</li>
+</ul>
+</section>
+
+<section class="section report-section">
+<h2>K线技术信号</h2>
+<p class="section-summary"><strong class="signal-label">本节结论：</strong>技术面全面崩溃，所有指标共振看空，股价处于无支撑瀑布下跌状态，任何行权价在此趋势面前都显得脆弱。</p>
+<div class="flex-between">
+  <span><span class="highlight-red">趋势：强烈空头</span> (SMA5=90.48 < SMA10=94.96 < SMA20=103.80 < SMA50=113.56)</span>
+  <span><span class="badge-red">极度弱势</span> 近5日下跌4天，近3日连续下跌</span>
+</div>
+<p class="kline-match-line"><strong class="signal-label">典型K线匹配：</strong>看跌捉腰带线（匹配度 89%，方向：偏空）</p>
+<table class="report-table">
+  <tr><th>均线</th><th>SMA5</th><th>SMA10</th><th>SMA20</th><th>SMA50</th></tr>
+  <tr><td>数值</td><td>90.48</td><td>94.96</td><td>103.80</td><td>113.56</td></tr>
+  <tr><td>价格相对</td><td><span class="highlight-red">↓ 远下方</span></td><td><span class="highlight-red">↓ 远下方</span></td><td><span class="highlight-red">↓ 远下方</span></td><td><span class="highlight-red">↓ 远下方</span></td></tr>
+</table>
+<ul class="bullet-list">
+  <li><strong class="signal-label">趋势结构：</strong>均线完全空头排列，价格位于所有均线远下方，呈现典型的加速赶底形态。C段下杀正逼近前低81.79，若跌破将打开新一轮下跌空间，无历史支撑区域可参考。</li>
+  <li><strong class="signal-label">K线形态含义：</strong>匹配度89%的看跌捉腰带线是一根光头大阴线，开盘即高点，收盘即低点，表明卖方完全主导，买盘全天毫无抵抗。叠加三只乌鸦形态，这是极其强烈的持续看跌信号。</li>
+  <li><strong class="signal-label">支撑与阻力：</strong>支撑区间下限69.17为技术推算极限，但并非实际底部；阻力位于94.59以上。当前价格无有效支撑，只能等待市场自行寻底。历史相似样本显示后市偏空占比37%，但在此极端趋势中，样本失效概率高。</li>
+  <li><strong class="signal-label">ATR波动与安全垫：</strong>ATR(14)为8.47，占比10.35%，<span class="highlight-red">超过8%的极高阈值</span>。DTE调整后安全行权价为64.94美元。用户选择的74美元行权价高于安全价13.95%，安全垫严重不足。若发生一次ATR级别下跌，一日内即可击穿行权价。</li>
+  <li><strong class="signal-label">量价配合：</strong>最近两日成交量均超1.5亿，较60日均量增加16%，下跌放量配合，无缩量止跌迹象。今日开盘86.57即被砸至81.88收盘，全天多头毫无承接，抛压持续宣泄。</li>
+</ul>
+</section>
+
+<section class="section report-section">
+<h2>综合卖Put建议</h2>
+<p class="section-summary"><strong class="signal-label">本节结论：</strong>合约硬门槛不通过，叠加市场极端空头状态，必须执行<span class="highlight-red">暂不卖Put</span>。任何在此位置卖出Put的行为，都是用有限的权利金博取无限的下跌风险。</p>
+<div class="metric-grid action-bar">
+  <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+    <span style="font-size:1.5rem;font-weight:700;">动作建议</span>
+    <span class="badge-red" style="font-size:1.2rem;padding:4px 28px;">暂不卖Put</span>
+    <span class="tag">到期日2026-08-03 Delta 0.151</span>
+    <span class="tag">行权价74 Bid/Ask 0.63/0.76</span>
+  </div>
+</div>
+<ul class="bullet-list">
+  <li><strong>关键风险点：</strong>
+    <br/>① <span class="highlight-red">极端趋势风险：</span>INTC 20日跌幅-41.36%，ATR占比10.35%，股价处于无支撑自由落体状态。若跌破前低81.79，将触发程序化止损盘，可能导致日内再跌10%以上，74美元行权价一天内由虚变实。
+    <br/>② <span class="highlight-red">Gamma风险：</span>距离到期仅4天，Gamma效应极度放大。价格每向行权价靠近1美元，Delta加速攀升，虚值保护快速蒸发。若周一开盘跳空低开，将无任何时间缓冲。
+    <br/>③ <span class="highlight-red">财报催化剂风险：</span>Meta盘后暴跌10%显示AI投资回报逻辑正在被市场质疑，高通芯片业务展望不明，微软虽稳但未能逆转半导体板块情绪。INTC自身无利好催化，完全受板块拖累，且自身基本面更弱。
+    <br/>④ <span class="highlight-red">宏观与利率风险：</span>美联储9月加息预期在债市引发剧烈反应，10年期和30年期国债收益率飙升，资本正从高估值成长股全面撤退。半导体作为利率敏感型高风险资产遭遇双杀。</li>
+  <li><strong>如果必须操作：</strong><span class="highlight-yellow">强烈不建议操作。若因交易纪律必须执行，应满足以下所有条件：①仓位不超过总账户的1%；②行权价必须下移至严格安全价64.94美元以下；③必须在开盘半小时后确认无跳空下跌再执行；④必须设置盘中股价跌破70美元立即买入平仓的硬止损，不得裸空。</span></li>
+  <li><strong>建议行权价参考区间：</strong>基于ATR安全行权价<span class="highlight-green">64.94美元以下为安全区域</span>；当前选择的74美元位于<span class="highlight-red">危险区域</span>（高出安全价13.95%）。若耐心等待价格反弹至阻力位94.59附近再考虑卖Put，可获更好安全垫。目前建议参考区间为60-65美元，且需等波动率收敛。</li>
+</ul>
+<div class="section-note">
+  <span class="highlight-yellow">⚠️ 特别提醒：</span>市场正经历近20年来罕见的单月暴跌，速度与幅度均超越正常回调范畴。此时卖出任何未受充分保护的裸Put，本质上是在押注V型反转，而V型反转的概率在无外部政策干预时极低。等待放量长下影线或跌幅收窄至2%以下再评估。
+</div>
+</section>
+
+<section class="section report-section">
+<h2>未来3-5个交易日关注清单</h2>
+<p class="section-summary"><strong class="signal-label">本节结论：</strong>核心关注半导体板块能否在当前位置获得支撑，以及周五至下周初是否有技术性反弹出现。在止跌信号未出现前，任何卖Put想法均属过早。</p>
+<span class="highlight-red">📅 近期重要事件：微软、Meta、高通、ARM于2026-07-29盘后已公布财报，市场消化过程预计持续2-3个交易日。美联储FOMC会议（7月29日）已结束，鹰派立场明确。</span>
+<ul class="bullet-list">
+  <li><strong class="signal-label">🔴 高优先级监控：</strong>SMH半导体指数 <span class="highlight-red">次级支撑位能否守住</span>。若SMH再跌超3%，INTC很可能跟随破位。同时关注Meta(META)在美股开盘后能否收窄跌幅，若继续扩大，将引发系统性科技抛售。</li>
+  <li><strong class="signal-label">🔴 高优先级监控：</strong>INTC <span class="highlight-red">前低81.79美元的得失</span>。这是最近的技术支撑，若跌破将触发新一轮止损。观察15分钟图上成交量是否放大，巨量跌破为最悲观信号。</li>
+  <li><strong class="signal-label">🟡 中等优先级监控：</strong>VIX指数虽今日微跌，但若重新回升至30以上，卖Put环境继续恶化。同时关注10年期国债收益率是否突破4.70%，继续走高将进一步打压科技股估值。</li>
+  <li><strong class="signal-label">🟢 可能的风险缓和信号：</strong>若INTC出现单日下影线长度超过实体3倍的放量锤子线，且次日高开；或连续两日收于83美元上方，方可认为急跌告一段落。彼时IV可能仍高，但至少趋势有了停顿迹象。</li>
+</ul>
+<div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+  <span class="tag" style="background:#2a3a1a;color:#45d483;">🟢 好转信号：放量长下影线、连续两日未创新低、SMH涨幅超3%</span>
+  <span class="tag" style="background:#3a1a1a;color:#ff6b7d;">🔴 恶化信号：跌破80美元、VIX暴涨、债券收益率陡升、Meta/费城半导体指数扩大跌幅</span>
+  <span class="tag" style="background:#1a2338;color:#ffd54a;">🟡 中性信号：低量震荡、IV缓慢下降、PCR回升至0.6以上</span>
+</div>
+</section>
+<details><summary>实时行情快照</summary><div class="section"><table><thead><tr><th>标的</th><th>最新价</th><th>日变化</th><th>来源</th><th>行情时间</th></tr></thead><tbody><tr><td>INTC</td><td>81.88</td><td><span class="dn">-13.58%</span></td><td>K线行情 / Yahoo Finance</td><td>30/7/2026 04:00:01</td></tr><tr><td>QQQ</td><td>661.73</td><td><span class="dn">-2.04%</span></td><td>NasdaqGM</td><td>30/7/2026 04:00:00</td></tr><tr><td>SPY</td><td>729.46</td><td><span class="dn">-1.56%</span></td><td>NYSEArca</td><td>30/7/2026 04:00:00</td></tr><tr><td>IWM</td><td>288.57</td><td><span class="dn">-1.64%</span></td><td>NYSEArca</td><td>30/7/2026 04:00:00</td></tr><tr><td>QLD</td><td>77.58</td><td><span class="dn">-4.07%</span></td><td>NYSEArca</td><td>30/7/2026 04:00:00</td></tr><tr><td>SMH</td><td>504.22</td><td><span class="dn">-4.79%</span></td><td>NasdaqGM</td><td>30/7/2026 04:00:00</td></tr><tr><td>SOXX</td><td>465.00</td><td><span class="dn">-5.38%</span></td><td>NasdaqGM</td><td>30/7/2026 04:00:00</td></tr><tr><td>BTC</td><td>64483.95</td><td><span class="up">+0.90%</span></td><td>CCC</td><td>30/7/2026 18:39:42</td></tr><tr><td>VIX</td><td>19.51</td><td><span class="dn">-5.57%</span></td><td>Cboe Indices</td><td>30/7/2026 18:24:31</td></tr><tr><td>10Y</td><td>4.62</td><td><span class="up">+0.39%</span></td><td>Cboe Indices</td><td>30/7/2026 02:59:55</td></tr><tr><td>DXY</td><td>100.71</td><td><span class="dn">-0.09%</span></td><td>ICE Futures</td><td>30/7/2026 18:29:47</td></tr><tr><td>IBIT</td><td>36.00</td><td><span class="dn">-0.39%</span></td><td>NasdaqGM</td><td>30/7/2026 04:00:01</td></tr><tr><td>MSTR</td><td>93.33</td><td><span class="dn">-2.94%</span></td><td>NasdaqGS</td><td>30/7/2026 04:00:00</td></tr><tr><td>HOOD</td><td>89.84</td><td><span class="dn">-3.15%</span></td><td>NasdaqGS</td><td>30/7/2026 04:00:00</td></tr></tbody></table></div></details>
+</div></body></html>

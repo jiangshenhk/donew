@@ -1,6 +1,6 @@
 # Sell Put 综合决策工具 — 设计思路
 
-> 当前自动交易准备版本：`2.0.0.6`。
+> 当前模块版本：`2.1.3`。报告字段与内容格式的唯一规范源为 [`docs/tools/sell-put-decision/设计_综合卖Put决策.md`](../../tools/sell-put-decision/设计_综合卖Put决策.md)。
 > `sell-put-decision-v1.7.15` 是加入 Delta / Bid / Ask 合约执行硬门槛前的回退基线。
 
 ## 核心特性
@@ -75,11 +75,13 @@
 - 具体合约必须包含行权价、Delta、Bid、Ask 和未来有效到期日
 - 任一项缺失时，返回 `report_mode: precheck`，AI 不调用，风险分不作为决策输出
 
-**AI 负责**：解读、综合、表达
+**AI 负责**：分模块解读、综合证据、提供结构化详细论证
 - 读评分背后的含义（不是念分数）
 - 结合四个维度的信息给出判断
-- 生成结构化的可视化报告
+- 分别返回市场、K线、期权 JSON；最终可视化报告由固定代码模板组装
 - 只能解释已取得的新闻事件，不得猜测未来事件日期
+
+报告不得只有六个标题和摘要。每个模块的必填字段、六节最低详细度、颜色语义、降级行为和验收清单统一维护在 `设计_综合卖Put决策.md`，修改本设计文档时不要复制另一套不同规则。
 
 ### 2.3 风险评分是硬约束，不是建议
 
@@ -184,10 +186,13 @@ INTC（2026-07-20）：
 可选校正: 点击“手工修改” → 浏览器本地 OCR screenshot 或逐项输入
 用户提交: symbol / metrics / notes（不提交截图）
   │
-  ├─→ Promise.all 并行拉取 ─────────────────────┐
-  │   ├─ stockprice/data/latest-price.json      │  行情快照
-  │   ├─ jin10news/data/latest-24h.json         │  24h 新闻
-  │   └─ report.js / analyzeKlineStructure()    │  K线相似度共享引擎
+  ├─→ prepare：并行读取行情、新闻、期权参数 → reportId
+  │
+  ├─→ 三个后台模块并行 ─────────────────────────┐
+  │   ├─ analyze-market：市场与新闻              │
+  │   ├─ analyze-kline：K线共享引擎与技术统计     │
+  │   └─ analyze-option：期权温度与具体合约       │
+  │       前端每2秒调用 status，避免长连接超时     │
   │                                              │
   ├─→ 代码层处理 ─────────────────────────────┐  │
   │   ├─ analyzeKlineStructure() ← 与K线工具同源│  │
@@ -204,13 +209,14 @@ INTC（2026-07-20）：
   │   ├─ adjustedRisk()       ← 风险分+K线      │  │
   │   └─ scanEventRisks()     ← 新闻            │  │
   │                                              │
+  ├─→ finalize：使用实际ATR重算合约门槛           │
   ├─→ assessDecisionReadiness() 完整性门槛       │
   │   ├─ 缺失 → 卖Put预检查（不调用 AI）          │
   │   └─ 完整 → AI Prompt ──────────────────────┘
-      ├─ 结构化数据注入（不依赖 AI 提取）
-      ├─ 风险判断铁律（三问必须答）
-      ├─ 六节报告格式（综合结论到关注清单）
-      └─ 视觉风格规范（badge/tag/data-item/bullet-list）
+      ├─ 规则引擎给出不可放宽的底线
+      ├─ 三模块JSON提供详细论证
+      ├─ 固定模板回答三问并组装六节报告
+      └─ 视觉规范（badge/tag/data-item/bullet-list）
 ```
 
 ## 5. 输出报告结构
@@ -235,13 +241,13 @@ INTC（2026-07-20）：
 - 综合决策 → 新增的"一键生成"入口
 
 核心规则文件：
-- `kline_robot_vercel/api/_lib/sell-put-decision-core.js`：无网络依赖的可复用判断核心
-- `kline_robot_vercel/api/sell-put-decision.js`：读取结构化数据、调用 AI 和编排报告；不接收截图、不执行 OCR
-- `kline_robot_vercel/api/report.js`：导出 `analyzeKlineStructure()`，供K线页面与综合决策共享同一套形态和历史统计逻辑
-- `kline_robot_vercel/api/put-rating.js`：导出 `analyzePutRatingSnapshot()`，供独立温度页与综合决策共享同一套市场/温度判断
-- `kline_robot_vercel/api/news-summary.js`：导出 `loadRecentMarketNews()` 和 `analyzeDecisionNews()`，供新闻中心与综合决策共享24小时新闻边界、相关性筛选和事件扫描
-- `kline_robot_vercel/vercel.json`：为综合决策 API 配置最长120秒执行时长
-- 生成链路内部限制：K线结构分析最多30秒，DeepSeek最多50秒；任一阶段超时都应返回预检查或规则版，不等待平台硬超时
+- `vps-backend/src/api/_lib/sell-put-decision-core.js`：无网络依赖的可复用判断核心
+- `vps-backend/src/api/sell-put-decision.js`：读取结构化数据、启动三个后台模块、统一裁决并组装报告
+- `vps-backend/src/api/report.js`：导出 `analyzeKlineStructure()`，共享形态和历史统计逻辑
+- `vps-backend/src/api/put-rating.js`：导出 `analyzePutRatingSnapshot()`，共享市场/温度判断
+- `vps-backend/src/api/news-summary.js`：导出新闻读取、相关性筛选和事件扫描
+- `vps-backend/src/routes/ai.js`：生产路由与安全校验边界
+- 模块通过后台任务执行，前端轮询状态；不再依赖Vercel函数时限或浏览器长连接
 - 综合决策只使用 DeepSeek，不调用 GPT；接口同时返回各阶段耗时，便于定位慢点
 - 其他工具需要复用规则时应导入核心函数，不要在 API 文件中复制一套评分规则
 

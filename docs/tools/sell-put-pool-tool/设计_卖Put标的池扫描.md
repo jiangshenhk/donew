@@ -9,6 +9,6 @@
 
 ## 批量接口
 
-- API: `kline_robot_vercel/api/barchart-overview.js`
+- 生产 API: `vps-backend/src/api/barchart-overview.js`
 - 最多接收 12 个去重美股代码
 - 单个失败只进入错误列表，不把缺失值写成 0

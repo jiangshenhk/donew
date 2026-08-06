@@ -3,7 +3,7 @@
 > 这个页面用于解释我如何用 AI 辅助筛选 Sell Put。  
 > 核心不是让 AI 预测涨跌，而是让 AI 帮我把 **市场环境、波动率、期权链、风险收益比** 标准化，判断当前有没有值得卖 Put 的风险溢价。
 >
-> 对应实现：`kline_robot_vercel/api/sell-put-decision.js` 与 `_lib/sell-put-decision-core.js`。从 `2.0.0.1` 开始，具体合约必须输入 Delta、Bid、Ask，并通过代码执行硬门槛。
+> 对应实现：`vps-backend/src/api/sell-put-decision.js` 与 `vps-backend/src/api/_lib/sell-put-decision-core.js`。从 `2.0.0.1` 开始，具体合约必须输入 Delta、Bid、Ask，并通过代码执行硬门槛。
 
 ---
 

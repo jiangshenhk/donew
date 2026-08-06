@@ -1229,6 +1229,7 @@ export default async function handler(req, res) {
   if (action === "analyze-market") return handleAnalyzeModule(req, res, body, 'market', startTime);
   if (action === "analyze-kline") return handleAnalyzeModule(req, res, body, 'kline', startTime);
   if (action === "analyze-option") return handleAnalyzeModule(req, res, body, 'option', startTime);
+  if (action === "status") return handleTaskStatus(req, res, body, startTime);
   if (action === "finalize") return handleFinalize(req, res, body, startTime);
 
   return handleLegacy(req, res, body, startTime);
@@ -1321,23 +1322,19 @@ async function handleAnalyzeModule(req, res, body, moduleName, startTime) {
       return sendJson(res, 200, { ok: true, reportId, module: moduleName, status: task.modules[moduleName].status, result: task.modules[moduleName].result, message: "已有缓存结果" });
     }
     if (task.modules[moduleName].status === "running") {
-      return sendJson(res, 409, { ok: false, reportId, module: moduleName, status: "running", message: "模块正在分析" });
+      return sendJson(res, 202, { ok: true, reportId, module: moduleName, status: "running", message: "模块正在分析" });
     }
 
-    const moduleFn = { market: analyzeMarketModule, kline: analyzeKlineModule, option: analyzeOptionModule }[moduleName];
     task.modules[moduleName].status = "running";
-    const result = await moduleFn(task);
-
-    task.modules[moduleName] = { status: result.status || "completed", result: result.result || result, error: result.error || "" };
     task.updatedAt = Date.now();
+    runModuleInBackground(task, moduleName);
 
-    return sendJson(res, 200, {
+    return sendJson(res, 202, {
       ok: true,
       reportId,
       module: moduleName,
-      status: task.modules[moduleName].status,
-      result: task.modules[moduleName].result,
-      message: result.message || "",
+      status: "running",
+      message: "模块任务已启动",
       elapsedMs: Date.now() - startTime,
     });
   } catch (error) {
@@ -1347,6 +1344,46 @@ async function handleAnalyzeModule(req, res, body, moduleName, startTime) {
     }
     return sendJson(res, 500, { ok: false, message: error.message, module: moduleName });
   }
+}
+
+function runModuleInBackground(task, moduleName) {
+  const moduleFn = { market: analyzeMarketModule, kline: analyzeKlineModule, option: analyzeOptionModule }[moduleName];
+  Promise.resolve()
+    .then(() => moduleFn(task))
+    .then((result) => {
+      task.modules[moduleName] = {
+        status: result.status || "completed",
+        result: result.result || result,
+        error: result.error || "",
+      };
+      task.updatedAt = Date.now();
+    })
+    .catch((error) => {
+      task.modules[moduleName] = {
+        status: "failed",
+        result: null,
+        error: error.message || "模块分析失败",
+      };
+      task.updatedAt = Date.now();
+    });
+}
+
+function handleTaskStatus(req, res, body, startTime) {
+  const reportId = String(body.reportId || "").trim();
+  if (!reportId) return sendJson(res, 400, { ok: false, message: "缺少 reportId" });
+  const task = getTask(reportId);
+  if (!task) return sendJson(res, 404, { ok: false, message: "任务不存在或已过期" });
+
+  const modules = moduleStatuses(task);
+  const terminal = new Set(["completed", "fallback", "failed"]);
+  return sendJson(res, 200, {
+    ok: true,
+    reportId,
+    modules,
+    done: Object.values(modules).every((status) => terminal.has(status)),
+    warnings: moduleWarnings(task),
+    elapsedMs: Date.now() - startTime,
+  });
 }
 
 // ─── FINALIZE ────────────────────────────────────
@@ -1499,13 +1536,25 @@ BTC: ${value(btc, "last")} / ${value(btc, "changePct", "%")}
 ${newsSummary.slice(0, 5000)}
 
 不得把“未取到”解释为0。不得凭训练记忆补充未在新闻中出现的事件日期。
+每条分析必须引用上面的具体数字或本次新闻事实，解释“数据变化 → 风险含义 → 对卖Put的影响”，不要只写标签。
 {
   "marketState": "risk-on|neutral|risk-off",
   "blackSwan": "green|yellow|red",
   "riskScore": 1-10数字,
   "summary": "2-3句市场环境总结",
-  "keySignals": ["信号1","信号2"],
+  "details": [
+    {"label":"科技与半导体情绪","analysis":"具体数字、因果解释及卖Put影响"},
+    {"label":"波动率与恐慌程度","analysis":"具体数字、因果解释及卖Put影响"},
+    {"label":"利率与美元","analysis":"具体数字、因果解释及卖Put影响"},
+    {"label":"跨资产联动","analysis":"具体数字、因果解释及卖Put影响"},
+    {"label":"综合判断","analysis":"多项信号是否共振"}
+  ],
+  "keySignals": ["带数字的信号1","带数字的信号2"],
   "newsRisks": ["风险1","风险2"],
+  "crashRiskReason": "未来3-5日大跌或跳空风险的详细理由",
+  "watchlist": ["未来3-5日需监控的具体变量及阈值"],
+  "improvementSignals": ["可令卖Put环境改善的可验证信号"],
+  "deteriorationSignals": ["会令卖Put环境恶化的可验证信号"],
   "sellPutImpact": "对卖Put的直接影响"
 }`;
 
@@ -1520,8 +1569,13 @@ ${newsSummary.slice(0, 5000)}
         blackSwan: risk.blackSwan || "yellow",
         riskScore: risk.riskScore,
         summary: risk.summary,
+        details: (risk.notes || []).map((analysis, index) => ({ label: `市场信号${index + 1}`, analysis })),
         keySignals: risk.notes || [],
         newsRisks: (newsAnalysis.eventRisks || []).map((item) => item.content).slice(0, 6),
+        crashRiskReason: `市场风险评分${risk.riskScore}/10，尾部风险灯号${risk.blackSwan || "未取到"}。`,
+        watchlist: ["VIX是否继续上行", "QQQ与SMH能否止跌", "10Y与DXY是否继续压制风险资产"],
+        improvementSignals: ["VIX回落且QQQ、SMH同步止跌"],
+        deteriorationSignals: ["VIX上行并伴随QQQ、SMH跌破关键支撑"],
         sellPutImpact: `规则引擎判定当前卖Put环境${risk.putStance || "谨慎"}。`,
       },
       error: e.message,
@@ -1559,6 +1613,7 @@ ${klineStatsFormatted}
 共享K线相似度引擎：
 ${structureFormatted}
 
+每条分析必须引用输入中的均线、涨跌幅、成交量、ATR、支撑阻力或相似形态，解释信号如何影响卖Put安全垫。
 返回纯JSON:
 {
   "trend": "bullish|neutral|bearish",
@@ -1567,6 +1622,17 @@ ${structureFormatted}
   "resistance": [200],
   "patterns": ["形态1"],
   "summary": "2-3句技术分析",
+  "details": [
+    {"label":"趋势结构","analysis":"均线、涨跌幅与趋势方向的详细解释"},
+    {"label":"典型形态","analysis":"最高相似形态、匹配度、方向及含义"},
+    {"label":"支撑与阻力","analysis":"具体点位及行权价被触及风险"},
+    {"label":"ATR与安全垫","analysis":"ATR占比、DTE安全价和当前行权价关系"},
+    {"label":"量价配合","analysis":"量比及近期成交量对趋势可靠性的解释"}
+  ],
+  "crashRiskReason": "未来3-5日技术面大跌或跳空风险的详细理由",
+  "watchlist": ["具体技术点位或信号"],
+  "improvementSignals": ["技术面改善信号"],
+  "deteriorationSignals": ["技术面恶化信号"],
   "sellPutImpact": "对卖Put的影响"
 }`;
 
@@ -1583,6 +1649,15 @@ ${structureFormatted}
         resistance: klineStats ? [klineStats.resistanceMin, klineStats.resistanceMax] : [],
         patterns: klineStats?.patterns || [],
         summary: structureFormatted,
+        details: [
+          { label: "趋势结构", analysis: klineStatsFormatted },
+          { label: "典型形态", analysis: structureFormatted },
+          { label: "支撑与阻力", analysis: klineStats ? `支撑${klineStats.supportMin}-${klineStats.supportMax}，阻力${klineStats.resistanceMin}-${klineStats.resistanceMax}。` : "未取到" },
+        ],
+        crashRiskReason: klineStats ? `ATR占比${klineStats.atrPct}%并结合相似形态判断。` : "K线数据不足。",
+        watchlist: klineStats ? [`支撑区间${klineStats.supportMin}-${klineStats.supportMax}是否失守`] : [],
+        improvementSignals: ["重新站稳短中期均线并出现放量止跌"],
+        deteriorationSignals: ["跌破支撑区间且成交量放大"],
         sellPutImpact: klineStats ? "按K线相似度、ATR和支撑位综合筛选行权价。" : "K线不完整，不应进入完整决策。",
       },
       error: e.message,
@@ -1619,6 +1694,7 @@ Delta: ${task.input?.delta || '--'} | Bid/Ask: ${task.input?.bid || '--'}/${task
 到期: ${task.input?.expiryDate || '--'}
 合约通过: ${contractDecision?.approved ? '是' : '否'} | 阻隔: ${(contractDecision?.blockers || []).join(';') || '无'}
 
+每条分析必须引用上面的具体指标，解释“定价状态 → 风险溢价是否真实 → 对卖Put尾部风险的影响”。不得因为IV高就直接判定适合卖Put。
 返回纯JSON:
 {
   "temperature": "low|medium|high",
@@ -1629,6 +1705,21 @@ Delta: ${task.input?.delta || '--'} | Bid/Ask: ${task.input?.bid || '--'}/${task
   "strikeAssessment": "行权价安全评估",
   "premiumAssessment": "权利金评估",
   "summary": "期权分析总结",
+  "details": [
+    {"label":"IV与HV","analysis":"两者差值及溢价是否覆盖实际波动"},
+    {"label":"IV历史位置","analysis":"IV Rank和IV Percentile的具体含义"},
+    {"label":"Put/Call结构","analysis":"成交量PCR与持仓PCR分别说明"},
+    {"label":"Expected Move","analysis":"预期区间与行权价安全垫比较"},
+    {"label":"恐慌溢价判断","analysis":"明确是、不是或不确定并解释原因"}
+  ],
+  "panicPremiumReason": "恐慌溢价判断的详细理由",
+  "premiumWorth": "worth|caution|not-worth",
+  "premiumWorthReason": "权利金是否值得承担尾部风险的详细理由",
+  "keyRisks": ["具体风险、触发条件和后果"],
+  "ifMustOperate": "若必须操作的仓位、条件与风险控制",
+  "strikeRange": "安全、边缘、危险三个行权价区间",
+  "specialWarning": "最重要的风险提醒",
+  "watchlist": ["期权指标的具体监控条件"],
   "sellPutImpact": "对卖Put的直接影响"
 }`;
 
@@ -1650,6 +1741,20 @@ Delta: ${task.input?.delta || '--'} | Bid/Ask: ${task.input?.bid || '--'}/${task
         strikeAssessment: "由统一合约规则引擎评估",
         premiumAssessment: [...(risk.opportunityNotes || []), ...(risk.optionNotes || [])].join("；") || "数据不足",
         summary: `规则波动率温度：${optionTemperature.level || "数据不足"}。`,
+        details: [
+          { label: "IV与HV", analysis: `IV ${metrics.iv || "未取到"}% / HV ${metrics.hv || "未取到"}%` },
+          { label: "IV历史位置", analysis: `IV Rank ${metrics.ivRank || "未取到"}% / IV Percentile ${metrics.ivPercentile || "未取到"}%` },
+          { label: "Put/Call结构", analysis: `成交量PCR ${metrics.putCallVolRatio || "未取到"} / 持仓PCR ${metrics.putCallOiRatio || "未取到"}` },
+          { label: "Expected Move", analysis: `预期区间 ${metrics.expectedRangeLow || "未取到"}-${metrics.expectedRangeHigh || "未取到"}` },
+        ],
+        panicPremiumReason: `规则波动率温度为${optionTemperature.level || "数据不足"}。`,
+        premiumWorth: contractDecision.approved ? "caution" : "not-worth",
+        premiumWorthReason: contractDecision.approved ? "合约通过硬门槛，但仍需结合市场与K线风险。" : `合约未通过：${(contractDecision.blockers || []).join("；")}`,
+        keyRisks: [...(contractDecision.blockers || []), ...(contractDecision.warnings || [])],
+        ifMustOperate: "仅在合约硬门槛通过后考虑，并控制仓位。",
+        strikeRange: `严格安全行权价${contractDecision.strictSafeStrike?.toFixed(2) ?? "未取到"}。`,
+        specialWarning: contractDecision.approved ? "通过门槛不等于低风险，仍需复核事件与流动性。" : "合约硬门槛未通过，不应执行。",
+        watchlist: ["IV Rank、VIX及Bid/Ask价差变化"],
         sellPutImpact: risk.putStance ? `当前卖Put环境${risk.putStance}。` : "谨慎。",
       },
       error: e.message,
@@ -1668,8 +1773,13 @@ function fallbackModuleResult(task, moduleName) {
       blackSwan: risk.blackSwan || "yellow",
       riskScore: risk.riskScore || 5,
       summary: risk.summary || "市场数据不完整。",
+      details: (risk.notes || []).map((analysis, index) => ({ label: `市场信号${index + 1}`, analysis })),
       keySignals: risk.notes || [],
       newsRisks: (newsAnalysis.eventRisks || []).map((item) => item.content).slice(0, 6),
+      crashRiskReason: `市场风险评分${risk.riskScore || 5}/10，尾部风险灯号${risk.blackSwan || "yellow"}。`,
+      watchlist: ["VIX、QQQ、SMH、10Y与DXY是否形成风险共振"],
+      improvementSignals: ["VIX回落且QQQ、SMH同步止跌"],
+      deteriorationSignals: ["VIX上行并伴随QQQ、SMH跌破关键支撑"],
       sellPutImpact: `规则引擎判定当前卖Put环境${risk.putStance || "谨慎"}。`,
     };
   }
@@ -1681,6 +1791,14 @@ function fallbackModuleResult(task, moduleName) {
       resistance: task.klineStats ? [task.klineStats.resistanceMin, task.klineStats.resistanceMax] : [],
       patterns: task.klineStats?.patterns || [],
       summary: formatKlineStructure(task.klineStructure),
+      details: [
+        { label: "趋势结构", analysis: formatKlineStats(task.klineStats) },
+        { label: "典型形态", analysis: formatKlineStructure(task.klineStructure) },
+      ],
+      crashRiskReason: task.klineStats ? `ATR占比${task.klineStats.atrPct}%并结合支撑位与相似形态判断。` : "K线数据不足。",
+      watchlist: task.klineStats ? [`支撑区间${task.klineStats.supportMin}-${task.klineStats.supportMax}是否失守`] : [],
+      improvementSignals: ["重新站稳短中期均线并出现放量止跌"],
+      deteriorationSignals: ["跌破支撑区间且成交量放大"],
       sellPutImpact: task.klineStats ? "按ATR、支撑位和历史相似度综合筛选行权价。" : "K线数据不完整。",
     };
   }
@@ -1695,6 +1813,18 @@ function fallbackModuleResult(task, moduleName) {
     strikeAssessment: "由统一合约规则引擎评估。",
     premiumAssessment: [...(risk.opportunityNotes || []), ...(risk.optionNotes || [])].join("；") || "数据不足",
     summary: `规则波动率温度：${temperature.level || "数据不足"}。`,
+    details: [
+      { label: "IV与HV", analysis: `IV ${task.optionMetrics?.iv || "未取到"}% / HV ${task.optionMetrics?.hv || "未取到"}%` },
+      { label: "IV历史位置", analysis: `IV Rank ${task.optionMetrics?.ivRank || "未取到"}% / IV Percentile ${task.optionMetrics?.ivPercentile || "未取到"}%` },
+    ],
+    panicPremiumReason: `规则波动率温度为${temperature.level || "数据不足"}。`,
+    premiumWorth: contract?.approved ? "caution" : "not-worth",
+    premiumWorthReason: contract?.approved ? "合约通过硬门槛，但仍需结合市场与K线风险。" : `合约未通过：${(contract?.blockers || []).join("；")}`,
+    keyRisks: [...(contract?.blockers || []), ...(contract?.warnings || [])],
+    ifMustOperate: "仅在合约硬门槛通过后考虑，并控制仓位。",
+    strikeRange: `严格安全行权价${contract?.strictSafeStrike?.toFixed(2) ?? "未取到"}。`,
+    specialWarning: contract?.approved ? "通过门槛不等于低风险，仍需复核事件与流动性。" : "合约硬门槛未通过，不应执行。",
+    watchlist: ["IV Rank、VIX及Bid/Ask价差变化"],
     sellPutImpact: `当前卖Put环境${risk.putStance || "谨慎"}。`,
   };
 }
@@ -1779,9 +1909,23 @@ function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult,
   const list = (items, emptyText) => items?.length
     ? `<ul class="bullet-list">${items.map((item) => `<li>${safeHtml(item)}</li>`).join("")}</ul>`
     : `<p class="meta">${safeHtml(emptyText)}</p>`;
+  const detailList = (items, emptyText) => items?.length
+    ? `<ul class="bullet-list">${items.map((item) => {
+      const label = typeof item === "object" && item ? item.label : "分析";
+      const analysis = typeof item === "object" && item ? item.analysis : item;
+      return `<li><strong class="signal-label">${safeHtml(label)}：</strong>${safeHtml(analysis)}</li>`;
+    }).join("")}</ul>`
+    : `<p class="meta">${safeHtml(emptyText)}</p>`;
   const newsRows = (newsAnalysis.selected || []).slice(0, 8).map((item) => `${formatDateTime(item.time)} ${String(item.content || "").slice(0, 220)}`);
   const eventRows = (newsAnalysis.eventRisks || []).map((item) => `${item.category}：${item.content}`);
-  const watchlist = [...(marketResult.keySignals || []), ...(marketResult.newsRisks || []), ...(optionResult.warnings || [])];
+  const watchlist = [
+    ...(marketResult.watchlist || []),
+    ...(klineResult.watchlist || []),
+    ...(optionResult.watchlist || []),
+    ...(marketResult.newsRisks || []),
+  ];
+  const improvementSignals = [...(marketResult.improvementSignals || []), ...(klineResult.improvementSignals || [])];
+  const deteriorationSignals = [...(marketResult.deteriorationSignals || []), ...(klineResult.deteriorationSignals || [])];
   const klineStructureText = formatKlineStructure(task.klineStructure);
   const klineStatsText = formatKlineStats(task.klineStats);
   const sourceRows = [
@@ -1797,9 +1941,9 @@ function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult,
   <div class="metric-grid action-bar"><span class="judge-badge ${decisionBadge}">${safeHtml(finalDecision.stance)}</span><span class="tag">风险评分 ${safeHtml(finalDecision.riskScore)}/10</span></div>
   <p class="section-summary"><strong class="signal-label">本节结论：</strong><span class="judge-reason">${safeHtml(finalDecision.reason)}</span></p>
   <ul class="bullet-list">
-    <li><strong class="signal-label">这是不是恐慌溢价？</strong><span class="${panicPremium.className}">${panicPremium.label}</span>。${safeHtml(optionResult.summary || "期权数据不足。")}</li>
-    <li><strong class="signal-label">未来3-5个交易日的大跌/跳空风险？</strong><span class="${crashRisk.className}">${crashRisk.label}</span>。市场风险 ${safeHtml(finalDecision.riskScore)}/10，技术风险 ${safeHtml(klineResult.technicalRisk || "未取到")}。</li>
-    <li><strong class="signal-label">权利金值不值得冒尾部风险？</strong><span class="${premiumWorth.className}">${premiumWorth.label}</span>。合约硬门槛${contract?.approved ? "已通过" : "未通过"}。</li>
+    <li><strong class="signal-label">这是不是恐慌溢价？</strong><span class="${panicPremium.className}">${panicPremium.label}</span>。${safeHtml(optionResult.panicPremiumReason || optionResult.summary || "期权数据不足。")}</li>
+    <li><strong class="signal-label">未来3-5个交易日的大跌/跳空风险？</strong><span class="${crashRisk.className}">${crashRisk.label}</span>。${safeHtml([marketResult.crashRiskReason, klineResult.crashRiskReason].filter(Boolean).join(" ") || `市场风险${finalDecision.riskScore}/10。`)}</li>
+    <li><strong class="signal-label">权利金值不值得冒尾部风险？</strong><span class="${premiumWorth.className}">${premiumWorth.label}</span>。${safeHtml(optionResult.premiumWorthReason || `合约硬门槛${contract?.approved ? "已通过" : "未通过"}。`)}</li>
   </ul>
   <div class="metric-grid"><span class="data-item">现价 ${safeHtml(target.last ?? "未取到")}</span><span class="data-item">Strike ${safeHtml(task.input.targetStrike || "未取到")}</span><span class="data-item">Delta ${safeHtml(task.input.delta || "未取到")}</span><span class="data-item">DTE ${safeHtml(contract?.dte ?? "未取到")}</span></div>
 </section>
@@ -1810,7 +1954,7 @@ function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult,
   <div class="metric-grid"><span class="data-item">QQQ ${pct(qqq.changePct)}</span><span class="data-item">SPY ${pct(spy.changePct)}</span><span class="data-item">SMH ${pct(smh.changePct)}</span><span class="data-item">VIX ${pct(vix.changePct)}</span><span class="data-item">10Y ${pct(tnx.changePct)}</span><span class="data-item">DXY ${pct(dxy.changePct)}</span><span class="data-item">BTC ${pct(btc.changePct)}</span></div>
   <p>${risk.summary || "市场数据不完整。"}</p>
   <p><strong class="signal-label">市场状态：</strong>${safeHtml(marketResult.marketState || "未取到")} ｜ <strong class="signal-label">尾部风险：</strong>${safeHtml(marketResult.blackSwan || risk.blackSwan || "未取到")}</p>
-  ${list(marketResult.keySignals || [], "未识别到额外市场信号。")}
+  ${detailList(marketResult.details || marketResult.keySignals || [], "未识别到额外市场信号。")}
   <h3>最近24小时相关新闻</h3>
   ${list(newsRows, "未取到相关新闻。")}
   ${eventRows.length ? `<h3>新闻内事件风险</h3>${list(eventRows, "")}` : ""}
@@ -1820,12 +1964,8 @@ function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult,
   <h2>3. 期权温度解读</h2>
   <p class="section-summary"><strong class="signal-label">本节结论：</strong>${safeHtml(optionResult.summary || "数据不足")}</p>
   <div class="metric-grid"><span class="data-item">IV ${value(metrics.iv, "%")}</span><span class="data-item">HV ${value(metrics.hv, "%")}</span><span class="data-item">IV Rank ${value(metrics.ivRank, "%")}</span><span class="data-item">IV Percentile ${value(metrics.ivPercentile, "%")}</span><span class="data-item">Put/Call Vol ${value(metrics.putCallVolRatio)}</span><span class="data-item">Put/Call OI ${value(metrics.putCallOiRatio)}</span><span class="data-item">Expected Move ${value(metrics.expectedMovePct, "%")}</span></div>
-  <ul class="bullet-list">
-    <li><strong class="signal-label">温度：</strong>${safeHtml(optionResult.temperature || risk.optionTemperature?.level || "数据不足")}；恐慌溢价判断为 <span class="${panicPremium.className}">${panicPremium.label}</span>。</li>
-    <li><strong class="signal-label">行权价安全垫：</strong>${safeHtml(optionResult.strikeAssessment || atrAnalysis.marginNote || "由统一合约规则引擎评估。")}</li>
-    <li><strong class="signal-label">权利金：</strong>${safeHtml(optionResult.premiumAssessment || "数据不足")}</li>
-    <li><strong class="signal-label">Expected Range：</strong>${value(metrics.expectedRangeLow)} 至 ${value(metrics.expectedRangeHigh)}；严格安全行权价 ${safeHtml(contract?.strictSafeStrike?.toFixed(2) ?? "未取到")}。</li>
-  </ul>
+  ${detailList(optionResult.details || [], "期权详细分析不足。")}
+  <ul class="bullet-list"><li><strong class="signal-label">行权价安全垫：</strong>${safeHtml(optionResult.strikeAssessment || atrAnalysis.marginNote || "由统一合约规则引擎评估。")}</li><li><strong class="signal-label">Expected Range：</strong>${value(metrics.expectedRangeLow)} 至 ${value(metrics.expectedRangeHigh)}；严格安全行权价 ${safeHtml(contract?.strictSafeStrike?.toFixed(2) ?? "未取到")}。</li></ul>
 </section>
 
 <section class="section">
@@ -1833,7 +1973,8 @@ function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult,
   <p class="section-summary"><strong class="signal-label">本节结论：</strong>${safeHtml(klineResult.sellPutImpact || "K线数据不完整")}</p>
   <div class="metric-grid flex-between"><span>趋势：<strong class="signal-label">${safeHtml(klineResult.trend || "未取到")}</strong></span><span>技术风险：<span class="${klineResult.technicalRisk === "high" ? "up" : klineResult.technicalRisk === "low" ? "dn" : "warn"}">${safeHtml(klineResult.technicalRisk || "未取到")}</span></span><span>ATR ${safeHtml(task.klineStats?.atr ?? "未取到")}（${safeHtml(task.klineStats?.atrPct ?? "未取到")}%）</span></div>
   <table class="report-table"><thead><tr><th>均线</th><th>SMA5</th><th>SMA10</th><th>SMA20</th><th>SMA50</th></tr></thead><tbody><tr><td>数值</td><td>${smaCell(task.klineStats?.sma5)}</td><td>${smaCell(task.klineStats?.sma10)}</td><td>${smaCell(task.klineStats?.sma20)}</td><td>${smaCell(task.klineStats?.sma50)}</td></tr><tr><td>价格相对</td><td>${pricePosition(task.klineStats?.sma5)}</td><td>${pricePosition(task.klineStats?.sma10)}</td><td>${pricePosition(task.klineStats?.sma20)}</td><td>${pricePosition(task.klineStats?.sma50)}</td></tr></tbody></table>
-  <ul class="bullet-list"><li><strong class="signal-label">K线相似度：</strong>${safeHtml(klineStructureText)}</li><li><strong class="signal-label">支撑/阻力：</strong>${safeHtml((klineResult.support || []).join(" / ") || `${task.klineStats?.supportMin ?? "未取到"}-${task.klineStats?.supportMax ?? "未取到"}`)} / ${safeHtml((klineResult.resistance || []).join(" / ") || `${task.klineStats?.resistanceMin ?? "未取到"}-${task.klineStats?.resistanceMax ?? "未取到"}`)}</li><li><strong class="signal-label">ATR安全价：</strong>${safeHtml(atrAnalysis.hasData ? `${atrAnalysis.safeStrike}；${atrAnalysis.marginNote || atrAnalysis.atrSuitability}` : "未取到")}</li></ul>
+  ${detailList(klineResult.details || [], "K线详细分析不足。")}
+  <ul class="bullet-list"><li><strong class="signal-label">K线相似度原始证据：</strong>${safeHtml(klineStructureText)}</li><li><strong class="signal-label">ATR安全价：</strong>${safeHtml(atrAnalysis.hasData ? `${atrAnalysis.safeStrike}；${atrAnalysis.marginNote || atrAnalysis.atrSuitability}` : "未取到")}</li></ul>
   <details><summary>K线计算明细</summary><pre>${safeHtml(klineStatsText)}</pre></details>
 </section>
 
@@ -1843,14 +1984,16 @@ function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult,
   <div class="metric-grid action-bar"><span class="judge-badge ${decisionBadge}">${safeHtml(finalDecision.stance)}</span><span class="tag">到期日 ${safeHtml(task.input.expiryDate || "未取到")} Delta ${safeHtml(contract?.delta?.toFixed(3) ?? "未取到")}</span><span class="tag">Strike ${safeHtml(contract?.strike?.toFixed(2) ?? "未取到")} Bid/Ask ${safeHtml(contract?.bid?.toFixed(2) ?? "-")}/${safeHtml(contract?.ask?.toFixed(2) ?? "-")}</span></div>
   <p><strong class="signal-label">行动理由：</strong>${safeHtml(finalDecision.reason)}</p>
   <p><strong class="signal-label">合约执行门槛：</strong><span class="${contract?.approved ? "good" : "bad"}">${contract?.approved ? "通过，可进入下单前复核" : "不通过，禁止自动下单"}</span></p>
-  ${list(contract?.blockers || [], "未触发硬阻断条件。")}
-  ${contract?.warnings?.length ? list(contract.warnings, "") : ""}
+  ${detailList((optionResult.keyRisks || contract?.blockers || []).map((analysis, index) => ({ label: `关键风险${index + 1}`, analysis })), "未触发硬阻断条件。")}
+  <ul class="bullet-list"><li><strong class="signal-label">如果必须操作：</strong>${safeHtml(optionResult.ifMustOperate || "必须先通过合约硬门槛，并控制仓位。")}</li><li><strong class="signal-label">建议行权价参考：</strong>${safeHtml(optionResult.strikeRange || `严格安全行权价${contract?.strictSafeStrike?.toFixed(2) ?? "未取到"}。`)}</li></ul>
+  <div class="section-note"><span class="highlight-yellow">特别提醒：</span>${safeHtml(optionResult.specialWarning || "通过规则门槛不代表没有尾部风险。")}</div>
 </section>
 
 <section class="section">
   <h2>6. 未来3-5个交易日关注清单</h2>
   <p class="section-summary"><strong class="signal-label">本节结论：</strong>当前大跌/跳空风险为 <span class="${crashRisk.className}">${crashRisk.label}</span>；只根据本次行情、K线和已取得新闻调整判断。</p>
   ${list([...new Set(watchlist)].slice(0, 12), "继续监控VIX、关键支撑位和合约流动性。")}
+  <div class="metric-grid"><span class="tag highlight-green">好转信号：${safeHtml([...new Set(improvementSignals)].join("；") || "风险评分下降且价格重新站稳关键均线")}</span><span class="tag highlight-red">恶化信号：${safeHtml([...new Set(deteriorationSignals)].join("；") || "VIX上行且价格跌破关键支撑")}</span></div>
 </section>
 
 <details><summary>数据来源与时间</summary><div class="section">

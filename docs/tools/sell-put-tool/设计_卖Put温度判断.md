@@ -60,5 +60,5 @@ ATR波动指标：{atrInfo}
 
 ## 调用方式
 
-- 文件: `kline_robot_vercel/api/put-rating.js`
+- 生产文件: `vps-backend/src/api/put-rating.js`
 - 优先 OpenAI Vision/GPT，回退 DeepSeek

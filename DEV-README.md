@@ -48,7 +48,7 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 
 ## 1. 你接手的是一个什么仓库
 
-`donew` 不是单一网页，而是一组相互配合的工具系统，主要包含：
+`donew` 不是单一网页，而是一组相互配合的工具系统。当前文档清单覆盖 10 个功能和 3 个 Agent：
 
 1. K线相识度工具
 2. 24小时新闻中心
@@ -58,7 +58,11 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 6. 卖 Put 温度判断工具
 7. 综合卖Put决策工具（新闻+行情+K线+期权四合一）
 8. 卖Put标的池扫描工具（Barchart期权溢价批量初筛）
-9. Sell Put Agent — 自动卖Put决策引擎（CLI脚本 + 可视化仪表板）
+9. 八字命理分析工具
+10. 内容总结分析工具
+11. Sell Put Agent — 自动卖Put决策引擎
+12. 短线交易 Agent
+13. 长线交易 Agent
 
 它们之间有共享的数据中心、共享的 AI 接口、共享的前端样式和共享的部署层。
 
@@ -100,19 +104,19 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 
 读：
 
-- [jin10news/README.md](jin10news/README.md)
+- [jin10news/readme_24小时新闻中心.md](jin10news/readme_24小时新闻中心.md)
 
 ### B. 改行情相关
 
 读：
 
-- [stockprice/README.md](stockprice/README.md)
+- [stockprice/readme_最新行情中心.md](stockprice/readme_最新行情中心.md)
 
 ### C. 改自动早报 / 晚报链路
 
 读：
 
-- [docs/市场/README.md](docs/市场/README.md)
+- [docs/市场/readme_日报周报自动生成器.md](docs/市场/readme_日报周报自动生成器.md)
 
 ---
 
@@ -211,7 +215,7 @@ ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && p
 ### VPS 后台工具（CLI）
 
 - **Sell Put Agent**：`node scripts/sell-put-agent.mjs daily` — 自动分析交易池标的的卖Put机会，纸面交易 + 可视化仪表板，数据存 `~/.donew-agent/`
-  - 文档：`docs/tools/sell-put-agent/README.md`
+  - 文档：`docs/tools/sell-put-agent/readme_SellPutAgent.md`
   - 标的池：`~/.donew-agent/pool.json`（`trading` 交易池 + `watchlist` 扫描池）
   - 行情依赖：`stockprice/config/symbols.json`（VPS 行情服务管理，需与扫描池对齐）
 
@@ -262,31 +266,31 @@ node scripts/create-tool-scaffold.mjs \
   --api your-tool
 ```
 
-脚手架会自动生成 `docs/tools/<slug>/README.md`。这个 README 是该工具**唯一的文档**，同时包含使用说明和设计思路。
+脚手架会按功能名称生成 `readme_功能名称.md` 和 `设计_功能名称.md`，分别承载功能架构与设计契约。
 
-### 约定 5：每工具两个文档：README + README-FOR-AI
+### 约定 5：每个功能使用“功能 README + 设计文档”
 
 每个工具在 `docs/tools/<slug>/` 下应有两份文件：
 
 | 文件 | 受众 | 内容 |
 |---|---|---|
-| `README.md` | 开发者 / 接手 AI | 功能概述、设计思路、数据流、API 参数、评分逻辑、部署说明 |
-| `README-FOR-AI.md` | 喂给 GPT/DeepSeek | 该工具专用的 AI 提示词：输出格式、判断规则、策略口径、素材引用 |
+| `readme_功能名称.md` | 开发者 / 接手 AI | 功能概述、代码结构、处理流程、API 参数、外部对接和部署说明 |
+| `设计_功能名称.md` | AI 与规则维护者 | AI 提示词、输入输出契约、判断规则、策略口径和报告格式 |
 
-**AI 调用时**，API 代码应读取 `docs/tools/<slug>/README-FOR-AI.md`，将其内容拼入系统 prompt，确保 AI 行为与该工具的设计意图一致。
+**AI 调用时**，需要动态加载文档的 API 应读取对应的 `设计_功能名称.md`，确保 AI 行为与设计契约一致。代码中引用文档路径时，重命名后必须同步更新测试。
 
-**现有策略文档的处理**：`docs/SellPut/策略/` 中的文件本质上是 README-FOR-AI，应逐步迁移到对应工具的 `README-FOR-AI.md` 中。日报/晚报生成器已通过 `loadStrategyBaseline()` 读取这些文件作为 AI 提示词，保持现有链路不变。
+**现有策略文档的处理**：`docs/SellPut/策略/` 中承担运行时提示词作用的内容，应逐步整理到对应的 `设计_功能名称.md`，但已有运行时读取路径在迁移时必须保持兼容并补回归测试。
 
 **文档查找标准路径**：
 
 ```
 DEV-README.md                    ← 总入口：列所有工具，链接各工具文档
   └─ docs/tools/<slug>/
-       ├─ README.md              ← 给开发者/接手AI读：架构、数据流、评分逻辑、API参数
-       └─ README-FOR-AI.md       ← 运行时喂给GPT/DeepSeek：输出格式、判断规则、策略口径
+       ├─ readme_功能名称.md      ← 给开发者/接手AI读：架构、数据流、API参数、部署
+       └─ 设计_功能名称.md        ← AI提示词、报告契约、判断规则、策略口径
 ```
 
-接手任何工具时：先读 `DEV-README.md` 找工具 → 打开 `docs/tools/<slug>/README.md` 理解架构 → 打开 `README-FOR-AI.md` 理解 AI 行为。
+接手任何工具时：先读 `DEV-README.md` 找工具 → 打开 `readme_功能名称.md` 理解架构 → 打开 `设计_功能名称.md` 理解 AI 行为和规则边界。
 
 ### 约定 6：VPS API 优先复用现有路由
 
@@ -372,8 +376,9 @@ node scripts/create-tool-scaffold.mjs \
 ```text
 alpha-risk-tool.html
 kline_robot_vercel/alpha-risk-tool.html
-kline_robot_vercel/api/alpha-risk.js
-docs/tools/alpha-risk-tool/README.md
+vps-backend/src/api/alpha-risk.js
+docs/tools/alpha-risk-tool/readme_AIAlphaRisk.md
+docs/tools/alpha-risk-tool/设计_AIAlphaRisk.md
 ```
 
 ---
@@ -489,8 +494,8 @@ docs/tools/alpha-risk-tool/README.md
 
 你先读：
 1. DEV-README.md 第 13 章确认工具名称和文档位置
-2. 打开对应的 README.md 理解架构和数据流
-3. 打开对应的 README-FOR-AI.md 理解 AI 提示词和行为约束
+2. 打开对应的 readme_功能名称.md 理解架构和数据流
+3. 打开对应的 设计_功能名称.md 理解 AI 提示词和行为约束
 
 遵守 DEV-README 全部约定：不要默认推送、改后更新版本号、优先复用现有 API 路由；明确要求上线后，再通过 SSH 在 VPS 执行 git pull、npm install 和 pm2 restart donew-backend。
 ```
@@ -511,24 +516,59 @@ docs/tools/alpha-risk-tool/README.md
 
 这一章合并了原来的工具总览文档，以后以这里为准。
 
-### 13.1 当前工具全景
+### 13.1 功能 README 与设计文档标准
 
-| 工具 | 入口 | API | README | README-FOR-AI | 类型 |
+本仓库当前按 **10 个功能 + 3 个 Agent** 管理文档。每一个功能或 Agent 都必须能从本章清单直接找到对应说明，不允许只存在代码而没有维护文档。
+
+#### 文件命名
+
+- 功能说明统一命名为：`readme_功能名称.md`
+- AI 提示词、报告契约或决策规则统一命名为：`设计_功能名称.md`
+- 新功能不得再使用无法辨认归属的通用 `README.md` 或 `README-FOR-AI.md`
+
+#### 文件要求
+
+- `readme_功能名称.md` 是必需文件，至少说明功能定位、入口网址、代码结构、处理流程、API、数据来源、外部对接、部署方式和故障排查。
+- 使用 AI、固定报告格式或独立规则引擎的功能，应增加 `设计_功能名称.md`，记录输入输出契约、提示词、硬约束、降级行为和对应代码。
+- 没有 AI 或独立设计层的数据中心可以只有功能 README。
+- 多个入口共享同一套设计时可以共用设计文档，但必须在各自功能 README 和本章清单中明确写出共享关系。
+
+#### 存放位置
+
+- 一般工具和 Agent：`docs/tools/<slug>/`
+- 新闻数据中心：`jin10news/`
+- 行情数据中心：`stockprice/`
+- 自动日报/周报生成器：`docs/市场/`
+
+#### 修改同步规则
+
+1. 新增或删除功能时，同步更新本章“当前功能全景”。
+2. 修改入口、生产 API、数据源、Prompt、报告章节或定时任务时，同步更新对应 README/设计文档。
+3. 重命名文档时，必须全仓搜索旧路径，并更新运行时代码、测试和其他 Markdown 引用。
+4. 页面功能修改仍需升级可见版本号；只整理文档、不改页面时无需升级页面版本。
+5. 递交前检查清单中的所有代码和文档路径真实存在。
+
+当前覆盖状态：13 个功能或 Agent 均有功能 README；其中 10 份独立设计文档覆盖需要 AI、报告契约或规则说明的模块。
+
+### 13.2 当前功能全景
+
+| 功能或 Agent | 入口 | API / 主程序 | 功能 README | 设计文档 | 类型 |
 | --- | --- | --- | --- | --- | --- |
-| K线相识度 | `kline-robot.html` | `report.js` | `docs/tools/kline-robot/README.md` | `docs/tools/kline-robot/README-FOR-AI.md` | 交互式 |
-| 24小时新闻中心 | `jin10-news.html` | `news-summary.js` | `jin10news/README.md` | `docs/tools/jin10-news/README-FOR-AI.md` | 数据中心 |
-| 最新行情中心 | `price-test.html` | `market-report-v2.js` | `stockprice/README.md` | —（无 AI） | 数据中心 |
-| 日报/晚报自动生成 | Actions | `news-summary.js` | `docs/市场/README.md` | `docs/tools/jin10-news/README-FOR-AI.md` | 定时生成 |
-| 每日/周市场分析 | `market-analysis-tool.html` | `market-report-v2.js` | `docs/市场/README.md` | `docs/tools/market-analysis/README-FOR-AI.md` | 交互式 |
-| 综合卖Put决策 | `sell-put-decision-tool.html` | `sell-put-decision.js` | `docs/tools/sell-put-tool/README.md` | `docs/tools/sell-put-tool/README-FOR-AI.md` | 交互式 |
-| 综合卖Put决策 | `sell-put-decision-tool.html` | `sell-put-decision.js` | `docs/tools/sell-put-decision/README.md` | `docs/tools/sell-put-decision/README-FOR-AI.md` | 交互式 |
-| 卖Put标的池扫描 | `sell-put-pool-tool.html` | `barchart-overview.js` | `docs/tools/sell-put-pool-tool/README.md` | —（无 AI） | 批量初筛 |
-| 八字命理分析 | `bazi-analysis-tool.html` | `bazi-analysis.js` | `docs/tools/bazi-analysis-tool/README.md` | `docs/tools/bazi-analysis-tool/README-FOR-AI.md` | 交互式 |
-| 内容总结分析 | `video-summary-tool.html` | `news-summary.js` | `docs/tools/video-summary-tool/README.md` | `docs/tools/video-summary-tool/README-FOR-AI.md` | 交互式 |
-| Sell Put Agent | `scripts/sell-put-agent.mjs` | —（CLI） | `docs/tools/sell-put-agent/README.md` | —（内嵌 prompt） | CLI 自动 |
-| 短线K线交易机器人 | `scripts/short-term-trader.mjs` | —（CLI） | `docs/tools/short-term-trader/README.md` | `docs/tools/short-term-trader/README-FOR-AI.md` | CLI 自动 |
+| K线相识度 | `kline-robot.html` | `vps-backend/src/api/report.js` | `docs/tools/kline-robot/readme_K线相似度.md` | `docs/tools/kline-robot/设计_K线相似度.md` | 交互式 |
+| 24小时新闻中心 | `jin10-news.html` | `vps-backend/src/api/news-summary.js` | `jin10news/readme_24小时新闻中心.md` | `docs/tools/jin10-news/设计_24小时新闻中心.md` | 数据中心 |
+| 最新行情中心 | `price-test.html` | `vps-backend/src/services/stockPrice.js` | `stockprice/readme_最新行情中心.md` | —（无 AI） | 数据中心 |
+| 日报/晚报自动生成 | 无单独页面 | `scripts/generate-market-daily-report.mjs` | `docs/市场/readme_日报周报自动生成器.md` | `docs/tools/market-analysis/设计_每日每周市场分析.md` | 定时生成 |
+| 每日/周市场分析 | `market-analysis-tool.html` | `vps-backend/src/api/market-report-v2.js` | `docs/tools/market-analysis/readme_每日每周市场分析.md` | `docs/tools/market-analysis/设计_每日每周市场分析.md` | 交互式 |
+| 卖Put温度判断 | `sell-put-tool.html` | `vps-backend/src/api/put-rating.js` | `docs/tools/sell-put-tool/readme_卖Put温度判断.md` | `docs/tools/sell-put-tool/设计_卖Put温度判断.md` | 交互式（暂停维护） |
+| 综合卖Put决策 | `sell-put-decision-tool.html` | `vps-backend/src/api/sell-put-decision.js` | `docs/tools/sell-put-decision/readme_综合卖Put决策.md` | `docs/tools/sell-put-decision/设计_综合卖Put决策.md` | 交互式 |
+| 卖Put标的池扫描 | `sell-put-pool-tool.html` | `barchart-overview.js` | `docs/tools/sell-put-pool-tool/readme_卖Put标的池扫描.md` | `docs/tools/sell-put-pool-tool/设计_卖Put标的池扫描.md` | 批量初筛 |
+| 八字命理分析 | `bazi-analysis-tool.html` | `bazi-analysis.js` | `docs/tools/bazi-analysis-tool/readme_八字命理分析.md` | `docs/tools/bazi-analysis-tool/设计_八字命理分析.md` | 交互式 |
+| 内容总结分析 | `video-summary-tool.html` | `news-summary.js` | `docs/tools/video-summary-tool/readme_内容总结分析.md` | `docs/tools/video-summary-tool/设计_内容总结分析.md` | 交互式 |
+| Sell Put Agent | `scripts/sell-put-agent.mjs` | `scripts/sell-put-agent.mjs` | `docs/tools/sell-put-agent/readme_SellPutAgent.md` | —（Prompt 内嵌） | CLI 自动 |
+| 短线交易 Agent | `scripts/short-term-trader.mjs` | `scripts/short-term-trader.mjs` | `docs/tools/short-term-trader/readme_短线交易Agent.md` | `docs/tools/short-term-trader/设计_短线交易Agent.md` | CLI 自动 |
+| 长线交易 Agent | `scripts/long-term-trader.mjs` | `scripts/long-term-trader.mjs` | `docs/tools/long-term-trader/readme_长线交易Agent.md` | `docs/tools/long-term-trader/设计_长线交易Agent.md` | CLI 自动 |
 
-### 13.2 十个工具分别怎么看
+### 13.3 功能与 Agent 分别怎么看
 
 #### K线相识度
 
@@ -537,7 +577,7 @@ docs/tools/alpha-risk-tool/README.md
   - `kline-robot.html`
   - `kline_robot_vercel/kline-robot.html`
 - 主要 API：
-  - `kline_robot_vercel/api/report.js`
+  - `vps-backend/src/api/report.js`
 - 主要外部对接：
   - Yahoo Finance chart API
   - 东财备用行情
@@ -553,7 +593,7 @@ docs/tools/alpha-risk-tool/README.md
 - 展示页：
   - `kline_robot_vercel/jin10-news.html`
 - 主要 API：
-  - `kline_robot_vercel/api/news-summary.js`
+  - `vps-backend/src/api/news-summary.js`
 
 这是“先抓缓存，再由页面消费缓存”的代表模板。
 
@@ -563,7 +603,7 @@ docs/tools/alpha-risk-tool/README.md
 - 缓存文件：
   - `stockprice/data/latest-price.json`
 - 读取 API：
-  - `kline_robot_vercel/api/latest-price.js`
+  - `vps-backend/src/services/stockPrice.js`
 
 本质上是统一行情底座，不是普通分析页。
 
@@ -620,7 +660,7 @@ docs/tools/alpha-risk-tool/README.md
   - `sell-put-tool.html`
   - `kline_robot_vercel/sell-put-tool.html`
 - 主要 API：
-  - `kline_robot_vercel/api/put-rating.js`
+  - `vps-backend/src/api/put-rating.js`
 
 这是“截图 OCR + 行情快照 + AI结论”的代表模板。
 
@@ -631,14 +671,14 @@ docs/tools/alpha-risk-tool/README.md
   - `sell-put-decision-tool.html`
   - `kline_robot_vercel/sell-put-decision-tool.html`
 - 主要 API：
-  - `kline_robot_vercel/api/sell-put-decision.js`
-  - `kline_robot_vercel/api/_lib/sell-put-decision-core.js`（完整性、期权温度、市场/K线风险、事件扫描）
-  - `kline_robot_vercel/api/report.js` 的 `analyzeKlineStructure()`（共享K线相似度、历史样本、ABC/2B结构）
-  - `kline_robot_vercel/api/put-rating.js` 的 `analyzePutRatingSnapshot()`（与独立卖Put温度工具共享市场和期权温度判断）
-  - `kline_robot_vercel/api/news-summary.js` 的 `loadRecentMarketNews()` / `analyzeDecisionNews()`（与新闻中心共享24小时读取、相关性筛选和事件扫描）
-  - `kline_robot_vercel/api/options-ranking.js`（美股热门期权标的榜，辅助选择输入代码）
-  - `kline_robot_vercel/api/options-signals.js`（Barchart延迟IV异动与异常成交榜）
-  - `kline_robot_vercel/api/barchart-overview.js`（按单一美股代码读取Barchart期权概览）
+  - `vps-backend/src/api/sell-put-decision.js`
+  - `vps-backend/src/api/_lib/sell-put-decision-core.js`（完整性、期权温度、市场/K线风险、事件扫描）
+  - `vps-backend/src/api/report.js` 的 `analyzeKlineStructure()`（共享K线相似度、历史样本、ABC/2B结构）
+  - `vps-backend/src/api/put-rating.js` 的 `analyzePutRatingSnapshot()`（与独立卖Put温度工具共享市场和期权温度判断）
+  - `vps-backend/src/api/news-summary.js` 的 `loadRecentMarketNews()` / `analyzeDecisionNews()`（与新闻中心共享24小时读取、相关性筛选和事件扫描）
+  - `vps-backend/src/api/options-ranking.js`（美股热门期权标的榜，辅助选择输入代码）
+  - `vps-backend/src/api/options-signals.js`（Barchart延迟IV异动与异常成交榜）
+  - `vps-backend/src/api/barchart-overview.js`（按单一美股代码读取Barchart期权概览）
 - 策略文档：
   - `docs/SellPut/SellPut策略/sell-put-decision-tool.md`
 - 数据依赖：
@@ -714,7 +754,7 @@ docs/tools/alpha-risk-tool/README.md
 - 复用 API：
   - `GET /api/barchart-overview?symbols=QLD,MSTR,INTC`
 - 详细说明：
-  - `docs/tools/sell-put-pool-tool/README.md`
+  - `docs/tools/sell-put-pool-tool/readme_卖Put标的池扫描.md`
 
 这是卖Put流程的第一层批量候选筛选：
 
@@ -733,9 +773,9 @@ docs/tools/alpha-risk-tool/README.md
   - `bazi-analysis-tool.html`
   - `kline_robot_vercel/bazi-analysis-tool.html`
 - 主要 API：
-  - `kline_robot_vercel/api/bazi-analysis.js`
+  - `vps-backend/src/api/bazi-analysis.js`
 - 详细说明：
-  - `docs/tools/bazi-analysis-tool/README.md`
+  - `docs/tools/bazi-analysis-tool/readme_八字命理分析.md`
 
 基于中国传统八字命理学的 AI 分析工具。八字排盘在浏览器端纯前端计算，AI 分析通过 DeepSeek 增强。报告含命理综合评分、八字排盘、五行旺衰、大运走势、流年简析。支持 120 秒超时自动解锁。
 
@@ -746,9 +786,9 @@ docs/tools/alpha-risk-tool/README.md
   - `video-summary-tool.html`
   - `kline_robot_vercel/video-summary-tool.html`
 - 共用 API：
-  - `kline_robot_vercel/api/news-summary.js`（`mode=video` / `mode=article`）
+  - `vps-backend/src/api/news-summary.js`（`mode=video` / `mode=article`）
 - 详细说明：
-  - `docs/tools/video-summary-tool/README.md`
+  - `docs/tools/video-summary-tool/readme_内容总结分析.md`
 
 支持 YouTube、B站视频字幕提取和网页文章的 AI 总结分析。平台自动识别，生成结构化摘要，含内容概览、核心要点、关键结论和 AI 深度分析（机会信号、风险提示、背景补充、延伸思考）。
 
@@ -769,7 +809,16 @@ docs/tools/alpha-risk-tool/README.md
   - 自动化：launchd 每5分钟运行，脚本内判断美股交易时段
   - 模拟成交：下根K线价格执行，止盈止损触及后按穿透价平仓
 
-### 13.3 新增工具先判断类型
+#### 长线交易 Agent
+
+- 入口：`node scripts/long-term-trader.mjs run`
+- CLI 脚本：`scripts/long-term-trader.mjs`
+- 功能文档：`docs/tools/long-term-trader/readme_长线交易Agent.md`
+- 设计文档：`docs/tools/long-term-trader/设计_长线交易Agent.md`
+- 数据存储：`~/.donew-trader-long/`（独立于仓库）
+- 核心逻辑：日线多头过滤、EMA/MACD/RSI/ATR/量比规则、DeepSeek 评分、ATR 止损止盈、纸面交易和仪表板。
+
+### 13.4 新增工具先判断类型
 
 #### 类型 A：交互式网页工具
 
@@ -814,11 +863,11 @@ docs/tools/alpha-risk-tool/README.md
 - 产物是 Markdown / JSON / Docs 页面
 - 重点是工作流稳定，不是前台即时交互
 
-### 13.4 新增交互式网页工具的标准模板
+### 13.5 新增交互式网页工具的标准模板
 
 假设新增一个工具：`alpha-risk-tool`
 
-#### 13.4.1 直接用脚手架程序
+#### 13.5.1 直接用脚手架程序
 
 ```bash
 node scripts/create-tool-scaffold.mjs \
@@ -833,11 +882,12 @@ node scripts/create-tool-scaffold.mjs \
 ```text
 alpha-risk-tool.html
 kline_robot_vercel/alpha-risk-tool.html
-kline_robot_vercel/api/alpha-risk.js
-docs/tools/alpha-risk-tool/README.md
+vps-backend/src/api/alpha-risk.js
+docs/tools/alpha-risk-tool/readme_AIAlphaRisk.md
+docs/tools/alpha-risk-tool/设计_AIAlphaRisk.md
 ```
 
-#### 13.4.2 推荐处理流程
+#### 13.5.2 推荐处理流程
 
 ```text
 用户打开页面
@@ -849,7 +899,7 @@ docs/tools/alpha-risk-tool/README.md
   -> 前端展示、下载、缓存上次报告
 ```
 
-#### 13.4.3 最小 API 返回结构
+#### 13.5.3 最小 API 返回结构
 
 ```json
 {
@@ -863,7 +913,7 @@ docs/tools/alpha-risk-tool/README.md
 }
 ```
 
-#### 13.4.4 前端建议统一保留的能力
+#### 13.5.4 前端建议统一保留的能力
 
 - 新窗口打开报告
 - 下载 HTML
@@ -873,7 +923,7 @@ docs/tools/alpha-risk-tool/README.md
 - 明确显示生成时间
 - 历史输入记录（如果适合）
 
-### 13.5 新增数据中心的标准模板
+### 13.6 新增数据中心的标准模板
 
 假设新增一个“宏观事件缓存中心”：`macroevents`
 
@@ -901,7 +951,7 @@ VPS PM2 node-cron 定时触发
   -> 交互页读取同源 API
 ```
 
-### 13.6 新增自动生成器的标准模板
+### 13.7 新增自动生成器的标准模板
 
 假设新增一个“每周复盘生成器”：`weekly-review`
 
@@ -931,7 +981,7 @@ donew/
   -> commit 回 main
 ```
 
-### 13.7 当前仓库新增工具的统一约定
+### 13.8 当前仓库新增工具的统一约定
 
 #### 命名
 

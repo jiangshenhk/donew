@@ -13,9 +13,9 @@ import optionsSignalsHandler from '../api/options-signals.js';
 
 const router = Router();
 
-function adaptAiRoute(handler) {
+function adaptAiRoute(handler, handlerHasSecurityCheck = true) {
   return (req, res, next) => {
-    if (!securityCheck(req, res)) return;
+    if (!handlerHasSecurityCheck && !securityCheck(req, res)) return;
     handler(req, res).catch(next);
   };
 }
@@ -32,8 +32,8 @@ router.post('/api/ai/bazi-analysis', adaptAiRoute(baziAnalysisHandler));
 router.post('/api/bazi-analysis', adaptAiRoute(baziAnalysisHandler));
 router.post('/api/ai/put-rating', adaptAiRoute(putRatingHandler));
 router.post('/api/put-rating', adaptAiRoute(putRatingHandler));
-router.get('/api/barchart-overview', adaptAiRoute(barchartOverviewHandler));
-router.get('/api/options-ranking', adaptAiRoute(optionsRankingHandler));
-router.get('/api/options-signals', adaptAiRoute(optionsSignalsHandler));
+router.get('/api/barchart-overview', adaptAiRoute(barchartOverviewHandler, false));
+router.get('/api/options-ranking', adaptAiRoute(optionsRankingHandler, false));
+router.get('/api/options-signals', adaptAiRoute(optionsSignalsHandler, false));
 
 export default router;

@@ -30,8 +30,8 @@
 
 下游典型使用方：
 
-- `kline_robot_vercel/api/market-report-v2.js`
-- `kline_robot_vercel/api/put-rating.js`
+- `vps-backend/src/api/market-report-v2.js`
+- `vps-backend/src/api/put-rating.js`
 - `scripts/generate-market-daily-report.mjs`
 - `kline_robot_vercel/price-test.html`
 
@@ -173,8 +173,8 @@ VPS PM2 node-cron 定时触发
 
 1. `/api/stock/prices` 返回的数据是否已经错了；
 2. 如果缓存是对的，再看：
-   - `kline_robot_vercel/api/market-report-v2.js`
-   - `kline_robot_vercel/api/put-rating.js`
+   - `vps-backend/src/api/market-report-v2.js`
+   - `vps-backend/src/api/put-rating.js`
 
 ---
 

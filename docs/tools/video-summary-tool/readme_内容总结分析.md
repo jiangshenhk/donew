@@ -24,7 +24,7 @@
 
 - 线上页面：`https://sellput.top/video-summary-tool.html`
 - 根目录页面：`video-summary-tool.html`
-- API：`kline_robot_vercel/api/video-summary.js`
+- 生产 API：`vps-backend/src/api/news-summary.js`（`mode=video` / `mode=article`）
 
 ## 处理流程
 

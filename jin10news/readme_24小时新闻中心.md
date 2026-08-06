@@ -25,8 +25,8 @@
 下游典型使用方：
 
 - 24小时新闻中心页面 `kline_robot_vercel/jin10-news.html`
-- 新闻总结 API `kline_robot_vercel/api/news-summary.js`
-- 市场分析 API `kline_robot_vercel/api/market-report-v2.js`
+- 新闻总结 API `vps-backend/src/api/news-summary.js`
+- 市场分析 API `vps-backend/src/api/market-report-v2.js`
 - 自动日报生成器 `scripts/generate-market-daily-report.mjs`
 
 ---

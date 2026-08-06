@@ -235,7 +235,7 @@ scripts/test-weekly-review.mjs
 scripts/validate-weekly-review.mjs
 lib/weekly-review-core.mjs
 vps-backend/src/cron.js
-docs/市场/README.md
+docs/市场/readme_日报周报自动生成器.md
 ```
 
 推荐顺序：

@@ -41,4 +41,4 @@
 
 - OpenAI: `/v1/responses`
 - DeepSeek: `/v1/chat/completions`
-- 文件: `kline_robot_vercel/api/report.js`
+- 生产文件: `vps-backend/src/api/report.js`

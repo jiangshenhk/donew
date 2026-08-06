@@ -11,7 +11,7 @@
 ## 代码位置
 
 - 前端：`kline-robot.html`、`kline_robot_vercel/kline-robot.html`
-- API：`kline_robot_vercel/api/report.js`
+- 生产 API：`vps-backend/src/api/report.js`
 - Cloudflare Worker（K线代理）：`kline_robot_worker/src/worker.js`
 
 ## 设计思路
@@ -47,7 +47,7 @@
 
 ## API
 
-`kline_robot_vercel/api/report.js`
+`vps-backend/src/api/report.js`
 
 - 参数：`symbol`, `range`, `interval`, `maxMatchBars`, `trendSampleScope`
 - 返回：JSON（含 `html` 报告、`cards` 形态卡片、`historicalTrendStats`、`analysisAngles`）
@@ -55,7 +55,7 @@
 
 ## AI 提示词
 
-见 `docs/tools/kline-robot/README-FOR-AI.md`
+见 `docs/tools/kline-robot/设计_K线相似度.md`
 
 ## Cloudflare Worker
 

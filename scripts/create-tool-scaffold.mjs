@@ -9,13 +9,15 @@ function usage() {
 
 Optional:
   --description "One sentence tool summary"
+  --doc-name "功能名称"
   --force
 
 Output:
   <slug>.html
   kline_robot_vercel/<slug>.html
-  kline_robot_vercel/api/<api>.js
-  docs/tools/<slug>/README.md
+  vps-backend/src/api/<api>.js
+  docs/tools/<slug>/readme_<功能名称>.md
+  docs/tools/<slug>/设计_<功能名称>.md
 `);
 }
 
@@ -34,6 +36,10 @@ const slug = readArg("slug").trim();
 const title = readArg("title").trim();
 const apiName = readArg("api").trim();
 const description = readArg("description", "请在这里补充工具用途说明。").trim();
+const docName = readArg("doc-name", title)
+  .trim()
+  .replace(/[\\/:*?"<>|]/g, "-")
+  .replace(/\s+/g, "");
 const force = hasFlag("force");
 
 if (!slug || !title || !apiName || hasFlag("help")) {
@@ -52,9 +58,10 @@ if (!/^[a-z0-9-]+$/.test(apiName)) {
 const versionText = "v0.1.0｜2026-07-18｜脚手架初始版本（含标准导出）";
 const pageFile = path.join(root, `${slug}.html`);
 const vercelPageFile = path.join(root, "kline_robot_vercel", `${slug}.html`);
-const apiFile = path.join(root, "kline_robot_vercel", "api", `${apiName}.js`);
+const apiFile = path.join(root, "vps-backend", "src", "api", `${apiName}.js`);
 const docsDir = path.join(root, "docs", "tools", slug);
-const readmeFile = path.join(docsDir, "README.md");
+const readmeFile = path.join(docsDir, `readme_${docName}.md`);
+const designFile = path.join(docsDir, `设计_${docName}.md`);
 
 const htmlTemplate = `<!doctype html>
 <html lang="zh-CN">
@@ -546,7 +553,7 @@ export default async function handler(req, res) {
 
 const readmeTemplate = `# ${title}
 
-这个目录是由 \`scripts/create-tool-scaffold.mjs\` 自动生成的示例 README。
+这个目录是由 \`scripts/create-tool-scaffold.mjs\` 自动生成的功能说明。
 
 ## 工具定位
 
@@ -594,7 +601,35 @@ ${description}
 2. 接统一缓存
 3. 接 AI / 规则逻辑
 4. 补历史记录
-5. 补 README 的真实处理流程
+5. 补功能 README 的真实处理流程
+`;
+
+const designTemplate = `# ${title} - 设计说明
+
+本文件描述该功能的 AI 提示词、报告契约或规则引擎边界。没有 AI 的工具也可以在这里记录输入输出契约与关键判断规则。
+
+## 输入契约
+
+- 请列出前端提交字段、数据类型、必填规则和默认值。
+
+## 数据来源
+
+- 请列出统一行情、新闻缓存和外部接口。
+- 缺失数据不得自动替换为 0。
+
+## 决策或提示词
+
+- 请记录系统角色、固定判断规则和 AI 不得越过的硬约束。
+
+## 输出契约
+
+- API 至少返回 \`ok\`、\`html\`、\`markdown\`、\`generatedAt\` 和错误说明。
+- 报告章节、颜色语义和降级行为应在这里固定。
+
+## 对应代码
+
+- 页面：\`${slug}.html\`
+- 生产 API：\`vps-backend/src/api/${apiName}.js\`
 `;
 
 function ensureDir(dir) {
@@ -613,9 +648,11 @@ writeFile(pageFile, htmlTemplate);
 writeFile(vercelPageFile, htmlTemplate);
 writeFile(apiFile, apiTemplate);
 writeFile(readmeFile, readmeTemplate);
+writeFile(designFile, designTemplate);
 
 console.log("Scaffold created:");
 console.log(" - " + path.relative(root, pageFile));
 console.log(" - " + path.relative(root, vercelPageFile));
 console.log(" - " + path.relative(root, apiFile));
 console.log(" - " + path.relative(root, readmeFile));
+console.log(" - " + path.relative(root, designFile));

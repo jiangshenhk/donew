@@ -11,7 +11,7 @@
 - 卖Put标的池扫描：`https://sellput.top/sell-put-pool-tool.html`
 - 最新行情管理页：`https://sellput.top/price-test.html`
 
-> **Sell Put Agent** 是 VPS 后台任务（核心脚本为 `scripts/sell-put-agent.mjs`），不属于网页工具。文档见 `docs/tools/sell-put-agent/README.md`。
+> **Sell Put Agent** 是 VPS 后台任务（核心脚本为 `scripts/sell-put-agent.mjs`），不属于网页工具。文档见 `docs/tools/sell-put-agent/readme_SellPutAgent.md`。
 > 标的池配置：`~/.donew-agent/pool.json`（`trading` 交易池 + `watchlist` 扫描池）。行情中心标的在 `stockprice/config/symbols.json`。
 
 ---
@@ -228,7 +228,8 @@ VPS 页面镜像与生产 API:
   kline_robot_vercel/new-tool.html
   vps-backend/src/api/new-tool.js
   vps-backend/src/routes/new-tool.js
-  docs/tools/new-tool/README.md
+  docs/tools/new-tool/readme_AINewTool.md
+  docs/tools/new-tool/设计_AINewTool.md
 ```
 
 最方便的做法不是手工建，而是直接运行：
@@ -240,7 +241,7 @@ node scripts/create-tool-scaffold.mjs \
   --api new-tool
 ```
 
-它会自动按 donew 当前风格生成页面、API 和工具 README。
+它会自动按 donew 当前风格生成页面、API、功能 README 和设计文档。
 
 ---
 
