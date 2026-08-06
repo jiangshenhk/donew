@@ -813,7 +813,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v2.0.4.3｜2026-08-05 14:12｜统一切换sellput.top</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v2.1.1｜2026-08-06 01:56｜恢复完整四维决策与六节报告</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -1507,7 +1507,8 @@
         const endpoint = rankingMode === 'volume'
           ? '/api/options-ranking?limit=100'
           : `/api/options-signals?type=${encodeURIComponent(rankingMode)}`;
-        const url = `${apiBase}${endpoint}${force ? `${endpoint.includes('?') ? '&' : '?'}force=1&_=${Date.now()}` : ''}`;
+        const base = endpoint.includes('options-signals') ? 'https://sellput.top' : apiBase;
+        const url = `${base}${endpoint}${force ? `${endpoint.includes('?') ? '&' : '?'}force=1&_=${Date.now()}` : ''}`;
         const response = await fetch(url, { cache: force ? 'no-store' : 'default' });
         const json = await readApiJson(response, '榜单接口');
         if (!response.ok || !json.ok) throw new Error(json.message || `获取失败（HTTP ${response.status}）`);
@@ -2336,19 +2337,68 @@
         if (hasMetrics) payload.optionMetrics = optionMetrics;
         if (optionOverviewMeta) payload.optionMetricsMeta = optionOverviewMeta;
 
-        const res = await fetch(`${apiBase}/api/sell-put-decision`, {
+        // Phase 1: Prepare
+        const prepRes = await fetch(`${apiBase}/api/sell-put-decision`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, action: 'prepare' }),
         });
-        const json = await readApiJson(res, '报告生成接口');
-        if (!res.ok || !json.ok) throw new Error(json.message || `生成失败（HTTP ${res.status}）`);
+        const prepJson = await readApiJson(prepRes, '数据准备');
+        if (!prepRes.ok || !prepJson.ok) throw new Error(prepJson.message || '数据准备失败');
+        const reportId = prepJson.reportId;
+
+        // Phase 2: Parallel module analysis
+        setStatus('🔍 数据准备完成，正在进行AI分析…');
+        const moduleEl = document.createElement('div');
+        moduleEl.style.cssText = 'margin:8px 0;font-size:13px;color:#94a3b8';
+        moduleEl.innerHTML = '<span id="mod-market">◌</span> 市场 <span id="mod-kline">◌</span> K线 <span id="mod-option">◌</span> 期权';
+        statusEl.appendChild(moduleEl);
+
+        const updateMod = (mod, icon, msg) => {
+          const el = document.getElementById('mod-' + mod);
+          if (el) el.textContent = `${icon} ${msg || ''}`;
+        };
+
+        const runModule = async (mod, action, label) => {
+          updateMod(mod, '◌', `${label}中`);
+          try {
+            const response = await fetch(`${apiBase}/api/sell-put-decision`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action, reportId }),
+            });
+            const json = await readApiJson(response, `${label}分析`);
+            if (!response.ok || !json.ok) throw new Error(json.message || `${label}分析失败`);
+            updateMod(mod, json.status === 'fallback' ? '⚠️' : '✅', label);
+            return json;
+          } catch (error) {
+            updateMod(mod, '⚠️', `${label}规则版`);
+            throw error;
+          }
+        };
+
+        await Promise.allSettled([
+          runModule('market', 'analyze-market', '市场'),
+          runModule('kline', 'analyze-kline', 'K线'),
+          runModule('option', 'analyze-option', '期权'),
+        ]);
+
+        // Phase 3: Finalize
+        setStatus('📝 生成最终报告中…');
+        const finRes = await fetch(`${apiBase}/api/sell-put-decision`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'finalize', reportId }),
+        });
+        const json = await readApiJson(finRes, '报告生成');
+        if (!finRes.ok || !json.ok) throw new Error(json.message || '报告生成失败');
 
         updateLatestBlob(json.html || '', json.filename || 'sell-put-decision.html');
         rememberPayload(payload);
         const meta = { ...json, generatedAt: json.generatedAt || new Date().toISOString(), savedAt: new Date().toISOString() };
         renderLatestReport(meta, false);
         saveLatestReportCache(meta);
+        setStatus('✅ 生成完成');
       } catch (error) {
         resultHead.style.display = 'none';
         statusEl.style.display = '';

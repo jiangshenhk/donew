@@ -54,8 +54,12 @@ function initTask(symbol, market, input) {
     input,
     snapshot: null,
     newsData: null,
+    newsAnalysis: null,
     optionMetrics: {},
+    optionMetricsMeta: {},
     optionMetricsText: '',
+    klineStructure: null,
+    klineStats: null,
     rules: { risk: null, rawRisk: null, readiness: null, contractDecision: null },
     modules: {
       market: { status: 'pending', result: null, error: '' },
@@ -1225,7 +1229,7 @@ export default async function handler(req, res) {
   if (action === "analyze-market") return handleAnalyzeModule(req, res, body, 'market', startTime);
   if (action === "analyze-kline") return handleAnalyzeModule(req, res, body, 'kline', startTime);
   if (action === "analyze-option") return handleAnalyzeModule(req, res, body, 'option', startTime);
-  if (action === "finalize") return handleFinalize(req, res, body);
+  if (action === "finalize") return handleFinalize(req, res, body, startTime);
 
   return handleLegacy(req, res, body, startTime);
 }
@@ -1238,7 +1242,32 @@ async function handlePrepare(req, res, body, startTime) {
     const market = detectMarket(symbol, body.market);
     if (!symbol) return sendJson(res, 400, { ok: false, message: "缺少标的代码。" });
 
-    const task = initTask(symbol, market, body);
+    const notes = String(body.notes || "").trim();
+    const noteContract = extractContractFromNotes(notes);
+    let targetStrike = String(body.optionMetrics?.targetStrike || body.targetStrike || noteContract.targetStrike || "").trim();
+    let delta = String(body.optionMetrics?.delta || body.delta || noteContract.delta || "").trim();
+    let bid = String(body.optionMetrics?.bid || body.bid || noteContract.bid || "").trim();
+    let ask = String(body.optionMetrics?.ask || body.ask || noteContract.ask || "").trim();
+    let expiryDate = String(body.optionMetrics?.expiryDate || body.expiryDate || noteContract.expiryDate || "").trim();
+
+    if (!targetStrike || !delta || !bid || !ask || !expiryDate) {
+      try {
+        const contracts = await fetchOptionsChain(symbol, { targetDte: 10 });
+        const best = selectBestContract(contracts, 10, 0.15);
+        if (best) {
+          targetStrike ||= String(best.strikePrice || "");
+          delta ||= String(best.delta || "");
+          bid ||= String(best.bidPrice || "");
+          ask ||= String(best.askPrice || "");
+          expiryDate ||= String(best.expireDate || "");
+        }
+      } catch {
+        // Completeness checking in finalize will report any contract fields still missing.
+      }
+    }
+
+    const normalizedInput = { ...body, notes, targetStrike, delta, bid, ask, expiryDate };
+    const task = initTask(symbol, market, normalizedInput);
 
     const [stockpriceBaseSnapshot, newsData] = await Promise.all([
       loadStockpriceSnapshot().catch(() => ({ data: [], checkedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })),
@@ -1248,14 +1277,19 @@ async function handlePrepare(req, res, body, startTime) {
     task.snapshot = { ...stockpriceBaseSnapshot, data: stockpriceBaseSnapshot.data || [], cachedAt: Date.now() };
     task.newsData = newsData;
     task.optionMetrics = sanitizeOptionMetrics(body.optionMetrics || {});
-    task.input = {
-      ...body,
-      targetStrike: body.optionMetrics?.targetStrike || body.targetStrike || '',
-      delta: body.optionMetrics?.delta || body.delta || '',
-      bid: body.optionMetrics?.bid || body.bid || '',
-      ask: body.optionMetrics?.ask || body.ask || '',
-      expiryDate: body.optionMetrics?.expiryDate || body.expiryDate || '',
-    };
+    task.optionMetricsMeta = body.optionMetricsMeta && typeof body.optionMetricsMeta === "object"
+      ? body.optionMetricsMeta
+      : {};
+    task.optionMetricsText = [
+      formatOptionMetrics(task.optionMetrics),
+      task.optionMetricsMeta.source ? `Data Source: ${task.optionMetricsMeta.source}` : "",
+      task.optionMetricsMeta.retrievedAt ? `Data Retrieved At: ${formatDateTime(task.optionMetricsMeta.retrievedAt)}` : "",
+      task.optionMetricsMeta.delayNote ? `Data Delay: ${task.optionMetricsMeta.delayNote}` : "",
+    ].filter(Boolean).join("\n");
+    task.input = normalizedInput;
+    task.newsAnalysis = analyzeDecisionNews(newsData.items || [], symbol);
+    task.rules.rawRisk = marketRisk(task.snapshot, symbol, task.optionMetrics);
+    task.rules.risk = task.rules.rawRisk;
     task.updatedAt = Date.now();
 
     return sendJson(res, 200, {
@@ -1265,6 +1299,7 @@ async function handlePrepare(req, res, body, startTime) {
       status: "prepared",
       snapshotTime: stockpriceBaseSnapshot.checkedAt || stockpriceBaseSnapshot.updatedAt || new Date().toISOString(),
       modules: { market: "pending", kline: "pending", option: "pending" },
+      contract: { targetStrike, delta, bid, ask, expiryDate },
       elapsedMs: Date.now() - startTime,
     });
   } catch (error) {
@@ -1282,11 +1317,15 @@ async function handleAnalyzeModule(req, res, body, moduleName, startTime) {
     const task = getTask(reportId);
     if (!task) return sendJson(res, 404, { ok: false, message: "任务不存在或已过期" });
 
-    if (task.modules[moduleName].status === "completed") {
-      return sendJson(res, 200, { ok: true, reportId, module: moduleName, status: "completed", result: task.modules[moduleName].result, message: "已有缓存结果" });
+    if (["completed", "fallback"].includes(task.modules[moduleName].status)) {
+      return sendJson(res, 200, { ok: true, reportId, module: moduleName, status: task.modules[moduleName].status, result: task.modules[moduleName].result, message: "已有缓存结果" });
+    }
+    if (task.modules[moduleName].status === "running") {
+      return sendJson(res, 409, { ok: false, reportId, module: moduleName, status: "running", message: "模块正在分析" });
     }
 
     const moduleFn = { market: analyzeMarketModule, kline: analyzeKlineModule, option: analyzeOptionModule }[moduleName];
+    task.modules[moduleName].status = "running";
     const result = await moduleFn(task);
 
     task.modules[moduleName] = { status: result.status || "completed", result: result.result || result, error: result.error || "" };
@@ -1302,13 +1341,17 @@ async function handleAnalyzeModule(req, res, body, moduleName, startTime) {
       elapsedMs: Date.now() - startTime,
     });
   } catch (error) {
+    const task = getTask(String(body.reportId || "").trim());
+    if (task?.modules?.[moduleName]) {
+      task.modules[moduleName] = { status: "failed", result: null, error: error.message || "模块分析失败" };
+    }
     return sendJson(res, 500, { ok: false, message: error.message, module: moduleName });
   }
 }
 
 // ─── FINALIZE ────────────────────────────────────
 
-async function handleFinalize(req, res, body) {
+async function handleFinalize(req, res, body, startTime) {
   try {
     const reportId = String(body.reportId || "").trim();
     if (!reportId) return sendJson(res, 400, { ok: false, message: "缺少 reportId" });
@@ -1316,23 +1359,108 @@ async function handleFinalize(req, res, body) {
     const task = getTask(reportId);
     if (!task) return sendJson(res, 404, { ok: false, message: "任务不存在或已过期" });
 
-    const contractDecision = task.rules.contractDecision;
+    for (const moduleName of ["market", "kline", "option"]) {
+      if (!["completed", "fallback"].includes(task.modules[moduleName].status)) {
+        task.modules[moduleName] = {
+          status: "fallback",
+          result: fallbackModuleResult(task, moduleName),
+          error: task.modules[moduleName].error || "模块未完成，使用规则版",
+        };
+      }
+    }
+
+    const rawRisk = marketRisk(task.snapshot, task.symbol, task.optionMetrics);
+    const risk = adjustedRisk(rawRisk, task.klineStats, task.klineStructure);
+    const contractDecision = evaluateOptionContract({
+      spot: row(task.snapshot, task.symbol).last,
+      atr: task.klineStats?.atr,
+      expectedRangeLow: task.optionMetrics.expectedRangeLow,
+      targetStrike: task.input.targetStrike,
+      delta: task.input.delta,
+      bid: task.input.bid,
+      ask: task.input.ask,
+      expiryDate: task.input.expiryDate,
+      putStance: risk.putStance,
+    });
+    const newsAnalysis = task.newsAnalysis || analyzeDecisionNews((task.newsData || {}).items || [], task.symbol);
+    const readiness = assessDecisionReadiness({
+      rows: {
+        target: row(task.snapshot, task.symbol),
+        qqq: row(task.snapshot, "QQQ"),
+        spy: row(task.snapshot, "SPY"),
+        vix: row(task.snapshot, "^VIX"),
+        tnx: row(task.snapshot, "^TNX"),
+        dxy: row(task.snapshot, "DX-Y.NYB"),
+      },
+      klineStats: task.klineStats,
+      klineStructure: task.klineStructure,
+      newsItems: newsAnalysis.selected,
+      optionMetrics: task.optionMetrics,
+      targetStrike: task.input.targetStrike,
+      delta: task.input.delta,
+      bid: task.input.bid,
+      ask: task.input.ask,
+      expiryDate: task.input.expiryDate,
+    });
+    task.newsAnalysis = newsAnalysis;
+    task.rules = { ...task.rules, rawRisk, risk, readiness, contractDecision };
+
+    const generatedAt = new Date().toISOString();
+    if (!readiness.canIssueDecision) {
+      return sendJson(res, 200, {
+        ok: true,
+        symbol: task.symbol,
+        market: task.market,
+        provider: "完整性门槛",
+        used_ai: false,
+        report_mode: "precheck",
+        status: "预检查",
+        risk_score: null,
+        missing: readiness.missing,
+        warnings: moduleWarnings(task),
+        message: "关键数据尚未齐全，已生成卖Put预检查，不输出完整决策。",
+        filename: `${task.symbol}-sell-put-precheck.html`,
+        html: buildPrecheckHtml(task.symbol, task.market, readiness, risk, task.klineStats, task.optionMetricsText, task.snapshot, generatedAt),
+        generatedAt,
+        modules: moduleStatuses(task),
+        elapsedMs: Date.now() - startTime,
+      });
+    }
+
     const marketResult = task.modules.market.result || {};
     const klineResult = task.modules.kline.result || {};
     const optionResult = task.modules.option.result || {};
+    optionResult.contractApproved = contractDecision.approved;
+    optionResult.blockers = contractDecision.blockers || [];
+    optionResult.warnings = contractDecision.warnings || [];
+    optionResult.strikeAssessment = contractDecision.approved
+      ? "具体合约通过统一执行硬门槛。"
+      : `具体合约未通过统一执行硬门槛：${(contractDecision.blockers || []).join("；")}`;
     const finalDecision = resolveFinalDecision(task);
 
-    const generatedAt = new Date().toISOString();
     const html = buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult, finalDecision, generatedAt });
+    const completedModules = Object.values(task.modules).filter((module) => module.status === "completed").length;
 
     return sendJson(res, 200, {
       ok: true, symbol: task.symbol, market: task.market,
-      provider: "综合AI+规则",
+      provider: completedModules ? `DeepSeek ${completedModules}/3 + 规则引擎` : "规则版",
+      used_ai: completedModules > 0,
       report_mode: "full",
       status: finalDecision.stance,
       risk_score: finalDecision.riskScore,
-      html, generatedAt,
-      modules: { market: task.modules.market.status, kline: task.modules.kline.status, option: task.modules.option.status },
+      execution_gate: {
+        approved: contractDecision.approved,
+        status: contractDecision.status,
+        blockers: contractDecision.blockers,
+        warnings: contractDecision.warnings,
+      },
+      html,
+      filename: `${task.symbol}-sell-put-decision.html`,
+      generatedAt,
+      modules: moduleStatuses(task),
+      warnings: moduleWarnings(task),
+      message: completedModules === 3 ? "三个AI模块均已完成，报告已生成。" : `已生成报告，${3 - completedModules}个模块使用规则版。`,
+      elapsedMs: Date.now() - startTime,
     });
   } catch (error) {
     return sendJson(res, 500, { ok: false, message: error.message });
@@ -1343,22 +1471,34 @@ async function handleFinalize(req, res, body) {
 
 async function analyzeMarketModule(task) {
   const snapshot = task.snapshot || { data: [] };
-  const risk = marketRisk(snapshot, task.symbol, task.optionMetrics);
-  const newsAnalysis = analyzeDecisionNews((task.newsData || {}).items || [], task.symbol);
+  const risk = task.rules.rawRisk || marketRisk(snapshot, task.symbol, task.optionMetrics);
+  const newsAnalysis = task.newsAnalysis || analyzeDecisionNews((task.newsData || {}).items || [], task.symbol);
   const newsSummary = newsAnalysis.summary || "暂无新闻数据";
+  const qqq = row(snapshot, "QQQ");
+  const spy = row(snapshot, "SPY");
+  const smh = row(snapshot, "SMH");
+  const vix = row(snapshot, "^VIX");
+  const btc = row(snapshot, "BTC-USD");
+  const tnx = row(snapshot, "^TNX");
+  const dxy = row(snapshot, "DX-Y.NYB");
+  const value = (item, key, suffix = "") => item?.[key] === null || item?.[key] === undefined
+    ? "未取到"
+    : `${Number(item[key]).toFixed(2)}${suffix}`;
 
-  const prompt = `分析以下市场数据，返回JSON。
+  const prompt = `你是卖Put风险分析师。分析以下同一时点的市场与新闻数据，只返回JSON。
 标的: ${task.symbol}
-VIX: ${snapshot.data?.find(r => r.symbol === '^VIX')?.price || '--'}
-QQQ: ${snapshot.data?.find(r => r.symbol === 'QQQ')?.price || '--'} (${snapshot.data?.find(r => r.symbol === 'QQQ')?.changePercent || '0'}%)
-SPY: ${snapshot.data?.find(r => r.symbol === 'SPY')?.price || '--'} (${snapshot.data?.find(r => r.symbol === 'SPY')?.changePercent || '0'}%)
-BTC: ${snapshot.data?.find(r => r.symbol === 'BTC-USD')?.price || '--'}
-DXY: ${snapshot.data?.find(r => r.symbol === 'DX-Y.NYB')?.price || '--'}
-10Y: ${snapshot.data?.find(r => r.symbol === '^TNX')?.price || '--'}
-新闻: ${newsSummary.slice(0, 500)}
-规则风险评分: ${risk.riskScore}/10 | 卖Put环境: ${risk.putStance}
+QQQ: ${value(qqq, "last")} / ${value(qqq, "changePct", "%")}
+SPY: ${value(spy, "last")} / ${value(spy, "changePct", "%")}
+SMH: ${value(smh, "last")} / ${value(smh, "changePct", "%")}
+VIX: ${value(vix, "last")} / ${value(vix, "changePct", "%")}
+10Y: ${value(tnx, "last")} / ${value(tnx, "changePct", "%")}
+DXY: ${value(dxy, "last")} / ${value(dxy, "changePct", "%")}
+BTC: ${value(btc, "last")} / ${value(btc, "changePct", "%")}
+规则引擎: 风险${risk.riskScore}/10，卖Put环境${risk.putStance}，尾部风险灯号${risk.blackSwan}
+最近24小时相关新闻：
+${newsSummary.slice(0, 5000)}
 
-返回纯JSON，不要Markdown:
+不得把“未取到”解释为0。不得凭训练记忆补充未在新闻中出现的事件日期。
 {
   "marketState": "risk-on|neutral|risk-off",
   "blackSwan": "green|yellow|red",
@@ -1375,7 +1515,15 @@ DXY: ${snapshot.data?.find(r => r.symbol === 'DX-Y.NYB')?.price || '--'}
   } catch (e) {
     return {
       status: "fallback",
-      result: { marketState: "neutral", blackSwan: risk.blackSwan || "yellow", riskScore: risk.riskScore, summary: "使用规则版分析", keySignals: [], newsRisks: [], sellPutImpact: risk.putStance || "谨慎" },
+      result: {
+        marketState: risk.putStance === "不利" ? "risk-off" : risk.putStance === "有利" ? "risk-on" : "neutral",
+        blackSwan: risk.blackSwan || "yellow",
+        riskScore: risk.riskScore,
+        summary: risk.summary,
+        keySignals: risk.notes || [],
+        newsRisks: (newsAnalysis.eventRisks || []).map((item) => item.content).slice(0, 6),
+        sellPutImpact: `规则引擎判定当前卖Put环境${risk.putStance || "谨慎"}。`,
+      },
       error: e.message,
     };
   }
@@ -1383,7 +1531,6 @@ DXY: ${snapshot.data?.find(r => r.symbol === 'DX-Y.NYB')?.price || '--'}
 
 async function analyzeKlineModule(task) {
   const snapshot = task.snapshot || { data: [] };
-  const target = (snapshot.data || []).find(r => r.symbol === task.symbol) || {};
   let klineStructure, klineStats, klineStatsFormatted;
 
   try {
@@ -1395,12 +1542,22 @@ async function analyzeKlineModule(task) {
 
   klineStats = Array.isArray(klineStructure?.bars) ? computeKlineStats(klineStructure.bars) : null;
   klineStatsFormatted = formatKlineStats(klineStats);
+  task.klineStructure = klineStructure;
+  task.klineStats = klineStats;
+  task.snapshot = preferDirectTargetQuote(snapshot, task.symbol, klineStructure);
+  task.rules.rawRisk = marketRisk(task.snapshot, task.symbol, task.optionMetrics);
+  task.rules.risk = adjustedRisk(task.rules.rawRisk, klineStats, klineStructure);
+  const target = row(task.snapshot, task.symbol);
+  const structureFormatted = formatKlineStructure(klineStructure);
 
-  const prompt = `分析K线技术数据，返回JSON。
-标的: ${task.symbol} | 价格: ${target.price || '--'}
+  const prompt = `你是卖Put技术风险分析师。分析K线数据、共享形态相似度、历史条件样本与ABC/2B结构，只返回JSON。
+标的: ${task.symbol} | 价格: ${target.last ?? "未取到"}
 SMA5: ${klineStats?.sma5 || '--'} | SMA10: ${klineStats?.sma10 || '--'} | SMA20: ${klineStats?.sma20 || '--'}
-ATR: ${klineStats?.atr || '--'} | ATR占价: ${klineStats?.atr && target.price ? (klineStats.atr/target.price*100).toFixed(2)+'%' : '--'}
+ATR: ${klineStats?.atr || '--'} | ATR占价: ${klineStats?.atrPct ? `${klineStats.atrPct}%` : "未取到"}
 ${klineStatsFormatted}
+
+共享K线相似度引擎：
+${structureFormatted}
 
 返回纯JSON:
 {
@@ -1419,7 +1576,15 @@ ${klineStatsFormatted}
   } catch (e) {
     return {
       status: "fallback",
-      result: { trend: "neutral", technicalRisk: "medium", support: [], resistance: [], patterns: [], summary: "使用规则版K线分析", sellPutImpact: "观察" },
+      result: {
+        trend: "neutral",
+        technicalRisk: klineStats ? "medium" : "high",
+        support: klineStats ? [klineStats.supportMin, klineStats.supportMax] : [],
+        resistance: klineStats ? [klineStats.resistanceMin, klineStats.resistanceMax] : [],
+        patterns: klineStats?.patterns || [],
+        summary: structureFormatted,
+        sellPutImpact: klineStats ? "按K线相似度、ATR和支撑位综合筛选行权价。" : "K线不完整，不应进入完整决策。",
+      },
       error: e.message,
     };
   }
@@ -1427,12 +1592,14 @@ ${klineStatsFormatted}
 
 async function analyzeOptionModule(task) {
   const snapshot = task.snapshot || { data: [] };
-  const target = (snapshot.data || []).find(r => r.symbol === task.symbol) || {};
+  const target = row(snapshot, task.symbol);
   const metrics = task.optionMetrics || {};
   const risk = task.rules.risk || marketRisk(snapshot, task.symbol, metrics);
+  const optionTemperature = analyzeOptionTemperature(metrics);
   const contractDecision = task.rules.contractDecision || evaluateOptionContract({
-    spot: target.price || target.last,
-    atr: null,
+    spot: target.last,
+    atr: task.klineStats?.atr,
+    expectedRangeLow: metrics.expectedRangeLow,
     targetStrike: task.input?.targetStrike || task.input?.strike,
     delta: task.input?.delta, bid: task.input?.bid, ask: task.input?.ask,
     expiryDate: task.input?.expiryDate, putStance: risk.putStance,
@@ -1441,11 +1608,12 @@ async function analyzeOptionModule(task) {
   task.rules.risk = risk;
   task.rules.contractDecision = contractDecision;
 
-  const prompt = `分析期权数据，返回JSON。
-标的: ${task.symbol} | 价格: ${target.price || '--'}
-IV: ${metrics.weightedIv || '--'}% | HV: ${metrics.hv || '--'}%
+  const prompt = `你是卖Put期权风险分析师。解读波动率温度、恐慌溢价和具体合约执行条件，只返回JSON。
+标的: ${task.symbol} | 价格: ${target.last ?? "未取到"}
+IV: ${metrics.iv || '--'}% | HV: ${metrics.hv || '--'}%
 IV Rank: ${metrics.ivRank || '--'}% | IV Percentile: ${metrics.ivPercentile || '--'}%
 Put/CallVol: ${metrics.putCallVolRatio || '--'}
+规则波动率温度: ${optionTemperature.level || "数据不足"}
 行权价: ${task.input?.targetStrike || task.input?.strike || '--'}
 Delta: ${task.input?.delta || '--'} | Bid/Ask: ${task.input?.bid || '--'}/${task.input?.ask || '--'}
 到期: ${task.input?.expiryDate || '--'}
@@ -1466,16 +1634,24 @@ Delta: ${task.input?.delta || '--'} | Bid/Ask: ${task.input?.bid || '--'}/${task
 
   try {
     const result = await callAIJson(prompt, ["temperature", "contractApproved"], 40000);
-    if (contractDecision) {
-      result.contractApproved = contractDecision.approved;
-      result.blockers = contractDecision.blockers || [];
-      result.warnings = contractDecision.warnings || [];
-    }
+    result.contractApproved = contractDecision.approved;
+    result.blockers = contractDecision.blockers || [];
+    result.warnings = contractDecision.warnings || [];
     return { status: "completed", result };
   } catch (e) {
     return {
       status: "fallback",
-      result: { temperature: "medium", panicPremium: false, contractApproved: contractDecision?.approved || false, blockers: contractDecision?.blockers || [], warnings: [], strikeAssessment: "规则版评估", premiumAssessment: "规则版评估", summary: "使用规则版期权分析" },
+      result: {
+        temperature: optionTemperature.level || "数据不足",
+        panicPremium: false,
+        contractApproved: contractDecision.approved,
+        blockers: contractDecision.blockers || [],
+        warnings: contractDecision.warnings || [],
+        strikeAssessment: "由统一合约规则引擎评估",
+        premiumAssessment: [...(risk.opportunityNotes || []), ...(risk.optionNotes || [])].join("；") || "数据不足",
+        summary: `规则波动率温度：${optionTemperature.level || "数据不足"}。`,
+        sellPutImpact: risk.putStance ? `当前卖Put环境${risk.putStance}。` : "谨慎。",
+      },
       error: e.message,
     };
   }
@@ -1483,15 +1659,65 @@ Delta: ${task.input?.delta || '--'} | Bid/Ask: ${task.input?.bid || '--'}/${task
 
 // ─── FINAL DECISION ──────────────────────────────
 
+function fallbackModuleResult(task, moduleName) {
+  const risk = task.rules.risk || task.rules.rawRisk || marketRisk(task.snapshot || { data: [] }, task.symbol, task.optionMetrics);
+  if (moduleName === "market") {
+    const newsAnalysis = task.newsAnalysis || { eventRisks: [] };
+    return {
+      marketState: risk.putStance === "不利" ? "risk-off" : risk.putStance === "有利" ? "risk-on" : "neutral",
+      blackSwan: risk.blackSwan || "yellow",
+      riskScore: risk.riskScore || 5,
+      summary: risk.summary || "市场数据不完整。",
+      keySignals: risk.notes || [],
+      newsRisks: (newsAnalysis.eventRisks || []).map((item) => item.content).slice(0, 6),
+      sellPutImpact: `规则引擎判定当前卖Put环境${risk.putStance || "谨慎"}。`,
+    };
+  }
+  if (moduleName === "kline") {
+    return {
+      trend: "neutral",
+      technicalRisk: task.klineStats ? "medium" : "high",
+      support: task.klineStats ? [task.klineStats.supportMin, task.klineStats.supportMax] : [],
+      resistance: task.klineStats ? [task.klineStats.resistanceMin, task.klineStats.resistanceMax] : [],
+      patterns: task.klineStats?.patterns || [],
+      summary: formatKlineStructure(task.klineStructure),
+      sellPutImpact: task.klineStats ? "按ATR、支撑位和历史相似度综合筛选行权价。" : "K线数据不完整。",
+    };
+  }
+  const temperature = analyzeOptionTemperature(task.optionMetrics || {});
+  const contract = task.rules.contractDecision;
+  return {
+    temperature: temperature.level || "数据不足",
+    panicPremium: false,
+    contractApproved: contract?.approved || false,
+    blockers: contract?.blockers || [],
+    warnings: contract?.warnings || [],
+    strikeAssessment: "由统一合约规则引擎评估。",
+    premiumAssessment: [...(risk.opportunityNotes || []), ...(risk.optionNotes || [])].join("；") || "数据不足",
+    summary: `规则波动率温度：${temperature.level || "数据不足"}。`,
+    sellPutImpact: `当前卖Put环境${risk.putStance || "谨慎"}。`,
+  };
+}
+
+function moduleStatuses(task) {
+  return Object.fromEntries(Object.entries(task.modules).map(([name, module]) => [name, module.status]));
+}
+
+function moduleWarnings(task) {
+  return Object.entries(task.modules)
+    .filter(([, module]) => module.error)
+    .map(([name, module]) => `${name}: ${module.error}`);
+}
+
 function resolveFinalDecision(task) {
   const contract = task.rules.contractDecision;
   const marketR = task.modules.market.result || {};
   const klineR = task.modules.kline.result || {};
-  const optionR = task.modules.option.result || {};
   const risk = task.rules.risk || {};
 
-  let stance = "暂不卖Put", reason = "综合分析";
-  let riskScore = risk.riskScore || 5;
+  let stance = ruleDecisionFromRiskOptionAndContract(risk, contract);
+  let reason = `规则引擎底线：${stance}`;
+  let riskScore = numberOrNull(risk.riskScore) ?? 5;
 
   if (contract?.approved === false) {
     stance = "暂不卖Put";
@@ -1500,103 +1726,140 @@ function resolveFinalDecision(task) {
     stance = "暂不卖Put";
     reason = "黑天鹅风险红灯";
     riskScore = Math.max(riskScore, 8);
-  } else if ((marketR.riskScore || 0) >= 8 || klineR.technicalRisk === "high") {
-    stance = "谨慎卖Put";
+  } else if ((numberOrNull(marketR.riskScore) ?? 0) >= 8 || klineR.technicalRisk === "high") {
+    if (decisionSeverity(stance) < decisionSeverity("谨慎卖Put")) stance = "谨慎卖Put";
     reason = "市场/技术风险较高";
     riskScore = Math.max(riskScore, 7);
-  } else if (contract?.approved && (marketR.riskScore || 0) <= 5 && klineR.technicalRisk !== "high") {
-    stance = "可卖Put";
-    reason = "市场、技术和合约条件通过";
-    riskScore = Math.min(riskScore, 4);
-  } else {
-    stance = "谨慎卖Put";
-    reason = "条件不完全满足，建议谨慎";
-    riskScore = Math.max(riskScore, 5);
+  } else if (stance === "可卖Put") {
+    reason = "规则底线、市场、K线和具体合约条件均未触发否决。";
   }
-  return { stance, reason, riskScore };
+  return { stance, reason, riskScore: Math.max(1, Math.min(10, riskScore)) };
 }
 
 // ─── FINAL HTML ──────────────────────────────────
 
 function buildFinalDecisionHtml({ task, marketResult, klineResult, optionResult, finalDecision, generatedAt }) {
   const snapshot = task.snapshot || { data: [] };
-  const target = (snapshot.data || []).find(r => r.symbol === task.symbol) || {};
-  const dStatus = finalDecision.stance || "暂不卖Put";
-  const dc = dStatus === "可卖Put" ? "good" : dStatus === "谨慎卖Put" ? "warn" : "bad";
-  const dcColor = dStatus === "可卖Put" ? "#45d483" : dStatus === "谨慎卖Put" ? "#ffd54a" : "#ff6b7d";
-  const ic = (r) => r === "completed" ? "✅" : r === "fallback" ? "⚠️" : "◌";
-
-  return `<!doctype html>
-<html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${task.symbol} 综合卖Put决策</title>
-<style>
-  :root{--bg:#0f172a;--panel:#17233a;--line:#314566;--text:#e8eefc;--muted:#94a3b8;--gold:#ffd54a;--blue:#60a5fa;--green:#45d483;--red:#ff6b7d}
-  *{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
-  .page{max-width:1160px;margin:0 auto;padding:28px}
-  h1{font-size:38px;margin:0 0 8px;color:var(--gold)}
-  h2{font-size:24px;margin:24px 0 14px;color:var(--gold);padding-bottom:6px;border-bottom:1px solid var(--line)}
-  .hero{background:linear-gradient(180deg,#17233a 0%,#131d31 100%);border:1px solid ${dcColor};border-radius:24px;padding:28px;margin-bottom:20px}
-  .section{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;margin-bottom:18px}
-  .badge{display:inline-block;padding:6px 20px;border-radius:10px;font-weight:700;font-size:1.2rem}
-  .badge-good{background:rgba(69,212,131,.15);color:#45d483;border:1px solid #45d483}
-  .badge-warn{background:rgba(255,213,74,.15);color:#ffd54a;border:1px solid #ffd54a}
-  .badge-bad{background:rgba(255,107,125,.15);color:#ff6b7d;border:1px solid #ff6b7d}
-  table{width:100%;border-collapse:collapse;font-size:14px}
-  th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line)}
-  th{color:var(--muted);font-weight:600}
-  .muted{color:var(--muted);font-size:13px}
-  ul{list-style:none;padding:0}
-  li{padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)}
-  .module-ok{color:#45d483}.module-fb{color:#ffd54a}
-</style></head>
-<body><div class="page">
-<h1>${task.symbol} 综合卖Put决策</h1>
-<p class="muted">${generatedAt} | 模块状态: <span class="module-ok">${ic(task.modules.market.status)} 市场</span> <span class="${task.modules.kline.status==='fallback'?'module-fb':'module-ok'}">${ic(task.modules.kline.status)} K线</span> <span class="${task.modules.option.status==='fallback'?'module-fb':'module-ok'}">${ic(task.modules.option.status)} 期权</span></p>
-
-<div class="hero">
-  <h2>综合结论</h2>
-  <p><span class="badge badge-${dc}">${dStatus}</span> 风险评分: ${finalDecision.riskScore}/10</p>
-  <p>${finalDecision.reason}</p>
-  <p>价格: $${target.price || '--'} | 合约: $${task.input?.targetStrike || '--'}P | 到期: ${task.input?.expiryDate || '--'}</p>
-</div>
-
-<div class="section">
-  <h2>市场与黑天鹅风险</h2>
-  ${buildModuleHtml(marketResult, task.modules.market.status)}
-</div>
-
-<div class="section">
-  <h2>K线趋势与关键位置</h2>
-  ${buildModuleHtml(klineResult, task.modules.kline.status)}
-</div>
-
-<div class="section">
-  <h2>期权温度与合约判断</h2>
-  ${buildOptionModuleHtml(optionResult, task)}
-</div>
-
-<div class="section">
-  <h2>未来关注清单</h2>
-  <ul>${(marketResult.keySignals || []).map(s => `<li>• ${s}</li>`).join('')}${(optionResult.warnings || []).map(w => `<li>⚠️ ${w}</li>`).join('')}</ul>
-</div>
-
-<p class="muted" style="margin-top:24px">数据来源: VPS本地行情 + DeepSeek AI分析 | ${generatedAt}</p>
-</div></body></html>`;
-}
-
-function buildModuleHtml(result, status) {
-  if (!result || !result.summary) return '<p class="muted">' + (status === 'fallback' ? '⚠️ 使用规则版分析' : '暂无数据') + '</p>';
-  return `<p>${result.summary || ''}</p>${result.keySignals ? '<ul>' + result.keySignals.map(s => '<li>• ' + s + '</li>').join('') + '</ul>' : ''}<p class="muted">${result.sellPutImpact || ''}</p>`;
-}
-
-function buildOptionModuleHtml(result, task) {
-  if (!result) return '<p class="muted">暂无数据</p>';
+  const target = row(snapshot, task.symbol);
+  const qqq = row(snapshot, "QQQ");
+  const spy = row(snapshot, "SPY");
+  const smh = row(snapshot, "SMH");
+  const vix = row(snapshot, "^VIX");
+  const tnx = row(snapshot, "^TNX");
+  const dxy = row(snapshot, "DX-Y.NYB");
+  const btc = row(snapshot, "BTC-USD");
+  const risk = task.rules.risk || {};
   const contract = task.rules.contractDecision;
-  return `<p>温度: ${result.temperature || '--'} | 恐慌溢价: ${result.panicPremium ? '是' : '否'}</p>
-<p>${result.summary || ''}</p>
-<p>${result.strikeAssessment || ''} | ${result.premiumAssessment || ''}</p>
-${contract && !contract.approved ? '<p class="badge badge-bad">合约未通过: ' + (contract.blockers || []).join('; ') + '</p>' : contract?.approved ? '<p class="badge badge-good">合约通过</p>' : ''}
-<p class="muted">${result.sellPutImpact || ''}</p>`;
+  const decisionClass = finalDecision.stance === "可卖Put" ? "good" : finalDecision.stance === "谨慎卖Put" ? "warn" : "bad";
+  const decisionBadge = finalDecision.stance === "可卖Put" ? "badge-green" : finalDecision.stance === "谨慎卖Put" ? "badge-yellow" : "badge-red";
+  const blackSwan = marketResult.blackSwan || risk.blackSwan || "yellow";
+  const crashRisk = blackSwan === "red" || finalDecision.riskScore >= 8 || klineResult.technicalRisk === "high"
+    ? { label: "高", className: "up" }
+    : blackSwan === "green" && finalDecision.riskScore <= 4 && klineResult.technicalRisk !== "high"
+      ? { label: "低", className: "dn" }
+      : { label: "中", className: "warn" };
+  const panicPremium = optionResult.panicPremium === true
+    ? { label: "是", className: "dn" }
+    : optionResult.panicPremium === false
+      ? { label: "不是", className: "up" }
+      : { label: "不确定", className: "warn" };
+  const premiumWorth = !contract?.approved
+    ? { label: "不值得", className: "up" }
+    : finalDecision.stance === "可卖Put"
+      ? { label: "值得", className: "dn" }
+      : { label: "谨慎", className: "warn" };
+  const atrAnalysis = analyzeAtrVsPut(target, task.klineStats, task.input.targetStrike, task.input.expiryDate);
+  const metrics = task.optionMetrics || {};
+  const value = (input, suffix = "") => numberOrNull(input) === null ? "未取到" : `${safeHtml(input)}${suffix}`;
+  const smaCell = (input) => numberOrNull(input) === null ? "未取到" : Number(input).toFixed(2);
+  const pricePosition = (input) => numberOrNull(input) === null || target.last === null
+    ? "未取到"
+    : target.last >= Number(input) ? '<span class="highlight-green">↑ 上方</span>' : '<span class="highlight-red">↓ 下方</span>';
+  const newsAnalysis = task.newsAnalysis || { selected: [], eventRisks: [] };
+  const list = (items, emptyText) => items?.length
+    ? `<ul class="bullet-list">${items.map((item) => `<li>${safeHtml(item)}</li>`).join("")}</ul>`
+    : `<p class="meta">${safeHtml(emptyText)}</p>`;
+  const newsRows = (newsAnalysis.selected || []).slice(0, 8).map((item) => `${formatDateTime(item.time)} ${String(item.content || "").slice(0, 220)}`);
+  const eventRows = (newsAnalysis.eventRisks || []).map((item) => `${item.category}：${item.content}`);
+  const watchlist = [...(marketResult.keySignals || []), ...(marketResult.newsRisks || []), ...(optionResult.warnings || [])];
+  const klineStructureText = formatKlineStructure(task.klineStructure);
+  const klineStatsText = formatKlineStats(task.klineStats);
+  const sourceRows = [
+    ["行情", "最新行情中心 / K线直接行情", snapshot.checkedAt || snapshot.updatedAt || generatedAt],
+    ["新闻", "金十最近24小时缓存", task.newsData?.updatedAt || generatedAt],
+    ["K线", task.klineStructure?.dataSource || task.klineStructure?.source || "共享K线相似度引擎", task.klineStructure?.latestQuote?.marketTime || generatedAt],
+    ["期权", task.optionMetricsMeta.source || "Barchart Options Overview", task.optionMetricsMeta.retrievedAt || generatedAt],
+  ].map(([name, source, time]) => `<tr><td>${safeHtml(name)}</td><td>${safeHtml(source)}</td><td>${safeHtml(formatDateTime(time))}</td></tr>`).join("");
+
+  const analysisHtml = `
+<section class="section hero-judgement">
+  <h2>1. 综合结论</h2>
+  <div class="metric-grid action-bar"><span class="judge-badge ${decisionBadge}">${safeHtml(finalDecision.stance)}</span><span class="tag">风险评分 ${safeHtml(finalDecision.riskScore)}/10</span></div>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong><span class="judge-reason">${safeHtml(finalDecision.reason)}</span></p>
+  <ul class="bullet-list">
+    <li><strong class="signal-label">这是不是恐慌溢价？</strong><span class="${panicPremium.className}">${panicPremium.label}</span>。${safeHtml(optionResult.summary || "期权数据不足。")}</li>
+    <li><strong class="signal-label">未来3-5个交易日的大跌/跳空风险？</strong><span class="${crashRisk.className}">${crashRisk.label}</span>。市场风险 ${safeHtml(finalDecision.riskScore)}/10，技术风险 ${safeHtml(klineResult.technicalRisk || "未取到")}。</li>
+    <li><strong class="signal-label">权利金值不值得冒尾部风险？</strong><span class="${premiumWorth.className}">${premiumWorth.label}</span>。合约硬门槛${contract?.approved ? "已通过" : "未通过"}。</li>
+  </ul>
+  <div class="metric-grid"><span class="data-item">现价 ${safeHtml(target.last ?? "未取到")}</span><span class="data-item">Strike ${safeHtml(task.input.targetStrike || "未取到")}</span><span class="data-item">Delta ${safeHtml(task.input.delta || "未取到")}</span><span class="data-item">DTE ${safeHtml(contract?.dte ?? "未取到")}</span></div>
+</section>
+
+<section class="section">
+  <h2>2. 市场环境与黑天鹅风险</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong>${safeHtml(marketResult.sellPutImpact || risk.putStance || "谨慎")}</p>
+  <div class="metric-grid"><span class="data-item">QQQ ${pct(qqq.changePct)}</span><span class="data-item">SPY ${pct(spy.changePct)}</span><span class="data-item">SMH ${pct(smh.changePct)}</span><span class="data-item">VIX ${pct(vix.changePct)}</span><span class="data-item">10Y ${pct(tnx.changePct)}</span><span class="data-item">DXY ${pct(dxy.changePct)}</span><span class="data-item">BTC ${pct(btc.changePct)}</span></div>
+  <p>${risk.summary || "市场数据不完整。"}</p>
+  <p><strong class="signal-label">市场状态：</strong>${safeHtml(marketResult.marketState || "未取到")} ｜ <strong class="signal-label">尾部风险：</strong>${safeHtml(marketResult.blackSwan || risk.blackSwan || "未取到")}</p>
+  ${list(marketResult.keySignals || [], "未识别到额外市场信号。")}
+  <h3>最近24小时相关新闻</h3>
+  ${list(newsRows, "未取到相关新闻。")}
+  ${eventRows.length ? `<h3>新闻内事件风险</h3>${list(eventRows, "")}` : ""}
+</section>
+
+<section class="section">
+  <h2>3. 期权温度解读</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong>${safeHtml(optionResult.summary || "数据不足")}</p>
+  <div class="metric-grid"><span class="data-item">IV ${value(metrics.iv, "%")}</span><span class="data-item">HV ${value(metrics.hv, "%")}</span><span class="data-item">IV Rank ${value(metrics.ivRank, "%")}</span><span class="data-item">IV Percentile ${value(metrics.ivPercentile, "%")}</span><span class="data-item">Put/Call Vol ${value(metrics.putCallVolRatio)}</span><span class="data-item">Put/Call OI ${value(metrics.putCallOiRatio)}</span><span class="data-item">Expected Move ${value(metrics.expectedMovePct, "%")}</span></div>
+  <ul class="bullet-list">
+    <li><strong class="signal-label">温度：</strong>${safeHtml(optionResult.temperature || risk.optionTemperature?.level || "数据不足")}；恐慌溢价判断为 <span class="${panicPremium.className}">${panicPremium.label}</span>。</li>
+    <li><strong class="signal-label">行权价安全垫：</strong>${safeHtml(optionResult.strikeAssessment || atrAnalysis.marginNote || "由统一合约规则引擎评估。")}</li>
+    <li><strong class="signal-label">权利金：</strong>${safeHtml(optionResult.premiumAssessment || "数据不足")}</li>
+    <li><strong class="signal-label">Expected Range：</strong>${value(metrics.expectedRangeLow)} 至 ${value(metrics.expectedRangeHigh)}；严格安全行权价 ${safeHtml(contract?.strictSafeStrike?.toFixed(2) ?? "未取到")}。</li>
+  </ul>
+</section>
+
+<section class="section">
+  <h2>4. K线技术信号</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong>${safeHtml(klineResult.sellPutImpact || "K线数据不完整")}</p>
+  <div class="metric-grid flex-between"><span>趋势：<strong class="signal-label">${safeHtml(klineResult.trend || "未取到")}</strong></span><span>技术风险：<span class="${klineResult.technicalRisk === "high" ? "up" : klineResult.technicalRisk === "low" ? "dn" : "warn"}">${safeHtml(klineResult.technicalRisk || "未取到")}</span></span><span>ATR ${safeHtml(task.klineStats?.atr ?? "未取到")}（${safeHtml(task.klineStats?.atrPct ?? "未取到")}%）</span></div>
+  <table class="report-table"><thead><tr><th>均线</th><th>SMA5</th><th>SMA10</th><th>SMA20</th><th>SMA50</th></tr></thead><tbody><tr><td>数值</td><td>${smaCell(task.klineStats?.sma5)}</td><td>${smaCell(task.klineStats?.sma10)}</td><td>${smaCell(task.klineStats?.sma20)}</td><td>${smaCell(task.klineStats?.sma50)}</td></tr><tr><td>价格相对</td><td>${pricePosition(task.klineStats?.sma5)}</td><td>${pricePosition(task.klineStats?.sma10)}</td><td>${pricePosition(task.klineStats?.sma20)}</td><td>${pricePosition(task.klineStats?.sma50)}</td></tr></tbody></table>
+  <ul class="bullet-list"><li><strong class="signal-label">K线相似度：</strong>${safeHtml(klineStructureText)}</li><li><strong class="signal-label">支撑/阻力：</strong>${safeHtml((klineResult.support || []).join(" / ") || `${task.klineStats?.supportMin ?? "未取到"}-${task.klineStats?.supportMax ?? "未取到"}`)} / ${safeHtml((klineResult.resistance || []).join(" / ") || `${task.klineStats?.resistanceMin ?? "未取到"}-${task.klineStats?.resistanceMax ?? "未取到"}`)}</li><li><strong class="signal-label">ATR安全价：</strong>${safeHtml(atrAnalysis.hasData ? `${atrAnalysis.safeStrike}；${atrAnalysis.marginNote || atrAnalysis.atrSuitability}` : "未取到")}</li></ul>
+  <details><summary>K线计算明细</summary><pre>${safeHtml(klineStatsText)}</pre></details>
+</section>
+
+<section class="section">
+  <h2>5. 综合卖Put建议</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong><span class="${decisionClass}">${safeHtml(finalDecision.stance)}</span>。</p>
+  <div class="metric-grid action-bar"><span class="judge-badge ${decisionBadge}">${safeHtml(finalDecision.stance)}</span><span class="tag">到期日 ${safeHtml(task.input.expiryDate || "未取到")} Delta ${safeHtml(contract?.delta?.toFixed(3) ?? "未取到")}</span><span class="tag">Strike ${safeHtml(contract?.strike?.toFixed(2) ?? "未取到")} Bid/Ask ${safeHtml(contract?.bid?.toFixed(2) ?? "-")}/${safeHtml(contract?.ask?.toFixed(2) ?? "-")}</span></div>
+  <p><strong class="signal-label">行动理由：</strong>${safeHtml(finalDecision.reason)}</p>
+  <p><strong class="signal-label">合约执行门槛：</strong><span class="${contract?.approved ? "good" : "bad"}">${contract?.approved ? "通过，可进入下单前复核" : "不通过，禁止自动下单"}</span></p>
+  ${list(contract?.blockers || [], "未触发硬阻断条件。")}
+  ${contract?.warnings?.length ? list(contract.warnings, "") : ""}
+</section>
+
+<section class="section">
+  <h2>6. 未来3-5个交易日关注清单</h2>
+  <p class="section-summary"><strong class="signal-label">本节结论：</strong>当前大跌/跳空风险为 <span class="${crashRisk.className}">${crashRisk.label}</span>；只根据本次行情、K线和已取得新闻调整判断。</p>
+  ${list([...new Set(watchlist)].slice(0, 12), "继续监控VIX、关键支撑位和合约流动性。")}
+</section>
+
+<details><summary>数据来源与时间</summary><div class="section">
+  <table class="report-table"><thead><tr><th>类型</th><th>来源</th><th>数据时间</th></tr></thead><tbody>${sourceRows}</tbody></table>
+  <p class="meta">报告生成时间：${safeHtml(formatDateTime(generatedAt))}。AI模块状态：市场 ${safeHtml(task.modules.market.status)}，K线 ${safeHtml(task.modules.kline.status)}，期权 ${safeHtml(task.modules.option.status)}。</p>
+</div></details>`;
+
+  const normalized = normalizeReportSections(ensureKlineMatchLine(analysisHtml, task.klineStructure));
+  return buildAiReportWrapper(task.symbol, task.market, risk, finalDecision.stance, normalized, snapshot, generatedAt, contract);
 }
 
 // ─── GENERIC AI JSON CALL ────────────────────────

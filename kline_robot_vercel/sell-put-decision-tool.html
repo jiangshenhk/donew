@@ -813,7 +813,7 @@
   <div class="shell">
     <div class="topbar">
       <div class="brand">
-        <h1>AI综合卖Put决策 <span class="version">v2.1.0｜2026-08-06｜分阶段并行生成综合报告</span></h1>
+        <h1>AI综合卖Put决策 <span class="version">v2.1.1｜2026-08-06 01:56｜恢复完整四维决策与六节报告</span></h1>
       </div>
       <div class="top-actions">
         <span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span>
@@ -2356,40 +2356,31 @@
 
         const updateMod = (mod, icon, msg) => {
           const el = document.getElementById('mod-' + mod);
-          if (el) el.innerHTML = icon + ' ' + msg || '';
+          if (el) el.textContent = `${icon} ${msg || ''}`;
         };
 
-        const modResults = await Promise.allSettled([
-          (async () => {
-            updateMod('market', '◌', '市场中');
-            const r = await fetch(`${apiBase}/api/sell-put-decision`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'analyze-market', reportId }),
+        const runModule = async (mod, action, label) => {
+          updateMod(mod, '◌', `${label}中`);
+          try {
+            const response = await fetch(`${apiBase}/api/sell-put-decision`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action, reportId }),
             });
-            const j = await readApiJson(r, '市场分析');
-            updateMod('market', j.ok && j.status !== 'fallback' ? '✅' : '⚠️', '市场');
-            return j;
-          })(),
-          (async () => {
-            updateMod('kline', '◌', 'K线中');
-            const r = await fetch(`${apiBase}/api/sell-put-decision`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'analyze-kline', reportId }),
-            });
-            const j = await readApiJson(r, 'K线分析');
-            updateMod('kline', j.ok && j.status !== 'fallback' ? '✅' : '⚠️', 'K线');
-            return j;
-          })(),
-          (async () => {
-            updateMod('option', '◌', '期权中');
-            const r = await fetch(`${apiBase}/api/sell-put-decision`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'analyze-option', reportId }),
-            });
-            const j = await readApiJson(r, '期权分析');
-            updateMod('option', j.ok && j.status !== 'fallback' ? '✅' : '⚠️', '期权');
-            return j;
-          })(),
+            const json = await readApiJson(response, `${label}分析`);
+            if (!response.ok || !json.ok) throw new Error(json.message || `${label}分析失败`);
+            updateMod(mod, json.status === 'fallback' ? '⚠️' : '✅', label);
+            return json;
+          } catch (error) {
+            updateMod(mod, '⚠️', `${label}规则版`);
+            throw error;
+          }
+        };
+
+        await Promise.allSettled([
+          runModule('market', 'analyze-market', '市场'),
+          runModule('kline', 'analyze-kline', 'K线'),
+          runModule('option', 'analyze-option', '期权'),
         ]);
 
         // Phase 3: Finalize
