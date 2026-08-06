@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sell-put-agent.mjs — Sell Put Decision Agent v2.0.1  (2026-08-03: 全面迁移VPS/+IV均值回归/+波动率异动提醒/+ntfy邮件双通知)
+// sell-put-agent.mjs — Sell Put Decision Agent v2.0.2  (2026-08-06: 运行锁/原子存储/开仓硬门槛/统计与权益修正)
 // 每日自动分析 QLD/MSTR/INTC 卖Put机会，记录纸面交易，跟踪胜率
 // 数据存储于 ~/.donew-agent/ (独立于仓库，不 commit)
 //
@@ -27,11 +27,11 @@ async function sendNotify(title, message, tags = '') {
     // Title may contain emoji; pass as query param to avoid header encoding issues
     const url = new URL(`${NTFY_SERVER}/${NTFY_TOPIC}`);
     url.searchParams.set('title', title);
-    await fetch(url, {
+    await fetchWithTimeout(url, {
       method: 'POST',
       headers,
       body: message,
-    });
+    }, 10000, 'ntfy通知');
   } catch { /* silently ignore notification failures */ }
 }
 
@@ -56,6 +56,9 @@ const SCAN_RESULT_FILE = path.join(AGENT_DIR, 'scan-result.json');
 const KLINE_DIR       = path.join(AGENT_DIR, 'kline');
 const WATCHLIST_FILE  = path.join(AGENT_DIR, 'watchlist.json');
 const POOL_FILE       = path.join(AGENT_DIR, 'pool.json');
+const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'sell-put-agent.lock');
+const AGENT_VERSION   = 'v2.0.2';
+const AGENT_VERSION_NOTE = '2026-08-06 21:12 | 修复调度、并发、硬门槛、统计与权益';
 
 const DEFAULT_TRADING   = ['QLD', 'MSTR', 'INTC'];
 const DEFAULT_WATCHLIST = ['QLD', 'MSTR', 'INTC', 'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'HOOD', 'SOXL', 'AMD', 'TLT', 'GLD', 'XLE'];
@@ -66,10 +69,11 @@ function loadPool() {
     try {
       const pool = JSON.parse(fs.readFileSync(POOL_FILE, 'utf-8'));
       if (!Array.isArray(pool.trading) || !Array.isArray(pool.watchlist)) throw new Error('invalid fields');
-      return pool;
+      return { ...pool, valid: true, error: '' };
     } catch (e) {
-      console.error('⚠️ pool.json 损坏，使用默认配置（原文件未修改）。请手动检查: ' + POOL_FILE);
-      return { trading: [...DEFAULT_TRADING], watchlist: [...DEFAULT_WATCHLIST] };
+      const error = `pool.json 损坏，已禁止新开仓（原文件未修改）: ${e.message}`;
+      console.error('⛔ ' + error);
+      return { trading: [], watchlist: [], valid: false, error };
     }
   }
   // File doesn't exist — migrate from old files or create default
@@ -80,16 +84,20 @@ function loadPool() {
     watchlist: Array.isArray(oldWatchlist) ? oldWatchlist : [...DEFAULT_WATCHLIST],
   };
   saveJson(POOL_FILE, pool);
-  return pool;
+  return { ...pool, valid: true, error: '' };
 }
 
-function savePool(pool) { saveJson(POOL_FILE, pool); }
+function savePool(pool) {
+  if (pool?.valid === false) throw new Error(pool.error || 'pool.json 不可写');
+  saveJson(POOL_FILE, { trading: pool.trading, watchlist: pool.watchlist });
+}
 function loadTargets() { return loadPool().trading; }
 function loadWatchlist() { return loadPool().watchlist; }
-function saveTargets(trading) { const p = loadPool(); p.trading = trading; savePool(p); }
-function saveWatchlist(watchlist) { const p = loadPool(); p.watchlist = watchlist; savePool(p); }
+function saveTargets(trading) { const p = loadPool(); if (p.valid === false) throw new Error(p.error); p.trading = trading; savePool(p); }
+function saveWatchlist(watchlist) { const p = loadPool(); if (p.valid === false) throw new Error(p.error); p.watchlist = watchlist; savePool(p); }
 
-const TARGETS = loadTargets();
+const POOL_STATE = loadPool();
+const TARGETS = POOL_STATE.trading;
 
 const CONFIG = {
   capital: 100000,
@@ -105,6 +113,7 @@ const CONFIG = {
   minOtm: 0.04,
   minBid: 0.10,
   minOi: 50,
+  maxSpreadPct: 0.15,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -120,7 +129,13 @@ function loadJson(fpath) {
 
 function saveJson(fpath, data) {
   ensureDir(path.dirname(fpath));
-  fs.writeFileSync(fpath, JSON.stringify(data, null, 2), 'utf-8');
+  const tempPath = `${fpath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempPath, fpath);
+  } finally {
+    try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch {}
+  }
 }
 
 function todayStr() {
@@ -137,10 +152,87 @@ function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000, label = '请求') {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error(`${label}超时(${timeoutMs}ms)`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function processExists(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+function acquireRunLock(mode) {
+  const staleMs = 30 * 60 * 1000;
+  const create = () => {
+    const fd = fs.openSync(RUN_LOCK_FILE, 'wx');
+    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, mode, startedAt: new Date().toISOString() }));
+    fs.closeSync(fd);
+  };
+  try {
+    create();
+  } catch (error) {
+    if (error?.code !== 'EEXIST') throw error;
+    const existing = loadJson(RUN_LOCK_FILE) || {};
+    const age = Date.now() - (Date.parse(existing.startedAt) || fs.statSync(RUN_LOCK_FILE).mtimeMs);
+    const liveProcess = processExists(Number(existing.pid));
+    if (liveProcess || (!existing.pid && age <= staleMs)) {
+      throw new Error(`Agent已有任务运行中 (PID ${existing.pid}, mode ${existing.mode || '--'})`);
+    }
+    fs.unlinkSync(RUN_LOCK_FILE);
+    create();
+  }
+  return () => {
+    try {
+      const current = loadJson(RUN_LOCK_FILE);
+      if (!current || Number(current.pid) === process.pid) fs.unlinkSync(RUN_LOCK_FILE);
+    } catch {}
+  };
+}
+
 function pctStr(value) {
   const n = num(value);
   if (n === null) return '--';
   return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+}
+
+function validateEntryContract(contract, underlyingPrice) {
+  const bid = num(contract?.bid);
+  const ask = num(contract?.ask);
+  const strike = num(contract?.strike);
+  const underlying = num(underlyingPrice ?? contract?.underlying ?? contract?.underlyingPrice);
+  const delta = Math.abs(num(contract?.delta) ?? NaN);
+  const dte = num(contract?.dte);
+  const oi = num(contract?.oi) ?? 0;
+  const reasons = [];
+
+  if (!(bid >= CONFIG.minBid)) reasons.push(`Bid低于$${CONFIG.minBid.toFixed(2)}`);
+  if (!(ask > 0) || !(ask >= bid)) reasons.push('Bid/Ask无效');
+  if (!(strike > 0) || !(underlying > 0)) reasons.push('标的价或行权价缺失');
+  if (!(oi >= CONFIG.minOi)) reasons.push(`OI低于${CONFIG.minOi}`);
+  if (!Number.isFinite(delta) || delta < CONFIG.deltaRange[0] || delta > CONFIG.deltaRange[1]) reasons.push('Delta超出范围');
+  if (!(dte >= CONFIG.dteRange[0] && dte <= CONFIG.dteRange[1])) reasons.push('DTE超出范围');
+
+  const mid = bid != null && ask != null ? (bid + ask) / 2 : null;
+  const spreadPct = mid > 0 ? (ask - bid) / mid : null;
+  const otm = underlying > 0 && strike > 0 ? (underlying - strike) / underlying : null;
+  if (!(spreadPct != null && spreadPct <= CONFIG.maxSpreadPct)) reasons.push(`价差超过${(CONFIG.maxSpreadPct * 100).toFixed(0)}%`);
+  if (!(otm != null && otm >= CONFIG.minOtm)) reasons.push(`OTM低于${(CONFIG.minOtm * 100).toFixed(0)}%`);
+
+  return { ok: reasons.length === 0, reasons, bid, ask, mid, spreadPct, otm, underlying };
 }
 
 // ─── Storage ──────────────────────────────────────────────────
@@ -162,6 +254,36 @@ function loadExperience() {
   return loadJson(EXPERIENCE_FILE) || { patterns: [], lastUpdated: null };
 }
 function saveExperience(data) { saveJson(EXPERIENCE_FILE, data); }
+
+function recordClosedExperience(pos) {
+  if (pos?.status !== 'closed' || !pos?.result) return;
+  const experience = loadExperience();
+  experience.trades = Array.isArray(experience.trades) ? experience.trades : [];
+  const positionId = pos.positionId || [pos.symbol, pos.strike, pos.expireDate, pos.openedAt].join('|');
+  if (experience.trades.some(item => item.positionId === positionId)) return;
+  experience.trades.push({
+    positionId,
+    symbol: pos.symbol,
+    openedAt: pos.openedAtIso || pos.openedAt,
+    closedAt: pos.closedAt,
+    strike: pos.strike,
+    expireDate: pos.expireDate,
+    contracts: pos.contracts,
+    delta: pos.entrySnapshot?.delta ?? null,
+    dte: pos.entrySnapshot?.dte ?? null,
+    otmPct: pos.entrySnapshot?.otmPct ?? null,
+    spreadPct: pos.entrySnapshot?.spreadPct ?? null,
+    ivRank: pos.entrySnapshot?.ivRank ?? null,
+    ivPercentile: pos.entrySnapshot?.ivPercentile ?? null,
+    riskScore: pos.riskScore ?? null,
+    reasoning: pos.entrySnapshot?.reasoning || '',
+    result: pos.result,
+    pnl: pos.pnl ?? null,
+    closeNote: pos.closeNote || '',
+  });
+  experience.lastUpdated = new Date().toISOString();
+  saveExperience(experience);
+}
 
 function saveJournal(entry) {
   ensureDir(JOURNAL_DIR);
@@ -274,6 +396,7 @@ async function fetchOptionsChain(symbol, opts = {}) {
   const minOi = opts.minOi ?? CONFIG.minOi;
   const deltaMin = opts.deltaMin ?? CONFIG.deltaRange[0];
   const deltaMax = opts.deltaMax ?? CONFIG.deltaRange[1];
+  const entryOnly = opts.entryOnly !== false;
   const session = await barchartSession(symbol, timeoutMs);
 
   const url = new URL(`${BARCHART}/proxies/core-api/v1/options/get`);
@@ -326,6 +449,7 @@ async function fetchOptionsChain(symbol, opts = {}) {
       && c.delta != null && Math.abs(c.delta) >= deltaMin && Math.abs(c.delta) <= deltaMax
       && c.bid >= minBid
       && c.oi >= minOi
+      && (!entryOnly || validateEntryContract(c, c.underlying).ok)
     );
 
     // Sort: closest delta to targetDelta first, then closest DTE to targetDte
@@ -371,9 +495,9 @@ async function fetchOptionsOverview(symbol) {
 // ─── Market Data ──────────────────────────────────────────────
 
 async function fetchPrices() {
-  const res = await fetch(STOCKPRICE_URL, {
+  const res = await fetchWithTimeout(STOCKPRICE_URL, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-agent/1.0)' },
-  });
+  }, 15000, '行情中心');
   if (!res.ok) throw new Error(`stockprice HTTP ${res.status}`);
   const json = await res.json();
   const map = {};
@@ -393,9 +517,9 @@ async function fetchPrices() {
 async function fetchKline(symbol, range = '3mo') {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=1d`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-agent/1.0)' },
-    });
+    }, 15000, `${symbol} K线`);
     if (!res.ok) return null;
     const json = await res.json();
     const result = json?.chart?.result?.[0];
@@ -464,9 +588,9 @@ function calcKlineStats(bars) {
 
 async function fetchNews() {
   try {
-    const res = await fetch(NEWS_URL, {
+    const res = await fetchWithTimeout(NEWS_URL, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-agent/1.0)' },
-    });
+    }, 10000, '新闻');
     if (!res.ok) return [];
     const json = await res.json();
     const items = json.items || json.data || [];
@@ -497,14 +621,14 @@ async function callDeepSeek(systemPrompt, userMessage) {
     response_format: { type: 'json_object' },
   };
 
-  const res = await fetch(DEEPSEEK_API, {
+  const res = await fetchWithTimeout(DEEPSEEK_API, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
-  });
+  }, 60000, 'DeepSeek');
 
   if (!res.ok) {
     const err = await res.text();
@@ -543,7 +667,7 @@ function buildJudgmentFactors(symbol, priceInfo, contract, market, decision) {
     ivLevel,
     delta: contract?.delta ? Math.round(contract.delta * 1000) / 1000 : null,
     dte: contract?.dte || null,
-    rtnAnnualized: otm && strike && contract?.bid ? parseFloat(((contract.bid + (contract.ask || contract.bid)) / 2 / strike * 365 / contract.dte * 100).toFixed(1)) : null,
+    rtnAnnualized: otm && strike && contract?.bid ? parseFloat((contract.bid / strike * 365 / contract.dte * 100).toFixed(1)) : null,
     aiRiskScore: decision?.riskScore ?? null,
     aiStance: decision?.stance ?? '--',
     aiTemperature: decision?.temperature ?? '--',
@@ -713,6 +837,10 @@ async function getDecision(symbol, contract, market, news, experience) {
 function checkRiskGates(stats) {
   const open = loadPositions().filter(p => p.status === 'open');
 
+  if (POOL_STATE.valid === false) {
+    return { canOpen: false, reason: POOL_STATE.error || '交易池配置无效' };
+  }
+
   if (open.length >= CONFIG.maxOpenPositions) {
     return { canOpen: false, reason: `已达到最大持仓数(${CONFIG.maxOpenPositions})` };
   }
@@ -727,8 +855,8 @@ function checkRiskGates(stats) {
 
 // ─── Position Tracking ────────────────────────────────────────
 
-function openPaperPosition(symbol, contract, decision) {
-  const mid = Math.round((contract.bid + (contract.ask || contract.bid)) / 2 * 100) / 100;
+function openPaperPosition(symbol, contract, decision, market, factors) {
+  const fillPrice = Math.round(contract.bid * 100) / 100;
   const capitalPerContract = contract.strike * 100;
   const deployed = loadPositions().filter(p => p.status === 'open').reduce((s, p) => s + (p.capitalUsed || 0), 0);
   const remaining = CONFIG.capital - deployed;
@@ -737,24 +865,36 @@ function openPaperPosition(symbol, contract, decision) {
   const maxContracts = Math.min(maxByConfig, maxByRemaining);
   if (maxContracts < 1) return null;
   const contracts = Math.min(5, maxContracts);
-  const premium = Math.round(mid * contracts * 100 * 100) / 100;
+  const premium = Math.round(fillPrice * contracts * 100 * 100) / 100;
   const capitalUsed = capitalPerContract * contracts;
-  const annualizedReturn = mid / contract.strike * (365 / contract.dte) * 100;
+  const annualizedReturn = fillPrice / contract.strike * (365 / contract.dte) * 100;
 
   return {
+    positionId: `pos-${Date.now()}-${symbol}`,
     symbol,
     status: 'open',
     openedAt: todayStr(),
+    openedAtIso: new Date().toISOString(),
     expireDate: contract.expireDate,
     strike: contract.strike,
-    premium: mid,
-    price: contract.underlyingPrice || null,
+    premium: fillPrice,
+    price: contract.underlying ?? contract.underlyingPrice ?? market?.price ?? null,
     contracts,
     capitalUsed,
     premiumCollected: Math.round(premium * 100) / 100,
     annualizedReturn: Math.round(annualizedReturn * 100) / 100,
     riskScore: decision.riskScore,
     putStance: decision.putStance,
+    entrySnapshot: {
+      delta: contract.delta ?? null,
+      dte: contract.dte ?? null,
+      otmPct: market?.price ? Math.round((1 - contract.strike / market.price) * 10000) / 100 : null,
+      spreadPct: contract.bid && contract.ask ? Math.round(((contract.ask - contract.bid) / ((contract.bid + contract.ask) / 2)) * 10000) / 100 : null,
+      ivRank: market?.ivRank ?? null,
+      ivPercentile: market?.ivPercentile ?? null,
+      reasoning: decision.reasoning || '',
+      factors: factors || null,
+    },
     result: null,
     expireClose: null,
   };
@@ -825,6 +965,7 @@ async function settlePosition(pos) {
       `**${pos.symbol}** $${pos.strike}P 到期盈利\n\n权利金: $${pos.premiumCollected.toFixed(2)} | 到期收盘: $${closePrice}\nPnL: **+$${pos.pnl.toFixed(2)}**`,
       'moneybag');
   }
+  recordClosedExperience(pos);
   return pos;
 }
 
@@ -832,7 +973,9 @@ async function settlePosition(pos) {
 
 function recalcStats() {
   const positions = loadPositions();
-  const closed = positions.filter(p => p.status === 'closed');
+  const closed = positions
+    .filter(p => p.status === 'closed')
+    .sort((a, b) => new Date(a.closedAt || a.expireDate || 0) - new Date(b.closedAt || b.expireDate || 0));
   const open = positions.filter(p => p.status === 'open');
 
   const stats = loadStats();
@@ -845,6 +988,7 @@ function recalcStats() {
 
   // Drawdown tracking: use running PnL, drawdown = (peak - trough) / capital
   stats.currentDrawdown = 0;
+  stats.maxDrawdown = 0;
   if (closed.length) {
     let peak = 0;
     let running = 0;
@@ -888,6 +1032,7 @@ async function checkEarlyClose() {
 
   const signals = [];
   const now = new Date();
+  let marksUpdated = false;
 
   for (let i = 0; i < positions.length; i++) {
     const pos = positions[i];
@@ -902,13 +1047,16 @@ async function checkEarlyClose() {
     let currentMid = null;
     try {
       // Fetch with relaxed filters to find existing contract (may be deep ITM or near zero)
-      const contracts = await fetchOptionsChain(pos.symbol, { dteMin: 1, dteMax: 999, minBid: 0, minOi: 0, deltaMin: 0, deltaMax: 1 });
+      const contracts = await fetchOptionsChain(pos.symbol, { dteMin: 1, dteMax: 999, minBid: 0, minOi: 0, deltaMin: 0, deltaMax: 1, entryOnly: false });
       const match = contracts.find(c =>
         Math.abs(c.strike - pos.strike) < 0.01 &&
         c.expireDate === pos.expireDate
       );
       if (match) {
         currentMid = (match.bid + (match.ask || match.bid)) / 2;
+        pos.currentPutMid = Math.round(currentMid * 100) / 100;
+        pos.currentPutMarkedAt = new Date().toISOString();
+        marksUpdated = true;
       }
     } catch { /* can't fetch current price, skip */ }
 
@@ -963,6 +1111,7 @@ async function checkEarlyClose() {
     }
   }
 
+  if (marksUpdated) savePositions(positions);
   return signals;
 }
 
@@ -1006,6 +1155,7 @@ async function processEarlyCloseSignals(signals, positions) {
           `**${sig.symbol}** $${sig.strike}P 止盈平仓\n\n原始权利金: $${sig.originalPremium} → 当前: $${sig.currentPremium}\nPnL: **+$${closePnl}** (${sig.profitCapture}%利润)`,
           'moneybag');
       }
+      recordClosedExperience(positions[idx]);
     }
   }
   savePositions(positions);
@@ -1047,6 +1197,8 @@ async function runDaily() {
     console.log('💰 提前平仓检查...');
     const earlySignals = await checkEarlyClose();
     if (earlySignals.length) {
+      // Preserve the fresh option marks saved by checkEarlyClose().
+      positions = loadPositions();
       await processEarlyCloseSignals(earlySignals, positions);
     } else {
       console.log('   无需操作');
@@ -1059,6 +1211,11 @@ async function runDaily() {
   const gates = checkRiskGates(updatedStats);
   if (!gates.canOpen) {
     console.log(`⛔ ${gates.reason}`);
+  }
+
+  if (POOL_STATE.valid === false) {
+    generateDashboard();
+    return;
   }
 
   // 4. Pre-fetch shared data
@@ -1200,12 +1357,14 @@ async function runDaily() {
     // Save journal
     const alreadyHolding = positions.some(p => p.status === 'open' && p.symbol === symbol);
     const currentGates = checkRiskGates(loadStats());
-    let willOpen = !alreadyHolding && currentGates.canOpen && decision.stance === '可卖Put';
+    const entryGate = validateEntryContract(contract, market.price);
+    let willOpen = !alreadyHolding && currentGates.canOpen && entryGate.ok && decision.stance === '可卖Put';
     let actionNote = '不操作';
     let tradeDetail = null;
 
     if (alreadyHolding) actionNote = '已有持仓';
     else if (!currentGates.canOpen) actionNote = '风控阻断';
+    else if (!entryGate.ok) actionNote = `合约门槛阻断: ${entryGate.reasons.join('；')}`;
     else if (decision.stance === '谨慎卖Put') actionNote = '谨慎不下单';
     else if (decision.stance === '暂不卖Put') actionNote = '信号不利';
 
@@ -1222,14 +1381,13 @@ async function runDaily() {
         willOpen = false;
       } else {
         actionNote = `开仓 ${contracts}张`;
-        tradeDetail = { strike: contract.strike, premium: Math.round((contract.bid + (contract.ask || contract.bid)) / 2 * 100) / 100, contracts, expireDate: contract.expireDate, dte: contract.dte };
+        tradeDetail = { strike: contract.strike, premium: Math.round(contract.bid * 100) / 100, contracts, expireDate: contract.expireDate, dte: contract.dte };
       }
     }
 
     // Notify when AI says "可卖Put" but position wasn't opened
     if (decision.stance === '可卖Put' && !willOpen) {
-      const midPx = (contract.bid + (contract.ask || contract.bid)) / 2;
-      const annRet = (midPx / contract.strike * 365 / contract.dte * 100).toFixed(1);
+      const annRet = (contract.bid / contract.strike * 365 / contract.dte * 100).toFixed(1);
       await sendNotify(`🔔 ${symbol} 可卖Put $${contract.strike}P 未开仓`,
         `**${symbol}** $${contract.strike}P DTE${contract.dte}\n\n年化: ${annRet}% | OTM: ${((1 - contract.strike / priceInfo.price) * 100).toFixed(1)}%\n风险: ${decision.riskScore}/10 | 原因: ${actionNote}\n\n${decision.reasoning}`,
         'bell'
@@ -1266,7 +1424,7 @@ async function runDaily() {
 
     // Open paper position
     if (willOpen) {
-      const pos = openPaperPosition(symbol, contract, decision);
+      const pos = openPaperPosition(symbol, contract, decision, market, factors);
       if (pos) {
       positions = loadPositions();
       positions.push(pos);
@@ -1295,7 +1453,7 @@ async function runDaily() {
       saveOrders(orders);
 
       const statusEmoji = decision.stance === '可卖Put' ? '📝' : '🧪';
-      console.log(`  ${statusEmoji} 模拟成交 (中间价)`);
+      console.log(`  ${statusEmoji} 模拟成交 (Bid保守价)`);
       console.log(`     成交价: $${pos.premium} | Bid: $${contract.bid} / Ask: $${contract.ask} | 价差: $${order.spread}`);
       console.log(`     数量: ${pos.contracts}张 | 权利金: $${pos.premiumCollected} | 保证金: $${pos.capitalUsed}`);
       console.log(`     年化: ${pos.annualizedReturn}% | 到期: ${pos.expireDate} (${Math.ceil((new Date(pos.expireDate) - new Date()) / 86400000)}天)`);
@@ -1569,16 +1727,26 @@ function buildDashboardHtml() {
     if (matchingEntry) {
       pos.currentPrice = matchingEntry.price;
       pos.currentPutMid = matchingEntry.contract ? Math.round((matchingEntry.contract.bid + (matchingEntry.contract.ask || matchingEntry.contract.bid)) / 2 * 100) / 100 : null;
+      pos.currentPutMarkedAt = matchingEntry.timestamp || null;
       pos.currentOtm = matchingEntry.contract?.otm;
     }
   }
 
+  const openPositions = positions.filter(p => p.status === 'open');
+  const missingOptionMarks = openPositions.filter(p => !(Number.isFinite(Number(p.currentPutMid)) && Number(p.currentPutMid) >= 0));
+  const openMarkPnl = openPositions.reduce((sum, p) => {
+    if (!(Number.isFinite(Number(p.currentPutMid)) && Number(p.currentPutMid) >= 0)) return sum;
+    return sum + (Number(p.premiumCollected) || 0) - Number(p.currentPutMid) * 100 * (Number(p.contracts) || 0);
+  }, 0);
   const capitalInfo = {
     total: CONFIG.capital,
-    deployed: Math.round(positions.filter(p => p.status === 'open').reduce((s, p) => s + (p.capitalUsed || 0), 0) * 100) / 100,
-    pendingPremium: Math.round(positions.filter(p => p.status === 'open').reduce((s, p) => s + (p.premiumCollected || 0), 0) * 100) / 100,
+    deployed: Math.round(openPositions.reduce((s, p) => s + (p.capitalUsed || 0), 0) * 100) / 100,
+    pendingPremium: Math.round(openPositions.reduce((s, p) => s + (p.premiumCollected || 0), 0) * 100) / 100,
     realizedPnL: Math.round(stats.netPnL * 100) / 100,
-    totalEquity: Math.round((CONFIG.capital + (positions.filter(p => p.status === 'closed' && p.result).reduce((s, p) => s + (p.pnl || 0), 0)) + positions.filter(p => p.status === 'open').reduce((s, p) => s + (p.premiumCollected || 0), 0)) * 100) / 100,
+    openMarkPnl: Math.round(openMarkPnl * 100) / 100,
+    totalEquity: Math.round((CONFIG.capital + stats.netPnL + openMarkPnl) * 100) / 100,
+    equityEstimated: missingOptionMarks.length > 0,
+    missingOptionMarks: missingOptionMarks.map(p => p.symbol),
     maxDrawdown: Math.round(stats.maxDrawdown * 10000) / 100,
   };
   capitalInfo.available = Math.round((capitalInfo.total - capitalInfo.deployed) * 100) / 100;
@@ -1596,7 +1764,7 @@ function buildDashboardHtml() {
     if (kf && kf.bars) klineData[sym] = kf;
   }
 
-  const dataJson = JSON.stringify({ stats, positions, orders: orders.slice(-50).reverse(), journalEntries: journalEntries.slice(0, 100), experience, capital: capitalInfo, scan: scanData, targets: currentTargets, watchlist, kline: klineData, generatedAt: new Date().toISOString() });
+  const dataJson = JSON.stringify({ stats, positions, orders: orders.slice(-50).reverse(), journalEntries: journalEntries.slice(0, 100), experience, capital: capitalInfo, scan: scanData, targets: currentTargets, watchlist, poolError: POOL_STATE.error || '', kline: klineData, generatedAt: new Date().toISOString() });
 
   const html = `<!DOCTYPE html>
 <html lang="zh-HK">
@@ -1683,7 +1851,7 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
 <body>
 <div class="header">
   <h1><svg width="24" height="24" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:6px"><rect x="3" y="7" width="18" height="13" rx="3" fill="#4d9eff"/><circle cx="9" cy="13" r="2" fill="#0d1522"/><circle cx="15" cy="13" r="2" fill="#0d1522"/><rect x="9" y="16" width="6" height="2" rx="1" fill="#0d1522"/><rect x="10" y="3" width="4" height="5" rx="2" fill="#4d9eff"/><circle cx="12" cy="6" r="1" fill="#ffd54a"/></svg>Sell Put 自动化机器人</h1>
-  <span style="font-size:.75rem;color:#6b7fa3;margin-left:8px;padding:2px 8px;background:#1a2942;border-radius:4px;border:1px solid #1f2b44">v2.0.1</span>
+  <span style="font-size:.75rem;color:#6b7fa3;margin-left:8px;padding:2px 8px;background:#1a2942;border-radius:4px;border:1px solid #1f2b44">${AGENT_VERSION} | ${AGENT_VERSION_NOTE}</span>
   <span>Generated: <span id="genTime"></span>
   <label style="margin-left:12px;cursor:pointer;font-size:.8rem;color:#6b7fa3"><input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()" style="vertical-align:middle;margin-right:4px">自动刷新 <span id="refreshCountdown"></span></label>
   <button onclick="location.reload()" style="padding:4px 14px;background:#1a2942;border:1px solid #1f2b44;color:#b0c4e8;border-radius:6px;cursor:pointer;margin-left:10px;font-size:.8rem">🔄 刷新</button></span>
@@ -1698,6 +1866,7 @@ details{margin:8px 0}details>summary{cursor:pointer;color:#4d9eff;font-size:.85r
   <button class="tab" onclick="switchTab('settings', event)">设置</button>
 </div>
 <div class="panels">
+  ${POOL_STATE.error ? `<div style="padding:10px 14px;margin-bottom:12px;border:1px solid #7f1d1d;background:#3d1e2a;color:#ff9bab;border-radius:6px">${POOL_STATE.error}</div>` : ''}
   <div id="panel-positions" class="panel active"></div>
   <div id="panel-orders" class="panel"></div>
   <div id="panel-journal" class="panel"></div>
@@ -1791,7 +1960,7 @@ function stanceBadge(s) {
   html += '<div class="cap-item"><span class="cap-label">可用</span><span class="cap-value" style="color:#6b7fa3">$'+c.available.toLocaleString()+'</span></div>';
   html += '<div class="cap-item"><span class="cap-label">待结算权利金</span><span class="cap-value" style="color:#45d483">$'+c.pendingPremium.toLocaleString()+'</span></div>';
   html += '<div class="cap-item"><span class="cap-label">已实现盈亏</span><span class="cap-value '+(c.realizedPnL>=0?'up':'dn')+'">$'+c.realizedPnL.toLocaleString()+'</span></div>';
-  html += '<div class="cap-item"><span class="cap-label">当前权益</span><span class="cap-value '+(c.totalEquity>=c.total?'up':'dn')+'">$'+c.totalEquity.toLocaleString()+'</span></div>';
+  html += '<div class="cap-item"><span class="cap-label">当前权益'+(c.equityEstimated?'（估算）':'')+'</span><span class="cap-value '+(c.totalEquity>=c.total?'up':'dn')+'">$'+c.totalEquity.toLocaleString()+'</span>'+(c.equityEstimated?'<span class="muted">缺少期权现价: '+c.missingOptionMarks.join(', ')+'</span>':'')+'</div>';
   html += '</div>';
   html += '<div class="capital-bar"><div class="capital-used" style="width:'+deployedPct+'%"></div><div class="capital-free" style="width:'+(100-deployedPct)+'%"></div></div>';
 
@@ -2659,7 +2828,9 @@ function showStats() {
   const stats = recalcStats();
   const positions = loadPositions();
   const open = positions.filter(p => p.status === 'open');
-  const closed = positions.filter(p => p.status === 'closed');
+  const closed = positions
+    .filter(p => p.status === 'closed')
+    .sort((a, b) => new Date(a.closedAt || a.expireDate || 0) - new Date(b.closedAt || b.expireDate || 0));
 
   console.log('\n📊 Sell Put Agent · 统计面板\n');
   console.log(`总决策: ${stats.totalDecisions} | 总交易: ${stats.totalPositions} | 持仓: ${open.length}`);
@@ -2696,8 +2867,30 @@ function showStats() {
 // ─── Main ─────────────────────────────────────────────────────
 
 function showVersion() {
-  console.log('Sell Put Agent v2.0.1');
+  console.log(`Sell Put Agent ${AGENT_VERSION} | ${AGENT_VERSION_NOTE}`);
   console.log(`Data: ${AGENT_DIR}`);
+}
+
+function runSelfTest() {
+  const valid = {
+    bid: 1,
+    ask: 1.1,
+    strike: 90,
+    underlying: 100,
+    delta: -0.15,
+    dte: 10,
+    oi: 100,
+  };
+  const checks = [
+    ['合格合约通过', validateEntryContract(valid, valid.underlying).ok],
+    ['OTM不足被阻断', !validateEntryContract({ ...valid, strike: 97 }, valid.underlying).ok],
+    ['价差过大被阻断', !validateEntryContract({ ...valid, ask: 1.4 }, valid.underlying).ok],
+    ['Delta越界被阻断', !validateEntryContract({ ...valid, delta: -0.35 }, valid.underlying).ok],
+    ['OI不足被阻断', !validateEntryContract({ ...valid, oi: 20 }, valid.underlying).ok],
+  ];
+  const failed = checks.filter(([, ok]) => !ok);
+  for (const [name, ok] of checks) console.log(`${ok ? '✅' : '❌'} ${name}`);
+  if (failed.length) throw new Error(`自检失败: ${failed.map(([name]) => name).join('、')}`);
 }
 
 async function main() {
@@ -2705,31 +2898,39 @@ async function main() {
   ensureDir(JOURNAL_DIR);
 
   const mode = process.argv[2] || 'daily';
-
-  switch (mode) {
-    case 'daily':     await runDaily();       break;
-    case 'stats':     showStats();            break;
-    case 'report':    await generateReport(); break;
-    case 'dashboard': generateDashboard();    break;
-    case 'serve':     await serveDashboard(); break;
-    case 'scan':      await runScan();        break;
-    case 'symbols':   await manageSymbols();  break;
-    case 'watchlist': await manageWatchlist(); break;
-    case 'setup':     await setupCron();      break;
-    case 'env':     await setupEnv();       break;
-    case 'version': showVersion();          break;
-    default:
-      console.log('Usage: node scripts/sell-put-agent.mjs [daily|stats|report|dashboard|scan|symbols|setup|env|version]');
-      console.log('  daily     - 每日卖Put分析（拉取数据→AI决策→记录→结算到期）');
-      console.log('  stats     - 显示统计面板');
-      console.log('  report    - 生成今日 Markdown 日报');
-      console.log('  dashboard - 生成可视化仪表板 (HTML 文件)');
-      console.log('  scan      - 扫描标的池的IV溢价排名和异动');
-      console.log('  symbols   - 管理标的池 (list/add/remove)');
-      console.log('  setup     - 安装 launchd 自动运行');
-      console.log('  env       - 将 DEEPSEEK_API_KEY 写入本地 .env 文件');
-      console.log('  version   - 版本信息');
-      console.log('\n首次使用: export DEEPSEEK_API_KEY=sk-xxx && node scripts/sell-put-agent.mjs env');
+  const lockedModes = new Set(['daily', 'stats', 'report', 'dashboard', 'scan', 'symbols', 'watchlist']);
+  let releaseLock = () => {};
+  try {
+    if (lockedModes.has(mode)) releaseLock = acquireRunLock(mode);
+    switch (mode) {
+      case 'daily':     await runDaily();       break;
+      case 'stats':     showStats();            break;
+      case 'report':    await generateReport(); break;
+      case 'dashboard': generateDashboard();    break;
+      case 'serve':     await serveDashboard(); break;
+      case 'scan':      await runScan();        break;
+      case 'symbols':   await manageSymbols();  break;
+      case 'watchlist': await manageWatchlist(); break;
+      case 'setup':     await setupCron();      break;
+      case 'env':       await setupEnv();        break;
+      case 'version':   showVersion();           break;
+      case 'self-test': runSelfTest();            break;
+      default:
+        console.log('Usage: node scripts/sell-put-agent.mjs [daily|stats|report|dashboard|scan|symbols|setup|env|version|self-test]');
+        console.log('  daily     - 每日卖Put分析（拉取数据→AI决策→记录→结算到期）');
+        console.log('  stats     - 显示统计面板');
+        console.log('  report    - 生成今日 Markdown 日报');
+        console.log('  dashboard - 生成可视化仪表板 (HTML 文件)');
+        console.log('  scan      - 扫描标的池的IV溢价排名和异动');
+        console.log('  symbols   - 管理标的池 (list/add/remove)');
+        console.log('  setup     - 安装 launchd 自动运行');
+        console.log('  env       - 将 DEEPSEEK_API_KEY 写入本地 .env 文件');
+        console.log('  version   - 版本信息');
+        console.log('  self-test - 运行不联网的开仓硬门槛自检');
+        console.log('\n首次使用: export DEEPSEEK_API_KEY=sk-xxx && node scripts/sell-put-agent.mjs env');
+    }
+  } finally {
+    releaseLock();
   }
 }
 

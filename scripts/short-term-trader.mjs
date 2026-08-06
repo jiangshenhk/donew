@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// short-term-trader.mjs — Short-Term K-line Trader v2.0.1  (2026-08-03: 全面迁移VPS + 交易明细翻页/SLTP线时间限定)
+// short-term-trader.mjs — Short-Term K-line Trader v2.0.5  (2026-08-06: 修复5分钟K线清洗、更新与BTC代码映射)
 // 5分钟K线短线交易机器人，DeepSeek AI + 技术指标分析
 // 纸面模拟交易：QQQ / IBIT / MSTR
 // 数据存储：~/.donew-trader/（独立于仓库，不 commit）
@@ -27,8 +27,8 @@ const SIGNALS_DIR = path.join(AGENT_DIR, 'signals');
 const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 
-const VERSION = 'v2.0.4';
-const VERSION_NOTE = '时间MMdd HHMMSS 24h + K线全量历史';
+const VERSION = 'v2.0.5';
+const VERSION_NOTE = '2026-08-06 | 修复5分钟K线缺失与BTC显示';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
@@ -105,6 +105,12 @@ function num(v) {
   return Number.isFinite(n) ? Math.round(n * 10000) / 10000 : null;
 }
 
+function yahooSymbol(symbol) {
+  const value = String(symbol || '').trim().toUpperCase();
+  if (['BTC', 'BTCUSD', 'BTC/USD', 'XBTUSD'].includes(value)) return 'BTC-USD';
+  return value;
+}
+
 // ─── Market Hours ──────────────────────────────────────────────
 
 function etTimeParts() {
@@ -170,33 +176,61 @@ function saveSignals(symbol, data) {
   saveJson(fpath, data);
 }
 
+function normalizeFiveMinuteBars(bars) {
+  const buckets = new Map();
+  for (const source of (bars || [])) {
+    const rawTime = Number(source?.t);
+    const open = num(source?.o);
+    const high = num(source?.h);
+    const low = num(source?.l);
+    const close = num(source?.c);
+    if (![rawTime, open, high, low, close].every(Number.isFinite)) continue;
+
+    // Yahoo's unfinished latest candle may carry the request second. It still
+    // belongs to the five-minute bucket that started before that timestamp.
+    const bucketTime = Math.floor(rawTime / 300) * 300;
+    const previous = buckets.get(bucketTime);
+    if (!previous || rawTime >= previous.rawTime) {
+      buckets.set(bucketTime, {
+        rawTime,
+        bar: { t: bucketTime, o: open, h: high, l: low, c: close, v: num(source?.v) || 0 },
+      });
+    }
+  }
+  return [...buckets.values()].map(item => item.bar).sort((a, b) => a.t - b.t);
+}
+
 function loadKlineCache(symbol) {
   const fpath = path.join(KLINE_DIR, symbol + '_5m.json');
-  return loadJson(fpath);
+  const cached = loadJson(fpath);
+  if (!cached?.bars) return cached;
+  const cleaned = normalizeFiveMinuteBars(cached.bars);
+  const changed = cleaned.length !== cached.bars.length
+    || cleaned.some((bar, index) => bar.t !== Number(cached.bars[index]?.t));
+  if (changed) {
+    cached.bars = cleaned;
+    cached.cleanedAt = new Date().toISOString();
+    saveJson(fpath, cached);
+  }
+  return cached;
 }
 
 function saveKlineCache(symbol, newData) {
   const fpath = path.join(KLINE_DIR, symbol + '_5m.json');
   const existing = loadJson(fpath);
+  const merged = normalizeFiveMinuteBars([
+    ...(existing?.bars || []),
+    ...(newData?.bars || []),
+  ]);
+  if (!merged.length) return;
 
-  // Only keep 5-min aligned bars (drop Yahoo intermediate ticks)
-  const cleanBars = (bars) => (bars || [])
-    .filter(b => b.t % 300 === 0 && Number.isFinite(b.t))
-    .sort((a, b) => a.t - b.t)
-    .filter((b, i, arr) => i === 0 || b.t !== arr[i - 1].t);
-
-  if (existing && existing.bars && existing.bars.length > 0 && newData.bars && newData.bars.length > 0) {
-    existing.bars = cleanBars(existing.bars);
-    const seen = new Set(existing.bars.map(b => b.t));
-    const fresh = cleanBars(newData.bars).filter(b => !seen.has(b.t));
-    if (fresh.length === 0) return;
-    existing.bars = [...existing.bars, ...fresh].sort((a, b) => a.t - b.t);
-    existing.date = new Date().toISOString();
-    saveJson(fpath, existing);
-  } else {
-    newData.bars = cleanBars(newData.bars);
-    saveJson(fpath, newData);
-  }
+  saveJson(fpath, {
+    ...(existing || {}),
+    ...newData,
+    date: new Date().toISOString(),
+    interval: INTERVAL,
+    bars: merged,
+  });
 }
 
 function recalcStats(orders) {
@@ -257,7 +291,8 @@ function recalcStats(orders) {
 // ─── Yahoo Finance ──────────────────────────────────────────────
 
 async function fetchYahooBars(symbol) {
-  const url = `${YAHOO_BASE}/${encodeURIComponent(symbol)}?range=${RANGE}&interval=${INTERVAL}&events=history&includePrePost=false`;
+  const resolvedSymbol = yahooSymbol(symbol);
+  const url = `${YAHOO_BASE}/${encodeURIComponent(resolvedSymbol)}?range=${RANGE}&interval=${INTERVAL}&events=history&includePrePost=false`;
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; donew-trader/1.0)' },
@@ -1641,14 +1676,17 @@ function loadChart(symbol) {
 
   const sigs = (DATA.signals[symbol] || []).filter(s => s.aiScore != null && s.time);
   if (sigs.length) {
-    const scoreData = [];
+    const scoreBuckets = new Map();
     for (const s of sigs) {
-      const t = Math.round(new Date(s.time).getTime() / 1000 / 300) * 300;
-      if (t >= bars[0]?.t && t <= bars[bars.length - 1]?.t && scoreData.length < 100) {
-        scoreData.push({ time: t, value: s.aiScore,
+      const rawTime = Math.floor(new Date(s.time).getTime() / 1000);
+      if (!Number.isFinite(rawTime)) continue;
+      const t = Math.floor(rawTime / 300) * 300;
+      if (t >= bars[0]?.t && t <= bars[bars.length - 1]?.t) {
+        scoreBuckets.set(t, { time: t, value: s.aiScore,
           color: s.aiScore >= 7 ? 'rgba(69,212,131,0.7)' : s.aiScore >= 5 ? 'rgba(255,213,74,0.6)' : 'rgba(255,107,125,0.5)' });
       }
     }
+    const scoreData = [...scoreBuckets.values()].sort((a, b) => a.time - b.time).slice(-100);
     if (scoreData.length) {
       const scoreSeries = _klineChart.addHistogramSeries({ priceScaleId: 'score', priceFormat: { type: 'volume' } });
       scoreSeries.setData(scoreData);
@@ -1701,7 +1739,10 @@ function loadChart(symbol) {
     }
   }
 
-  if (markers.length) candleSeries.setMarkers(markers);
+  if (markers.length) {
+    markers.sort((a, b) => a.time - b.time);
+    candleSeries.setMarkers(markers);
+  }
 
   // ── Trade lines + arrows for all positions (open + closed) ──
   const gray = '#808080';

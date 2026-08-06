@@ -31,6 +31,7 @@ node scripts/sell-put-agent.mjs watchlist    # 管理扫描池 (list/add/remove)
 node scripts/sell-put-agent.mjs setup        # 安装 launchd 自动运行
 node scripts/sell-put-agent.mjs env          # 写入 API Key 到本地文件
 node scripts/sell-put-agent.mjs version      # 版本
+node scripts/sell-put-agent.mjs self-test    # 不联网验证开仓硬门槛
 ```
 
 ## 数据流
@@ -82,16 +83,43 @@ DeepSeek API → 生成决策（可卖/谨慎/不卖）
 
 - AI 结论 = "可卖Put"（"谨慎/暂不"不执行）
 - 行权价 ≤ ATR安全行权价
+- OTM ≥ 4%，Delta 绝对值 0.05–0.25，DTE 5–25天
+- Bid ≥ 0.10、OI ≥ 50、Bid/Ask 价差不超过 Mid 的15%
+- 模拟卖出成交价使用 Bid，不使用理想化的中间价
 - 风控关卡全部通过
 
 ## 自动化部署
 
 ```bash
-node scripts/sell-put-agent.mjs setup    # 生成 launchd plist
-launchctl load ~/Library/LaunchAgents/com.donew.sellput.plist  # 启用
+cd /home/ai_worker/donew
+pm2 restart donew-backend
 ```
 
-**运行时间**：每晚 21:30 – 04:30（美股盘），每 15 分钟一次，共 29 次。
+生产环境由 `vps-backend/src/cron.js` 每15分钟触发，并使用 `America/New_York` 判断美股星期一至星期五 09:30–16:15。该方式自动适配夏令时，也不会漏掉香港星期六凌晨对应的美国星期五交易。
+
+Agent 同时使用进程内运行状态和 `~/.donew-agent/sell-put-agent.lock` 防止任务重叠。所有 JSON 状态文件使用“同目录临时文件 + rename”原子替换。
+
+### 交易池失败关闭
+
+- `pool.json` 不存在时允许从旧配置迁移或创建默认池。
+- `pool.json` 已存在但损坏时，继续管理已有持仓，但禁止任何新开仓。
+- 不会用默认标的覆盖损坏文件，仪表盘会显示配置错误。
+
+### 仪表盘访问保护
+
+在 `vps-backend/.env` 设置：
+
+```bash
+AGENT_DASHBOARD_TOKEN=一段足够长的随机字符串
+```
+
+设置后，`/api/agent/dashboard` 和 `/api/agent/status` 需要现有登录JWT，或 `Authorization: Bearer <token>`。未设置时保持现有公开访问行为，方便平滑升级。
+
+### 权益与经验记录
+
+- 当前权益 = 初始资金 + 已实现PnL + 未平仓权利金的盯市PnL。
+- 未平仓盯市PnL = 已收权利金 − 当前买回Put成本；缺少当前期权价时按0估算并明确标记。
+- 仓位到期或提前平仓后，以 `positionId` 幂等写入 `experience.json`，记录开仓时的 Delta、DTE、OTM、价差、IV位置、风险评分与最终结果。
 
 ## 仪表板
 
@@ -107,17 +135,20 @@ launchctl load ~/Library/LaunchAgents/com.donew.sellput.plist  # 启用
 ## 文件结构
 
 ```
-scripts/sell-put-agent.mjs              # 单文件 Agent (~2400 行)
+scripts/sell-put-agent.mjs              # 单文件 Agent (~2900 行)
 vps-backend/src/api/_lib/
-  └─ barchart-options-chain.js          # Barchart 期权链模块（Agent 和 API 共用）
+  └─ barchart-options-chain.js          # Web/API 共用期权链模块
+vps-backend/src/lib/marketHours.js       # 可独立测试的纽约交易时段判断
 
 部署依赖（Agent 本身不直接修改）：
 stockprice/config/symbols.json          # 行情中心标的列表（VPS 行情服务读取）
 ```
 
+Agent 目前仍在 `sell-put-agent.mjs` 内保留一份兼容自身字段结构的 Barchart 期权链实现；尚未与 Web/API 共用模块合并，代码内有明确 TODO，修改筛选规则时应同步检查两处。
+
 ## 版本
 
-v2.0.1 · 2026-08-03（全面迁移VPS/+IV均值回归/+波动率异动提醒/+ntfy邮件双通知）
+v2.0.2 | 2026-08-06 21:12 | 修复调度、并发、原子存储、开仓硬门槛、统计、权益和经验记录
 
 ## 与 Web 工具（sell-put-decision-tool.html）差异
 

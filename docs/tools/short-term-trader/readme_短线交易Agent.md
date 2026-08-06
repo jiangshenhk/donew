@@ -63,6 +63,13 @@ Yahoo Finance 5分钟K线 → 技术指标计算（EMA/MACD/RSI/ATR/关键价位
   └── dashboard.html     # 可视化仪表板
 ```
 
+### 5分钟K线缓存规则
+
+- Yahoo 返回的最新未完成K线可能带有请求时的秒数，程序会把它归入所在的5分钟时间桶，而不是直接删除。
+- 同一5分钟时间桶只保留一条，后获取的数据覆盖较早的未完成数据。
+- 缓存读取时会自动清理旧的错位时间戳、重复时间桶和无效 OHLC 数据，不需要手工删除缓存文件。
+- `BTC`、`BTCUSD`、`BTC/USD`、`XBTUSD` 请求会统一映射为 Yahoo 的 `BTC-USD`。
+
 ## 技术指标
 
 每次分析计算：
@@ -111,7 +118,7 @@ launchctl load ~/Library/LaunchAgents/com.donew.shorttrader.plist  # 启用
 
 ## 版本
 
-v0.1.0 · 2026-07-28
+v2.0.5 · 2026-08-06 · 修复5分钟K线缺失、错位缓存与BTC代码映射
 
 ## 邮件通知（其他工具复用参考）
 

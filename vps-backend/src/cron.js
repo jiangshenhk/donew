@@ -1,10 +1,18 @@
 import cron from 'node-cron';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fetchAllPrices } from './services/stockPrice.js';
 import { fetchAllNews } from './services/jin10News.js';
 import config from './config.js';
+import { isSellPutMarketWindow } from './lib/marketHours.js';
+
+export { isSellPutMarketWindow } from './lib/marketHours.js';
 
 let tasks = [];
+let sellPutRunning = false;
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const SELL_PUT_SCRIPT = path.join(REPO_ROOT, 'scripts', 'sell-put-agent.mjs');
 
 function runReport(type) {
   const label = { morning: '早报', evening: '晚报', weekly: '周报' }[type] || type;
@@ -22,9 +30,13 @@ function runReport(type) {
 }
 
 function runSellPutAgent() {
-  const cmd = 'node scripts/sell-put-agent.mjs daily';
+  if (sellPutRunning) {
+    console.log('[cron] sellput agent skipped: previous run is still active');
+    return;
+  }
+  sellPutRunning = true;
   console.log('[cron] sellput agent start');
-  exec(cmd, (err, stdout, stderr) => {
+  execFile(process.execPath, [SELL_PUT_SCRIPT, 'daily'], { cwd: REPO_ROOT, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
     if (stdout) console.log(stdout.trim());
     if (stderr) console.error(stderr.trim());
     if (err) {
@@ -32,6 +44,7 @@ function runSellPutAgent() {
     } else {
       console.log('[cron] sellput agent done');
     }
+    sellPutRunning = false;
   });
 }
 
@@ -67,8 +80,11 @@ export function startCronJobs() {
   const weeklyTask = cron.schedule('0 9 * * 6', () => runReport('weekly'));
   tasks.push(weeklyTask);
 
-  // SellPut Agent: 美股时段每15分钟（21:30-04:30 HK, Mon-Fri）
-  const sellputTask = cron.schedule('*/15 21-23,0-4 * * 1-5', () => runSellPutAgent());
+  // Trigger every 15 minutes, then gate by New York time. This handles DST and
+  // the Hong Kong Saturday morning portion of the US Friday session correctly.
+  const sellputTask = cron.schedule('*/15 * * * *', () => {
+    if (isSellPutMarketWindow()) runSellPutAgent();
+  }, { timezone: 'America/New_York' });
   tasks.push(sellputTask);
 
   console.log(`Cron started: stock every ${config.stockIntervalMinutes}min, news every ${config.newsIntervalMinutes}min, reports morning/evening/weekly, sellput agent every 15min market hours`);

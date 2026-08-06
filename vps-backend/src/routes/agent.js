@@ -2,13 +2,32 @@ import { Router } from 'express';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { timingSafeEqual } from 'node:crypto';
+import { getUserFromReq } from '../api/_lib/auth-utils.js';
 
 const router = Router();
 const AGENT_DIR = join(homedir(), '.donew-agent');
 const DASHBOARD_FILE = join(AGENT_DIR, 'dashboard.html');
 
+function safeTokenEqual(actual, expected) {
+  const left = Buffer.from(String(actual || ''));
+  const right = Buffer.from(String(expected || ''));
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function requireAgentAccess(req, res, next) {
+  const configuredToken = process.env.AGENT_DASHBOARD_TOKEN;
+  if (!configuredToken) return next();
+  if (getUserFromReq(req)) return next();
+  const header = req.headers.authorization || '';
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const supplied = bearer || req.query.token || '';
+  if (safeTokenEqual(supplied, configuredToken)) return next();
+  return res.status(401).json({ ok: false, error: 'Unauthorized' });
+}
+
 // GET /api/agent/dashboard — Sell Put Agent 可视化仪表板
-router.get('/api/agent/dashboard', (req, res) => {
+router.get('/api/agent/dashboard', requireAgentAccess, (req, res) => {
   try {
     if (!existsSync(DASHBOARD_FILE)) {
       return res.status(404).json({ ok: false, message: 'dashboard.html 不存在，请先运行 agent' });
@@ -22,7 +41,7 @@ router.get('/api/agent/dashboard', (req, res) => {
 });
 
 // GET /api/agent/status — Sell Put Agent 数据状态摘要
-router.get('/api/agent/status', (req, res) => {
+router.get('/api/agent/status', requireAgentAccess, (req, res) => {
   try {
     const out = { ok: true, dataDir: AGENT_DIR };
     const read = (name, fn) => {
