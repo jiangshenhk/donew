@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sell-put-agent.mjs — Sell Put Decision Agent v2.0.4  (2026-08-06: K线过期检测收紧+短线运行锁/原子写同步)
+// sell-put-agent.mjs — Sell Put Decision Agent v2.0.5  (2026-08-07: 放宽开仓标准/价差改参考/允许同标的多仓)
 // 每日自动分析 QLD/MSTR/INTC 卖Put机会，记录纸面交易，跟踪胜率
 // 数据存储于 ~/.donew-agent/ (独立于仓库，不 commit)
 //
@@ -57,8 +57,8 @@ const KLINE_DIR       = path.join(AGENT_DIR, 'kline');
 const WATCHLIST_FILE  = path.join(AGENT_DIR, 'watchlist.json');
 const POOL_FILE       = path.join(AGENT_DIR, 'pool.json');
 const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'sell-put-agent.lock');
-const AGENT_VERSION   = 'v2.0.4';
-const AGENT_VERSION_NOTE = '2026-08-06 | K线过期检测收紧+短线运行锁/原子写同步';
+const AGENT_VERSION   = 'v2.0.5';
+const AGENT_VERSION_NOTE = '2026-08-07 | 放宽开仓标准/价差改参考/允许同标的多仓';
 
 const DEFAULT_TRADING   = ['QLD', 'MSTR', 'INTC'];
 const DEFAULT_WATCHLIST = ['QLD', 'MSTR', 'INTC', 'SPY', 'QQQ', 'IWM', 'NVDA', 'TSLA', 'HOOD', 'SOXL', 'AMD', 'TLT', 'GLD', 'XLE'];
@@ -102,13 +102,13 @@ const TARGETS = POOL_STATE.trading;
 const CONFIG = {
   capital: 100000,
   targetMonthlyReturn: 0.025,
-  maxDrawdown: 0.20,
-  maxConsecutiveLosses: 3,
-  maxOpenPositions: 3,
+  maxDrawdown: null,
+  maxConsecutiveLosses: null,
+  maxOpenPositions: 5,
   maxSinglePositionPct: 0.50,
   targetDte: 10,
   targetDelta: 0.15,
-  dteRange: [5, 25],
+  dteRange: [3, 25],
   deltaRange: [0.05, 0.25],
   minOtm: 0.04,
   minBid: 0.10,
@@ -229,10 +229,12 @@ function validateEntryContract(contract, underlyingPrice) {
   const mid = bid != null && ask != null ? (bid + ask) / 2 : null;
   const spreadPct = mid > 0 ? (ask - bid) / mid : null;
   const otm = underlying > 0 && strike > 0 ? (underlying - strike) / underlying : null;
-  if (!(spreadPct != null && spreadPct <= CONFIG.maxSpreadPct)) reasons.push(`价差超过${(CONFIG.maxSpreadPct * 100).toFixed(0)}%`);
   if (!(otm != null && otm >= CONFIG.minOtm)) reasons.push(`OTM低于${(CONFIG.minOtm * 100).toFixed(0)}%`);
 
-  return { ok: reasons.length === 0, reasons, bid, ask, mid, spreadPct, otm, underlying };
+  const warnings = [];
+  if (!(spreadPct != null && spreadPct <= CONFIG.maxSpreadPct)) warnings.push(`价差超过${(CONFIG.maxSpreadPct * 100).toFixed(0)}%，仅作参考`);
+
+  return { ok: reasons.length === 0, reasons, warnings, bid, ask, mid, spreadPct, otm, underlying };
 }
 
 // ─── Storage ──────────────────────────────────────────────────
@@ -890,10 +892,10 @@ function checkRiskGates(stats) {
   if (open.length >= CONFIG.maxOpenPositions) {
     return { canOpen: false, reason: `已达到最大持仓数(${CONFIG.maxOpenPositions})` };
   }
-  if (stats.consecutiveLosses >= CONFIG.maxConsecutiveLosses) {
+  if (CONFIG.maxConsecutiveLosses != null && stats.consecutiveLosses >= CONFIG.maxConsecutiveLosses) {
     return { canOpen: false, reason: `连续亏损${stats.consecutiveLosses}笔(上限${CONFIG.maxConsecutiveLosses})，暂停开仓` };
   }
-  if (stats.maxDrawdown >= CONFIG.maxDrawdown) {
+  if (CONFIG.maxDrawdown != null && stats.maxDrawdown >= CONFIG.maxDrawdown) {
     return { canOpen: false, reason: `最大回撤${(stats.maxDrawdown*100).toFixed(1)}%已达${(CONFIG.maxDrawdown*100).toFixed(0)}%上限` };
   }
   return { canOpen: true, reason: '' };
@@ -1302,7 +1304,7 @@ async function runDaily() {
         date: todayStr(), timestamp: new Date().toISOString(), symbol,
         price: prices[symbol]?.price || null,
         contract: null, market: null,
-        decision: { stance: '无信号', riskScore: 10, putStance: '不利', temperature: '--', blackSwan: '--', reasoning: '无匹配期权合约 (DTE 5-25, 有bid)' },
+        decision: { stance: '无信号', riskScore: 10, putStance: '不利', temperature: '--', blackSwan: '--', reasoning: '无匹配期权合约 (DTE 3-25, 有bid)' },
       });
       continue;
     }
@@ -1432,15 +1434,13 @@ async function runDaily() {
     const factors = buildJudgmentFactors(symbol, priceInfo, contract, market, decision);
 
     // Save journal
-    const alreadyHolding = positions.some(p => p.status === 'open' && p.symbol === symbol);
     const currentGates = checkRiskGates(loadStats());
     const entryGate = validateEntryContract(contract, market.price);
-    let willOpen = !alreadyHolding && currentGates.canOpen && entryGate.ok && decision.stance === '可卖Put';
+    let willOpen = currentGates.canOpen && entryGate.ok && decision.stance === '可卖Put';
     let actionNote = '不操作';
     let tradeDetail = null;
 
-    if (alreadyHolding) actionNote = '已有持仓';
-    else if (klineError) actionNote = `K线失败: ${klineError}`;
+    if (klineError) actionNote = `K线失败: ${klineError}`;
     else if (klineStale?.stale) actionNote = `K线过期: ${klineStale.reason}`;
     else if (!currentGates.canOpen) actionNote = '风控阻断';
     else if (!entryGate.ok) actionNote = `合约门槛阻断: ${entryGate.reasons.join('；')}`;
@@ -2986,7 +2986,7 @@ function runSelfTest() {
   const checks = [
     ['合格合约通过', validateEntryContract(valid, valid.underlying).ok],
     ['OTM不足被阻断', !validateEntryContract({ ...valid, strike: 97 }, valid.underlying).ok],
-    ['价差过大被阻断', !validateEntryContract({ ...valid, ask: 1.4 }, valid.underlying).ok],
+    ['价差过大仅提示', validateEntryContract({ ...valid, ask: 1.4 }, valid.underlying).ok && validateEntryContract({ ...valid, ask: 1.4 }, valid.underlying).warnings.length > 0],
     ['Delta越界被阻断', !validateEntryContract({ ...valid, delta: -0.35 }, valid.underlying).ok],
     ['OI不足被阻断', !validateEntryContract({ ...valid, oi: 20 }, valid.underlying).ok],
   ];
