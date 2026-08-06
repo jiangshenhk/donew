@@ -1,5 +1,5 @@
 #!/bin/bash
-# 绑定到 VPS 的部署脚本（由 opencode 在本地执行，自动部署到 VPS）
+# 绑定到 VPS 的安全部署脚本（由本地执行，VPS 从 GitHub 更新）
 # 用法: bash deploy.sh
 
 set -e
@@ -7,31 +7,20 @@ set -e
 VPS_USER="ai_worker"
 VPS_HOST="107.175.44.146"
 VPS_PROJECT="/home/ai_worker/stock_project"
-LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)"
-
 echo "=== 1. SSH 连接验证 ==="
 ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no "${VPS_USER}@${VPS_HOST}" "echo 'SSH OK'"
 
-echo "=== 2. 上传文件到 VPS ==="
-rsync -avz --delete \
-  --exclude 'node_modules' \
-  --exclude 'data/*.db' \
-  --exclude 'data/*.db-journal' \
-  --exclude '.env' \
-  "${LOCAL_DIR}/" "${VPS_USER}@${VPS_HOST}:${VPS_PROJECT}/"
+echo "=== 2. 拉取 GitHub 最新代码 ==="
+ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && git pull"
 
-echo "=== 3. 安装依赖 ==="
+echo "=== 3. 同步规范后端到 PM2 运行目录 ==="
+ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && rsync -a vps-backend/src/ src/ && cp vps-backend/package.json package.json"
+
+echo "=== 4. 安装依赖 ==="
 ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && npm install"
 
-echo "=== 4. 复制 .env 配置 ==="
-if [ -f "${LOCAL_DIR}/.env" ]; then
-  scp "${LOCAL_DIR}/.env" "${VPS_USER}@${VPS_HOST}:${VPS_PROJECT}/.env"
-else
-  echo "WARNING: .env 文件不存在，请在 VPS 上手动创建"
-fi
-
 echo "=== 5. 重启 PM2 进程 ==="
-ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && pm2 delete donew-backend 2>/dev/null; pm2 start src/index.js --name donew-backend && pm2 save"
+ssh "${VPS_USER}@${VPS_HOST}" "cd ${VPS_PROJECT} && pm2 restart donew-backend && pm2 save"
 
 echo "=== 6. 验证 ==="
 sleep 3

@@ -26,11 +26,13 @@
 当前部署架构（2026-08-05 完成统一迁移后）：
 主部署 RackNerd VPS 107.175.44.146（Ubuntu 24.04，Node.js + PM2 + Nginx + SQLite）
 访问入口：https://sellput.top/
-VPS 目录：/home/ai_worker/stock_project/（对应仓库 vps-backend/）
+VPS 目录：/home/ai_worker/stock_project/（Git 仓库根目录；PM2 实际运行根目录下的 src/）
 重启命令：pm2 restart donew-backend
 
 VPS 代码部署：
-ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && npm install && pm2 restart donew-backend"
+ssh ai_worker@107.175.44.146 "cd ~/stock_project && git pull && rsync -a vps-backend/src/ src/ && cp vps-backend/package.json package.json && npm install && pm2 restart donew-backend"
+
+⚠️ 仓库规范后端在 `vps-backend/src/`，PM2 当前运行 `/home/ai_worker/stock_project/src/index.js`。只执行 `git pull` 不会更新 PM2 正在使用的 API；部署时必须执行上面的 `rsync`。否则会出现前端版本已经更新、后台仍生成旧报告的情况。
 
 业务定时任务（VPS；受限外部源采集例外见下方）：
   行情+新闻 每5分钟（PM2 cron）
@@ -311,7 +313,12 @@ DEV-README.md                    ← 总入口：列所有工具，链接各工�
 
 ```bash
 ssh ai_worker@107.175.44.146
-cd /home/ai_worker/stock_project && git pull && npm install && pm2 restart donew-backend
+cd /home/ai_worker/stock_project
+git pull
+rsync -a vps-backend/src/ src/
+cp vps-backend/package.json package.json
+npm install
+pm2 restart donew-backend
 ```
 
 VPS 是唯一生产部署层。推送后不运行 Vercel 部署命令。
@@ -1035,7 +1042,7 @@ Vercel 和 GitHub Pages 不属于当前生产调用链。GitHub Actions 仅可�
 
 **项目目录**：`/home/ai_worker/stock_project/`（对应仓库 `vps-backend/`）
 
-这是项目的核心部署层，承载全部工具前端、API 和定时任务。
+这是项目的核心部署层，承载全部工具前端、API 和定时任务。仓库中的规范后端目录是 `vps-backend/`，PM2 的实际运行副本是 VPS 根目录的 `src/`。
 
 **部署流程**：
 
@@ -1047,13 +1054,19 @@ ssh ai_worker@107.175.44.146
 cd /home/ai_worker/stock_project
 git pull
 
-# 3. 安装依赖
+# 3. 同步规范后端到 PM2 实际运行目录
+rsync -a vps-backend/src/ src/
+cp vps-backend/package.json package.json
+
+# 4. 安装依赖
 npm install
 
-# 4. 重启服务
+# 5. 重启服务
 pm2 restart donew-backend
 pm2 logs donew-backend
 ```
+
+> 不能省略第 3 步。Nginx 静态页面可以随 `git pull` 更新，但 PM2 不直接运行 `vps-backend/src/index.js`；漏掉同步会造成页面版本与 API 版本不一致。同步命令不使用 `--delete`，避免删除 VPS 上的运行数据、日志和本地脚本。
 
 **Cron 定时任务**：
 
