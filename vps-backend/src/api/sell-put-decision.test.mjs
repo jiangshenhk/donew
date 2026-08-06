@@ -28,9 +28,35 @@ test("final contract rules override stale or contradictory option analysis", () 
   assert.match(apiSource, /task\.modules\.option\.result = optionResult/);
 });
 
+test("final contract rules also override contradictory K-line recommendations", () => {
+  assert.match(apiSource, /function reconcileKlineResult/);
+  assert.match(apiSource, /技术面仅作为风险参考/);
+  assert.match(apiSource, /task\.modules\.kline\.result = klineResult/);
+});
+
 test("option analysis waits for K-line data before evaluating the contract", () => {
-  assert.match(apiSource, /while \(!task\.klinePrepared/);
+  assert.match(apiSource, /function waitForKlinePreparation/);
+  assert.match(apiSource, /await waitForKlinePreparation\(task\)/);
   assert.match(apiSource, /task\.klinePrepared = true/);
+});
+
+test("market analysis uses the K-line-corrected snapshot and adjusted risk", () => {
+  assert.match(apiSource, /async function analyzeMarketModule\(task\) \{\s*await waitForKlinePreparation\(task\)/);
+  assert.match(apiSource, /const risk = task\.rules\.risk \|\| task\.rules\.rawRisk/);
+  assert.match(apiSource, /result\.riskScore = risk\.riskScore/);
+});
+
+test("K-line analysis receives the unified contract hard gate", () => {
+  assert.match(apiSource, /统一合约硬门槛/);
+  assert.match(apiSource, /不得推荐高于严格安全行权价上限的点位/);
+  assert.match(apiSource, /task\.rules\.contractDecision = contractDecision/);
+});
+
+test("option terminology keeps IV Rank and IV Percentile definitions separate", () => {
+  assert.match(apiSource, /function enforceOptionMetricDefinitions/);
+  assert.match(apiSource, /IV Rank .*52周最低IV至最高IV区间/);
+  assert.match(apiSource, /IV Percentile .*历史交易日IV低于当前值/);
+  assert.match(apiSource, /更深虚值（更低Delta）/);
 });
 
 test("the K-line module keeps similarity and structure evidence", () => {
@@ -80,7 +106,7 @@ test("module contracts preserve the historical report depth", () => {
 });
 
 test("the browser checks every module response before finalizing", () => {
-  assert.match(pageSource, /v2\.1\.5｜2026-08-06 17:59/);
+  assert.match(pageSource, /v2\.1\.6｜2026-08-06 18:36/);
   assert.match(pageSource, /if \(response\.ok && json\.ok\) return json/);
   assert.match(pageSource, /async function postDecision/);
   assert.match(pageSource, /action: 'status'/);

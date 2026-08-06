@@ -116,10 +116,50 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+async function waitForKlinePreparation(task, timeoutMs = 35000) {
+  const startedAt = Date.now();
+  while (!task.klinePrepared && Date.now() - startedAt < timeoutMs) {
+    await sleep(250);
+  }
+}
+
 function numberOrNull(value) {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function normalizeSellPutTerminology(value) {
+  if (typeof value === "string") {
+    return value
+      .replace(/更浅虚值\s*[（(]\s*更低\s*delta\s*[）)]/gi, "更深虚值（更低Delta）")
+      .replace(/更浅虚值([^。；]{0,16})更低\s*delta/gi, "更深虚值$1更低Delta");
+  }
+  if (Array.isArray(value)) return value.map(normalizeSellPutTerminology);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeSellPutTerminology(item)]));
+  }
+  return value;
+}
+
+function enforceOptionMetricDefinitions(result, metrics) {
+  const normalized = { ...(result || {}) };
+  const ivRank = numberOrNull(metrics?.ivRank);
+  const ivPercentile = numberOrNull(metrics?.ivPercentile);
+  const ivRankText = ivRank === null
+    ? "IV Rank未取到"
+    : `IV Rank ${ivRank.toFixed(2)}%表示当前IV处于52周最低IV至最高IV区间的${ivRank.toFixed(2)}%位置`;
+  const percentileText = ivPercentile === null
+    ? "IV Percentile未取到"
+    : `IV Percentile ${ivPercentile.toFixed(0)}%表示约${ivPercentile.toFixed(0)}%的历史交易日IV低于当前值`;
+  const analysis = `${ivRankText}；${percentileText}。两者口径不同，不能互相替代。`;
+  const details = Array.isArray(normalized.details) ? [...normalized.details] : [];
+  const index = details.findIndex((item) => String(item?.label || "").includes("IV历史位置"));
+  const item = { label: "IV历史位置", analysis };
+  if (index >= 0) details[index] = item;
+  else details.push(item);
+  normalized.details = details;
+  return normalized;
 }
 
 function safeHtml(value) {
@@ -1426,6 +1466,17 @@ export function reconcileOptionResult(result, contractDecision) {
   return normalized;
 }
 
+export function reconcileKlineResult(result, contractDecision) {
+  const normalized = { ...(result || {}) };
+  if (!contractDecision?.approved) {
+    const safeStrike = Number.isFinite(contractDecision?.strictSafeStrike)
+      ? contractDecision.strictSafeStrike.toFixed(2)
+      : "未取到";
+    normalized.sellPutImpact = `技术面仅作为风险参考；当前合约未通过硬门槛，最终行权价必须不高于严格安全价${safeStrike}，本次合约不可执行。`;
+  }
+  return normalized;
+}
+
 async function handleFinalize(req, res, body, startTime) {
   try {
     const reportId = String(body.reportId || "").trim();
@@ -1503,8 +1554,9 @@ async function handleFinalize(req, res, body, startTime) {
     }
 
     const marketResult = task.modules.market.result || {};
-    const klineResult = task.modules.kline.result || {};
+    const klineResult = reconcileKlineResult(task.modules.kline.result, contractDecision);
     const optionResult = reconcileOptionResult(task.modules.option.result, contractDecision);
+    task.modules.kline.result = klineResult;
     task.modules.option.result = optionResult;
     const finalDecision = resolveFinalDecision(task);
 
@@ -1540,8 +1592,9 @@ async function handleFinalize(req, res, body, startTime) {
 // ─── MODULE ANALYSIS FUNCTIONS ───────────────────
 
 async function analyzeMarketModule(task) {
+  await waitForKlinePreparation(task);
   const snapshot = task.snapshot || { data: [] };
-  const risk = task.rules.rawRisk || marketRisk(snapshot, task.symbol, task.optionMetrics);
+  const risk = task.rules.risk || task.rules.rawRisk || marketRisk(snapshot, task.symbol, task.optionMetrics);
   const newsAnalysis = task.newsAnalysis || analyzeDecisionNews((task.newsData || {}).items || [], task.symbol);
   const newsSummary = newsAnalysis.summary || "暂无新闻数据";
   const qqq = row(snapshot, "QQQ");
@@ -1569,7 +1622,8 @@ BTC: ${value(btc, "last")} / ${value(btc, "changePct", "%")}
 ${newsSummary.slice(0, 5000)}
 
 不得把“未取到”解释为0。不得凭训练记忆补充未在新闻中出现的事件日期。
-每条分析必须引用上面的具体数字或本次新闻事实，解释“数据变化 → 风险含义 → 对卖Put的影响”，不要只写标签。
+  每条分析必须引用上面的具体数字或本次新闻事实，解释“数据变化 → 风险含义 → 对卖Put的影响”，不要只写标签。
+  术语必须准确：更低Delta通常对应更深虚值，不得写成“更浅虚值（更低Delta）”。
 {
   "marketState": "risk-on|neutral|risk-off",
   "blackSwan": "green|yellow|red",
@@ -1592,7 +1646,8 @@ ${newsSummary.slice(0, 5000)}
 }`;
 
   try {
-    const result = await callAIJson(prompt, ["marketState", "blackSwan", "riskScore"], 40000);
+    const result = normalizeSellPutTerminology(await callAIJson(prompt, ["marketState", "blackSwan", "riskScore"], 40000));
+    result.riskScore = risk.riskScore;
     return { status: "completed", result };
   } catch (e) {
     return {
@@ -1631,10 +1686,22 @@ async function analyzeKlineModule(task) {
   klineStatsFormatted = formatKlineStats(klineStats);
   task.klineStructure = klineStructure;
   task.klineStats = klineStats;
-  task.klinePrepared = true;
   task.snapshot = preferDirectTargetQuote(snapshot, task.symbol, klineStructure);
   task.rules.rawRisk = marketRisk(task.snapshot, task.symbol, task.optionMetrics);
   task.rules.risk = adjustedRisk(task.rules.rawRisk, klineStats, klineStructure);
+  const contractDecision = evaluateOptionContract({
+    spot: row(task.snapshot, task.symbol).last,
+    atr: klineStats?.atr,
+    expectedRangeLow: task.optionMetrics?.expectedRangeLow,
+    targetStrike: task.input?.targetStrike || task.input?.strike,
+    delta: task.input?.delta,
+    bid: task.input?.bid,
+    ask: task.input?.ask,
+    expiryDate: task.input?.expiryDate,
+    putStance: task.rules.risk.putStance,
+  });
+  task.rules.contractDecision = contractDecision;
+  task.klinePrepared = true;
   const target = row(task.snapshot, task.symbol);
   const structureFormatted = formatKlineStructure(klineStructure);
 
@@ -1647,7 +1714,12 @@ ${klineStatsFormatted}
 共享K线相似度引擎：
 ${structureFormatted}
 
+统一合约硬门槛：${contractDecision.approved ? "通过" : "不通过"}
+当前行权价：${contractDecision.strike?.toFixed(2) ?? "未取到"} | 严格安全行权价上限：${contractDecision.strictSafeStrike?.toFixed(2) ?? "未取到"}
+硬阻断：${(contractDecision.blockers || []).join("；") || "无"}
+
 每条分析必须引用输入中的均线、涨跌幅、成交量、ATR、支撑阻力或相似形态，解释信号如何影响卖Put安全垫。
+合约硬门槛不通过时，技术分析只能作为风险参考，不得说当前合约适合卖Put，也不得推荐高于严格安全行权价上限的点位。
 返回纯JSON:
 {
   "trend": "bullish|neutral|bearish",
@@ -1700,10 +1772,7 @@ ${structureFormatted}
 }
 
 async function analyzeOptionModule(task) {
-  const waitStartedAt = Date.now();
-  while (!task.klinePrepared && Date.now() - waitStartedAt < 35000) {
-    await sleep(250);
-  }
+  await waitForKlinePreparation(task);
   const snapshot = task.snapshot || { data: [] };
   const target = row(snapshot, task.symbol);
   const metrics = task.optionMetrics || {};
@@ -1732,7 +1801,8 @@ Delta: ${task.input?.delta || '--'} | Bid/Ask: ${task.input?.bid || '--'}/${task
 到期: ${task.input?.expiryDate || '--'}
 合约通过: ${contractDecision?.approved ? '是' : '否'} | 阻隔: ${(contractDecision?.blockers || []).join(';') || '无'}
 
-每条分析必须引用上面的具体指标，解释“定价状态 → 风险溢价是否真实 → 对卖Put尾部风险的影响”。不得因为IV高就直接判定适合卖Put。
+  每条分析必须引用上面的具体指标，解释“定价状态 → 风险溢价是否真实 → 对卖Put尾部风险的影响”。不得因为IV高就直接判定适合卖Put。
+  IV Rank表示当前IV在52周最低IV与最高IV之间的相对位置；IV Percentile才表示历史交易日中IV低于当前值的比例。不得混淆两者。
 返回纯JSON:
 {
   "temperature": "low|medium|high",
@@ -1762,7 +1832,7 @@ Delta: ${task.input?.delta || '--'} | Bid/Ask: ${task.input?.bid || '--'}/${task
 }`;
 
   try {
-    const result = await callAIJson(prompt, ["temperature", "contractApproved"], 40000);
+    const result = enforceOptionMetricDefinitions(await callAIJson(prompt, ["temperature", "contractApproved"], 40000), metrics);
     result.contractApproved = contractDecision.approved;
     result.blockers = contractDecision.blockers || [];
     result.warnings = contractDecision.warnings || [];
