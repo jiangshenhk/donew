@@ -6,6 +6,7 @@
 | 本地路径 | `/Users/jiangshen/Desktop/Obsidian/学习/收集箱/Codex相关/donew` |
 | 线上域名 | **`https://sellput.top/`**（VPS 主站） |
 | 生产部署 | RackNerd VPS（前端、API、数据、定时任务统一部署） |
+| 文档版本 | `v1.0.1；2026-08-06 22:33；增加 Agent 工程规范与文档版本要求` |
 
 这份文件是给"新开的智能体对话 / 新接手的开发者"看的。
 
@@ -349,6 +350,127 @@ docs/SellPut/sell-put-focus.json
 - 永久：编辑 `sell-put-focus.json`
 - 完整分类：看 `02_标的池子/` 目录
 
+### 约定 9：Agent 工程规范（自动交易 / 模拟交易必须遵守）
+
+`Sell Put Agent`、`短线交易 Agent`、`长线交易 Agent` 会读写持仓、订单、信号和行情缓存。修改这些脚本时，不能只检查业务逻辑，还必须按以下工程规范验收。
+
+#### 9.1 状态写入必须原子化
+
+所有运行状态文件都必须使用“同目录临时文件 + rename”写入，不能直接覆盖：
+
+- `positions.json`
+- `orders.json`
+- `stats.json`
+- `signals/*.json`
+- `kline/*.json`
+- `pool.json`
+- `dashboard.html`
+
+JSON 使用 `atomicWriteJson()` 或等价实现；HTML / 文本使用 `atomicWriteText()` 或等价实现。禁止在关键状态路径直接 `fs.writeFileSync(target, ...)`。
+
+#### 9.2 写交易状态的命令必须有运行锁
+
+任何可能读写持仓、订单、信号、扫描结果或交易池的命令，都必须先拿运行锁：
+
+- `run`
+- `daily`
+- `scan`
+- `dashboard`（如果会写 dashboard 文件）
+- `symbols`
+- `watchlist`
+
+锁文件必须包含 `pid / mode / startedAt`。释放锁时必须读取锁文件并确认 `pid === process.pid` 后再删除，不能无条件删除，也不能使用不存在的 API。旧锁只能在确认进程不存在或超过过期窗口后清理。
+
+#### 9.3 网络请求必须有超时与错误落地
+
+所有外部请求必须使用 `AbortController` 或共享 `fetchWithTimeout()`：
+
+- Yahoo Finance K线 / 行情
+- Barchart 期权链 / 期权概览
+- 行情中心 API
+- 新闻 API
+- DeepSeek / AI API
+- ntfy 通知
+
+不能 `catch {}` 静默吞掉。至少要把错误原因写入对应状态、日志或信号记录，说明是否阻断交易，是否沿用旧数据。
+
+#### 9.4 外部数据必须记录新鲜度
+
+行情、K线、期权链、期权概览、新闻和 AI 结果都必须带来源与时间信息。建议字段：
+
+```js
+{
+  source,
+  fetchedAt,
+  lastDataTime,
+  ok,
+  error,
+  stale,
+  staleReason
+}
+```
+
+旧数据只能用于 dashboard 历史展示，不能参与新的交易判断、开仓、平仓或 BUY / 可卖 Put 信号生成。
+
+#### 9.5 市场时间必须使用对应市场时区
+
+禁止混用 UTC 日期、本机日期、香港日期和美股交易日日期。
+
+- 美股交易日、K线过期、开收盘判断：使用 `America/New_York`
+- 港股交易日、港股定时任务：使用 `Asia/Hong_Kong`
+- 文件存储时间：使用 ISO UTC
+- 页面展示时间：按用户面向的市场或香港时间格式化
+
+例如美股日线是否过期，不能只用 `new Date().toISOString().split('T')[0]` 判断“今天”，必须先换算到美股 ET 日期和交易时段。
+
+#### 9.6 K线有效性是交易前置门槛
+
+任何依赖 K线的策略，必须先判断 K线是否是本轮成功获取或仍在有效窗口内：
+
+- 短线 5 分钟 K线：美股交易时段内超过阈值未更新，直接标记过期；BTC 等 24h 标的按更短窗口检查。
+- Sell Put / 长线日线：美股收盘后必须能看到最近应有交易日的日线；周末和节假日允许保留上一交易日，但必须显示最后 K线日期。
+
+K线过期或获取失败时：
+
+- 不允许生成新的 BUY 信号
+- 不允许开仓
+- 不允许输出完整交易建议
+- dashboard 可以展示旧图，但必须醒目标注“旧K线 / 仅供历史查看”
+
+#### 9.7 版本和文档必须同步
+
+每次修改 Agent 行为、风控门槛、数据源、调度、K线有效性、AI Prompt 或 dashboard 字段，必须同步更新：
+
+- 脚本顶部版本号与版本说明
+- 对应 `docs/tools/<slug>/readme_*.md`
+- 如有 AI 或规则契约，对应 `设计_*.md`
+
+版本号是用户确认线上 / 本地是否已经更新的依据，不是装饰字段。
+
+#### 9.8 共享能力优先抽公共模块
+
+不要在三个 Agent 里反复手写同一套基础能力。新增或大改时优先抽到共享模块，例如：
+
+- `scripts/lib/atomic-file.mjs`
+- `scripts/lib/run-lock.mjs`
+- `scripts/lib/fetch-timeout.mjs`
+- `scripts/lib/market-time.mjs`
+- `scripts/lib/kline-freshness.mjs`
+
+如果暂时不抽模块，也必须保持实现逻辑一致，并在 README 中说明差异。
+
+#### 9.9 Agent 修改验收清单
+
+修改任一 Agent 后，至少检查：
+
+- `node --check scripts/<agent>.mjs`
+- 运行锁能阻止第二个并发任务
+- 锁释放后下一轮可以正常运行
+- 写入中断不会损坏 JSON / HTML
+- K线过期时不会产生新交易信号
+- K线失败原因能在日志或 dashboard 中看到
+- README 和脚本版本一致
+
 ---
 
 ## 8. 新增一个类似工具的标准动作
@@ -552,7 +674,7 @@ docs/tools/alpha-risk-tool/设计_AIAlphaRisk.md
 1. 新增或删除功能时，同步更新本章“当前功能全景”。
 2. 修改入口、生产 API、数据源、Prompt、报告章节或定时任务时，同步更新对应 README/设计文档。
 3. 重命名文档时，必须全仓搜索旧路径，并更新运行时代码、测试和其他 Markdown 引用。
-4. 页面功能修改仍需升级可见版本号；只整理文档、不改页面时无需升级页面版本。
+4. 页面功能修改必须升级可见版本号；纯文档修改必须升级对应文档版本，不要求页面可见版本变化。
 5. 递交前检查清单中的所有代码和文档路径真实存在。
 
 当前覆盖状态：13 个功能或 Agent 均有功能 README；其中 10 份独立设计文档覆盖需要 AI、报告契约或规则说明的模块。
