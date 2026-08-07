@@ -14,21 +14,53 @@ if (!['morning', 'evening', 'weekly'].includes(reportType)) {
 
 const root = process.cwd();
 const newsFile = path.join(root, 'jin10news/data/latest-24h.json');
-const priceFile = path.join(root, 'stockprice/data/latest-price.json');
 const outputDir = path.join(root, 'docs/市场');
 const statusDir = path.join(outputDir, 'data');
 const historyFile = path.join(outputDir, '历史.md');
 const todayFile = path.join(outputDir, '今日.md');
 const aiEndpoint = process.env.NEWS_SUMMARY_API || 'https://sellput.top/api/news-summary';
-
-if (!fs.existsSync(newsFile)) throw new Error(`Required file missing: ${path.relative(root, newsFile)}`);
-const { strategy, strategySource } = loadStrategyBaseline(root);
-const newsPayload = JSON.parse(fs.readFileSync(newsFile, 'utf8'));
+const DATA_API = process.env.DATA_API || 'https://sellput.top';
 
 const PRICE_MAX_AGE_MS = (reportType === 'weekly' ? 72 : 24) * 60 * 60 * 1000;
 const REQUIRED_PRICE_SYMBOLS = ['QQQ', '^VIX', 'QLD', 'MSTR', 'INTC'];
-if (!fs.existsSync(priceFile)) throw new Error(`Price cache missing: ${path.relative(root, priceFile)}`);
-const pricePayload = JSON.parse(fs.readFileSync(priceFile, 'utf8'));
+
+async function fetchFromApi(url, timeoutMs = 15000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: { 'User-Agent': 'donew-report' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadData() {
+  // 优先从 VPS API（数据库）读取
+  try {
+    const [pricePayload, newsPayload] = await Promise.all([
+      fetchFromApi(`${DATA_API}/api/stock/prices`),
+      fetchFromApi(`${DATA_API}/api/news/latest?limit=500`),
+    ]);
+    if (pricePayload?.ok && Array.isArray(pricePayload.data) && Array.isArray(newsPayload?.items)) {
+      return { pricePayload, newsPayload };
+    }
+  } catch (e) {
+    console.warn('VPS API 读取失败，回退本地文件:', e.message);
+  }
+  // 回退：本地 JSON 文件
+  if (!fs.existsSync(newsFile)) throw new Error(`Required file missing: ${path.relative(root, newsFile)}`);
+  const newsPayload = JSON.parse(fs.readFileSync(newsFile, 'utf8'));
+  if (!fs.existsSync(path.join(root, 'stockprice/data/latest-price.json'))) {
+    throw new Error('Price cache missing: stockprice/data/latest-price.json');
+  }
+  const pricePayload = JSON.parse(fs.readFileSync(path.join(root, 'stockprice/data/latest-price.json'), 'utf8'));
+  return { pricePayload, newsPayload };
+}
+
+const { strategy, strategySource } = loadStrategyBaseline(root);
+const { pricePayload, newsPayload } = await loadData();
 const priceAge = Date.now() - new Date(pricePayload.updatedAt || 0).getTime();
 if (priceAge > PRICE_MAX_AGE_MS) throw new Error(`Price cache too old: ${Math.round(priceAge / 3600000)}h ago`);
 const priceData = Array.isArray(pricePayload.data) ? pricePayload.data : [];
