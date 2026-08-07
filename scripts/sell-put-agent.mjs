@@ -57,6 +57,48 @@ const KLINE_DIR       = path.join(AGENT_DIR, 'kline');
 const WATCHLIST_FILE  = path.join(AGENT_DIR, 'watchlist.json');
 const POOL_FILE       = path.join(AGENT_DIR, 'pool.json');
 const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'sell-put-agent.lock');
+
+// ─── SQLite 统一存储 ─────────────────────────────────────────
+let storeDb = null;
+let storeDbReady = false;
+async function initStoreDb() {
+  if (storeDbReady) return storeDb;
+  try {
+    const dbPath = process.env.SELLPUT_DB_PATH || path.join(AGENT_DIR, 'agent.db');
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const Database = (await import('better-sqlite3')).default;
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS trader_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    storeDb = db;
+  } catch {
+    storeDb = null;
+  }
+  storeDbReady = true;
+  return storeDb;
+}
+
+function storeGet(key) {
+  try {
+    if (!storeDb) return null;
+    const row = storeDb.prepare('SELECT value FROM trader_store WHERE key=?').get(key);
+    return row ? JSON.parse(row.value) : null;
+  } catch { return null; }
+}
+
+function storePut(key, data) {
+  try {
+    if (!storeDb) return false;
+    storeDb.prepare('INSERT OR REPLACE INTO trader_store (key, value) VALUES (?, ?)').run(key, JSON.stringify(data));
+    return true;
+  } catch { return false; }
+}
 const AGENT_VERSION   = 'v2.0.5';
 const AGENT_VERSION_NOTE = '2026-08-07 | 放宽开仓标准/价差改参考/允许同标的多仓';
 
@@ -239,10 +281,18 @@ function validateEntryContract(contract, underlyingPrice) {
 
 // ─── Storage ──────────────────────────────────────────────────
 
-function loadPositions() { return loadJson(POSITIONS_FILE) || []; }
-function savePositions(data) { saveJson(POSITIONS_FILE, data); }
+function loadPositions() {
+  const dbData = storeGet('positions');
+  if (dbData) return dbData;
+  return loadJson(POSITIONS_FILE) || [];
+}
+function savePositions(data) {
+  if (!storePut('positions', data)) saveJson(POSITIONS_FILE, data);
+}
 
 function loadStats() {
+  const dbData = storeGet('stats');
+  if (dbData) return dbData;
   return loadJson(STATS_FILE) || {
     totalDecisions: 0, totalPositions: 0, wins: 0, losses: 0,
     totalPremium: 0, totalLosses: 0, netPnL: 0,
@@ -250,12 +300,18 @@ function loadStats() {
     bySymbol: {}, byDeltaBucket: {}, monthlyPnL: {},
   };
 }
-function saveStats(data) { saveJson(STATS_FILE, data); }
+function saveStats(data) {
+  if (!storePut('stats', data)) saveJson(STATS_FILE, data);
+}
 
 function loadExperience() {
+  const dbData = storeGet('experience');
+  if (dbData) return dbData;
   return loadJson(EXPERIENCE_FILE) || { patterns: [], lastUpdated: null };
 }
-function saveExperience(data) { saveJson(EXPERIENCE_FILE, data); }
+function saveExperience(data) {
+  if (!storePut('experience', data)) saveJson(EXPERIENCE_FILE, data);
+}
 
 function recordClosedExperience(pos) {
   if (pos?.status !== 'closed' || !pos?.result) return;
@@ -304,8 +360,14 @@ function readApiKey() {
   } catch { return null; }
 }
 
-function loadOrders() { return loadJson(ORDERS_FILE) || []; }
-function saveOrders(data) { saveJson(ORDERS_FILE, data); }
+function loadOrders() {
+  const dbData = storeGet('orders');
+  if (dbData) return dbData;
+  return loadJson(ORDERS_FILE) || [];
+}
+function saveOrders(data) {
+  if (!storePut('orders', data)) saveJson(ORDERS_FILE, data);
+}
 
 function readEnvVar(key, def) {
   if (process.env[key]) return process.env[key];
@@ -2998,6 +3060,8 @@ function runSelfTest() {
 async function main() {
   ensureDir(AGENT_DIR);
   ensureDir(JOURNAL_DIR);
+
+  await initStoreDb();
 
   const mode = process.argv[2] || 'daily';
   const lockedModes = new Set(['daily', 'stats', 'report', 'dashboard', 'scan', 'symbols', 'watchlist']);

@@ -32,6 +32,48 @@ const NTFY_SERVER = 'https://ntfy.sh';
 const LOCK_FILE = path.join(DATA_DIR, 'long-term-trader.lock');
 const LOCK_STALE_MS = 10 * 60 * 1000; // 锁超过 10 分钟视为过期（正常运行不应这么久）
 
+// ─── SQLite 统一存储 ─────────────────────────────────────────
+let storeDb = null;
+let storeDbReady = false;
+async function initStoreDb() {
+  if (storeDbReady) return storeDb;
+  try {
+    const dbPath = process.env.TRADER_LONG_DB_PATH || path.join(DATA_DIR, 'long.db');
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const Database = (await import('better-sqlite3')).default;
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS trader_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    storeDb = db;
+  } catch {
+    storeDb = null;
+  }
+  storeDbReady = true;
+  return storeDb;
+}
+
+function storeGet(key) {
+  try {
+    if (!storeDb) return null;
+    const row = storeDb.prepare('SELECT value FROM trader_store WHERE key=?').get(key);
+    return row ? JSON.parse(row.value) : null;
+  } catch { return null; }
+}
+
+function storePut(key, data) {
+  try {
+    if (!storeDb) return false;
+    storeDb.prepare('INSERT OR REPLACE INTO trader_store (key, value) VALUES (?, ?)').run(key, JSON.stringify(data));
+    return true;
+  } catch { return false; }
+}
+
 const DEFAULT_CONFIG = {
   symbols: ['QQQ', 'IBIT', 'MSTR', 'TSLA', 'EEM', 'BTC-USD', 'UGL', 'FUTU', '0700.HK', '9988.HK', '0883.HK', '3032.HK', 'QLD', 'INTC'],
   capital: 100000,
@@ -171,19 +213,23 @@ function readApiKey() {
 // ─── Data ─────────────────────────────────────────────────────
 
 function loadPositions() {
+  const dbData = storeGet('positions');
+  if (dbData) return dbData;
   return loadJson(POSITIONS_FILE) || [];
 }
 
 function savePositions(data) {
-  saveJson(POSITIONS_FILE, data);
+  if (!storePut('positions', data)) saveJson(POSITIONS_FILE, data);
 }
 
 function loadOrders() {
+  const dbData = storeGet('orders');
+  if (dbData) return dbData;
   return loadJson(ORDERS_FILE) || [];
 }
 
 function saveOrders(data) {
-  saveJson(ORDERS_FILE, data);
+  if (!storePut('orders', data)) saveJson(ORDERS_FILE, data);
 }
 
 function loadWeeklyCache(symbol) {
@@ -195,11 +241,13 @@ function saveWeeklyCache(symbol, data) {
 }
 
 function loadSignals(symbol) {
+  const dbData = storeGet('signals_' + symbol);
+  if (dbData) return dbData;
   return loadJson(path.join(SIGNALS_DIR, symbol + '.json')) || [];
 }
 
 function saveSignals(symbol, data) {
-  saveJson(path.join(SIGNALS_DIR, symbol + '.json'), data);
+  if (!storePut('signals_' + symbol, data)) saveJson(path.join(SIGNALS_DIR, symbol + '.json'), data);
 }
 
 async function fetchBars(symbol, interval, range) {
@@ -1420,6 +1468,8 @@ function showVersion() {
 async function main() {
   const cmd = process.argv[2] || 'run';
   const filterArg = process.argv[3] === '--filter' ? process.argv[4] : null;
+
+  await initStoreDb();
 
   // run / dashboard 都会写文件，需要拿锁防止并发
   if (cmd === 'run' || cmd === 'dashboard') {
