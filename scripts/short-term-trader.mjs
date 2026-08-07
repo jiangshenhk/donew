@@ -313,45 +313,18 @@ function normalizeFiveMinuteBars(bars) {
 }
 
 function loadKlineCache(symbol) {
-  // 优先从 SQLite 读
   const dbData = loadKlineFromDb(symbol);
-  if (dbData?.bars?.length) return dbData;
-  const fpath = path.join(KLINE_DIR, symbol + '_5m.json');
-  const cached = loadJson(fpath);
-  if (!cached?.bars) return cached;
-  const cleaned = normalizeFiveMinuteBars(cached.bars);
-  const changed = cleaned.length !== cached.bars.length
-    || cleaned.some((bar, index) => bar.t !== Number(cached.bars[index]?.t));
-  if (changed) {
-    cached.bars = cleaned;
-    cached.cleanedAt = new Date().toISOString();
-    saveJson(fpath, cached);
-  }
-  return cached;
+  return dbData?.bars?.length ? dbData : null;
 }
 
 function saveKlineCache(symbol, newData) {
-  const fpath = path.join(KLINE_DIR, symbol + '_5m.json');
-  const existing = loadJson(fpath);
+  const existing = loadKlineFromDb(symbol);
   const merged = normalizeFiveMinuteBars([
     ...(existing?.bars || []),
     ...(newData?.bars || []),
   ]);
   if (!merged.length) return;
-
-  // 写入 SQLite（统一缓存）
   saveKlineToDb(symbol, merged);
-  // 同时写 JSON 兜底
-  saveJson(fpath, {
-    ...(existing || {}),
-    ...newData,
-    date: new Date().toISOString(),
-    interval: INTERVAL,
-    bars: merged,
-    klineFetchedAt: new Date().toISOString(),
-    klineFetchOk: true,
-    klineError: null,
-  });
 }
 
 // ─── Kline Staleness (5-min) ──────────────────────────────────
