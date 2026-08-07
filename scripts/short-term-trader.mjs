@@ -78,8 +78,8 @@ function saveKlineToDb(symbol, bars) {
   } catch { /* 写库失败不阻塞 */ }
 }
 
-const VERSION = 'v2.2.0';
-const VERSION_NOTE = '2026-08-07 | K线统一SQLite存储+港股独立时段+X轴香港时间';
+const VERSION = 'v2.3.0';
+const VERSION_NOTE = '2026-08-07 | 持仓/订单/统计/信号全部入SQLite统一存储';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
@@ -264,28 +264,87 @@ function loadConfig() {
 
 function saveConfig(config) { saveJson(CONFIG_FILE, config); }
 
-function loadPositions() { return loadJson(POSITIONS_FILE) || []; }
-function savePositions(data) { saveJson(POSITIONS_FILE, data); }
+// ─── SQLite 交易数据存储（统一入数据库）────────────
+function ensureStoreTable() {
+  try {
+    if (!klineDb) return false;
+    klineDb.exec(`
+      CREATE TABLE IF NOT EXISTS trader_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    return true;
+  } catch { return false; }
+}
 
-function loadOrders() { return loadJson(ORDERS_FILE) || []; }
-function saveOrders(data) { saveJson(ORDERS_FILE, data); }
+function loadFromStore(key, fallback) {
+  try {
+    if (!ensureStoreTable()) return fallback;
+    const row = klineDb.prepare('SELECT value FROM trader_store WHERE key=?').get(key);
+    if (!row) return fallback;
+    return JSON.parse(row.value);
+  } catch {
+    return fallback;
+  }
+}
+
+function saveToStore(key, data) {
+  try {
+    if (!ensureStoreTable()) return false;
+    klineDb.prepare('INSERT OR REPLACE INTO trader_store (key, value, updated_at) VALUES (?, ?, datetime(\'now\'))')
+      .run(key, JSON.stringify(data));
+    return true;
+  } catch { return false; }
+}
+
+function loadPositions() {
+  const dbData = loadFromStore('positions', null);
+  if (dbData) return dbData;
+  return loadJson(POSITIONS_FILE) || [];
+}
+function savePositions(data) {
+  const saved = saveToStore('positions', data);
+  if (!saved) saveJson(POSITIONS_FILE, data);
+}
+
+function loadOrders() {
+  const dbData = loadFromStore('orders', null);
+  if (dbData) return dbData;
+  return loadJson(ORDERS_FILE) || [];
+}
+function saveOrders(data) {
+  const saved = saveToStore('orders', data);
+  if (!saved) saveJson(ORDERS_FILE, data);
+}
 
 function loadStats() {
+  const dbData = loadFromStore('stats', null);
+  if (dbData && typeof dbData.totalTrades === 'number') return dbData;
   const s = loadJson(STATS_FILE);
   if (s && typeof s.totalTrades === 'number') return s;
   return { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0, netPnL: 0, winRate: 0, maxDrawdown: 0, avgWin: 0, avgLoss: 0, bySymbol: {}, dailyPnL: {}, consecutiveLosses: 0 };
 }
 
-function saveStats(data) { saveJson(STATS_FILE, data); }
+function saveStats(data) {
+  const saved = saveToStore('stats', data);
+  if (!saved) saveJson(STATS_FILE, data);
+}
 
 function loadSignals(symbol) {
+  const dbData = loadFromStore('signals_' + symbol, null);
+  if (dbData) return dbData;
   const fpath = path.join(SIGNALS_DIR, symbol + '.json');
   return loadJson(fpath) || [];
 }
 
 function saveSignals(symbol, data) {
-  const fpath = path.join(SIGNALS_DIR, symbol + '.json');
-  saveJson(fpath, data);
+  const saved = saveToStore('signals_' + symbol, data);
+  if (!saved) {
+    const fpath = path.join(SIGNALS_DIR, symbol + '.json');
+    saveJson(fpath, data);
+  }
 }
 
 function normalizeFiveMinuteBars(bars) {
@@ -2290,6 +2349,8 @@ async function showPositions() {
 
 async function main() {
   const cmd = process.argv[2] || '';
+
+  await initKlineDb();
 
   switch (cmd) {
     case 'run':       await run();                break;
