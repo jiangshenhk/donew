@@ -53,6 +53,17 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_jin10_news_time ON jin10_news(time DESC);
 
+  CREATE TABLE IF NOT EXISTS kline_5m (
+    symbol TEXT NOT NULL,
+    t INTEGER NOT NULL,
+    o REAL, h REAL, l REAL, c REAL, v REAL,
+    source TEXT DEFAULT 'yahoo',
+    saved_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, t)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_kline_5m_symbol_t ON kline_5m(symbol, t DESC);
+
   CREATE TABLE IF NOT EXISTS fetch_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     type TEXT NOT NULL,
