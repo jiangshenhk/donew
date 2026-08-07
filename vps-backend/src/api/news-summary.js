@@ -9,6 +9,8 @@ function cors(res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 async function timedFetch(url, options = {}, timeoutMs = 110000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -34,7 +36,7 @@ export async function loadRecentMarketNews() {
 
 const IMPORTANT = /美联储|央行|利率|降息|加息|通胀|CPI|PCE|非农|战争|导弹|袭击|制裁|霍尔木兹|特朗普|关税|原油|黄金|比特币|暴跌|暴涨|熔断|违约|破产|紧急|意外/u;
 
-function selectForAI(items, maxItems = 360) {
+function selectForAI(items, maxItems = 60) {
   if (items.length <= maxItems) return items;
   const now = Date.now();
   const selected = [];
@@ -53,7 +55,7 @@ function selectForAI(items, maxItems = 360) {
 }
 
 function compactItems(items) {
-  return items.map(item => ({ time: item.time, categories: item.categories || ["其他"], content: String(item.content || "").slice(0, 320) }));
+  return items.map(item => ({ time: item.time, categories: item.categories || ["其他"], content: String(item.content || "").slice(0, 220) }));
 }
 
 const DECISION_ALIASES = {
@@ -153,20 +155,32 @@ function fileTimestamp(date = new Date()) {
 
 /* ═══════════════════ AI 调用（共用） ═══════════════════ */
 
-async function callDeepSeek(payload, instructions, maxTokens = 7000) {
+async function callDeepSeek(payload, instructions, maxTokens = 16000) {
   if (!process.env.DEEPSEEK_API_KEY) throw new Error("VPS 尚未配置 DEEPSEEK_API_KEY");
-  const response = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: process.env.DEEPSEEK_MODEL || "deepseek-v4-pro",
-      messages: [{ role: "system", content: instructions }, { role: "user", content: typeof payload === "string" ? payload : JSON.stringify(payload) }],
-      temperature: 0.2, max_tokens: maxTokens
-    })
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error("DeepSeek HTTP " + response.status + "：" + (data.error?.message || "调用失败"));
-  return data.choices?.[0]?.message?.content || "";
+  const model = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const response = await timedFetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + process.env.DEEPSEEK_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "system", content: instructions }, { role: "user", content: typeof payload === "string" ? payload : JSON.stringify(payload) }],
+        temperature: 0.2, max_tokens: maxTokens
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      lastError = "DeepSeek HTTP " + response.status + "：" + (data.error?.message || "调用失败");
+      if (attempt < 3) await sleep(1500);
+      continue;
+    }
+    const content = data.choices?.[0]?.message?.content || "";
+    if (content.trim()) return content;
+    lastError = "DeepSeek返回空内容";
+    if (attempt < 3) await sleep(1500);
+  }
+  throw new Error(lastError || "DeepSeek调用失败");
 }
 
 async function callOpenAI(payload, instructions, maxTokens = 7000) {
