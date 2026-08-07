@@ -15,8 +15,14 @@ router.get('/api/news/latest', async (req, res) => {
     for (const item of items) {
       try { const cats = JSON.parse(item.categories || '[]'); for (const c of cats) catStats[c] = (catStats[c] || 0) + 1; } catch {}
     }
-    // SQLite datetime('now') 返回 UTC 无时区，补 Z 让前端正确解析
-    const iso = (t) => t ? new Date(String(t).replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString();
+    // 兼容两种格式：ISO(带Z) 或 SQLite UTC 无时区字符串
+    const iso = (t) => {
+      if (!t) return new Date().toISOString();
+      const s = String(t);
+      return (s.endsWith('Z') || /[+-]\d\d:\d\d$/.test(s))
+        ? new Date(s).toISOString()
+        : new Date(s.replace(' ', 'T') + 'Z').toISOString();
+    };
     res.json({
       ok: true,
       count: items.length,

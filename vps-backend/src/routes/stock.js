@@ -10,7 +10,14 @@ router.get('/api/stock/prices', async (req, res) => {
     const prices = await getLatestStockPrices(symbols);
     const lastDataUpdate = db.prepare("SELECT MAX(updated_at) as d FROM stock_prices WHERE error IS NULL").get();
     const now = new Date().toISOString();
-    const iso = (t) => t ? new Date(String(t).replace(' ', 'T') + 'Z').toISOString() : now;
+    // 兼容两种格式：ISO(带Z) 或 SQLite UTC 无时区字符串
+    const iso = (t) => {
+      if (!t) return now;
+      const s = String(t);
+      return (s.endsWith('Z') || /[+-]\d\d:\d\d$/.test(s))
+        ? new Date(s).toISOString()
+        : new Date(s.replace(' ', 'T') + 'Z').toISOString();
+    };
     res.json({
       ok: true,
       count: prices.length,
