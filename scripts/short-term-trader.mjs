@@ -28,8 +28,8 @@ const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'short-term-trader.lock');
 
-const VERSION = 'v2.0.7';
-const VERSION_NOTE = '2026-08-06 | 运行锁/原子写/Yahoo超时/K线过期前置';
+const VERSION = 'v2.1.0';
+const VERSION_NOTE = '2026-08-07 | 支持港股标的在港股交易时段独立更新';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
@@ -179,6 +179,28 @@ function isMarketDay() {
 
 function is24hSymbol(symbol) {
   return /BTC|ETH|SOL|DOGE|USDT/i.test(symbol);
+}
+
+function isHkSymbol(symbol) {
+  return /\.HK$/i.test(symbol);
+}
+
+// 港股交易时段：周一至五 09:30-16:00 香港时间（含午休，简化处理）
+function hkTimeParts() {
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Hong_Kong', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  const parts = fmt.formatToParts(now);
+  const get = (t) => parts.find(p => p.type === t)?.value || '';
+  return { weekday: get('weekday'), hour: parseInt(get('hour'), 10), minute: parseInt(get('minute'), 10) };
+}
+
+function isHkMarketOpen() {
+  const hk = hkTimeParts();
+  if (hk.weekday === 'Sat' || hk.weekday === 'Sun') return false;
+  const totalMin = hk.hour * 60 + hk.minute;
+  return totalMin >= 570 && totalMin < 960; // 09:30 - 16:00
 }
 
 // ─── Data Management ───────────────────────────────────────────
@@ -862,14 +884,16 @@ async function run() {
 
   const marketOpen = isMarketOpen();
   const has24h = config.symbols.some(is24hSymbol);
-  if (!marketOpen && !has24h) {
+  const hasHkOpen = config.symbols.some(s => isHkSymbol(s) && isHkMarketOpen());
+  if (!marketOpen && !has24h && !hasHkOpen) {
     const et = etNow();
     const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
     console.log(`⏸️  美股未开市（ET ${dayNames[et.getDay()]} ${et.toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false })}）`);
     console.log('   开市时间: 周一至周五 9:30 AM - 4:00 PM ET');
     return;
   }
-  console.log(`${marketOpen ? '🟢 美股开市' : '⏸️ 美股休市（仅运行24h标的）'} | ET ${fmtTimeShort(etNow())} | 24h标的: ${config.symbols.filter(is24hSymbol).join(', ') || '无'}\n`);
+  const hkOpenNow = config.symbols.some(isHkSymbol) && isHkMarketOpen();
+  console.log(`${marketOpen ? '🟢 美股开市' : '⏸️ 美股休市'}${hkOpenNow ? '｜🟢 港股开市' : ''} | ET ${fmtTimeShort(etNow())} | 24h标的: ${config.symbols.filter(is24hSymbol).join(', ') || '无'} | 港股: ${config.symbols.filter(isHkSymbol).join(', ') || '无'}\n`);
 
   const releaseLock = acquireRunLock();
   if (!releaseLock) { console.log('⛔ 已有任务运行中，跳过本轮调度'); return; }
@@ -883,12 +907,17 @@ async function run() {
   const signals = {};
 
   for (const symbol of config.symbols) {
-    // Skip non-24h symbols when US market is closed
+    // Skip non-24h symbols when US market is closed (unless HK symbol in HK market hours)
     if (!marketOpen && !is24hSymbol(symbol)) {
-      console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-      console.log(`  ⏸️  美股休市，跳过`);
-      signals[symbol] = { decision: 'SKIP', reasoning: '美股休市' };
-      continue;
+      if (isHkSymbol(symbol) && isHkMarketOpen()) {
+        console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`  🟢 港股开市，运行`);
+      } else {
+        console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`  ⏸️  美股休市，跳过`);
+        signals[symbol] = { decision: 'SKIP', reasoning: '美股休市' };
+        continue;
+      }
     }
     console.log(`\n━━ ${symbol} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
     process.stdout.write(`  📡 获取5分钟K线...`);
