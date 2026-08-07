@@ -25,7 +25,7 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 </style>
 </head>
 <body><main>
-<section class="head"><div class="head-title"><h1>AI 24小时市场要闻整理</h1><span class="version">v2.0.2｜2026-08-05 21:00｜修复行情休市丢失+AI最大token</span></div><div class="head-actions"><span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span><a class="home" href="https://sellput.top/">返回十方斋首页</a></div></section>
+<section class="head"><div class="head-title"><h1>AI 24小时市场要闻整理</h1><span class="version">v2.0.3｜2026-08-07｜数据更新时间改香港时区</span></div><div class="head-actions"><span class="visit-count">全站访问 <strong id="busuanzi_value_site_pv">--</strong> 次</span><a class="home" href="https://sellput.top/">返回十方斋首页</a></div></section>
 <section class="summary">
 <div class="card" style="display:none"><div class="label">数据状态</div><div class="value status" id="status"><span class="dot"></span><span>读取中</span></div></div>
 <div class="card"><div class="label">24小时新闻</div><div class="value" id="count">—</div></div>
@@ -46,7 +46,7 @@ button{cursor:pointer}button.primary{background:var(--blue);color:#fff}button:di
 const API_URL='https://sellput.top/api/news/latest?limit=500';
 const REPORT_URL='https://sellput.top/jin10-news.html';
 const $=id=>document.getElementById(id);
-const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+const fmt=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Hong_Kong',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 let newsData=null,currentCategory='全部',currentReport=null,timer=null;
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function showError(s){$('error').innerHTML=s?'<div class="error">'+esc(s)+'</div>':''}
@@ -67,7 +67,7 @@ function normalizeDisplayMarkdown(markdown){
 }
 function exportFileName(extension){
  const date=currentReport&&currentReport.generatedAt?new Date(currentReport.generatedAt):new Date();
- const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(date);
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Hong_Kong',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(date);
  const map={};parts.forEach(function(part){if(part.type!=='literal')map[part.type]=part.value});
  return map.year+'-'+map.month+'-'+map.day+'_'+map.hour+map.minute+map.second+'-最近24小时市场要闻整理.'+extension;
 }

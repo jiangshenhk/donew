@@ -10,10 +10,11 @@ router.get('/api/stock/prices', async (req, res) => {
     const prices = await getLatestStockPrices(symbols);
     const lastDataUpdate = db.prepare("SELECT MAX(updated_at) as d FROM stock_prices WHERE error IS NULL").get();
     const now = new Date().toISOString();
+    const iso = (t) => t ? new Date(String(t).replace(' ', 'T') + 'Z').toISOString() : now;
     res.json({
       ok: true,
       count: prices.length,
-      updatedAt: lastDataUpdate?.d || now,
+      updatedAt: iso(lastDataUpdate?.d),
       checkedAt: now,
       successCount: prices.length,
       failCount: 0,

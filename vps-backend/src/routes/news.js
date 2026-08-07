@@ -15,6 +15,8 @@ router.get('/api/news/latest', async (req, res) => {
     for (const item of items) {
       try { const cats = JSON.parse(item.categories || '[]'); for (const c of cats) catStats[c] = (catStats[c] || 0) + 1; } catch {}
     }
+    // SQLite datetime('now') 返回 UTC 无时区，补 Z 让前端正确解析
+    const iso = (t) => t ? new Date(String(t).replace(' ', 'T') + 'Z').toISOString() : new Date().toISOString();
     res.json({
       ok: true,
       count: items.length,
@@ -22,7 +24,7 @@ router.get('/api/news/latest', async (req, res) => {
       sourceMode,
       sourceLabel: '金十数据（VPS统一缓存）',
       windowHours: 48,
-      updatedAt: lastFetch?.created_at || new Date().toISOString(),
+      updatedAt: iso(lastFetch?.created_at),
       checkedAt: new Date().toISOString(),
       categoryStats: catStats,
       items: items.map(i => ({ ...i, categories: JSON.parse(i.categories || '[]') })),
