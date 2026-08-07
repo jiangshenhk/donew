@@ -155,7 +155,14 @@ function updateHistory(markdown) {
   const monthIdx = text.indexOf(month);
   if (monthIdx === -1) {
     const header = '| 日期 | 星期 | 类型 | 报告 | 核心判断 | 策略倾向 |\n|:---|:---|:---|:---|:---|:---|';
-    text += `\n\n---\n\n${month}\n\n${header}\n${newRow}\n`;
+    const newMonthBlock = `## 📅 ${hkDate.slice(0, 4)}年${Number(hkDate.slice(5, 7))}月\n\n${header}\n${newRow}\n`;
+    // 新月份按倒序插到文件顶部（所有已有月份之前），而不是 append 到末尾
+    const firstMonthIdx = text.indexOf('## 📅');
+    if (firstMonthIdx !== -1) {
+      text = text.slice(0, firstMonthIdx) + newMonthBlock + '\n\n---\n\n' + text.slice(firstMonthIdx);
+    } else {
+      text += `\n\n---\n\n${newMonthBlock}`;
+    }
     fs.writeFileSync(historyFile, text);
     return;
   }
