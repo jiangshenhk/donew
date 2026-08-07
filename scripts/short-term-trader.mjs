@@ -28,8 +28,58 @@ const KLINE_DIR = path.join(AGENT_DIR, 'kline');
 const DASHBOARD_FILE = path.join(AGENT_DIR, 'dashboard.html');
 const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'short-term-trader.lock');
 
-const VERSION = 'v2.1.0';
-const VERSION_NOTE = '2026-08-07 | 支持港股标的在港股交易时段独立更新';
+// ─── SQLite 统一缓存（K线）────────────────────────
+let klineDb = null;
+async function initKlineDb() {
+  if (klineDb) return klineDb;
+  try {
+    const dbPath = process.env.KLINE_DB_PATH || path.join(AGENT_DIR, 'kline.db');
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const Database = (await import('better-sqlite3')).default;
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS kline_5m (
+        symbol TEXT NOT NULL,
+        t INTEGER NOT NULL,
+        o REAL, h REAL, l REAL, c REAL, v REAL,
+        source TEXT DEFAULT 'yahoo',
+        saved_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (symbol, t)
+      );
+      CREATE INDEX IF NOT EXISTS idx_kline_5m_symbol_t ON kline_5m(symbol, t DESC);
+    `);
+    klineDb = db;
+  } catch {
+    klineDb = null;
+  }
+  return klineDb;
+}
+
+function loadKlineFromDb(symbol) {
+  try {
+    if (!klineDb) return null;
+    const rows = klineDb.prepare('SELECT t,o,h,l,c,v FROM kline_5m WHERE symbol=? ORDER BY t ASC').all(symbol);
+    if (!rows.length) return null;
+    return { bars: rows.map(r => ({ t: r.t, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })) };
+  } catch { return null; }
+}
+
+function saveKlineToDb(symbol, bars) {
+  try {
+    if (!klineDb || !bars?.length) return;
+    const insert = klineDb.prepare('INSERT OR REPLACE INTO kline_5m (symbol,t,o,h,l,c,v) VALUES (?,?,?,?,?,?,?)');
+    const tx = klineDb.transaction((items) => {
+      for (const b of items) insert.run(symbol, b.t, b.o, b.h, b.l, b.c, b.v);
+    });
+    tx(bars);
+    const cutoff = Math.floor(Date.now() / 1000) - 30 * 86400;
+    klineDb.prepare('DELETE FROM kline_5m WHERE symbol=? AND t<?').run(symbol, cutoff);
+  } catch { /* 写库失败不阻塞 */ }
+}
+
+const VERSION = 'v2.2.0';
+const VERSION_NOTE = '2026-08-07 | K线统一SQLite存储+港股独立时段+X轴香港时间';
 const RANGE = '5d';
 const INTERVAL = '5m';
 const AI_TIMEOUT = 30000;
@@ -263,6 +313,9 @@ function normalizeFiveMinuteBars(bars) {
 }
 
 function loadKlineCache(symbol) {
+  // 优先从 SQLite 读
+  const dbData = loadKlineFromDb(symbol);
+  if (dbData?.bars?.length) return dbData;
   const fpath = path.join(KLINE_DIR, symbol + '_5m.json');
   const cached = loadJson(fpath);
   if (!cached?.bars) return cached;
@@ -286,6 +339,9 @@ function saveKlineCache(symbol, newData) {
   ]);
   if (!merged.length) return;
 
+  // 写入 SQLite（统一缓存）
+  saveKlineToDb(symbol, merged);
+  // 同时写 JSON 兜底
   saveJson(fpath, {
     ...(existing || {}),
     ...newData,
@@ -877,6 +933,8 @@ async function run() {
   console.log(`\n┌──────────────────────────────────────────┐`);
   console.log(`│  📊 Short-Term K-line Trader ${VERSION}    │`);
   console.log(`└──────────────────────────────────────────┘\n`);
+
+  await initKlineDb();
 
   const config = loadConfig();
   console.log(`监控标的: ${config.symbols.join(', ')}`);
@@ -1801,6 +1859,16 @@ function loadChart(symbol) {
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     timeScale: { borderColor: '#1f2b44', timeVisible: true, secondsVisible: false },
     rightPriceScale: { borderColor: '#1f2b44' },
+    localization: {
+      timeFormatter: (t) => {
+        const d = new Date(Number(t) * 1000);
+        const hk = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Hong_Kong', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false,
+        }).format(d);
+        return hk.replace(/\//g, '-').replace(/, /g, ' ');
+      },
+    },
   });
 
   const candleSeries = _klineChart.addCandlestickSeries({
