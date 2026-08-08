@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { toFiniteNumber, roundTo, fmtUSD as sharedFmtUSD, fmtPct as sharedFmtPct } from './lib/utils/number-format.mjs';
 import { fmtNodeDate as sharedFmtNodeDate } from './lib/utils/time.mjs';
 import { createNtfyClient } from './lib/integrations/ntfy.mjs';
+import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 
 const DATA_DIR = path.join(process.env.HOME || '~', '.donew-trader-long');
@@ -97,7 +98,7 @@ ensureDir(KLINES_DIR);
 ensureDir(SIGNALS_DIR);
 
 function loadJson(fpath) {
-  try { return JSON.parse(fs.readFileSync(fpath, 'utf-8')); } catch { return null; }
+  return sharedReadJson(fpath);
 }
 
 // 原子写：先写临时文件，再 rename 覆盖，避免半截文件
@@ -112,7 +113,10 @@ function atomicWriteText(fpath, content) {
 }
 
 function saveJson(fpath, data) {
-  atomicWriteText(fpath, JSON.stringify(data, null, 2));
+  writeJsonAtomic(fpath, data, {
+    ensureParent: false,
+    tempPathFactory: (fp) => fp + '.tmp-' + process.pid,
+  });
 }
 
 // ─── Run Lock ─────────────────────────────────────────────────

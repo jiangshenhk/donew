@@ -13,6 +13,7 @@ import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
 import { createNtfyClient } from './lib/integrations/ntfy.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
+import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
 import http from 'node:http';
 import { toFiniteNumber, roundTo } from './lib/utils/number-format.mjs';
 import { fmtNodeDate as sharedFmtNodeDate, fmtTimeET as sharedFmtTimeET, fmtTimeShort as sharedFmtTimeShort, hkNow as sharedHkNow, etNow as sharedEtNow } from './lib/utils/time.mjs';
@@ -109,19 +110,11 @@ function ensureDir(dir) {
 }
 
 function loadJson(fpath) {
-  try { return JSON.parse(fs.readFileSync(fpath, 'utf-8')); }
-  catch { return null; }
+  return sharedReadJson(fpath);
 }
 
 function saveJson(fpath, data) {
-  ensureDir(path.dirname(fpath));
-  const tmp = `${fpath}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tmp, fpath);
-  } finally {
-    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
-  }
+  writeJsonAtomic(fpath, data, { ensureParent: true });
 }
 
 function readApiKey() {

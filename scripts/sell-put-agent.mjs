@@ -14,6 +14,7 @@ import { parseLooseNumber } from './lib/utils/number-format.mjs';
 import { todayStr as sharedTodayStr } from './lib/utils/time.mjs';
 import { createNtfyClient } from './lib/integrations/ntfy.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
+import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
 
 // ─── ntfy 通知 ──────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -163,19 +164,11 @@ function ensureDir(dir) {
 }
 
 function loadJson(fpath) {
-  try { return JSON.parse(fs.readFileSync(fpath, 'utf-8')); }
-  catch { return null; }
+  return sharedReadJson(fpath);
 }
 
 function saveJson(fpath, data) {
-  ensureDir(path.dirname(fpath));
-  const tempPath = `${fpath}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tempPath, fpath);
-  } finally {
-    try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch {}
-  }
+  writeJsonAtomic(fpath, data, { ensureParent: true });
 }
 
 function todayStr() {
