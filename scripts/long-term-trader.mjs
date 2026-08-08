@@ -21,8 +21,8 @@ const DASHBOARD_FILE = path.join(DATA_DIR, 'dashboard.html');
 
 const YAHOO_BASE = 'https://query1.finance.yahoo.com/v8/finance/chart';
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
-const VERSION = 'v2.1.0';
-const VERSION_NOTE = '2026-08-07 | 阶段1: 修复MACD完整序列DEA + RSI Wilder平滑 + 指标单元测试';
+const VERSION = 'v2.3.0';
+const VERSION_NOTE = '2026-08-08 | 信号记录加查询过滤(标的/决策/评分/规则/搜索) + 数据入SQLite';
 
 // ─── ntfy ───────────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -1057,6 +1057,10 @@ tbody tr:hover{background:#1a2b42}
 .symbol-btn{padding:6px 14px;border:1px solid #2a3a52;border-radius:6px;background:#1a2b42;color:#8ea3be;cursor:pointer;font-size:13px;transition:all .2s}
 .symbol-btn:hover{border-color:#4da8ff;color:#4da8ff}
 .symbol-btn.active{background:rgba(77,168,255,.15);border-color:#4da8ff;color:#4da8ff}
+.signal-query-bar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.signal-query-bar input[type=search]{background:#1a2b42;border:1px solid #2a3a52;color:#d4dae6;padding:5px 10px;border-radius:4px;font-size:12px;width:180px}
+.signal-query-bar input[type=search]::placeholder{color:#4a5e7a}
+.signal-query-bar select{background:#1a2b42;border:1px solid #2a3a52;color:#d4dae6;padding:5px 8px;border-radius:4px;font-size:12px}
 .signal-pagination{display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 0;font-size:12px;color:#6b7d99}
 .signal-pagination button{background:#1a2b42;border:1px solid #2a3a52;color:#8ea3be;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px}
 .signal-pagination button:hover:not(:disabled){border-color:#4da8ff;color:#4da8ff}
@@ -1160,37 +1164,70 @@ h+='<button onclick="window._orderPage='+totalPages+';renderOrders()" '+(page>=t
 h+='</div></div>';
 c.innerHTML=h;
 }
-function renderSignals(){
-var c=document.getElementById('tab-signals');
-var all=[];
-for(var sym in DATA.signals){
-var sigs=DATA.signals[sym]||[];
-for(var i=0;i<sigs.length;i++){var s=sigs[i];all.push({symbol:sym,time:s.time,price:s.price,decision:s.decision,reasoning:s.reasoning,rules:s.rules,rulesTriggered:s.rulesTriggered,aiScore:s.aiScore,weekly:s.weekly});}
-}
-all.sort(function(a,b){return new Date(b.time)-new Date(a.time);});
-if(!all.length){c.innerHTML='<div class="card"><div class="empty">暂无信号记录</div></div>';return;}
-var total=all.length;
-var pageSize=30;var totalPages=Math.max(1,Math.ceil(total/pageSize));
-var page=Math.max(1,(window._sigPage||1));if(page>totalPages)page=1;window._sigPage=page;
-var startIdx=(page-1)*pageSize;var signals=all.slice(startIdx,startIdx+pageSize);
-var h='<div class="card"><h2>信号记录</h2><table><thead><tr><th>时间</th><th>标的</th><th>决策</th><th>规则 (MRVE)</th><th>AI评分</th><th>日线方向</th><th>理由</th></tr></thead><tbody>';
-for(var i=0;i<signals.length;i++){
-var s=signals[i];
-var ruleStr=s.rules?((s.rules.macd?'M':'')+(s.rules.rsi?'R':'')+(s.rules.volume?'V':'')+(s.rules.ema?'E':'')):'-';
-var weeklyDir=s.weekly?(s.weekly.bullish?'多头':'空头'):'-';
-var d=s.decision||'SKIP';
-h+='<tr><td style="white-space:nowrap">'+fmtDate(s.time)+'</td><td>'+s.symbol+'</td><td class="'+(d==='BUY'?'buy':'hold')+'">'+d+'</td><td>'+(s.rulesTriggered?'✅ ':'❌ ')+ruleStr+'</td><td>'+(s.aiScore!=null?s.aiScore+'/10':'-')+'</td><td>'+weeklyDir+'</td><td style="max-width:300px;white-space:normal;word-break:break-word;line-height:1.4">'+(s.reasoning||'-')+'</td></tr>';
-}
-h+='</tbody></table>';
-h+='<div class="signal-pagination">';
-h+='<button onclick="window._sigPage=1;renderSignals()" '+(page<=1?'disabled':'')+'>首页</button>';
-h+='<button onclick="window._sigPage='+(page-1)+';renderSignals()" '+(page<=1?'disabled':'')+'>上一页</button>';
-h+='<span>第 '+page+' / '+totalPages+' 页  共 '+total+' 条</span>';
-h+='<button onclick="window._sigPage='+(page+1)+';renderSignals()" '+(page>=totalPages?'disabled':'')+'>下一页</button>';
-h+='<button onclick="window._sigPage='+totalPages+';renderSignals()" '+(page>=totalPages?'disabled':'')+'>末页</button>';
-h+='</div></div>';
-c.innerHTML=h;
-}
+ function renderSignals(){
+ var c=document.getElementById('tab-signals');
+ var all=[];
+ for(var sym in DATA.signals){
+ var sigs=DATA.signals[sym]||[];
+ for(var i=0;i<sigs.length;i++){var s=sigs[i];all.push({symbol:sym,time:s.time,price:s.price,decision:s.decision,reasoning:s.reasoning,rules:s.rules,rulesTriggered:s.rulesTriggered,aiScore:s.aiScore,weekly:s.weekly});}
+ }
+ all.sort(function(a,b){return new Date(b.time)-new Date(a.time);});
+ if(!all.length){c.innerHTML='<div class="card"><div class="empty">暂无信号记录</div></div>';return;}
+ var symList=Object.keys(DATA.signals).sort();
+ var h='<div class="signal-query-bar">';
+ h+='<select id="sig-symbol" onchange="renderSignals()">';
+ h+='<option value="">全部标的</option>';
+ for(var i=0;i<symList.length;i++){h+='<option value="'+symList[i]+'">'+symList[i]+'</option>';}
+ h+='</select>';
+ h+='<select id="sig-decision" onchange="renderSignals()">';
+ h+='<option value="">全部决策</option><option value="BUY">BUY</option><option value="SKIP">SKIP</option>';
+ h+='</select>';
+ h+='<select id="sig-score" onchange="renderSignals()">';
+ h+='<option value="">全部评分</option>';
+ for(var j=1;j<=10;j++){h+='<option value="'+j+'">≥'+j+'分</option>';}
+ h+='</select>';
+ h+='<select id="sig-rule" onchange="renderSignals()">';
+ h+='<option value="">全部规则</option><option value="pass">通过</option><option value="fail">不通过</option>';
+ h+='</select>';
+ h+='<input id="sig-search" type="search" placeholder="搜索理由..." oninput="renderSignals()">';
+ h+='<span id="sig-count" style="color:#6b7d99;font-size:12px;margin-left:auto"></span>';
+ h+='</div>';
+ var selSym=document.getElementById('sig-symbol')?document.getElementById('sig-symbol').value:'';
+ var selDec=document.getElementById('sig-decision')?document.getElementById('sig-decision').value:'';
+ var selScore=document.getElementById('sig-score')?parseInt(document.getElementById('sig-score').value)||0:0;
+ var selRule=document.getElementById('sig-rule')?document.getElementById('sig-rule').value:'';
+ var search=document.getElementById('sig-search')?String(document.getElementById('sig-search').value||'').toLowerCase():'';
+ var filtered=all;
+ if(selSym)filtered=filtered.filter(function(x){return x.symbol===selSym;});
+ if(selDec)filtered=filtered.filter(function(x){return (x.decision||'SKIP')===selDec;});
+ if(selScore>0)filtered=filtered.filter(function(x){return (x.aiScore||0)>=selScore;});
+ if(selRule==='pass')filtered=filtered.filter(function(x){return !!x.rulesTriggered;});
+ if(selRule==='fail')filtered=filtered.filter(function(x){return !x.rulesTriggered;});
+ if(search)filtered=filtered.filter(function(x){return String(x.reasoning||'').toLowerCase().indexOf(search)>=0;});
+ if(!filtered.length){c.innerHTML=h+'<div class="card"><div class="empty">无匹配信号</div></div>';return;}
+ var total=filtered.length;
+ var pageSize=30;var totalPages=Math.max(1,Math.ceil(total/pageSize));
+ var page=Math.max(1,(window._sigPage||1));if(page>totalPages)page=1;window._sigPage=page;
+ var startIdx=(page-1)*pageSize;var signals=filtered.slice(startIdx,startIdx+pageSize);
+ h+='<div class="card"><table><thead><tr><th>时间</th><th>标的</th><th>决策</th><th>规则 (MRVE)</th><th>AI评分</th><th>日线方向</th><th>理由</th></tr></thead><tbody>';
+ for(var k=0;k<signals.length;k++){
+ var s=signals[k];
+ var ruleStr=s.rules?((s.rules.macd?'M':'')+(s.rules.rsi?'R':'')+(s.rules.volume?'V':'')+(s.rules.ema?'E':'')):'-';
+ var weeklyDir=s.weekly?(s.weekly.bullish?'多头':'空头'):'-';
+ var d=s.decision||'SKIP';
+ h+='<tr><td style="white-space:nowrap">'+fmtDate(s.time)+'</td><td>'+s.symbol+'</td><td class="'+(d==='BUY'?'buy':'hold')+'">'+d+'</td><td>'+(s.rulesTriggered?'✅ ':'❌ ')+ruleStr+'</td><td>'+(s.aiScore!=null?s.aiScore+'/10':'-')+'</td><td>'+weeklyDir+'</td><td style="max-width:300px;white-space:normal;word-break:break-word;line-height:1.4">'+(s.reasoning||'-')+'</td></tr>';
+ }
+ h+='</tbody></table>';
+ h+='<div class="signal-pagination">';
+ h+='<button onclick="window._sigPage=1;renderSignals()" '+(page<=1?'disabled':'')+'>首页</button>';
+ h+='<button onclick="window._sigPage='+(page-1)+';renderSignals()" '+(page<=1?'disabled':'')+'>上一页</button>';
+ h+='<span>第 '+page+' / '+totalPages+' 页  共 '+total+' 条</span>';
+ h+='<button onclick="window._sigPage='+(page+1)+';renderSignals()" '+(page>=totalPages?'disabled':'')+'>下一页</button>';
+ h+='<button onclick="window._sigPage='+totalPages+';renderSignals()" '+(page>=totalPages?'disabled':'')+'>末页</button>';
+ h+='</div></div>';
+ c.innerHTML=h;
+ var cntEl=document.getElementById('sig-count');if(cntEl)cntEl.textContent='共 '+total+' 条';
+ }
 function renderStats(){
 var c=document.getElementById('tab-stats');
 var s=DATA.stats;
