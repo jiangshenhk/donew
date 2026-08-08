@@ -10,6 +10,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { toFiniteNumber, roundTo, fmtUSD as sharedFmtUSD, fmtPct as sharedFmtPct } from './lib/utils/number-format.mjs';
 import { fmtNodeDate as sharedFmtNodeDate } from './lib/utils/time.mjs';
+import { createNtfyClient } from './lib/integrations/ntfy.mjs';
+import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 
 const DATA_DIR = path.join(process.env.HOME || '~', '.donew-trader-long');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
@@ -116,41 +118,33 @@ function saveJson(fpath, data) {
 // ─── Run Lock ─────────────────────────────────────────────────
 
 function acquireLock(mode) {
-  const now = Date.now();
-  // 原子创建：'wx' 标志确保只有第一个进程能创建成功
-  let fd;
+  const lock = createFileRunLock({
+    lockFile: LOCK_FILE,
+    staleMs: LOCK_STALE_MS,
+    startedAtFormat: 'epoch-ms',
+    processExists: isPidAlive,
+    isStale: (existing, alive, age) => !alive || age > LOCK_STALE_MS,
+    busyAction: 'throw',
+    releaseForm: 'separate',
+    removeUnreadableOnRelease: false,
+    loadJson,
+  });
   try {
-    fd = fs.openSync(LOCK_FILE, 'wx');
-  } catch (e) {
-    if (e.code === 'EEXIST') {
-      // 锁已存在：判断是否过期
-      let lock = null;
-      try { lock = JSON.parse(fs.readFileSync(LOCK_FILE, 'utf-8')); } catch {}
-      const alive = lock && Number.isInteger(lock.pid) && isPidAlive(lock.pid);
-      const stale = !alive || (now - (lock.startedAt || 0)) > LOCK_STALE_MS;
-      if (!stale) {
-        throw new Error(`已有运行实例 (pid=${lock.pid || '?'}, mode=${lock.mode || '?'}, startedAt=${lock.startedAt || '?'})，跳过本次`);
-      }
-      // 过期锁：尝试删除后重试一次原子创建
-      try { fs.unlinkSync(LOCK_FILE); } catch {}
-      try {
-        fd = fs.openSync(LOCK_FILE, 'wx');
-      } catch (e2) {
-        if (e2.code === 'EEXIST') throw new Error('锁竞争：另一进程正在获取锁，本次退出');
-        throw e2;
-      }
-    } else {
-      throw e;
+    const result = lock.acquire({ mode });
+    if (result === null) {
+      const existing = loadJson(LOCK_FILE) || {};
+      throw new Error(`已有运行实例 (pid=${existing.pid || '?'}, mode=${existing.mode || '?'}, startedAt=${existing.startedAt || '?'})，跳过本次`);
     }
-  }
-  try {
-    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, mode, startedAt: now }));
-    fs.closeSync(fd);
-    return true;
-  } catch (e) {
-    try { fs.closeSync(fd); } catch {}
-    try { fs.unlinkSync(LOCK_FILE); } catch {}
-    throw new Error(`运行锁写入失败: ${e.message}`);
+    return result; // true
+  } catch (error) {
+    if (String(error?.message || '').startsWith('已有任务运行中')) {
+      const existing = loadJson(LOCK_FILE) || {};
+      throw new Error(`已有运行实例 (pid=${existing.pid || '?'}, mode=${existing.mode || '?'}, startedAt=${existing.startedAt || '?'})，跳过本次`);
+    }
+    if (error?.runLockPhase === 'write') {
+      throw new Error(`运行锁写入失败: ${error.message}`);
+    }
+    throw error;
   }
 }
 
@@ -159,12 +153,16 @@ function isPidAlive(pid) {
 }
 
 function releaseLock() {
-  try {
-    const lock = loadJson(LOCK_FILE);
-    if (lock && lock.pid === process.pid) {
-      try { fs.unlinkSync(LOCK_FILE); } catch {}
-    }
-  } catch {}
+  const lock = createFileRunLock({
+    lockFile: LOCK_FILE,
+    staleMs: LOCK_STALE_MS,
+    startedAtFormat: 'epoch-ms',
+    processExists: isPidAlive,
+    releaseForm: 'separate',
+    removeUnreadableOnRelease: false,
+    loadJson,
+  });
+  lock.release();
 }
 
 // ─── Unified fetch with timeout ───────────────────────────────
@@ -543,23 +541,18 @@ function calcLongTermStopLevels(entryPrice, atr) {
 // ─── ntfy Notification ────────────────────────────────────────
 
 async function sendNotify(title, message, tags = '') {
-  try {
-    const res = await fetchWithTimeout(`${NTFY_SERVER}/${NTFY_TOPIC}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${NTFY_TOKEN}`,
-        'Title': title.replace(/[^\x00-\x7F]/g, '').trim() || 'donew',
-        'Priority': '4',
-        ...(tags ? { 'Tags': tags } : {}),
-        'Markdown': 'yes',
-      },
-      body: message,
-    }, 10000, 'ntfy');
-    if (!res.ok) throw new Error(`ntfy ${res.status}`);
-    console.log(`  📲 通知: ${title}`);
-  } catch (e) {
-    console.log(`  ⚠️ 通知失败: ${e.message}`);
-  }
+  const client = createNtfyClient({
+    server: NTFY_SERVER,
+    topic: NTFY_TOPIC,
+    token: NTFY_TOKEN,
+    request: (url, options) => fetchWithTimeout(url, options, 10000, 'ntfy'),
+    timeoutMs: 10000,
+    titleMode: 'ascii-header',
+    requireOk: true,
+    onSuccess: () => console.log(`  📲 通知: ${title}`),
+    onError: (e) => console.log(`  ⚠️ 通知失败: ${e.message}`),
+  });
+  await client.send(title, message, tags);
 }
 
 // ─── DeepSeek AI ──────────────────────────────────────────────

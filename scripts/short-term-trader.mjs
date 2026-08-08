@@ -11,6 +11,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
+import { createNtfyClient } from './lib/integrations/ntfy.mjs';
+import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 import http from 'node:http';
 import { toFiniteNumber, roundTo } from './lib/utils/number-format.mjs';
 import { fmtNodeDate as sharedFmtNodeDate, fmtTimeET as sharedFmtTimeET, fmtTimeShort as sharedFmtTimeShort, hkNow as sharedHkNow, etNow as sharedEtNow } from './lib/utils/time.mjs';
@@ -133,31 +135,24 @@ function readApiKey() {
 }
 
 function acquireRunLock() {
-  const staleMs = 30 * 60 * 1000;
-  const create = () => {
-    const fd = fs.openSync(RUN_LOCK_FILE, 'wx');
-    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }));
-    fs.closeSync(fd);
-  };
-  try { create(); }
-  catch (error) {
-    if (error?.code !== 'EEXIST') throw error;
+  const lock = createFileRunLock({
+    lockFile: RUN_LOCK_FILE,
+    staleMs: 30 * 60 * 1000,
+    startedAtFormat: 'iso',
+    startedAtFallback: 'mtime',
+    processExists,
+    busyAction: 'return-null',
+    releaseForm: 'callback',
+  });
+  const result = lock.acquire();
+  if (!result) {
     const existing = loadJson(RUN_LOCK_FILE) || {};
-    const age = Date.now() - (Date.parse(existing.startedAt) || fs.statSync(RUN_LOCK_FILE).mtimeMs);
-    const liveProcess = processExists(Number(existing.pid));
-    if (liveProcess || (!existing.pid && age <= staleMs)) {
-      console.log(`\u26A0 \u5DF2\u6709\u4EFB\u52A1\u8FD0\u884C\u4E2D (PID ${existing.pid}, ${Math.floor(age/1000)}s\u524D)`);
-      return null;
-    }
-    fs.unlinkSync(RUN_LOCK_FILE);
-    create();
+    const startedAt = Date.parse(existing.startedAt) || 0;
+    const age = Date.now() - (startedAt || (fs.existsSync(RUN_LOCK_FILE) ? fs.statSync(RUN_LOCK_FILE).mtimeMs : 0));
+    console.log(`⚠ 已有任务运行中 (PID ${existing.pid}, ${Math.floor(age / 1000)}s前)`);
+    return null;
   }
-  return () => {
-    try {
-      const current = loadJson(RUN_LOCK_FILE);
-      if (!current || Number(current.pid) === process.pid) fs.unlinkSync(RUN_LOCK_FILE);
-    } catch {}
-  };
+  return result;
 }
 
 function processExists(pid) {
@@ -696,23 +691,16 @@ function calcAtrStopLevels(entryPrice, atr) {
 // ─── ntfy 通知 ──────────────────────────────────────────────────
 
 async function sendNotify(title, message, tags = '') {
-  try {
-    const res = await fetch(`${NTFY_SERVER}/${NTFY_TOPIC}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${NTFY_TOKEN}`,
-        'Title': title.replace(/[^\x00-\x7F]/g, '').trim() || 'donew',
-        'Priority': '4',
-        ...(tags ? { 'Tags': tags } : {}),
-        'Markdown': 'yes',
-      },
-      body: message,
-    });
-    if (!res.ok) throw new Error('ntfy ' + res.status);
-    console.log('  📲 通知: ' + title);
-  } catch (e) {
-    console.log('  ⚠️ 通知失败: ' + e.message);
-  }
+  const client = createNtfyClient({
+    server: NTFY_SERVER,
+    topic: NTFY_TOPIC,
+    token: NTFY_TOKEN,
+    titleMode: 'ascii-header',
+    requireOk: true,
+    onSuccess: () => console.log('  📲 通知: ' + title),
+    onError: (e) => console.log('  ⚠️ 通知失败: ' + e.message),
+  });
+  await client.send(title, message, tags);
 }
 
 // ─── DeepSeek ───────────────────────────────────────────────────

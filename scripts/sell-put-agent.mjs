@@ -12,6 +12,8 @@ import { execSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { parseLooseNumber } from './lib/utils/number-format.mjs';
 import { todayStr as sharedTodayStr } from './lib/utils/time.mjs';
+import { createNtfyClient } from './lib/integrations/ntfy.mjs';
+import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 
 // ─── ntfy 通知 ──────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -19,22 +21,16 @@ const NTFY_TOKEN = 'tk_yw31dbl7scelalsvk3rhc0fhqvei6';
 const NTFY_SERVER = 'https://ntfy.sh';
 
 async function sendNotify(title, message, tags = '') {
-  try {
-    const headers = {
-      'Authorization': `Bearer ${NTFY_TOKEN}`,
-      'Priority': '4',
-      'Markdown': 'yes',
-    };
-    if (tags) headers['Tags'] = tags;
-    // Title may contain emoji; pass as query param to avoid header encoding issues
-    const url = new URL(`${NTFY_SERVER}/${NTFY_TOPIC}`);
-    url.searchParams.set('title', title);
-    await fetchWithTimeout(url, {
-      method: 'POST',
-      headers,
-      body: message,
-    }, 10000, 'ntfy通知');
-  } catch { /* silently ignore notification failures */ }
+  const client = createNtfyClient({
+    server: NTFY_SERVER,
+    topic: NTFY_TOPIC,
+    token: NTFY_TOKEN,
+    request: (url, options) => fetchWithTimeout(url, options, 10000, 'ntfy通知'),
+    timeoutMs: 10000,
+    titleMode: 'query',
+    requireOk: false,
+  });
+  await client.send(title, message, tags);
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -218,31 +214,30 @@ function processExists(pid) {
 }
 
 function acquireRunLock(mode) {
-  const staleMs = 30 * 60 * 1000;
-  const create = () => {
-    const fd = fs.openSync(RUN_LOCK_FILE, 'wx');
-    fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, mode, startedAt: new Date().toISOString() }));
-    fs.closeSync(fd);
-  };
+  const lock = createFileRunLock({
+    lockFile: RUN_LOCK_FILE,
+    staleMs: 30 * 60 * 1000,
+    startedAtFormat: 'iso',
+    startedAtFallback: 'mtime',
+    processExists,
+    busyAction: 'throw',
+    releaseForm: 'callback',
+    loadJson,
+  });
   try {
-    create();
-  } catch (error) {
-    if (error?.code !== 'EEXIST') throw error;
-    const existing = loadJson(RUN_LOCK_FILE) || {};
-    const age = Date.now() - (Date.parse(existing.startedAt) || fs.statSync(RUN_LOCK_FILE).mtimeMs);
-    const liveProcess = processExists(Number(existing.pid));
-    if (liveProcess || (!existing.pid && age <= staleMs)) {
+    const release = lock.acquire({ mode });
+    if (release === null) {
+      const existing = loadJson(RUN_LOCK_FILE) || {};
       throw new Error(`Agent已有任务运行中 (PID ${existing.pid}, mode ${existing.mode || '--'})`);
     }
-    fs.unlinkSync(RUN_LOCK_FILE);
-    create();
+    return release;
+  } catch (error) {
+    if (error?.message?.startsWith('已有任务运行中')) {
+      const existing = loadJson(RUN_LOCK_FILE) || {};
+      throw new Error(`Agent已有任务运行中 (PID ${existing.pid}, mode ${existing.mode || '--'})`);
+    }
+    throw error;
   }
-  return () => {
-    try {
-      const current = loadJson(RUN_LOCK_FILE);
-      if (!current || Number(current.pid) === process.pid) fs.unlinkSync(RUN_LOCK_FILE);
-    } catch {}
-  };
 }
 
 function pctStr(value) {
