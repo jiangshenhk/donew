@@ -12,6 +12,8 @@ import path from 'node:path';
 import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
 import http from 'node:http';
+import { toFiniteNumber, roundTo } from './lib/utils/number-format.mjs';
+import { fmtNodeDate as sharedFmtNodeDate, fmtTimeET as sharedFmtTimeET, fmtTimeShort as sharedFmtTimeShort, hkNow as sharedHkNow, etNow as sharedEtNow } from './lib/utils/time.mjs';
 
 // ─── Constants ───────────────────────────────────────────────
 
@@ -163,36 +165,26 @@ function processExists(pid) {
   try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
-function fmtNodeDate(t) { var d = new Date(t), p = function(n){ return (n < 10 ? '0' : '') + n; }; return p(d.getMonth()+1) + p(d.getDate()) + ' ' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
+function fmtNodeDate(t) { return sharedFmtNodeDate(t); }
 
 function fmtTimeET(ts) {
-  const d = new Date(ts instanceof Date ? ts : ts * 1000);
-  return d.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
+  return sharedFmtTimeET(ts);
 }
 
 function fmtTimeShort(ts) {
-  const d = new Date(ts instanceof Date ? ts : ts * 1000);
-  return d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
+  return sharedFmtTimeShort(ts);
 }
 
 function hkNow() {
-  const d = new Date();
-  const hk = new Date(d.toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }));
-  return hk;
+  return sharedHkNow();
 }
 
 function etNow() {
-  const now = new Date();
-  const opts = { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
-  const parts = new Intl.DateTimeFormat('en-US', opts).formatToParts(now);
-  const get = (t) => parts.find(p => p.type === t)?.value;
-  return new Date(`${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}-05:00`);
+  return sharedEtNow();
 }
 
 function num(v) {
-  if (v == null) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.round(n * 10000) / 10000 : null;
+  return roundTo(toFiniteNumber(v), 4);
 }
 
 function yahooSymbol(symbol) {

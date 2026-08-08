@@ -8,6 +8,8 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { toFiniteNumber, roundTo, fmtUSD as sharedFmtUSD, fmtPct as sharedFmtPct } from './lib/utils/number-format.mjs';
+import { fmtNodeDate as sharedFmtNodeDate } from './lib/utils/time.mjs';
 
 const DATA_DIR = path.join(process.env.HOME || '~', '.donew-trader-long');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
@@ -182,13 +184,11 @@ async function fetchWithTimeout(url, options = {}, timeoutMs, label = 'HTTP') {
 }
 
 function num(v) {
-  if (v == null) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.round(n * 10000) / 10000 : null;
+  return roundTo(toFiniteNumber(v), 4);
 }
-function fmtNodeDate(t){var d=new Date(t),p=function(n){return(n<10?'0':'')+n};return p(d.getMonth()+1)+p(d.getDate())+' '+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
-function fmtUSD(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2); }
-function fmtPct(v) { return (v >= 0 ? '+' : '') + Number(v).toFixed(2) + '%'; }
+function fmtNodeDate(t){ return sharedFmtNodeDate(t); }
+function fmtUSD(v) { return sharedFmtUSD(v); }
+function fmtPct(v) { return sharedFmtPct(v); }
 
 // ─── Config ───────────────────────────────────────────────────
 

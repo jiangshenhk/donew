@@ -10,6 +10,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { homedir } from 'node:os';
+import { parseLooseNumber } from './lib/utils/number-format.mjs';
+import { todayStr as sharedTodayStr } from './lib/utils/time.mjs';
 
 // ─── ntfy 通知 ──────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -181,13 +183,11 @@ function saveJson(fpath, data) {
 }
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0];
+  return sharedTodayStr();
 }
 
 function num(val) {
-  if (val === null || val === undefined || val === '') return null;
-  const n = Number(String(val).replace(/[,%+]/g, ''));
-  return Number.isFinite(n) ? n : null;
+  return parseLooseNumber(val);
 }
 
 function sleep(ms) {
