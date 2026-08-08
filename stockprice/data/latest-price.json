@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-08-08T04:56:56.999Z",
-  "checkedAt": "2026-08-08T04:56:56.999Z",
+  "updatedAt": "2026-08-08T05:45:41.840Z",
+  "checkedAt": "2026-08-08T05:45:41.840Z",
   "successCount": 27,
   "failCount": 1,
   "data": [
@@ -344,10 +344,10 @@
       "symbol": "BTC-USD",
       "category": "Bitcoin",
       "name": "Bitcoin USD",
-      "price": 64968.14,
+      "price": 64975.3,
       "previousClose": 64262.11328125,
-      "changePercent": "1.10",
-      "marketTime": "2026-08-08T04:56:35.000Z",
+      "changePercent": "1.11",
+      "marketTime": "2026-08-08T05:45:14.000Z",
       "currency": "USD",
       "exchange": "CCC",
       "marketState": null,
@@ -358,10 +358,10 @@
       "latestBarDate": "2026-08-08",
       "marketDate": "2026-08-08",
       "previousCloseGapNote": "previousClose来自2天前的K线，日变化可能跨多日",
-      "sma5": 64268.92109375,
-      "sma10": 63903.71484375,
-      "vs5Pct": "1.09",
-      "vs10Pct": "1.67",
+      "sma5": 64270.353125,
+      "sma10": 63904.430859375,
+      "vs5Pct": "1.10",
+      "vs10Pct": "1.68",
       "barCount": 20
     },
     {
