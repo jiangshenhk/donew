@@ -15,6 +15,7 @@ import { todayStr as sharedTodayStr } from './lib/utils/time.mjs';
 import { createNtfyClient } from './lib/integrations/ntfy.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
+import { createTraderKvStore } from './lib/storage/trader-store.mjs';
 
 // ─── ntfy 通知 ──────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -83,20 +84,18 @@ async function initStoreDb() {
   return storeDb;
 }
 
+const traderStore = createTraderKvStore({
+  getDb: () => storeDb,
+  selectSql: 'SELECT value FROM trader_store WHERE key=?',
+  upsertSql: 'INSERT OR REPLACE INTO trader_store (key, value) VALUES (?, ?)',
+});
+
 function storeGet(key) {
-  try {
-    if (!storeDb) return null;
-    const row = storeDb.prepare('SELECT value FROM trader_store WHERE key=?').get(key);
-    return row ? JSON.parse(row.value) : null;
-  } catch { return null; }
+  return traderStore.get(key);
 }
 
 function storePut(key, data) {
-  try {
-    if (!storeDb) return false;
-    storeDb.prepare('INSERT OR REPLACE INTO trader_store (key, value) VALUES (?, ?)').run(key, JSON.stringify(data));
-    return true;
-  } catch { return false; }
+  return traderStore.put(key, data);
 }
 const AGENT_VERSION   = 'v2.0.5';
 const AGENT_VERSION_NOTE = '2026-08-07 | 放宽开仓标准/价差改参考/允许同标的多仓';

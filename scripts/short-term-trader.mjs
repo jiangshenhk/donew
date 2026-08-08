@@ -14,6 +14,7 @@ import { execSync } from 'node:child_process';
 import { createNtfyClient } from './lib/integrations/ntfy.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
+import { createTraderKvStore } from './lib/storage/trader-store.mjs';
 import http from 'node:http';
 import { toFiniteNumber, roundTo } from './lib/utils/number-format.mjs';
 import { fmtNodeDate as sharedFmtNodeDate, fmtTimeET as sharedFmtTimeET, fmtTimeShort as sharedFmtTimeShort, hkNow as sharedHkNow, etNow as sharedEtNow } from './lib/utils/time.mjs';
@@ -259,24 +260,20 @@ function ensureStoreTable() {
   } catch { return false; }
 }
 
+const traderStore = createTraderKvStore({
+  getDb: () => klineDb,
+  ensureReady: ensureStoreTable,
+  selectSql: 'SELECT value FROM trader_store WHERE key=?',
+  upsertSql: "INSERT OR REPLACE INTO trader_store (key, value, updated_at) VALUES (?, ?, datetime('now'))",
+});
+
 function loadFromStore(key, fallback) {
-  try {
-    if (!ensureStoreTable()) return fallback;
-    const row = klineDb.prepare('SELECT value FROM trader_store WHERE key=?').get(key);
-    if (!row) return fallback;
-    return JSON.parse(row.value);
-  } catch {
-    return fallback;
-  }
+  const val = traderStore.get(key);
+  return val === null ? fallback : val;
 }
 
 function saveToStore(key, data) {
-  try {
-    if (!ensureStoreTable()) return false;
-    klineDb.prepare('INSERT OR REPLACE INTO trader_store (key, value, updated_at) VALUES (?, ?, datetime(\'now\'))')
-      .run(key, JSON.stringify(data));
-    return true;
-  } catch { return false; }
+  return traderStore.put(key, data);
 }
 
 function loadPositions() {

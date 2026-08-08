@@ -12,6 +12,7 @@ import { toFiniteNumber, roundTo, fmtUSD as sharedFmtUSD, fmtPct as sharedFmtPct
 import { fmtNodeDate as sharedFmtNodeDate } from './lib/utils/time.mjs';
 import { createNtfyClient } from './lib/integrations/ntfy.mjs';
 import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
+import { createTraderKvStore } from './lib/storage/trader-store.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 
 const DATA_DIR = path.join(process.env.HOME || '~', '.donew-trader-long');
@@ -63,20 +64,18 @@ async function initStoreDb() {
   return storeDb;
 }
 
+const traderStore = createTraderKvStore({
+  getDb: () => storeDb,
+  selectSql: 'SELECT value FROM trader_store WHERE key=?',
+  upsertSql: 'INSERT OR REPLACE INTO trader_store (key, value) VALUES (?, ?)',
+});
+
 function storeGet(key) {
-  try {
-    if (!storeDb) return null;
-    const row = storeDb.prepare('SELECT value FROM trader_store WHERE key=?').get(key);
-    return row ? JSON.parse(row.value) : null;
-  } catch { return null; }
+  return traderStore.get(key);
 }
 
 function storePut(key, data) {
-  try {
-    if (!storeDb) return false;
-    storeDb.prepare('INSERT OR REPLACE INTO trader_store (key, value) VALUES (?, ?)').run(key, JSON.stringify(data));
-    return true;
-  } catch { return false; }
+  return traderStore.put(key, data);
 }
 
 const DEFAULT_CONFIG = {
