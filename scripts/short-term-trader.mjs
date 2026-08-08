@@ -1257,14 +1257,15 @@ async function run() {
   // Load signals
   const allSignals = {};
   for (const symbol of config.symbols) {
-    allSignals[symbol] = loadSignals(symbol);
+    const sigs = loadSignals(symbol);
+    allSignals[symbol] = Array.isArray(sigs) ? sigs.slice(-200) : sigs;
   }
 
-  // Load kline data
+  // Load kline data (只保留最近400根，避免dashboard过大)
   const allKlines = {};
   for (const symbol of config.symbols) {
     const k = loadKlineCache(symbol);
-    allKlines[symbol] = k?.bars ? k : null;
+    allKlines[symbol] = k?.bars ? { ...k, bars: k.bars.slice(-400) } : null;
   }
 
   const data = { config, positions, orders, stats, signals: allSignals, klines: allKlines, generatedAt: new Date().toISOString() };
