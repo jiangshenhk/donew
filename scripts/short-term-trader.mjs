@@ -1899,7 +1899,7 @@ function loadChart(symbol) {
           timeZone: 'Asia/Hong_Kong', month: '2-digit', day: '2-digit',
           hour: '2-digit', minute: '2-digit', hour12: false,
         }).format(d);
-        return hk.replace(/\//g, '-').replace(/, /g, ' ');
+        return hk.replace(/\\//g, '-').replace(/, /g, ' ');
       },
     },
   });
