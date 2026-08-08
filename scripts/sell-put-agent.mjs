@@ -16,6 +16,7 @@ import { createNtfyClient } from './lib/integrations/ntfy.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
 import { createTraderKvStore } from './lib/storage/trader-store.mjs';
+import { openOptionalSqlite } from './lib/storage/optional-sqlite.mjs';
 
 // ─── ntfy 通知 ──────────────────────────────────────────────────
 const NTFY_TOPIC = 'dudiaozhangtest112233';
@@ -63,23 +64,19 @@ let storeDb = null;
 let storeDbReady = false;
 async function initStoreDb() {
   if (storeDbReady) return storeDb;
-  try {
-    const dbPath = process.env.SELLPUT_DB_PATH || path.join(AGENT_DIR, 'agent.db');
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    const Database = (await import('better-sqlite3')).default;
-    const db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS trader_store (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-    `);
-    storeDb = db;
-  } catch {
-    storeDb = null;
-  }
+  const dbPath = process.env.SELLPUT_DB_PATH || path.join(AGENT_DIR, 'agent.db');
+  storeDb = await openOptionalSqlite({
+    dbPath,
+    setup: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS trader_store (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    },
+  });
   storeDbReady = true;
   return storeDb;
 }

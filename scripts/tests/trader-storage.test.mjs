@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readJson, writeJsonAtomic } from '../lib/storage/json-file.mjs';
 import { createTraderKvStore } from '../lib/storage/trader-store.mjs';
+import { openOptionalSqlite } from '../lib/storage/optional-sqlite.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -223,4 +224,130 @@ test('kv: 短线显式 updated_at SQL 被原样使用', () => {
   const store = createTraderKvStore({ getDb: () => db, selectSql: SQL_SELECT, upsertSql: SQL_UPSERT_SHORT });
   store.put('k', { x: 1 });
   assert.equal(calls.prepares[0], SQL_UPSERT_SHORT);
+});
+
+// ─── optional-sqlite 测试 ───
+function makeFakeSqliteDb() {
+  const calls = { pragmas: [], execs: [] };
+  const db = {
+    pragma: (sql) => { calls.pragmas.push(sql); },
+    exec: (sql) => { calls.execs.push(sql); },
+  };
+  return { db, calls };
+}
+
+test('optional-sqlite: 成功返回同一个DB', async () => {
+  const { db, calls } = makeFakeSqliteDb();
+  const mkdirCalls = [];
+  const fsImpl = { mkdirSync: (p, o) => mkdirCalls.push([p, o]) };
+  const result = await openOptionalSqlite({
+    dbPath: '/tmp/x/kline.db',
+    loadDatabase: async () => function Database() { return db; },
+    fsImpl,
+    setup: () => {},
+  });
+  assert.equal(result, db);
+  assert.deepEqual(mkdirCalls[0], ['/tmp/x', { recursive: true }]);
+});
+
+test('optional-sqlite: loader失败返回 null', async () => {
+  const fsImpl = { mkdirSync: () => {} };
+  const result = await openOptionalSqlite({
+    dbPath: '/tmp/x.db',
+    loadDatabase: async () => { throw new Error('no module'); },
+    fsImpl,
+  });
+  assert.equal(result, null);
+});
+
+test('optional-sqlite: mkdir失败返回 null', async () => {
+  const fsImpl = { mkdirSync: () => { throw new Error('mkdir fail'); } };
+  const result = await openOptionalSqlite({
+    dbPath: '/tmp/x.db',
+    loadDatabase: async () => function Database() { return makeFakeSqliteDb().db; },
+    fsImpl,
+  });
+  assert.equal(result, null);
+});
+
+test('optional-sqlite: 构造器失败返回 null', async () => {
+  const fsImpl = { mkdirSync: () => {} };
+  const result = await openOptionalSqlite({
+    dbPath: '/tmp/x.db',
+    loadDatabase: async () => () => { throw new Error('ctor fail'); },
+    fsImpl,
+  });
+  assert.equal(result, null);
+});
+
+test('optional-sqlite: pragma失败返回 null', async () => {
+  const fsImpl = { mkdirSync: () => {} };
+  const db = { pragma: () => { throw new Error('pragma fail'); }, exec: () => {} };
+  const result = await openOptionalSqlite({
+    dbPath: '/tmp/x.db',
+    loadDatabase: async () => function Database() { return db; },
+    fsImpl,
+  });
+  assert.equal(result, null);
+});
+
+test('optional-sqlite: setup失败返回 null', async () => {
+  const fsImpl = { mkdirSync: () => {} };
+  const db = { pragma: () => {}, exec: () => {} };
+  const result = await openOptionalSqlite({
+    dbPath: '/tmp/x.db',
+    loadDatabase: async () => function Database() { return db; },
+    fsImpl,
+    setup: () => { throw new Error('setup fail'); },
+  });
+  assert.equal(result, null);
+});
+
+test('optional-sqlite: WAL调用早于setup', async () => {
+  const fsImpl = { mkdirSync: () => {} };
+  const order = [];
+  const db = {
+    pragma: () => { order.push('wal'); },
+    exec: () => { order.push('setup'); },
+  };
+  await openOptionalSqlite({
+    dbPath: '/tmp/x.db',
+    loadDatabase: async () => function Database() { return db; },
+    fsImpl,
+    setup: (d) => d.exec('CREATE TABLE...'),
+  });
+  assert.deepEqual(order, ['wal', 'setup']);
+});
+
+test('optional-sqlite: setup收到同一个DB', async () => {
+  const fsImpl = { mkdirSync: () => {} };
+  const db = { pragma: () => {}, exec: () => {} };
+  let setupReceived = null;
+  await openOptionalSqlite({
+    dbPath: '/tmp/x.db',
+    loadDatabase: async () => function Database() { return db; },
+    fsImpl,
+    setup: (d) => { setupReceived = d; },
+  });
+  assert.equal(setupReceived, db);
+});
+
+test('optional-sqlite: schema由调用方原样传入', async () => {
+  const fsImpl = { mkdirSync: () => {} };
+  const { db, calls } = makeFakeSqliteDb();
+  const schema1 = 'CREATE TABLE kline_5m...';
+  const schema2 = 'CREATE TABLE trader_store...';
+  await openOptionalSqlite({
+    dbPath: '/tmp/a.db',
+    loadDatabase: async () => function Database() { return db; },
+    fsImpl,
+    setup: (d) => d.exec(schema1),
+  });
+  await openOptionalSqlite({
+    dbPath: '/tmp/b.db',
+    loadDatabase: async () => function Database() { return db; },
+    fsImpl,
+    setup: (d) => d.exec(schema2),
+  });
+  assert.deepEqual(calls.execs, [schema1, schema2]);
 });

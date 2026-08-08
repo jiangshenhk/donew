@@ -15,6 +15,7 @@ import { createNtfyClient } from './lib/integrations/ntfy.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
 import { createTraderKvStore } from './lib/storage/trader-store.mjs';
+import { openOptionalSqlite } from './lib/storage/optional-sqlite.mjs';
 import http from 'node:http';
 import { toFiniteNumber, roundTo } from './lib/utils/number-format.mjs';
 import { fmtNodeDate as sharedFmtNodeDate, fmtTimeET as sharedFmtTimeET, fmtTimeShort as sharedFmtTimeShort, hkNow as sharedHkNow, etNow as sharedEtNow } from './lib/utils/time.mjs';
@@ -38,27 +39,23 @@ const RUN_LOCK_FILE   = path.join(AGENT_DIR, 'short-term-trader.lock');
 let klineDb = null;
 async function initKlineDb() {
   if (klineDb) return klineDb;
-  try {
-    const dbPath = process.env.KLINE_DB_PATH || path.join(AGENT_DIR, 'kline.db');
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    const Database = (await import('better-sqlite3')).default;
-    const db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS kline_5m (
-        symbol TEXT NOT NULL,
-        t INTEGER NOT NULL,
-        o REAL, h REAL, l REAL, c REAL, v REAL,
-        source TEXT DEFAULT 'yahoo',
-        saved_at TEXT NOT NULL DEFAULT (datetime('now')),
-        PRIMARY KEY (symbol, t)
-      );
-      CREATE INDEX IF NOT EXISTS idx_kline_5m_symbol_t ON kline_5m(symbol, t DESC);
-    `);
-    klineDb = db;
-  } catch {
-    klineDb = null;
-  }
+  const dbPath = process.env.KLINE_DB_PATH || path.join(AGENT_DIR, 'kline.db');
+  klineDb = await openOptionalSqlite({
+    dbPath,
+    setup: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS kline_5m (
+          symbol TEXT NOT NULL,
+          t INTEGER NOT NULL,
+          o REAL, h REAL, l REAL, c REAL, v REAL,
+          source TEXT DEFAULT 'yahoo',
+          saved_at TEXT NOT NULL DEFAULT (datetime('now')),
+          PRIMARY KEY (symbol, t)
+        );
+        CREATE INDEX IF NOT EXISTS idx_kline_5m_symbol_t ON kline_5m(symbol, t DESC);
+      `);
+    },
+  });
   return klineDb;
 }
 

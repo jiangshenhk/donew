@@ -13,6 +13,7 @@ import { fmtNodeDate as sharedFmtNodeDate } from './lib/utils/time.mjs';
 import { createNtfyClient } from './lib/integrations/ntfy.mjs';
 import { readJson as sharedReadJson, writeJsonAtomic } from './lib/storage/json-file.mjs';
 import { createTraderKvStore } from './lib/storage/trader-store.mjs';
+import { openOptionalSqlite } from './lib/storage/optional-sqlite.mjs';
 import { createFileRunLock } from './lib/runtime/run-lock.mjs';
 
 const DATA_DIR = path.join(process.env.HOME || '~', '.donew-trader-long');
@@ -43,23 +44,19 @@ let storeDb = null;
 let storeDbReady = false;
 async function initStoreDb() {
   if (storeDbReady) return storeDb;
-  try {
-    const dbPath = process.env.TRADER_LONG_DB_PATH || path.join(DATA_DIR, 'long.db');
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    const Database = (await import('better-sqlite3')).default;
-    const db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS trader_store (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-    `);
-    storeDb = db;
-  } catch {
-    storeDb = null;
-  }
+  const dbPath = process.env.TRADER_LONG_DB_PATH || path.join(DATA_DIR, 'long.db');
+  storeDb = await openOptionalSqlite({
+    dbPath,
+    setup: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS trader_store (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+    },
+  });
   storeDbReady = true;
   return storeDb;
 }
